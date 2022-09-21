@@ -1,0 +1,33 @@
+image: "vlafeychine/rust"
+
+format:
+  script:
+    - cargo fmt --check
+
+lint:
+  script:
+    - cargo clippy -- -D warnings
+
+build:
+  needs: [format, lint]
+  script:
+    - cargo build
+
+test:
+  needs: [build]
+  script:
+    - cargo test
+
+docs:
+  only:
+    refs:
+      - main
+  script:
+    - cargo doc
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan zamok.crans.org >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+    - scp -r target/doc/* v-lafeychine@zamok.crans.org:www/.
