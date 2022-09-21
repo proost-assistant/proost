@@ -6,8 +6,9 @@
 
   outputs = { self, flake-utils, nixpkgs }:
     flake-utils.lib.eachDefaultSystem (system:
-      let pkgs = nixpkgs.legacyPackages.${system}; in {
-        defaultPackage = pkgs.rustPlatform.buildRustPackage {
+      let pkgs = nixpkgs.legacyPackages.${system};
+      in rec {
+        packages.default = pkgs.rustPlatform.buildRustPackage {
           pname = "proost";
           version = "0.1.0";
 
@@ -19,6 +20,12 @@
             homepage = "https://gitlab.crans.org/loutr/proost";
             license = licenses.gpl3;
           };
+        };
+
+        devShells.default = pkgs.mkShell {
+          name = "proost-dev";
+          packages = packages.default.nativeBuildInputs
+            ++ (with pkgs; [ rustfmt clippy ]);
         };
       });
 }
