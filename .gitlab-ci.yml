@@ -1,4 +1,14 @@
-image: "vlafeychine/rust"
+image: vlafeychine/rust
+
+variables:
+  CARGO_HOME: "$CI_PROJECT_DIR/.cache/cargo/"
+
+cache:
+  key:
+    files:
+      - Cargo.lock
+  paths:
+    - .cache/cargo/
 
 format:
   script:
