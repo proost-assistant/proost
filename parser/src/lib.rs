@@ -10,8 +10,8 @@ use pest::Parser;
 #[grammar = "grammar.pest"]
 struct CommandParser;
 
-pub fn parse_term(_file: &str) -> Result<Term, Error<Rule>> {
-    let term = CommandParser::parse(Rule::term, file)?;
+pub fn parse_term(file: &str) -> Result<Term, Error<Rule>> {
+    let _term = CommandParser::parse(Rule::term, file)?;
 
     Ok(Term::Prop)
 }
