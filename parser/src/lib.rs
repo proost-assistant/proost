@@ -1,10 +1,10 @@
 #[macro_use]
 extern crate pest_derive;
 
-use pest::Parser;
-use pest::error::Error;
-use core::Term;
 use core::Command;
+use core::Term;
+use pest::error::Error;
+use pest::Parser;
 
 #[derive(Parser)]
 #[grammar = "grammar.pest"]
@@ -18,12 +18,10 @@ pub fn parse_term(file: &str) -> Result<Term, Error<Rule>> {
 
 //TODO
 pub fn parse_command(file: &str) -> Result<Command, Error<Rule>> {
-    
     Ok(Command::GetType(Term::Prop))
 }
 
 //TODO
 pub fn parse_file(file: &str) -> Result<Vec<Command>, Error<Rule>> {
-
     Ok(Vec::new())
 }
