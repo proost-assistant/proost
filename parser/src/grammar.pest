@@ -1,0 +1,20 @@
+WHITESPACE = _{ " " | "\t" }
+COMMENT = _{ "#" ~ (!"\n" ~ ANY)* }
+number = @{ ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* }
+string = @{ ASCII_ALPHA ~ ASCII_ALPHANUMERIC* }
+
+term = _{ parterm | Prop | Type | Var | App | Abs | Prod }
+parterm = _{ "(" ~ term ~ ")" }
+Prop = { "P" }
+Type = { "T(" ~ number ~ ")" }
+Var = { number }
+App = { parterm ~ term }
+Abs = { "/\\" ~ term ~ "->" ~ term }
+Prod = { "\\/" ~ term ~ "->" ~ term }
+
+command = _{ Define | CheckType | GetType }
+Define = { "Define" ~ string ~ ":=" ~ term }
+CheckType = { "Check" ~  term ~ ":" ~ term }
+GetType = { "Type" ~ term }
+
+file = { SOI ~ NEWLINE* ~ (command ~ NEWLINE+)* ~ command? ~ EOI }
