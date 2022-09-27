@@ -3,18 +3,18 @@ COMMENT = _{ "#" ~ (!"\n" ~ ANY)* }
 number = @{ ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* }
 string = @{ ASCII_ALPHA ~ ASCII_ALPHANUMERIC* }
 
-term = _{ parterm | Prop | Type | Var | App | Abs | Prod }
-parterm = _{ "(" ~ term ~ ")" }
+Term = _{ Prop | Type | Var | App | Abs | Prod | ParTerm }
 Prop = { "P" }
 Type = { "T(" ~ number ~ ")" }
 Var = { number }
-App = { parterm ~ term }
-Abs = { "/\\" ~ term ~ "->" ~ term }
-Prod = { "\\/" ~ term ~ "->" ~ term }
+App = { "(" ~ Term ~ ")" ~ Term }
+Abs = { "/\\" ~ Term ~ "->" ~ Term }
+Prod = { "\\/" ~ Term ~ "->" ~ Term }
+ParTerm = _{ "(" ~ Term ~ ")" }
 
-command = _{ Define | CheckType | GetType }
-Define = { "Define" ~ string ~ ":=" ~ term }
-CheckType = { "Check" ~  term ~ ":" ~ term }
-GetType = { "Type" ~ term }
+Command = _{ ( Define | CheckType | GetType ) ~ "." }
+Define = { "Define" ~ string ~ ":=" ~ Term }
+CheckType = { "Check" ~  Term ~ ":" ~ Term }
+GetType = { "Type" ~ Term }
 
-file = { SOI ~ NEWLINE* ~ (command ~ NEWLINE+)* ~ command? ~ EOI }
+File = { SOI ~ NEWLINE* ~ (Command ~ NEWLINE+)* ~ Command? ~ EOI }
