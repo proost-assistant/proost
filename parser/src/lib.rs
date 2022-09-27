@@ -34,7 +34,7 @@ fn build_term_from_expr(pair: Pair<Rule>) -> Term {
             let t2 = build_term_from_expr(iter.next().unwrap());
             Term::Prod(Box::new(t1), Box::new(t2))
         }
-        _ => Term::Var(0), //cannot happen,
+        term => panic!("Unexpected term: {:?}", term)
     }
 }
 
@@ -57,7 +57,7 @@ fn build_command_from_expr(pair: Pair<Rule>) -> Command {
             let t = build_term_from_expr(iter.next().unwrap());
             Command::Define(s, t)
         }
-        _ => Command::GetType(Term::Var(0)), //cannot happen
+        command => panic!("Unexpected command: {:?}", command)
     }
 }
 
