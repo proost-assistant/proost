@@ -1,8 +1,7 @@
 
 
 
-Define Test := P.
-Type P.
+Define Test := P. Type P.
 
 Define T2 := (P)P  .
 

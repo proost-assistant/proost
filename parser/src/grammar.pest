@@ -17,4 +17,4 @@ Define = { "Define" ~ string ~ ":=" ~ Term }
 CheckType = { "Check" ~  Term ~ ":" ~ Term }
 GetType = { "Type" ~ Term }
 
-File = { SOI ~ NEWLINE* ~ (Command ~ NEWLINE+)* ~ Command? ~ EOI }
+File = { SOI ~ (NEWLINE* ~ Command)* ~ NEWLINE* ~ EOI }
