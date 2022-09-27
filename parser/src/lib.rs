@@ -61,17 +61,17 @@ fn build_command_from_expr(pair: Pair<Rule>) -> Command {
     }
 }
 
-pub fn parse_term(file: &str) -> Result<Term, Error<Rule>> {
+pub fn parse_term(file: &str) -> Result<Term, Box<Error<Rule>>> {
     let pair = CommandParser::parse(Rule::Term, file)?.next().unwrap();
     Ok(build_term_from_expr(pair))
 }
 
-pub fn parse_command(file: &str) -> Result<Command, Error<Rule>> {
+pub fn parse_command(file: &str) -> Result<Command, Box<Error<Rule>>> {
     let pair = CommandParser::parse(Rule::Command, file)?.next().unwrap();
     Ok(build_command_from_expr(pair))
 }
 
-pub fn parse_file(file: &str) -> Result<Vec<Command>, Error<Rule>> {
+pub fn parse_file(file: &str) -> Result<Vec<Command>, Box<Error<Rule>>> {
     let mut vec = Vec::new();
     for pair in CommandParser::parse(Rule::File, file)?
         .next()
