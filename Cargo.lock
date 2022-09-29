@@ -288,6 +288,8 @@ dependencies = [
 name = "proost"
 version = "0.1.0"
 dependencies = [
+ "core",
+ "parser",
  "rustyline",
 ]
 
