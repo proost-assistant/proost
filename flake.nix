@@ -54,8 +54,7 @@
 
         devShells.default = pkgs.mkShell {
           name = "proost-dev";
-          packages = rust.default.nativeBuildInputs
-            ++ (with rust; [ rustfmt clippy ]);
+          packages = [ rust.default rust.rust-analyzer ]; 
         };
       });
 }
