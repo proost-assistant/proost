@@ -2,7 +2,7 @@
 fn parse() {
     use std::fs;
     let contents: &str =
-        &*fs::read_to_string("tests/test1.mdln").expect("Should have been able to read the file");
+        &*fs::read_to_string("tests/example.mdln").expect("Should have been able to read the file");
 
     assert_eq!(
         format!("{:?}", parser::parse_file(contents)),
