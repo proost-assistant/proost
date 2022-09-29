@@ -14,7 +14,7 @@ ParTerm = _{ "(" ~ Term ~ ")" }
 
 Command = _{ ( Define | CheckType | GetType ) ~ "." }
 Define = { "Define" ~ string ~ ":=" ~ Term }
-CheckType = { ( "Check" | "CheckType" ) ~  Term ~ ":" ~ Term }
+CheckType = { ( "CheckType" | "Check" ) ~  Term ~ ":" ~ Term }
 GetType = { ( "Type" | "GetType" ) ~ Term }
 
 File = { SOI ~ (NEWLINE* ~ Command)* ~ NEWLINE* ~ EOI }
