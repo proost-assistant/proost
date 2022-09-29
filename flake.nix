@@ -37,24 +37,22 @@
           in pkgs.dockerTools.buildImage {
             name = "proost-ci";
 
+            config.Entrypoint = [ "${pkgs.dockerTools.binSh}/bin/sh" "-c" ];
+
             copyToRoot = pkgs.buildEnv {
               name = "proost-dependencies";
-              paths = with pkgs; [ bash coreutils gcc openssh rust-ci ];
+              paths = (with pkgs; [ coreutils gcc openssh rust-ci ])
+                ++ (with pkgs.dockerTools; [ binSh caCertificates fakeNss ]);
+              pathsToLink = [ "/bin" "/etc" ];
             };
 
             runAsRoot = "mkdir /tmp";
-
-            config = {
-              Env =
-                [ "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt" ];
-              Entrypoint = [ "${pkgs.bash}/bin/sh" "-c" ];
-            };
           };
         };
 
         devShells.default = pkgs.mkShell {
           name = "proost-dev";
-          packages = [ rust.default rust.rust-analyzer ]; 
+          packages = [ rust.default rust.rust-analyzer ];
         };
       });
 }
