@@ -1,5 +1,5 @@
+use core::ClassicTerm;
 use core::Command;
-use core::Term;
 use pest::error::Error;
 use pest::iterators::Pair;
 use pest::Parser;
@@ -8,28 +8,30 @@ use pest::Parser;
 #[grammar = "grammar.pest"]
 struct CommandParser;
 
-fn build_term_from_expr(pair: Pair<Rule>) -> Term {
+fn build_term_from_expr(pair: Pair<Rule>) -> ClassicTerm {
     match pair.as_rule() {
-        Rule::Prop => Term::Prop,
-        Rule::Var => Term::Var(pair.into_inner().as_str().parse().unwrap()),
-        Rule::Type => Term::Type(pair.into_inner().as_str().parse().unwrap()),
+        Rule::Prop => ClassicTerm::Prop,
+        Rule::Var => ClassicTerm::Var(pair.into_inner().as_str().to_string()),
+        Rule::Type => ClassicTerm::Type(pair.into_inner().as_str().parse().unwrap()),
         Rule::App => {
             let mut iter = pair.into_inner();
             let t1 = build_term_from_expr(iter.next().unwrap());
             let t2 = build_term_from_expr(iter.next().unwrap());
-            Term::App(Box::new(t1), Box::new(t2))
+            ClassicTerm::App(Box::new(t1), Box::new(t2))
         }
         Rule::Abs => {
             let mut iter = pair.into_inner();
+            let s = iter.next().unwrap().as_str().to_string();
             let t1 = build_term_from_expr(iter.next().unwrap());
             let t2 = build_term_from_expr(iter.next().unwrap());
-            Term::Abs(Box::new(t1), Box::new(t2))
+            ClassicTerm::Abs(s, Box::new(t1), Box::new(t2))
         }
         Rule::Prod => {
             let mut iter = pair.into_inner();
+            let s = iter.next().unwrap().as_str().to_string();
             let t1 = build_term_from_expr(iter.next().unwrap());
             let t2 = build_term_from_expr(iter.next().unwrap());
-            Term::Prod(Box::new(t1), Box::new(t2))
+            ClassicTerm::Prod(s, Box::new(t1), Box::new(t2))
         }
         term => panic!("Unexpected term: {:?}", term),
     }
@@ -58,7 +60,7 @@ fn build_command_from_expr(pair: Pair<Rule>) -> Command {
     }
 }
 
-pub fn parse_term(file: &str) -> Result<Term, Box<Error<Rule>>> {
+pub fn parse_term(file: &str) -> Result<ClassicTerm, Box<Error<Rule>>> {
     let pair = CommandParser::parse(Rule::Term, file)?.next().unwrap();
     Ok(build_term_from_expr(pair))
 }

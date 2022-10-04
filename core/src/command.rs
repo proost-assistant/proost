@@ -1,11 +1,11 @@
-use crate::Term;
+use crate::ClassicTerm;
 use std::fmt::{Display, Formatter};
 
 #[derive(Clone, Debug)]
 pub enum Command {
-    Define(String, Term),
-    CheckType(Term, Term),
-    GetType(Term),
+    Define(String, ClassicTerm),
+    CheckType(ClassicTerm, ClassicTerm),
+    GetType(ClassicTerm),
 }
 
 impl Display for Command {
