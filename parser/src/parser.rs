@@ -64,7 +64,7 @@ fn build_command_from_expr(pair: Pair<Rule>) -> Result<Command, String> {
     }
 }
 
-pub fn parse_term(file: &str) -> Result<Term, Box<Error<Rule>>> {
+pub fn parse_term(file: &str) -> Result<ClassicTerm, Box<Error<Rule>>> {
     let pair = CommandParser::parse(Rule::Term, file)?.next().unwrap();
     match build_term_from_expr(pair) {
         Ok(t) => Ok(t),
