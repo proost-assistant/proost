@@ -6,10 +6,10 @@ string = @{ ASCII_ALPHA ~ ASCII_ALPHANUMERIC* }
 Term = _{ Prop | Type | Var | App | Abs | Prod | ParTerm }
 Prop = { "P" }
 Type = { "T(" ~ number ~ ")" }
-Var = { number }
+Var = { string }
 App = { "(" ~ Term ~ ")" ~ Term }
-Abs = { "/\\" ~ Term ~ "->" ~ Term }
-Prod = { "\\/" ~ Term ~ "->" ~ Term }
+Abs = { "/\\" ~ string ~ ":" ~ Term ~ "->" ~ Term }
+Prod = { "\\/" ~ string ~ ":" ~ Term ~ "->" ~ Term }
 ParTerm = _{ "(" ~ Term ~ ")" }
 
 Command = _{ ( Define | CheckType | GetType ) ~ "." }
