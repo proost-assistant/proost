@@ -1,14 +1,17 @@
-use parser::parse_command;
+use parser::{parse_command, parse_file};
 use rustyline::error::ReadlineError;
 use rustyline::{Editor, Result};
-use std::env;
+use std::{env, fs};
 
 fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
     if args.len() > 1 {
-        //TODO
         let file_path = &args[1];
-        println!("Fichier {}", file_path);
+        let contents: &str =
+            &fs::read_to_string(file_path).expect("Should have been able to read the file");
+        // TODO
+        // unsatisfactory behavior
+        let _ = parse_file(contents);
         Ok(())
     } else {
         let mut rl = Editor::<()>::new()?;
