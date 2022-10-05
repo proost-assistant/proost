@@ -1,3 +1,5 @@
+#![feature(box_syntax)]
+
 mod classic_term;
 mod command;
 mod term;
