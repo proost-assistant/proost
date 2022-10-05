@@ -1,5 +1,5 @@
 use crate::Term;
-//use std::fmt::{Display, Formatter};
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone, Debug)]
 pub enum Command {
