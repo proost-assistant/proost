@@ -1,4 +1,5 @@
-use std::fmt::{Display, Formatter};
+use crate::ClassicTerm;
+use std::fmt::{Display, Formatter, Result};
 
 #[derive(Clone, Debug)]
 pub enum Term {
@@ -11,7 +12,7 @@ pub enum Term {
 }
 
 impl Display for Term {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> Result {
         match self {
             Term::Prop => write!(f, "\u{02119}"),
             Term::Var(i) => write!(f, "{}", i),
@@ -23,3 +24,9 @@ impl Display for Term {
     }
 }
 
+impl From<ClassicTerm> for Term {
+    fn from(_: ClassicTerm) -> Self {
+        //TODO
+        Term::Prop
+    }
+}

@@ -1,8 +1,7 @@
+mod classic_term;
 mod command;
 mod term;
-mod classic_term;
 
-pub use command::Command;
 pub use classic_term::ClassicTerm;
+pub use command::Command;
 pub use term::Term;
-
