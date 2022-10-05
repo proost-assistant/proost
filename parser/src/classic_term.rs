@@ -33,7 +33,7 @@ fn try_from_assign(t: ClassicTerm, a: &mut Vec<String>) -> Result<Term, String> 
             let t2 = box try_from_assign(*t2, a)?;
             Ok(Term::App(t1, t2))
         }
-        ClassicTerm::Var(s) => match a.iter().position(|r| *r == s) {
+        ClassicTerm::Var(s) => match a.iter().rev().position(|r| *r == s) {
             Some(i) => Ok(Term::Var(i + 1)),
             None => Err(s),
         },
