@@ -72,7 +72,7 @@ pub fn parse_term(file: &str) -> Result<Term, Box<Error<Rule>>> {
             ErrorVariant::CustomError {
                 message: String::from("Free variable: ") + &s,
             },
-            Position::from_start(""),
+            Position::from_start(file),
         )),
     }
 }
@@ -85,7 +85,7 @@ pub fn parse_command(file: &str) -> Result<Command, Box<Error<Rule>>> {
             ErrorVariant::CustomError {
                 message: String::from("Free variable: ") + &s,
             },
-            Position::from_start(""),
+            Position::from_start(file),
         )),
     }
 }
