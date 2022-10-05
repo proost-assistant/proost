@@ -1,4 +1,5 @@
-use core::{ClassicTerm, Command, Term};
+use crate::classic_term::ClassicTerm;
+use core::{Command, Term};
 use pest::error::{Error, ErrorVariant};
 use pest::iterators::Pair;
 use pest::{Parser, Position};
