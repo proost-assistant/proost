@@ -13,8 +13,8 @@ Prod = { "\\/" ~ string ~ ":" ~ Term ~ "->" ~ Term }
 ParTerm = _{ "(" ~ Term ~ ")" }
 
 Command = _{ ( Define | CheckType | GetType ) ~ "." }
-Define = { "Define" ~ string ~ ":=" ~ Term }
-CheckType = { ( "CheckType" | "Check" ) ~  Term ~ ":" ~ Term }
-GetType = { ( "Type" | "GetType" ) ~ Term }
+Define = { ( "define" | "Define" ) ~ string ~ ":=" ~ Term }
+CheckType = { ( "CheckType" | "Check" | "check" ) ~  Term ~ ":" ~ Term }
+GetType = { ( "Type" | "GetType" | "type" ) ~ Term }
 
 File = { SOI ~ (NEWLINE* ~ Command)* ~ NEWLINE* ~ EOI }
