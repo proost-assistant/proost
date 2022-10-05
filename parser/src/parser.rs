@@ -1,11 +1,10 @@
-use core::ClassicTerm;
-use core::Command;
+use core::{ClassicTerm, Command, Term};
 use pest::error::Error;
 use pest::iterators::Pair;
 use pest::Parser;
 
 #[derive(Parser)]
-#[grammar = "grammar.pest"]
+#[grammar = "classic_term.pest"]
 struct CommandParser;
 
 fn build_term_from_expr(pair: Pair<Rule>) -> ClassicTerm {
@@ -41,19 +40,19 @@ fn build_command_from_expr(pair: Pair<Rule>) -> Command {
     match pair.as_rule() {
         Rule::GetType => {
             let mut iter = pair.into_inner();
-            let t = build_term_from_expr(iter.next().unwrap());
+            let t = Term::from(build_term_from_expr(iter.next().unwrap()));
             Command::GetType(t)
         }
         Rule::CheckType => {
             let mut iter = pair.into_inner();
-            let t1 = build_term_from_expr(iter.next().unwrap());
-            let t2 = build_term_from_expr(iter.next().unwrap());
+            let t1 = Term::from(build_term_from_expr(iter.next().unwrap()));
+            let t2 = Term::from(build_term_from_expr(iter.next().unwrap()));
             Command::CheckType(t1, t2)
         }
         Rule::Define => {
             let mut iter = pair.into_inner();
             let s = iter.next().unwrap().as_str().to_string();
-            let t = build_term_from_expr(iter.next().unwrap());
+            let t = Term::from(build_term_from_expr(iter.next().unwrap()));
             Command::Define(s, t)
         }
         command => panic!("Unexpected command: {:?}", command),

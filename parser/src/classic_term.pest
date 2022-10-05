@@ -7,14 +7,14 @@ Term = _{ Prop | Type | Var | App | Abs | Prod | ParTerm }
 Prop = { "P" }
 Type = { "T(" ~ number ~ ")" }
 Var = { string }
-App = { "(" ~ Term ~ ")" ~ Term }
+App = { "(" ~ ( Var | Abs | Prod ) ~ ")" ~ Term }
 Abs = { "/\\" ~ string ~ ":" ~ Term ~ "->" ~ Term }
 Prod = { "\\/" ~ string ~ ":" ~ Term ~ "->" ~ Term }
 ParTerm = _{ "(" ~ Term ~ ")" }
 
 Command = _{ ( Define | CheckType | GetType ) ~ "." }
 Define = { "Define" ~ string ~ ":=" ~ Term }
-CheckType = { "Check" ~  Term ~ ":" ~ Term }
-GetType = { "Type" ~ Term }
+CheckType = { ( "CheckType" | "Check" ) ~  Term ~ ":" ~ Term }
+GetType = { ( "Type" | "GetType" ) ~ Term }
 
 File = { SOI ~ (NEWLINE* ~ Command)* ~ NEWLINE* ~ EOI }
