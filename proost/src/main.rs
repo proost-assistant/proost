@@ -1,20 +1,42 @@
+#![feature(box_syntax)]
+
+use clap::Parser;
 use parser::{parse_command, parse_file};
 use rustyline::error::ReadlineError;
-use rustyline::{Editor, Result};
-use std::{env, fs};
+use rustyline::Editor;
+use std::error::Error;
+use std::fs;
 
-fn main() -> Result<()> {
-    let args: Vec<String> = env::args().collect();
-    if args.len() > 1 {
-        let file_path = &args[1];
-        let contents: &str =
-            &fs::read_to_string(file_path).expect("Should have been able to read the file");
-        // TODO
-        // unsatisfactory behavior
-        let _ = parse_file(contents);
+#[derive(Parser)]
+#[command(author, version, about, long_about = None)]
+pub struct Args {
+    files: Vec<String>,
+    #[arg(short, long, action)]
+    banner: bool,
+}
+
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+const NAME: &str = env!("CARGO_PKG_NAME");
+
+fn main() -> Result<(), Box<dyn Error>> {
+    let args = Args::parse();
+    if !args.files.is_empty() {
+        for path in args.files.into_iter() {
+            let path2 = path.clone();
+            match fs::read_to_string(path) {
+                Ok(contents) => {
+                    let _ = parse_file(&contents);
+                }
+                Err(_) => {
+                    println!("Error: No such file or directory: {}", path2);
+                }
+            }
+        }
         Ok(())
     } else {
+        let mut rl_err: Option<ReadlineError> = None;
         let mut rl = Editor::<()>::new()?;
+        println!("Welcome to {} {}", NAME, VERSION);
         loop {
             let readline = rl.readline(">> ");
             match readline {
@@ -25,16 +47,17 @@ fn main() -> Result<()> {
                         Err(err) => println!("{}", *err),
                     }
                 }
-                Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => {
-                    println!("CTRL-C");
-                    break;
-                }
+                Err(ReadlineError::Interrupted) => {}
+                Err(ReadlineError::Eof) => break,
                 Err(err) => {
-                    println!("Error: {:?}", err);
+                    rl_err = Some(err);
                     break;
                 }
             }
         }
-        Ok(())
+        match rl_err {
+            None => Ok(()),
+            Some(err) => Err(box err),
+        }
     }
 }
