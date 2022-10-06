@@ -22,14 +22,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
 
     if !args.files.is_empty() {
-        for path in args.files.into_iter() {
-            let path2 = path.clone();
+        for path in args.files.iter() {
             match fs::read_to_string(path) {
                 Ok(contents) => {
                     let _ = parse_file(&contents);
                 }
                 Err(_) => {
-                    println!("Error: No such file or directory: {}", path2);
+                    println!("Error: No such file or directory: {}", path);
                 }
             }
         }
