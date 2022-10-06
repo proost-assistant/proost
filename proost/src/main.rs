@@ -36,6 +36,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     } else {
         let mut rl_err: Option<ReadlineError> = None;
         let mut rl = Editor::<()>::new()?;
+        if args.banner {
+            println!("#Insert banner here#\n#  This is a test  #")
+        }
         println!("Welcome to {} {}", NAME, VERSION);
         loop {
             let readline = rl.readline(">> ");
