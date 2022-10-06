@@ -1,0 +1,12 @@
+[package]
+name = "proost"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+description = "A simple proof assistant written in Rust"
+
+[dependencies]
+core = { path = "../core" }
+parser = { path = "../parser" }
+rustyline = "10.0.0"
+clap = { version = "4.0.10", features = ["derive"]}
