@@ -72,6 +72,7 @@ pub fn parse_term(file: &str) -> Result<Term, Box<Error<Rule>>> {
             ErrorVariant::CustomError {
                 message: String::from("Free variable: ") + &s,
             },
+            //TODO: Add more details, eg: variable position (#8)
             Position::from_start(file),
         )),
     }
@@ -90,8 +91,7 @@ pub fn parse_command(file: &str) -> Result<Command, Box<Error<Rule>>> {
     }
 }
 
-// TODO
-// unsatisfactory behavior
+// TODO: Unsatisfactory behavior (#7)
 pub fn parse_file(file: &str) -> Result<Vec<Command>, Box<Error<Rule>>> {
     let mut vec = Vec::new();
     for pair in CommandParser::parse(Rule::File, file)?
