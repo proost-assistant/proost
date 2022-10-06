@@ -1,5 +1,9 @@
 use std::fmt::{Display, Formatter};
 
+// TODO: Use derive_more to constraint types (#11)
+// struct Index(usize);
+// struct Level(usize);
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Term {
     Prop,
@@ -13,35 +17,29 @@ pub enum Term {
 use Term::*;
 
 impl Term {
-    /// Returns the normal form of the term
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// // TODO: Use parser
-    /// ```
+    /// Apply one step of β-reduction, using leftmost outermost evaluation strategy.
     pub fn beta_reduction(self) -> Term {
         match self {
             App(box Abs(_, box t1), box t2) => t1.substitute(t2, 1),
-            App(box t1, box t2) => App(box t1.beta_reduction(), box t2.beta_reduction()),
+            App(box t1, box t2) => App(box t1.beta_reduction(), box t2),
             Abs(x, box t) => Abs(x, box t.beta_reduction()),
             _ => self,
         }
     }
 
-    fn shift(self, offset: usize) -> Term {
+    fn shift(self, offset: usize, depth: usize) -> Term {
         match self {
-            Var(x) => Var(x + offset),
-            App(box t1, box t2) => App(box t1.shift(offset), box t2.shift(offset)),
-            Abs(x, box t) => Abs(x.clone(), box t.shift(offset)),
-            Prod(x, box t) => Prod(x.clone(), box t.shift(offset)),
-            _ => self.clone(),
+            Var(i) if i > depth => Var(i + offset),
+            App(box t1, box t2) => App(box t1.shift(offset, depth), box t2.shift(offset, depth)),
+            Abs(t1, box t2) => Abs(t1, box t2.shift(offset, depth + 1)),
+            Prod(t1, box t2) => Prod(t1, box t2.shift(offset, depth + 1)),
+            _ => self,
         }
     }
 
     fn substitute(self, rhs: Term, depth: usize) -> Term {
         match self {
-            Var(i) if i == depth => rhs.shift(depth - 1),
+            Var(i) if i == depth => rhs.shift(depth - 1, 0),
             Var(i) if i > depth => Var(i - 1),
 
             App(l, r) => App(
@@ -70,7 +68,7 @@ impl Display for Term {
 
 #[cfg(test)]
 mod tests {
-    // TODO: Correctly types lambda terms.
+    // TODO: Correctly types lambda terms (#9)
 
     use super::Term::*;
 
@@ -93,7 +91,7 @@ mod tests {
 
     #[test]
     fn complex_subst() {
-        // [λa.λb.λc.a (λd.λe.e (d b)) (λ_.c) (λd.d)] (λa.λb.a b)
+        // (λa.λb.λc.(a (λd.λe.e (d b) (λ_.c)) (λd.d)) (λa.λb.a b)
         let term = App(
             box Abs(
                 box Prop,
@@ -102,9 +100,9 @@ mod tests {
                     box Abs(
                         box Prop,
                         box App(
-                            box Var(3),
                             box App(
                                 box App(
+                                    box Var(3),
                                     box Abs(
                                         box Prop,
                                         box Abs(
@@ -112,10 +110,10 @@ mod tests {
                                             box App(box Var(1), box App(box Var(2), box Var(4))),
                                         ),
                                     ),
-                                    box Abs(box Prop, box Var(2)),
                                 ),
-                                box Abs(box Prop, box Var(1)),
+                                box Abs(box Prop, box Var(2)),
                             ),
+                            box Abs(box Prop, box Var(1)),
                         ),
                     ),
                 ),
@@ -123,20 +121,32 @@ mod tests {
             box Abs(box Prop, box Abs(box Prop, box App(box Var(2), box Var(1)))),
         );
 
-        // λa.λb.((λc.(λd.λe.e (d a)) c) (λ_.b)) (λc.c)
-        // λa.λb.((λc.λd.(d (c a))) (λ_.b)) (λc.c)
-        // λa.λb.(λc.c ((λ_.b) a)) (λc.c)
-        // λa.λb.(λc.c) ((λ_.b) a)
-        // λa.λb.b
-        let reduced = Abs(box Prop, box Abs(box Prop, box Var(1)));
+        // λa.λb.(((λc.λd.c d) (λc.λd.d (c a))) (λ_.b)) (λc.c)
+        let term_step_1 = Abs(
+            box Prop,
+            box Abs(
+                box Prop,
+                box App(
+                    box App(
+                        box App(
+                            box Abs(box Prop, box Abs(box Prop, box App(box Var(2), box Var(1)))),
+                            box Abs(
+                                box Prop,
+                                box Abs(
+                                    box Prop,
+                                    box App(box Var(1), box App(box Var(2), box Var(4))),
+                                ),
+                            ),
+                        ),
+                        box Abs(box Prop, box Var(2)),
+                    ),
+                    box Abs(box Prop, box Var(1)),
+                ),
+            ),
+        );
 
-        assert_eq!(term.beta_reduction(), reduced);
-    }
-
-    #[test]
-    fn complex_subst_step_5() {
         // λa.λb.((λc.(λd.λe.e (d a)) c) (λ_.b)) (λc.c)
-        let term = Abs(
+        let term_step_2 = Abs(
             box Prop,
             box Abs(
                 box Prop,
@@ -162,23 +172,8 @@ mod tests {
             ),
         );
 
-        // λa.λb.b
-        let reduced = Abs(box Prop, box Abs(box Prop, box Var(1)));
-
-        assert_eq!(
-            term.beta_reduction()
-                .beta_reduction()
-                .beta_reduction()
-                .beta_reduction()
-                .beta_reduction(),
-            reduced
-        );
-    }
-
-    #[test]
-    fn complex_subst_step_4() {
-        // λa.λb.((λc.λd.(d (c a))) (λ_.b)) (λc.c)
-        let term = Abs(
+        // λa.λb.[(λc.λd.(d (c a))) (λ_.b)] (λc.c)
+        let term_step_3 = Abs(
             box Prop,
             box Abs(
                 box Prop,
@@ -198,22 +193,8 @@ mod tests {
             ),
         );
 
-        // λa.λb.b
-        let reduced = Abs(box Prop, box Abs(box Prop, box Var(1)));
-
-        assert_eq!(
-            term.beta_reduction()
-                .beta_reduction()
-                .beta_reduction()
-                .beta_reduction(),
-            reduced
-        );
-    }
-
-    #[test]
-    fn complex_subst_step_3() {
         // λa.λb.(λc.c ((λ_.b) a)) (λc.c)
-        let term = Abs(
+        let term_step_4 = Abs(
             box Prop,
             box Abs(
                 box Prop,
@@ -230,19 +211,8 @@ mod tests {
             ),
         );
 
-        // λa.λb.b
-        let reduced = Abs(box Prop, box Abs(box Prop, box Var(1)));
-
-        assert_eq!(
-            term.beta_reduction().beta_reduction().beta_reduction(),
-            reduced
-        );
-    }
-
-    #[test]
-    fn complex_subst_step_2() {
         // λa.λb.(λc.c) ((λ_.b) a)
-        let term = Abs(
+        let term_step_5 = Abs(
             box Prop,
             box Abs(
                 box Prop,
@@ -253,23 +223,22 @@ mod tests {
             ),
         );
 
-        // λa.λb.b
-        let reduced = Abs(box Prop, box Abs(box Prop, box Var(1)));
-
-        assert_eq!(term.beta_reduction().beta_reduction(), reduced);
-    }
-
-    #[test]
-    fn complex_subst_step_1() {
         // λa.λb.(λc.b) a
-        let term = Abs(
+        let term_step_6 = Abs(
             box Prop,
             box Abs(box Prop, box App(box Abs(box Prop, box Var(2)), box Var(2))),
         );
 
         // λa.λb.b
-        let reduced = Abs(box Prop, box Abs(box Prop, box Var(1)));
+        let term_step_7 = Abs(box Prop, box Abs(box Prop, box Var(1)));
 
-        assert_eq!(term.beta_reduction(), reduced);
+        assert_eq!(term.beta_reduction(), term_step_1);
+        assert_eq!(term_step_1.beta_reduction(), term_step_2);
+        assert_eq!(term_step_2.beta_reduction(), term_step_3);
+        assert_eq!(term_step_3.beta_reduction(), term_step_4);
+        assert_eq!(term_step_4.beta_reduction(), term_step_5);
+        assert_eq!(term_step_5.beta_reduction(), term_step_6);
+        assert_eq!(term_step_6.beta_reduction(), term_step_7);
+        assert_eq!(term_step_7.clone().beta_reduction(), term_step_7);
     }
 }
