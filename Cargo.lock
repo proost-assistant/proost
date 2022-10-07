@@ -89,10 +89,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "core"
-version = "0.1.0"
-
-[[package]]
 name = "cpufeatures"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -233,6 +229,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ea37f355c05dde75b84bba2d767906ad522e97cd9e2eef2be7a4ab7fb442c06"
 
 [[package]]
+name = "kernel"
+version = "0.1.0"
+
+[[package]]
 name = "libc"
 version = "0.2.133"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -295,7 +295,7 @@ checksum = "9ff7415e9ae3fff1225851df9e0d9e4e5479f947619774677a63572e55e80eff"
 name = "parser"
 version = "0.1.0"
 dependencies = [
- "core",
+ "kernel",
  "pest",
  "pest_derive",
 ]
@@ -382,7 +382,6 @@ name = "proost"
 version = "0.1.0"
 dependencies = [
  "clap",
- "core",
  "parser",
  "rustyline",
 ]
