@@ -1,19 +1,14 @@
 use crate::Term;
-use std::fmt::{Display, Formatter};
+use derive_more::Display;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Display, Eq, PartialEq)]
 pub enum Command {
+    #[display(fmt = "Define {} := {}.", _0, _1)]
     Define(String, Term),
-    CheckType(Term, Term),
-    GetType(Term),
-}
 
-impl Display for Command {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        match self {
-            Command::Define(s, t) => write!(f, "Define {} := {}.", s, t),
-            Command::CheckType(t1, t2) => write!(f, "Check {} : {}.", t1, t2),
-            Command::GetType(t) => write!(f, "Type {}.", t),
-        }
-    }
+    #[display(fmt = "Check {} : {}.", _0, _1)]
+    CheckType(Term, Term),
+
+    #[display(fmt = "Type {}.", _0)]
+    GetType(Term),
 }
