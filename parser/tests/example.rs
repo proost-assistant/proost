@@ -1,4 +1,4 @@
-use core::{Command, Term};
+use kernel::{Command, Term};
 
 #[test]
 fn parse() {

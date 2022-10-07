@@ -1,4 +1,4 @@
-use core::Term;
+use kernel::Term;
 use std::fmt::{Display, Formatter};
 
 #[derive(Clone, Debug)]
