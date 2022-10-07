@@ -9,6 +9,7 @@ cache:
       - Cargo.lock
   paths:
     - .cache/cargo/
+    - target/
 
 format:
   script:
@@ -33,11 +34,7 @@ docs:
     refs:
       - main
   script:
-    - cargo doc
+    - cargo doc --no-deps
     - eval $(ssh-agent -s)
     - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
-    - mkdir -p ~/.ssh
-    - chmod 700 ~/.ssh
-    - ssh-keyscan zamok.crans.org >> ~/.ssh/known_hosts
-    - chmod 644 ~/.ssh/known_hosts
-    - scp -r target/doc/* v-lafeychine@zamok.crans.org:www/.
+    - scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -q -r target/doc/* v-lafeychine@zamok.crans.org:www/.
