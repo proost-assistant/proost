@@ -1,0 +1,94 @@
+\documentclass[twocolumn]{article}
+\usepackage[british]{babel}
+\usepackage{textcase}% provides \MakeTextUppercase (does not impact math mode)
+\usepackage{amssymb, amsmath, amsthm, mathrsfs}
+\usepackage{fancyhdr}
+\usepackage{listings}
+\usepackage{bussproofs} % proof tree
+\usepackage{xcolor} % may not be loaded here, is already loaded by Beamer
+\usepackage{bussproofs}
+\RequirePackage[a4paper, left=2cm, right=2cm, bottom=3cm, headsep=100pt]{geometry}
+\RequirePackage[small]{titlesec} % Taille des sections réduite
+\RequirePackage[pdfborderstyle={/S/U/W 0}]{hyperref} % Le paramètre retire les bordures autour des hyperliens
+
+\author{
+  Arthur \textsc{Adjedj}\\
+  Vincent \textsc{Lafeychine} \and
+  Augustin \textsc{Albert} \\
+  Lucas \textsc{Tabary-Maujean}
+}
+
+
+\title{\textbf{Proost: specifications}\\
+  \large A small proof assistant written in Rust
+  \\[1\baselineskip]\normalsize ENS Paris-Saclay
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Listings %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{paleblue}{rgb}{0.7,0.7,1}
+\definecolor{darkgray}{rgb}{0.1,0.1,0.1}
+\definecolor{dark}{rgb}{0,0,0}
+\definecolor{forestgreen}{rgb}{0,0.3,0}
+\definecolor{darkred}{rgb}{0.5,0,0}
+
+\lstdefinestyle{proost}{
+    style=default,
+    basicstyle=\scriptsize\ttfamily,
+    numberstyle=\scriptsize\ttfamily\color{paleblue},
+    comment=[l]{//},
+    keywords={fn, for, if, else, while, return},
+    keywords=[2]{reg, stack},
+    keywordstyle=[2]\color{forestgreen},
+    keywords=[3]{u64, u32},
+    keywordstyle=[3]\color{blue},
+    keywords=[4]{protect, init_msf, set_msf},
+    keywordstyle=[4]\color{darkred},
+}
+\lstnewenvironment{proost}[1][]{\lstset{style=proost, #1}}{}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Remplissage des en-têtes %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\pagestyle{fancy}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+%\AtEndDocument{\lfoot{\small{\reflectbox{\copyright} \the\year{}} }}
+\fancyhead{}
+\fancyfoot[L]{\small{\reflectbox{\copyright} \the\year{}}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% bussproofs settings %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% documentation at https://mirror.ibcp.fr/pub/CTAN/macros/latex/contrib/bussproofs/BussGuide2.pdf
+\EnableBpAbbreviations
+% Overriding default label style
+\def\RL#1{\RightLabel{\footnotesize\bfseries{#1}}}
+\def\LL#1{\LeftLabel{\footnotesize\bfseries{#1}}}
+
+% boxed proofs, used to align multiple proofs on a single line
+\newenvironment{bprooftree}
+  {\leavevmode\hbox\bgroup}
+  {\DisplayProof\egroup}
+
+\newcommand{\textr}[1]{{\footnotesize\textbf{\MakeTextUppercase{#1}}}}
+% Fixes alignment issues but not without some consistency issues
+\def\RL#1{\RightLabel{\makebox[0pt][l]{\textr{#1}}}}
+\def\LL#1{\LeftLabel{\makebox[0pt][r]{\textr{#1}}}}
+% consistent label (with width)
+\def\cRL#1{\RightLabel{\textr{#1}}}
+\def\cLL#1{\LeftLabel{\textr{#1}}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Divers %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\setlength{\columnsep}{20pt} % 10 pt par défaut
+\setlength{\parskip}{1.2ex minus 1ex}
+\setlength{\parindent}{10pt}
+%\allowdisplaybreaks % Permet au environnement align d'êtres scindés sur plusieurs pages
+\bibliographystyle{abbrv}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+\thispagestyle{fancy}
+\maketitle
+
+\end{document}
