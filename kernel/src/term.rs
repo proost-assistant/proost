@@ -31,7 +31,7 @@ pub enum Term {
 use Term::*;
 
 impl Term {
-    /// Apply one step of β-reduction, using leftmost outermost evaluation strategy.
+    /// Returns the normal form of the term
     pub fn beta_reduction(self) -> Term {
         match self {
             App(box Abs(_, box t1), box t2) => t1.substitute(t2, 1),
@@ -69,7 +69,7 @@ impl Term {
 
 #[cfg(test)]
 mod tests {
-    // TODO: Correctly types lambda terms (#9)
+    // TODO: Correctly types lambda terms.
 
     use super::Term::*;
 
