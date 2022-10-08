@@ -36,7 +36,7 @@ impl Display for Val {
             VProp => write!(f, "\u{02119}"),
             VVar(i) => write!(f, "{}", i),
             VType(i) => write!(f, "\u{1D54B}({})", i),
-            VApp(t1, t2) => write!(f, "({} {})", t1, t2), //TODO figure out how to display Vec<Val> so that I can print the whole closure
+            VApp(t1, t2) => write!(f, "({} {})", t1, t2),
             VAbs(t1, t2) => write!(f, "\u{003BB} {} \u{02192} {}", t1, t2.term),
             VProd(t1, t2) => write!(f, "\u{02200} {} \u{02192} {}", t1, t2.term),
         }
@@ -47,10 +47,7 @@ fn eval(e: &Env, t: Term) -> Val {
     match t {
         Prop => VProp,
         Type(i) => VType(i),
-        Var(i) => {
-            print!("{:?}", *e);
-            (*e)[i].clone()
-        }
+        Var(i) => (*e)[i].clone(),
         App(box t1, box t2) => match eval(e, t1) {
             VAbs(_, t) => t.shift(eval(e, t2)),
             v1 => VApp(box v1, box eval(e, t2)),
@@ -124,6 +121,10 @@ fn conv(l: Level, v1: Val, v2: Val) -> bool {
 
         _ => false,
     }
+}
+
+fn assert_def_eq(t1: Term, t2: Term) {
+    assert!(conv(0, eval(&Vec::new(), t1), eval(&Vec::new(), t2)))
 }
 
 #[cfg(test)]
