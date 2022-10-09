@@ -44,29 +44,33 @@ impl Display for Val {
 }
 
 fn eval(e: &Env, t: Term) -> Val {
+    //println!("Evaluating {} in env {:?}",t.clone(),e.clone());
+    let res =
     match t {
         Prop => VProp,
         Type(i) => VType(i),
-        Var(i) => (*e)[i].clone(),
-        App(box t1, box t2) => match eval(e, t1) {
-            VAbs(_, t) => t.shift(eval(e, t2)),
-            v1 => VApp(box v1, box eval(e, t2)),
+        Var(i) => e[i].clone(),
+        App(box t1, box t2) => match eval(&e, t1) {
+            VAbs(_, t) => t.shift(eval(&e, t2)),
+            t => VApp(box t, box eval(&e, t2)),
         },
         Abs(box a, box b) => VAbs(
-            box eval(e, a),
+            box eval(&e, a),
             Closure {
-                env: (*e).clone(),
+                env: e.clone(),
                 term: b,
             },
         ),
         Prod(box a, box b) => VProd(
             box eval(e, a),
             Closure {
-                env: (*e).clone(),
+                env: e.clone(),
                 term: b,
             },
         ),
-    }
+    };
+    //println!("resulting Val when evaluating {} in env {:?}: {}",t,e.clone(),res.clone());
+    res
 }
 
 fn level_to_index(l1: Level, l2: Level) -> Index {
@@ -74,15 +78,18 @@ fn level_to_index(l1: Level, l2: Level) -> Index {
 }
 
 fn quote(l: Level, v: Val) -> Term {
+    //println!("Quoting {} at Level {:?}",v.clone(),l.clone());
+    let res =
     match v {
         VProp => Prop,
         VType(i) => Type(i),
-        VVar(i) => Var(level_to_index(l, i)),
+        VVar(i) => Var(i),
         VApp(box t, box u) => App(box quote(l, t), box quote(l, u)),
-        //prob wrong for 2nd arg, TODO give it a thought
         VAbs(box t, u) => Abs(box quote(l, t), box quote(l + 1, u.shift(VVar(l)))),
         VProd(box t, u) => Prod(box quote(l, t), box quote(l + 1, u.shift(VVar(l)))),
-    }
+    };
+    //println!("resulting Term when evaluating {} at level {}: {}",v,l.clone(),res.clone());
+    res
 }
 
 // returns normal form of term t in env e, should only be used for Reduce/Eval command, not when type-checking
@@ -96,6 +103,8 @@ pub fn nf(e: Env, t: Term) -> Term {
 // be called during type-checking when the two vals are already
 // known to be of the same type.
 pub fn conv(l: Level, v1: Val, v2: Val) -> bool {
+    println!("checking conversion between {} and {} at level {}",v1.clone(),v2.clone(),l.clone());
+    let res =
     match (v1, v2) {
         (VType(i), VType(j)) => i == j,
 
@@ -120,17 +129,25 @@ pub fn conv(l: Level, v1: Val, v2: Val) -> bool {
         (VApp(box t1, box u1), VApp(box t2, box u2)) => conv(l, t1, t2) && conv(l, u1, u2),
 
         _ => false,
-    }
+    };
+    if res {
+        println!("SUCCESS")
+    } else {
+        println!("FAIL")
+    };
+    res
 }
 
 pub fn assert_def_eq(t1: Term, t2: Term) {
-    println!("t1 nf : {:?}",nf(Vec::new(),t1.clone()));
-    println!("t2 nf : {:?}",nf(Vec::new(),t1.clone()));
+    println!("t1 : {}",t1.clone());
+    println!("t1 nf : {}",nf(Vec::new(),t1.clone()));
+    println!("t2 : {}",t2.clone());
+    println!("t2 nf : {}",nf(Vec::new(),t2.clone()));
     assert!(conv(0, eval(&Vec::new(), t1), eval(&Vec::new(), t2)))
 }
 
 //type of lists of tuples representing the respective types of terms
-/*type Types = Vec<(Term, Term)>;
+type Types = Vec<(Term, Term)>;
 
 struct Ctx {
     env: Env,
@@ -147,15 +164,15 @@ impl Ctx {
         }
     }
 
-    //fn bind(s : String,t : Term, Ctx{env : env, types : types, lvl : lvl} : Ctx) {
-    //    Ctx {
-    //        env : e.push(eval(&e,t)),
-    //        types : ty.push((s,t)),
-    //        lvl : lvl + 1,
-    //    }
-    //}
+    /*fn bind(s : String,t : Term, Ctx{env : env, types : types, lvl : lvl} : Ctx) {
+        Ctx {
+            env : e.push(eval(&e,t)),
+            types : ty.push((s,t)),
+            lvl : lvl + 1,
+        }
+    }*/
 }
-*/
+
 
 #[cfg(test)]
 mod tests {
@@ -226,5 +243,102 @@ mod tests {
         assert_def_eq(term, term_step_7);
     }
 
+
+    fn id(l : Index) -> Box<Term> {
+        box Abs(box Prop, box Var(l))
+    }
+
+    #[test]
+    fn complex_conv() {
+        //(λa.λb.λc.a ((λd.λe.e b d)(λx.x))) ((λa.λb.a b) ((λx.x) (λx.x)))
+        let term =
+        App(
+            box Abs(
+                box Prop,
+                box Abs(
+                    box Prop,
+                    box Abs(
+                        box Prop,
+                        box App(
+                            box Var(0),
+                            box App(
+                                box Abs(
+                                    box Prop,
+                                    box Abs(
+                                        box Prop,
+                                        box App(
+                                            box App(
+                                                box Var(4),
+                                                box Var(1)
+                                            ),
+                                            box Var(3)
+                                        )
+                                    )
+                                ),
+                                id(3)
+                            )
+                        )
+                    )
+                )
+            ),
+            box App(
+                box Abs(
+                    box Prop,
+                    box Abs(
+                        box Prop,
+                        box App(
+                            box Var(0),
+                            box Var(1)
+                        )
+                    )
+                ),
+                box App(
+                    id(0),
+                    id(0)
+                )
+            )
+        )
+        ;
+        //(λb.(λc.(λe.((e b) (λx.x)))))
+        let reduced =
+        Abs(
+            box Prop,
+            box Abs(
+                box Prop,
+                box Abs(
+                    box Prop,
+                    box App(
+                        box App(
+                            box Var(2),
+                            box Var(0)
+                        ),
+                        id(3)
+                    )
+                )
+            )
+        );
+        assert_def_eq(term, reduced)
+    }
+
+
+    //(λ ℙ → λ ℙ → λ ℙ → (0 (λ ℙ → λ ℙ → ((4 1) 3) λ ℙ → 3)) (λ ℙ → λ ℙ → (0 1) (λ ℙ → 0 λ ℙ → 0)))
+    #[test]
+    fn nf_test() {
+        //λa.a (λx.x) (λx.x)
+        let reduced = Abs(
+            box Prop,
+            box App(
+                box App(
+                    box Var(0),
+                    id(1)),
+                id(1)
+            )
+        );
+        let nff = nf(Vec::new(),reduced.clone());
+        println!("r : {}", reduced.clone());
+        println!("r nf : {}",nff.clone());
+        assert_eq!(reduced.clone(), nff.clone());
+        assert_def_eq(reduced, nff);
+    }
 
 }
