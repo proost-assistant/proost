@@ -1,21 +1,21 @@
 use derive_more::{Add, Display, From, Sub};
 
 #[derive(Add, Clone, Debug, Display, Eq, From, Sub, PartialEq, PartialOrd, Ord)]
-pub struct Index(usize);
+pub struct DeBruijnIndex(usize);
 
 #[derive(Add, Clone, Debug, Display, Eq, From, Sub, PartialEq, PartialOrd, Ord)]
-pub struct Level(usize);
+pub struct UniverseLevel(usize);
 
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum Term {
     #[display(fmt = "{}", _0)]
-    Var(Index),
+    Var(DeBruijnIndex),
 
     #[display(fmt = "\u{02119}")]
     Prop,
 
     #[display(fmt = "Type({})", _0)]
-    Type(Level),
+    Type(UniverseLevel),
 
     #[display(fmt = "({} {})", _0, _1)]
     App(Box<Term>, Box<Term>),
@@ -91,7 +91,7 @@ mod tests {
 
     #[test]
     fn complex_subst() {
-        // (λa.λb.λc.(a (λd.λe.e (d b) (λ_.c)) (λd.d)) (λa.λb.a b)
+        // (λa.λb.λc.a (λd.λe.e (d b)) (λ_.c) (λd.d)) (λa.λb.a b)
         let term = App(
             box Abs(
                 box Prop,
@@ -127,7 +127,6 @@ mod tests {
             ),
         );
 
-        // λa.λb.(((λc.λd.c d) (λc.λd.d (c a))) (λ_.b)) (λc.c)
         let term_step_1 = Abs(
             box Prop,
             box Abs(
@@ -157,7 +156,6 @@ mod tests {
             ),
         );
 
-        // λa.λb.((λc.(λd.λe.e (d a)) c) (λ_.b)) (λc.c)
         let term_step_2 = Abs(
             box Prop,
             box Abs(
@@ -187,7 +185,6 @@ mod tests {
             ),
         );
 
-        // λa.λb.[(λc.λd.(d (c a))) (λ_.b)] (λc.c)
         let term_step_3 = Abs(
             box Prop,
             box Abs(
@@ -211,7 +208,6 @@ mod tests {
             ),
         );
 
-        // λa.λb.(λc.c ((λ_.b) a)) (λc.c)
         let term_step_4 = Abs(
             box Prop,
             box Abs(
@@ -229,7 +225,6 @@ mod tests {
             ),
         );
 
-        // λa.λb.(λc.c) ((λ_.b) a)
         let term_step_5 = Abs(
             box Prop,
             box Abs(
@@ -241,7 +236,6 @@ mod tests {
             ),
         );
 
-        // λa.λb.(λc.b) a
         let term_step_6 = Abs(
             box Prop,
             box Abs(
