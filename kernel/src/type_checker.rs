@@ -69,7 +69,7 @@ fn eval(e: &Env, t: Term) -> Val {
     }
 }
 
-fn lvl2ix(l1: Level, l2: Level) -> Index {
+fn level_to_index(l1: Level, l2: Level) -> Index {
     l1 - l2 - 1
 }
 
@@ -77,7 +77,7 @@ fn quote(l: Level, v: Val) -> Term {
     match v {
         VProp => Prop,
         VType(i) => Type(i),
-        VVar(i) => Var(lvl2ix(l, i)),
+        VVar(i) => Var(level_to_index(l, i)),
         VApp(box t, box u) => App(box quote(l, t), box quote(l, u)),
         //prob wrong for 2nd arg, TODO give it a thought
         VAbs(box t, u) => Abs(box quote(l, t), box quote(l + 1, u.shift(VVar(l)))),
@@ -85,8 +85,8 @@ fn quote(l: Level, v: Val) -> Term {
     }
 }
 
-//returns normal form of term t in env e
-fn nf(e: Env, t: Term) -> Term {
+// returns normal form of term t in env e, should only be used for Reduce/Eval command, not when type-checking
+pub fn nf(e: Env, t: Term) -> Term {
     quote(e.len(), eval(&e, t))
 }
 
@@ -95,7 +95,7 @@ fn nf(e: Env, t: Term) -> Term {
 // The conversion is untyped, meaning that it should **Only**
 // be called during type-checking when the two vals are already
 // known to be of the same type.
-fn conv(l: Level, v1: Val, v2: Val) -> bool {
+pub fn conv(l: Level, v1: Val, v2: Val) -> bool {
     match (v1, v2) {
         (VType(i), VType(j)) => i == j,
 
@@ -123,9 +123,39 @@ fn conv(l: Level, v1: Val, v2: Val) -> bool {
     }
 }
 
-fn assert_def_eq(t1: Term, t2: Term) {
+pub fn assert_def_eq(t1: Term, t2: Term) {
+    println!("t1 nf : {:?}",nf(Vec::new(),t1.clone()));
+    println!("t2 nf : {:?}",nf(Vec::new(),t1.clone()));
     assert!(conv(0, eval(&Vec::new(), t1), eval(&Vec::new(), t2)))
 }
+
+//type of lists of tuples representing the respective types of terms
+/*type Types = Vec<(Term, Term)>;
+
+struct Ctx {
+    env: Env,
+    types: Types,
+    lvl: Level,
+}
+
+impl Ctx {
+    pub fn empty() -> Ctx {
+        Ctx {
+            env: Vec::new(),
+            types: Vec::new(),
+            lvl: 0,
+        }
+    }
+
+    //fn bind(s : String,t : Term, Ctx{env : env, types : types, lvl : lvl} : Ctx) {
+    //    Ctx {
+    //        env : e.push(eval(&e,t)),
+    //        types : ty.push((s,t)),
+    //        lvl : lvl + 1,
+    //    }
+    //}
+}
+*/
 
 #[cfg(test)]
 mod tests {
@@ -144,7 +174,7 @@ mod tests {
         assert_eq!(conv(0, eval(&Vec::new(), t1), eval(&Vec::new(), t2)), true)
     }
 
-    #[test]
+    /*#[test]
     fn simple_subst() {
         env::set_var("RUST_BACKTRACE", "1");
         // λx.(λy.x y) x
@@ -160,39 +190,35 @@ mod tests {
         let reduced = Abs(box Prop, box App(box Var(0), box Var(0)));
 
         assert_def_eq(term, reduced);
-    }
+    }*/
 
-    //#[test]
+    #[test]
     fn complex_subst() {
-        // (λa.λb.λc.(a (λd.λe.e (d b) (λ_.c)) (λd.d)) (λa.λb.a b)
-        let term = App(
-            box Abs(
-                box Prop,
-                box Abs(
-                    box Prop,
+        // λa.λb.(((λc.λd.c d) (λc.λd.d (c a))) (λ_.b)) (λc.c)
+        let term = Abs(
+                    box Prop, //a
                     box Abs(
-                        box Prop,
+                        box Prop, //b
                         box App(
                             box App(
                                 box App(
-                                    box Var(2),
                                     box Abs(
-                                        box Prop,
+                                        box Prod(box Prop,box Prop),
+                                        box Abs(box Prop, box App(box Var(1), box Var(0)))),
+                                    box Abs(
+                                        box Prod(box Prop,box Prop),
                                         box Abs(
-                                            box Prop,
+                                            box Prod(box Prod(box Prop,box Prop),box Prop),
                                             box App(box Var(0), box App(box Var(1), box Var(3))),
                                         ),
                                     ),
                                 ),
                                 box Abs(box Prop, box Var(1)),
                             ),
-                            box Abs(box Prop, box Var(0)),
+                            box Abs(box Prop, box Var(2)),
                         ),
                     ),
-                ),
-            ),
-            box Abs(box Prop, box Abs(box Prop, box App(box Var(1), box Var(0)))),
-        );
+                );
 
         // λa.λb.b
         let term_step_7 = Abs(box Prop, box Abs(box Prop, box Var(0)));
