@@ -8,5 +8,6 @@ license = "GPL-3.0-or-later"
 kernel = { path = "../kernel" }
 
 derive_more = "0.99.17"
+num-bigint = "0.4"
 pest = "2.0"
 pest_derive = "2.0"

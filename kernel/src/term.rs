@@ -1,10 +1,11 @@
 use derive_more::{Add, Display, From, Sub};
+use num_bigint::BigUint;
 
 #[derive(Add, Clone, Debug, Display, Eq, From, Sub, PartialEq, PartialOrd, Ord)]
 pub struct DeBruijnIndex(usize);
 
 #[derive(Add, Clone, Debug, Display, Eq, From, Sub, PartialEq, PartialOrd, Ord)]
-pub struct UniverseLevel(usize);
+pub struct UniverseLevel(BigUint);
 
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum Term {

@@ -1,5 +1,6 @@
 use derive_more::Display;
 use kernel::Term;
+use num_bigint::BigUint;
 
 #[derive(Clone, Debug, Display)]
 pub enum ClassicTerm {
@@ -10,7 +11,7 @@ pub enum ClassicTerm {
     Prop,
 
     #[display(fmt = "Type({})", _0)]
-    Type(usize),
+    Type(BigUint),
 
     #[display(fmt = "({} {})", _0, _1)]
     App(Box<ClassicTerm>, Box<ClassicTerm>),

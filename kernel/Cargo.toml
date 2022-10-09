@@ -6,3 +6,4 @@ license = "GPL-3.0-or-later"
 
 [dependencies]
 derive_more = "0.99.17"
+num-bigint = "0.4"
