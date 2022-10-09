@@ -49,16 +49,16 @@ use Val::*;
 
 fn eval(e: &Env, t: Term) -> Val {
     //println!("Evaluating {} in env {:?}",t.clone(),e.clone());
-    let res = match t {
+    match t {
         Prop => VProp,
         Type(i) => VType(i),
         Var(i) => e[i].clone(),
-        App(box t1, box t2) => match eval(&e, t1) {
-            VAbs(_, t) => t.shift(eval(&e, t2)),
-            t => VApp(box t, box eval(&e, t2)),
+        App(box t1, box t2) => match eval(e, t1) {
+            VAbs(_, t) => t.shift(eval(e, t2)),
+            t => VApp(box t, box eval(e, t2)),
         },
         Abs(box a, box b) => VAbs(
-            box eval(&e, a),
+            box eval(e, a),
             Closure {
                 env: e.clone(),
                 term: b,
@@ -71,9 +71,8 @@ fn eval(e: &Env, t: Term) -> Val {
                 term: b,
             },
         ),
-    };
+    }
     //println!("resulting Val when evaluating {} in env {:?}: {}",t,e.clone(),res.clone());
-    res
 }
 
 <<<<<<< HEAD
@@ -88,17 +87,20 @@ fn quote(l: Level, v: Val) -> Term {
 =======
 fn quote(l: DeBruijnLevel, v: Val) -> Term {
     //println!("Quoting {} at Level {:?}",v.clone(),l.clone());
+<<<<<<< HEAD
     let res = match v {
 >>>>>>> 5a9bb8e (chore : adapt existing code to rebase)
+=======
+    match v {
+>>>>>>> 0707a80 (fix : made clippy happier)
         VProp => Prop,
         VType(i) => Type(i),
         VVar(i) => Var(usize::from(i).into()),
         VApp(box t, box u) => App(box quote(l, t), box quote(l, u)),
         VAbs(box t, u) => Abs(box quote(l, t), box quote(l + 1.into(), u.shift(VVar(l)))),
         VProd(box t, u) => Prod(box quote(l, t), box quote(l + 1.into(), u.shift(VVar(l)))),
-    };
+    }
     //println!("resulting Term when evaluating {} at level {}: {}",v,l.clone(),res.clone());
-    res
 }
 
 // returns normal form of term t in env e, should only be used for Reduce/Eval command, not when type-checking
@@ -114,8 +116,8 @@ pub fn nf(e: Env, t: Term) -> Term {
 pub fn conv(l: DeBruijnLevel, v1: Val, v2: Val) -> bool {
     println!(
         "checking conversion between {:?} and {:?} at level {}",
-        v1.clone(),
-        v2.clone(),
+        v1,
+        v2,
         l.clone()
     );
     let res = match (v1, v2) {
@@ -152,9 +154,9 @@ pub fn conv(l: DeBruijnLevel, v1: Val, v2: Val) -> bool {
 }
 
 pub fn assert_def_eq(t1: Term, t2: Term) {
-    println!("t1 : {}", t1.clone());
+    println!("t1 : {}", t1);
     println!("t1 nf : {}", nf(Vec::new(), t1.clone()));
-    println!("t2 : {}", t2.clone());
+    println!("t2 : {}", t2);
     println!("t2 nf : {}", nf(Vec::new(), t2.clone()));
     assert!(conv(0.into(), eval(&Vec::new(), t1), eval(&Vec::new(), t2)))
 }

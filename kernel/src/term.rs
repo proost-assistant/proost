@@ -7,9 +7,9 @@ pub struct DeBruijnIndex(usize);
 #[derive(Add, Clone, Debug, Display, Eq, Into, From, Sub, PartialEq, PartialOrd, Ord)]
 pub struct UniverseLevel(BigUint);
 
-impl Into<UniverseLevel> for usize {
-    fn into(self) -> UniverseLevel {
-        BigUint::from(self).into()
+impl From<usize> for UniverseLevel {
+    fn from(i: usize) -> Self {
+        BigUint::from(i).into()
     }
 }
 
