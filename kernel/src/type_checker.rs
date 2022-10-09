@@ -174,12 +174,12 @@ mod tests {
         assert_eq!(conv(0, eval(&Vec::new(), t1), eval(&Vec::new(), t2)), true)
     }
 
-    /*#[test]
+    #[test]
     fn simple_subst() {
         env::set_var("RUST_BACKTRACE", "1");
         // λx.(λy.x y) x
         let term = Abs(
-            box Prop,
+            box Prod(box Prop,box Prop),
             box App(
                 box Abs(box Prop, box App(box Var(1), box Var(0))),
                 box Var(0),
@@ -190,7 +190,7 @@ mod tests {
         let reduced = Abs(box Prop, box App(box Var(0), box Var(0)));
 
         assert_def_eq(term, reduced);
-    }*/
+    }
 
     #[test]
     fn complex_subst() {
@@ -225,4 +225,6 @@ mod tests {
 
         assert_def_eq(term, term_step_7);
     }
+
+
 }
