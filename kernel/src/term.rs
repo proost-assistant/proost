@@ -1,11 +1,17 @@
-use derive_more::{Add, Display, From, Sub};
+use derive_more::{Add, Display, From, Into, Sub};
 use num_bigint::BigUint;
 
-#[derive(Add, Clone, Debug, Display, Eq, From, Sub, PartialEq, PartialOrd, Ord)]
+#[derive(Add, Copy, Clone, Debug, Display, Eq, Into, From, Sub, PartialEq, PartialOrd, Ord)]
 pub struct DeBruijnIndex(usize);
 
-#[derive(Add, Clone, Debug, Display, Eq, From, Sub, PartialEq, PartialOrd, Ord)]
+#[derive(Add, Clone, Debug, Display, Eq, Into, From, Sub, PartialEq, PartialOrd, Ord)]
 pub struct UniverseLevel(BigUint);
+
+impl Into<UniverseLevel> for usize {
+    fn into(self) -> UniverseLevel {
+        BigUint::from(self).into()
+    }
+}
 
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum Term {
