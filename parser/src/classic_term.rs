@@ -1,6 +1,6 @@
-use derive_more::Display;
+use kernel::derive_more::Display;
+use kernel::num_bigint::BigUint;
 use kernel::Term;
-use num_bigint::BigUint;
 
 #[derive(Clone, Debug, Display)]
 pub enum ClassicTerm {

@@ -354,9 +354,7 @@ checksum = "9ff7415e9ae3fff1225851df9e0d9e4e5479f947619774677a63572e55e80eff"
 name = "parser"
 version = "0.1.0"
 dependencies = [
- "derive_more",
  "kernel",
- "num-bigint",
  "pest",
  "pest_derive",
 ]
