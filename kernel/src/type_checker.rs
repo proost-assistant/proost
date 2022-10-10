@@ -26,9 +26,9 @@ pub enum Val {
 
     VApp(Box<Val>, Box<Val>),
 
-    VAbs(Box<Val>, Closure),
+    VAbs(String,Box<Val>, Closure),
 
-    VProd(Box<Val>, Closure),
+    VProd(String, Box<Val>, Closure),
 }
 
 #[derive(Clone, Debug)]
@@ -54,17 +54,17 @@ fn eval(e: &Env, t: Term) -> Val {
         Type(i) => VType(i),
         Var(i) => e[i].clone(),
         App(box t1, box t2) => match eval(e, t1) {
-            VAbs(_, t) => t.shift(eval(e, t2)),
+            VAbs(_, _, t) => t.shift(eval(e, t2)),
             t => VApp(box t, box eval(e, t2)),
         },
-        Abs(box a, box b) => VAbs(
+        Abs(s, box a, box b) => VAbs(s, 
             box eval(e, a),
             Closure {
                 env: e.clone(),
                 term: b,
             },
         ),
-        Prod(box a, box b) => VProd(
+        Prod(s, box a, box b) => VProd(s, 
             box eval(e, a),
             Closure {
                 env: e.clone(),
@@ -97,8 +97,8 @@ fn quote(l: DeBruijnLevel, v: Val) -> Term {
         VType(i) => Type(i),
         VVar(i) => Var(usize::from(i).into()),
         VApp(box t, box u) => App(box quote(l, t), box quote(l, u)),
-        VAbs(box t, u) => Abs(box quote(l, t), box quote(l + 1.into(), u.shift(VVar(l)))),
-        VProd(box t, u) => Prod(box quote(l, t), box quote(l + 1.into(), u.shift(VVar(l)))),
+        VAbs(s, box t, u) => Abs(s, box quote(l, t), box quote(l + 1.into(), u.shift(VVar(l)))),
+        VProd(s, box t, u) => Prod(s, box quote(l, t), box quote(l + 1.into(), u.shift(VVar(l)))),
     }
     //println!("resulting Term when evaluating {} at level {}: {}",v,l.clone(),res.clone());
 }
@@ -127,7 +127,7 @@ pub fn conv(l: DeBruijnLevel, v1: Val, v2: Val) -> bool {
 
         (VVar(i), VVar(j)) => i == j,
 
-        (VProd(box a1, b1), VProd(box a2, b2)) => {
+        (VProd(_, box a1, b1), VProd(_, box a2, b2)) => {
             conv(l, a1, a2) && conv(l + 1.into(), b1.shift(VVar(l)), b2.shift(VVar(l)))
         }
 
@@ -135,9 +135,9 @@ pub fn conv(l: DeBruijnLevel, v1: Val, v2: Val) -> bool {
         //checking conversion over the argument type is useless.
         //However, this doesn't mean we can simply remove the arg type
         //from the type constructor in the enum, it is needed to quote back to terms.
-        (VAbs(_, t), VAbs(_, u)) => conv(l + 1.into(), t.shift(VVar(l)), u.shift(VVar(l))),
+        (VAbs(_, _, t), VAbs(_, _, u)) => conv(l + 1.into(), t.shift(VVar(l)), u.shift(VVar(l))),
 
-        (VAbs(_, t), u) | (u, VAbs(_, t)) => {
+        (VAbs(_, _, t), u) | (u, VAbs(_, _, t)) => {
             conv(l + 1.into(), t.shift(VVar(l)), VApp(box u, box VVar(l)))
         }
 
@@ -161,8 +161,8 @@ pub fn assert_def_eq(t1: Term, t2: Term) {
     assert!(conv(0.into(), eval(&Vec::new(), t1), eval(&Vec::new(), t2)))
 }
 
-//type of lists of tuples representing the respective types of terms
-/*type Types = Vec<(Term, Term)>;
+//type of lists of tuples representing the respective types of variables
+type Types = Vec<Term>;
 
 struct Ctx {
     env: Env,
@@ -178,15 +178,39 @@ impl Ctx {
             lvl: 0.into(),
         }
     }
-
-    /*fn bind(s : String,t : Term, Ctx{env : env, types : types, lvl : lvl} : Ctx) {
+    // Extend Ctx with a bound variable.
+    fn bind(t : Term,vty : Val, Ctx{env : env, types : types, lvl : lvl} : Ctx) -> Ctx {
+        let mut new_env = env.clone();
+        new_env.push(eval(&env,v));
+        let mut new_types = types.clone();
+        new_types.push(v);
         Ctx {
-            env : e.push(eval(&e,t)),
-            types : ty.push((s,t)),
-            lvl : lvl + 1,
+            env : new_env,
+            types : new_types,
+            lvl : lvl + 1.into(),
         }
-    }*/
-}*/
+    }
+    // Extend Ctx with a definition.
+    fn define(t : Val, a : Term, Ctx{env : env, types : types, lvl : lvl} : Ctx) -> Ctx {
+        let mut new_env = env.clone();
+        new_env.push(t);
+        let mut new_types = types.clone();
+        new_types.push(a);
+        Ctx {
+            env : new_env,
+            types : new_types,
+            lvl : lvl + 1.into()
+        }
+    }
+}
+
+fn check(ctx : Ctx, t : Term, vty : Val) -> Term {
+    match (t,vty) {
+        (Abs(s1,box t1, box t2),VProd(s2,box a, b)) => Abs(s1, box check(ctx,t1,a),box check(Ctx::bind(a,ctx),t2,b.shift(VVar(ctx.lvl))))
+    }
+}
+
+
 
 #[cfg(test)]
 mod tests {
@@ -200,7 +224,7 @@ mod tests {
 
     #[test]
     fn simple() {
-        let t1 = App(box Abs(box Type(0.into()), box Var(0.into())), box Prop);
+        let t1 = App(box Abs("".into(),box Type(0.into()), box Var(0.into())), box Prop);
         let t2 = Prop;
         assert_eq!(
             conv(0.into(), eval(&Vec::new(), t1), eval(&Vec::new(), t2)),
@@ -212,16 +236,16 @@ mod tests {
     fn simple_subst() {
         env::set_var("RUST_BACKTRACE", "1");
         // λx.(λy.x y) x
-        let term = Abs(
-            box Prod(box Prop, box Prop),
+        let term = Abs("".into(),
+            box Prod("".into(),box Prop, box Prop),
             box App(
-                box Abs(box Prop, box App(box Var(1.into()), box Var(0.into()))),
+                box Abs("".into(),box Prop, box App(box Var(1.into()), box Var(0.into()))),
                 box Var(0.into()),
             ),
         );
 
         // λx.x x
-        let reduced = Abs(box Prop, box App(box Var(0.into()), box Var(0.into())));
+        let reduced = Abs("".into(),box Prop, box App(box Var(0.into()), box Var(0.into())));
 
         assert_def_eq(term, reduced);
     }
@@ -262,25 +286,25 @@ mod tests {
 
 
     fn id(l: usize) -> Box<Term> {
-        box Abs(box Prop, box Var(l.into()))
+        box Abs("".into(),box Prop, box Var(l.into()))
     }
 
     #[test]
     fn complex_conv() {
         //(λa.λb.λc.a ((λd.λe.e b d)(λx.x))) ((λa.λb.a b) ((λx.x) (λx.x)))
         let term = App(
-            box Abs(
+            box Abs("".into(),
                 box Prop,
-                box Abs(
+                box Abs("".into(),
                     box Prop,
-                    box Abs(
+                    box Abs("".into(),
                         box Prop,
                         box App(
                             box Var(0.into()),
                             box App(
-                                box Abs(
+                                box Abs("".into(),
                                     box Prop,
-                                    box Abs(
+                                    box Abs("".into(),
                                         box Prop,
                                         box App(
                                             box App(box Var(4.into()), box Var(1.into())),
@@ -295,19 +319,19 @@ mod tests {
                 ),
             ),
             box App(
-                box Abs(
+                box Abs("".into(),
                     box Prop,
-                    box Abs(box Prop, box App(box Var(0.into()), box Var(1.into()))),
+                    box Abs("".into(),box Prop, box App(box Var(0.into()), box Var(1.into()))),
                 ),
                 box App(id(0), id(0)),
             ),
         );
         //(λb.(λc.(λe.((e b) (λx.x)))))
-        let reduced = Abs(
+        let reduced = Abs("".into(),
             box Prop,
-            box Abs(
+            box Abs("".into(),
                 box Prop,
-                box Abs(
+                box Abs("".into(),
                     box Prop,
                     box App(box App(box Var(2.into()), box Var(0.into())), id(3)),
                 ),
@@ -320,7 +344,7 @@ mod tests {
     #[test]
     fn nf_test() {
         //λa.a (λx.x) (λx.x)
-        let reduced = Abs(box Prop, box App(box App(box Var(0.into()), id(1)), id(1)));
+        let reduced = Abs("".into(),box Prop, box App(box App(box Var(0.into()), id(1)), id(1)));
         let nff = nf(Vec::new(), reduced.clone());
         println!("r : {}", reduced.clone());
         println!("r nf : {}", nff.clone());
