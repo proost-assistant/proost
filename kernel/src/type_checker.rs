@@ -234,7 +234,7 @@ pub fn check(env: &Env, t: Term, vty: Val) {
             check(env, t2, b.shift(VVar(env.len().into())))
         }
         _ => {
-            let tty = infer(&env.clone(), eval(&env, t));
+            let tty = infer(&env.clone(), eval(env, t));
             if !conv(env.len().into(), tty.clone(), vty.clone()) {
                 panic!(
                     "type mismatch\n\nexpected type:\n\n  {:?}\n\ninferred type:\n\n  {:?}\n",
