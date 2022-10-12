@@ -170,6 +170,8 @@ pub fn assert_def_eq(t1: Term, t2: Term) {
     assert!(conv(0.into(), eval(&Vec::new(), t1), eval(&Vec::new(), t2)))
 }
 
+//The context, which is supposed to contain other definitions in the environment, is not implemented for now, though it wouldn't be too hard to implement
+
 //type of lists of tuples representing the respective types of each variables
 /*type Types = Vec<Val>;
 #[derive(Clone)]
@@ -217,11 +219,13 @@ fn is_type(env: Env, t: Val) -> bool {
     matches!(quote(env.len().into(), t), Prop | Type(_) | Prod(_, _, _))
 }
 
+// Computes universe the universe in which (x : A) -> B lives when A : u1 and B : u2
 fn imax(u1: Val, u2: Val) -> Val {
     match u2 {
-        VProp => VProp,
+        VProp => VProp, // Because Prod is impredicative, if B : Prod, then (x : A) -> b : Prod
         VType(ref i) => match u1 {
             VProp => VType(i.clone()),
+            // else if u1 = Type(i) and u2 = Type(j), then (x : A) -> B : Type(max(i,j))
             VType(j) => VType(max(i.clone(), j)),
             _ => panic!("Expected universe, found {:?}", u2.clone()),
         },
