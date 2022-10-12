@@ -58,7 +58,6 @@ impl Closure {
 use Val::*;
 
 fn eval(e: &Env, t: Term) -> Val {
-    //println!("Evaluating {} in env {:?}",t.clone(),e.clone());
     match t {
         Prop => VProp,
         Type(i) => VType(i),
@@ -84,7 +83,6 @@ fn eval(e: &Env, t: Term) -> Val {
             },
         ),
     }
-    //println!("resulting Val when evaluating {} in env {:?}: {}",t,e.clone(),res.clone());
 }
 
 fn level_to_index(l1: Level, l2: Level) -> Index {
@@ -92,8 +90,7 @@ fn level_to_index(l1: Level, l2: Level) -> Index {
 }
 
 fn quote(l: DeBruijnLevel, v: Val) -> Term {
-    //println!("Quoting {} at Level {:?}",v.clone(),l.clone());
-    let res = match v {
+    match v {
         VProp => Prop,
         VType(i) => Type(i),
         VVar(i) => Var(usize::from(i).into()),
@@ -109,7 +106,6 @@ fn quote(l: DeBruijnLevel, v: Val) -> Term {
             box quote(l + 1.into(), u.shift(VVar(l))),
         ),
     }
-    //println!("resulting Term when evaluating {} at level {}: {}",v,l.clone(),res.clone());
 }
 
 // returns normal form of term t in env e, should only be used for Reduce/Eval command, not when type-checking
@@ -125,9 +121,7 @@ pub fn nf(e: Env, t: Term) -> Term {
 pub fn conv(l: DeBruijnLevel, v1: Val, v2: Val) -> bool {
     println!(
         "checking conversion between {:?} and {:?} at level {}",
-        v1,
-        v2,
-        l.clone()
+        v1, v2, l
     );
     let res = match (v1, v2) {
         (VType(i), VType(j)) => i == j,
@@ -278,7 +272,7 @@ pub fn infer(env: Env, t: Val) -> Val {
                 assert!(conv(env.len().into(), t1, t1_));
                 eval(&cls.env, cls.term)
             } else {
-                panic!("    {:?}\nIs not a function, hence argument \n\n    {:?}\ncan't be given to it",a,b)
+                panic!("\n    {:?}\nIs not a function, hence argument \n\n    {:?}\ncan't be given to it",a,b)
             }
         }
     }
@@ -286,7 +280,6 @@ pub fn infer(env: Env, t: Val) -> Val {
 
 #[cfg(test)]
 mod tests {
-    use std::env;
     // TODO: Correctly types lambda terms.
     use crate::type_checker::*;
 
@@ -309,8 +302,11 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(
+        expected = "\n    VProd(\"\", VProp, Closure { env: [], term: Prop })\nIs not a function, hence argument \n\n    VProd(\"\", VProp, Closure { env: [], term: Prop })\ncan't be given to it"
+    )]
     fn simple_subst() {
-        env::set_var("RUST_BACKTRACE", "1");
+        //env::set_var("RUST_BACKTRACE", "1");
         // λx.(λy.x y) x
         let term = Abs(
             "".into(),
@@ -334,7 +330,7 @@ mod tests {
 
         assert_def_eq(term.clone(), reduced);
         let v1 = eval(&Vec::new(), term.clone());
-        let ty = infer(Vec::new(), v1);
+        let _ty = infer(Vec::new(), v1);
     }
 
     #[test]
