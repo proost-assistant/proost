@@ -209,7 +209,7 @@ impl Ctx {
     }
 }*/
 
-fn is_type(env: Env, t: Val) -> bool {
+fn is_type(env: &Env, t: Val) -> bool {
     matches!(quote(env.len().into(), t), Prop | Type(_) | Prod(_, _, _))
 }
 
@@ -227,14 +227,14 @@ fn imax(u1: Val, u2: Val) -> Val {
     }
 }
 
-pub fn check(env: Env, t: Term, vty: Val) {
+pub fn check(env: &Env, t: Term, vty: Val) {
     match (t.clone(), vty.clone()) {
         (Abs(_, box t1, box t2), VProd(_, box a, b)) => {
-            check(env.clone(), t1, a);
-            check(env.clone(), t2, b.shift(VVar(env.len().into())))
+            check(env, t1, a);
+            check(env, t2, b.shift(VVar(env.len().into())))
         }
         _ => {
-            let tty = infer(env.clone(), eval(&env, t));
+            let tty = infer(&env.clone(), eval(&env, t));
             if !conv(env.len().into(), tty.clone(), vty.clone()) {
                 panic!(
                     "type mismatch\n\nexpected type:\n\n  {:?}\n\ninferred type:\n\n  {:?}\n",
@@ -245,30 +245,30 @@ pub fn check(env: Env, t: Term, vty: Val) {
     }
 }
 
-pub fn infer(env: Env, t: Val) -> Val {
+pub fn infer(env: &Env, t: Val) -> Val {
     match t {
         VProp => VType(0.into()),
         VType(i) => VType(i + 1.into()),
         VVar(i) => env[i].clone(),
         VProd(_, box a, c) => {
-            let ua = infer(env.clone(), a.clone());
+            let ua = infer(env, a.clone());
             let mut env2 = env.clone();
             env2.push(ua.clone());
-            let ub = infer(env2.clone(), a.clone());
+            let ub = infer(&env2, a.clone());
             assert!(is_type(env, a));
-            assert!(is_type(env2, eval(&c.env, c.term)));
+            assert!(is_type(&env2, eval(&c.env, c.term)));
             imax(ua, ub)
         }
         VAbs(s, box t1, c) => {
             let mut env2 = env.clone();
-            env2.push(eval(&env, quote(env.len().into(), t1.clone())));
+            env2.push(eval(env, quote(env.len().into(), t1.clone())));
             let ty = VProd(s, box t1, c.clone());
-            check(env2, c.term, ty.clone());
+            check(&env2, c.term, ty.clone());
             ty
         }
         VApp(box a, box b) => {
-            if let VProd(_, box t1, cls) = infer(env.clone(), a.clone()) {
-                let t1_ = infer(env.clone(), b);
+            if let VProd(_, box t1, cls) = infer(env, a.clone()) {
+                let t1_ = infer(env, b);
                 assert!(conv(env.len().into(), t1, t1_));
                 eval(&cls.env, cls.term)
             } else {
@@ -296,7 +296,7 @@ mod tests {
         let t2 = Prop;
         let v1 = eval(&Vec::new(), t1.clone());
         assert_eq!(conv(0.into(), v1.clone(), eval(&Vec::new(), t2)), true);
-        let ty = infer(Vec::new(), v1);
+        let ty = infer(&Vec::new(), v1);
         println!("{:?}", ty.clone());
         assert_eq!(ty, VType(0.into()));
     }
@@ -330,7 +330,7 @@ mod tests {
 
         assert_def_eq(term.clone(), reduced);
         let v1 = eval(&Vec::new(), term.clone());
-        let _ty = infer(Vec::new(), v1);
+        let _ty = infer(&Vec::new(), v1);
     }
 
     #[test]
