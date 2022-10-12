@@ -38,7 +38,7 @@ fn try_from_assign(term: ClassicTerm, known_ids: &mut Vec<String>) -> Result<Ter
             None => Err(s),
         },
         ClassicTerm::Abs(s, t1, t2) => {
-            known_ids.push(s);
+            known_ids.push(s.clone());
             let t1 = box try_from_assign(*t1, known_ids)?;
             let t2 = box try_from_assign(*t2, known_ids)?;
             known_ids.pop();
@@ -46,7 +46,7 @@ fn try_from_assign(term: ClassicTerm, known_ids: &mut Vec<String>) -> Result<Ter
             Ok(Term::Abs(s, t1, t2))
         }
         ClassicTerm::Prod(s, t1, t2) => {
-            known_ids.push(s);
+            known_ids.push(s.clone());
             let t1 = box try_from_assign(*t1, known_ids)?;
             let t2 = box try_from_assign(*t2, known_ids)?;
             known_ids.pop();
