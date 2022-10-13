@@ -49,6 +49,7 @@ impl Closure {
 
 use Val::*;
 
+// TODO modify eval to get WHNFs instead of NFs
 fn eval(e: &Env, t: Term) -> Val {
     match t {
         Prop => VProp,
