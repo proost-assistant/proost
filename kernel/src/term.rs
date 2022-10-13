@@ -75,8 +75,7 @@ impl Term {
 
 #[cfg(test)]
 mod tests {
-    // TODO: Correctly types lambda terms.
-
+    // /!\ most of these tests are on ill-typed terms and should not be used for further testings
     use super::Term::*;
 
     #[test]
