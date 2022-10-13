@@ -191,7 +191,7 @@ impl Ctx {
 }
 
 fn is_universe(t: Val) -> bool {
-    matches!(t, VProp | VType(_) | VProd(_, _, _))
+    matches!(t, VProp | VType(_))
 }
 
 // Computes universe the universe in which (x : A) -> B lives when A : u1 and B : u2
