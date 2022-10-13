@@ -241,10 +241,16 @@ pub fn infer(ctx: &Ctx, t: Val) -> Val {
             assert!(is_universe(ub.clone()));
             imax(ua, ub)
         }
-        VAbs(_s, box t1, c) => {
-            let ctx2 = ctx.clone().bind(t1);
-            println!("{:?}", ctx2);
-            infer(&ctx2, eval(&ctx2.env, c.term))
+        VAbs(s, box t1, c) => {
+            let ctx2 = ctx.clone().bind(t1.clone());
+            VProd(
+                s,
+                box infer(ctx, t1),
+                Closure {
+                    env: ctx2.env.clone(),
+                    term: quote(infer(&ctx2, eval(&ctx2.env, c.term))),
+                },
+            )
         }
         VApp(box a, box b) => {
             if let VProd(_, box t1, cls) = infer(ctx, a.clone()) {
@@ -264,6 +270,7 @@ pub fn infer(ctx: &Ctx, t: Val) -> Val {
 #[cfg(test)]
 mod tests {
     use crate::type_checker::*;
+    use std::env;
 
     fn assert_def_eq(t1: Term, t2: Term) {
         assert_eq!(
