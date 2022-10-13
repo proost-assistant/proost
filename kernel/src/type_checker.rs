@@ -173,7 +173,6 @@ impl Ctx {
         Ctx {
             env: new_env,
             types: new_types,
-            //lvl : lvl + 1.into(), //note, currently, lvl = types.len()
         }
     }
     // Extend Ctx with a definition.
@@ -185,7 +184,6 @@ impl Ctx {
         Ctx {
             env: new_env,
             types: new_types,
-            //lvl : lvl + 1.into()
         }
     }
 }
@@ -197,7 +195,7 @@ fn is_universe(t: Val) -> bool {
 // Computes universe the universe in which (x : A) -> B lives when A : u1 and B : u2
 fn imax(u1: Val, u2: Val) -> Val {
     match u2 {
-        VProp => VProp, // Because Prod is impredicative, if B : Prod, then (x : A) -> b : Prod
+        VProp => VProp, // Because Prop is impredicative, if B : Prop, then (x : A) -> b : Prop
         VType(ref i) => match u1 {
             VProp => VType(i.clone()),
             // else if u1 = Type(i) and u2 = Type(j), then (x : A) -> B : Type(max(i,j))
@@ -265,8 +263,6 @@ pub fn infer(ctx: &Ctx, t: Val) -> Val {
 
 #[cfg(test)]
 mod tests {
-    use std::env;
-    // TODO: Correctly types lambda terms.
     use crate::type_checker::*;
 
     fn assert_def_eq(t1: Term, t2: Term) {
