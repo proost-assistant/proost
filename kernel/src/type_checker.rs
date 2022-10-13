@@ -14,23 +14,22 @@ impl Index<DeBruijnIndex> for Vec<Val> {
     }
 }
 
-//  transform Vtruc to truc
-//  describe the type
+// describe the type
 // maintains the invariant that a val is in normal form, which is unnecessary for type checking/conversion, we should only need
 // weak-head normal forms
 #[derive(Clone, Debug, PartialEq)]
 pub enum Val {
-    VVar(DeBruijnIndex),
+    Var(DeBruijnIndex),
 
-    VProp,
+    Prop,
 
-    VType(UniverseLevel),
+    Type(UniverseLevel),
 
-    VApp(Box<Val>, Box<Val>),
+    App(Box<Val>, Box<Val>),
 
-    VAbs(String, Box<Val>, Closure),
+    Abs(String, Box<Val>, Closure),
 
-    VProd(String, Box<Val>, Closure),
+    Prod(String, Box<Val>, Closure),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -47,19 +46,17 @@ impl Closure {
     }
 }
 
-use Val::*;
-
 // TODO modify eval to get WHNFs instead of NFs
 fn eval(e: &Env, t: Term) -> Val {
     match t {
-        Prop => VProp,
-        Type(i) => VType(i),
+        Prop => Val::Prop,
+        Type(i) => Val::Type(i),
         Var(i) => e[i].clone(),
         App(box t1, box t2) => match eval(e, t1) {
-            VAbs(_, _, t) => t.subst(eval(e, t2)),
-            t => VApp(box t, box eval(e, t2)),
+            Val::Abs(_, _, t) => t.subst(eval(e, t2)),
+            t => Val::App(box t, box eval(e, t2)),
         },
-        Abs(s, box a, box b) => VAbs(
+        Abs(s, box a, box b) => Val::Abs(
             s,
             box eval(e, a),
             Closure {
@@ -67,7 +64,7 @@ fn eval(e: &Env, t: Term) -> Val {
                 term: b,
             },
         ),
-        Prod(s, box a, box b) => VProd(
+        Prod(s, box a, box b) => Val::Prod(
             s,
             box eval(e, a),
             Closure {
@@ -81,12 +78,12 @@ fn eval(e: &Env, t: Term) -> Val {
 //TODO transform into Into
 fn quote(v: Val) -> Term {
     match v {
-        VProp => Prop,
-        VType(i) => Type(i),
-        VVar(i) => Var(i),
-        VApp(box t, box u) => App(box quote(t), box quote(u)),
-        VAbs(s, box t, u) => Abs(s, box quote(t), box u.term),
-        VProd(s, box t, u) => Prod(s, box quote(t), box u.term),
+        Val::Prop => Prop,
+        Val::Type(i) => Type(i),
+        Val::Var(i) => Var(i),
+        Val::App(box t, box u) => App(box quote(t), box quote(u)),
+        Val::Abs(s, box t, u) => Abs(s, box quote(t), box u.term),
+        Val::Prod(s, box t, u) => Prod(s, box quote(t), box u.term),
     }
 }
 
@@ -106,27 +103,31 @@ pub fn conv(l: DeBruijnIndex, v1: Val, v2: Val) -> bool {
         v1, v2, l
     );
     let res = match (v1, v2) {
-        (VType(i), VType(j)) => i == j,
+        (Val::Type(i), Val::Type(j)) => i == j,
 
-        (VProp, VProp) => true,
+        (Val::Prop, Val::Prop) => true,
 
-        (VVar(i), VVar(j)) => i == j,
+        (Val::Var(i), Val::Var(j)) => i == j,
 
-        (VProd(_, box a1, b1), VProd(_, box a2, b2)) => {
-            conv(l, a1, a2) && conv(l + 1.into(), b1.subst(VVar(l)), b2.subst(VVar(l)))
+        (Val::Prod(_, box a1, b1), Val::Prod(_, box a2, b2)) => {
+            conv(l, a1, a2) && conv(l + 1.into(), b1.subst(Val::Var(l)), b2.subst(Val::Var(l)))
         }
 
         //Since we assume that both vals already have the same type,
         //checking conversion over the argument type is useless.
         //However, this doesn't mean we can simply remove the arg type
         //from the type constructor in the enum, it is needed to quote back to terms.
-        (VAbs(_, _, t), VAbs(_, _, u)) => conv(l + 1.into(), t.subst(VVar(l)), u.subst(VVar(l))),
-
-        (VAbs(_, _, t), u) | (u, VAbs(_, _, t)) => {
-            conv(l + 1.into(), t.subst(VVar(l)), VApp(box u, box VVar(l)))
+        (Val::Abs(_, _, t), Val::Abs(_, _, u)) => {
+            conv(l + 1.into(), t.subst(Val::Var(l)), u.subst(Val::Var(l)))
         }
 
-        (VApp(box t1, box u1), VApp(box t2, box u2)) => conv(l, t1, t2) && conv(l, u1, u2),
+        (Val::Abs(_, _, t), u) | (u, Val::Abs(_, _, t)) => conv(
+            l + 1.into(),
+            t.subst(Val::Var(l)),
+            Val::App(box u, box Val::Var(l)),
+        ),
+
+        (Val::App(box t1, box u1), Val::App(box t2, box u2)) => conv(l, t1, t2) && conv(l, u1, u2),
 
         _ => false,
     };
@@ -167,7 +168,7 @@ impl Ctx {
     // Extend Ctx with a bound variable.
     fn bind(self, vty: Val) -> Ctx {
         let mut new_env = self.env.clone();
-        new_env.push(VVar(self.env.len().into()));
+        new_env.push(Val::Var(self.env.len().into()));
         let mut new_types = self.types;
         new_types.push(vty);
         Ctx {
@@ -189,17 +190,17 @@ impl Ctx {
 }
 
 fn is_universe(t: Val) -> bool {
-    matches!(t, VProp | VType(_))
+    matches!(t, Val::Prop | Val::Type(_))
 }
 
 // Computes universe the universe in which (x : A) -> B lives when A : u1 and B : u2
 fn imax(u1: Val, u2: Val) -> Val {
     match u2 {
-        VProp => VProp, // Because Prop is impredicative, if B : Prop, then (x : A) -> b : Prop
-        VType(ref i) => match u1 {
-            VProp => VType(i.clone()),
+        Val::Prop => Val::Prop, // Because Prop is impredicative, if B : Prop, then (x : A) -> b : Prop
+        Val::Type(ref i) => match u1 {
+            Val::Prop => Val::Type(i.clone()),
             // else if u1 = Type(i) and u2 = Type(j), then (x : A) -> B : Type(max(i,j))
-            VType(j) => VType(max(i.clone(), j)),
+            Val::Type(j) => Val::Type(max(i.clone(), j)),
             _ => panic!("Expected universe, found {:?}", u2.clone()),
         },
         _ => panic!("Expected universe, found {:?}", u1),
@@ -208,12 +209,12 @@ fn imax(u1: Val, u2: Val) -> Val {
 
 pub fn check(ctx: &Ctx, t: Term, vty: Val) {
     match (t.clone(), vty.clone()) {
-        (Abs(_, box t1, box t2), VProd(_, box a, b)) => {
+        (Abs(_, box t1, box t2), Val::Prod(_, box a, b)) => {
             check(&ctx.clone(), t1, a.clone());
             check(
                 &ctx.clone().bind(a),
                 t2,
-                b.subst(VVar(ctx.env.len().into())),
+                b.subst(Val::Var(ctx.env.len().into())),
             )
         }
         _ => {
@@ -230,10 +231,10 @@ pub fn check(ctx: &Ctx, t: Term, vty: Val) {
 
 pub fn infer(ctx: &Ctx, t: Val) -> Val {
     match t {
-        VProp => VType(0.into()),
-        VType(i) => VType(i + 1.into()),
-        VVar(i) => ctx.types[i].clone(),
-        VProd(_, box a, c) => {
+        Val::Prop => Val::Type(0.into()),
+        Val::Type(i) => Val::Type(i + 1.into()),
+        Val::Var(i) => ctx.types[i].clone(),
+        Val::Prod(_, box a, c) => {
             let ua = infer(ctx, a.clone());
             assert!(is_universe(ua.clone()));
             let ctx2 = ctx.clone().define(a, ua.clone());
@@ -241,9 +242,9 @@ pub fn infer(ctx: &Ctx, t: Val) -> Val {
             assert!(is_universe(ub.clone()));
             imax(ua, ub)
         }
-        VAbs(s, box t1, c) => {
+        Val::Abs(s, box t1, c) => {
             let ctx2 = ctx.clone().bind(t1.clone());
-            VProd(
+            Val::Prod(
                 s,
                 box infer(ctx, t1),
                 Closure {
@@ -252,8 +253,8 @@ pub fn infer(ctx: &Ctx, t: Val) -> Val {
                 },
             )
         }
-        VApp(box a, box b) => {
-            if let VProd(_, box t1, cls) = infer(ctx, a.clone()) {
+        Val::App(box a, box b) => {
+            if let Val::Prod(_, box t1, cls) = infer(ctx, a.clone()) {
                 let t1_ = infer(ctx, b.clone());
                 if !conv(ctx.env.len().into(), t1.clone(), t1_.clone()) {
                     panic!("Wrong argument, function\n  {:?}\n expected argument of type\n  {:?}\n but term\n    {:?}\n is of type\n    {:?}",
@@ -289,12 +290,12 @@ mod tests {
         let v1 = eval(&Vec::new(), t1.clone());
         assert_eq!(conv(0.into(), v1.clone(), eval(&Vec::new(), t2)), true);
         let ty = infer(&Ctx::empty(), v1);
-        assert_eq!(ty, VType(0.into()));
+        assert_eq!(ty, Val::Type(0.into()));
     }
 
     #[test]
     #[should_panic(
-        expected = "Wrong argument, function\n  VVar(DeBruijnIndex(0))\n expected argument of type\n  VProp\n but term\n    VVar(DeBruijnIndex(0))\n is of type\n    VProd(\"\", VProp, Closure { env: [], term: Prop })"
+        expected = "Wrong argument, function\n  Var(DeBruijnIndex(0))\n expected argument of type\n  Prop\n but term\n    Var(DeBruijnIndex(0))\n is of type\n    Prod(\"\", Prop, Closure { env: [], term: Prop })"
     )]
     fn simple_subst() {
         env::set_var("RUST_BACKTRACE", "0");
