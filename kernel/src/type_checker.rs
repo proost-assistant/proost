@@ -14,6 +14,10 @@ impl Index<DeBruijnIndex> for Vec<Val> {
     }
 }
 
+//  transform Vtruc to truc
+//  describe the type
+// maintains the invariant that a val is in normal form, which is unnecessary for type checking/conversion, we should only need
+// weak-head normal forms
 #[derive(Clone, Debug, PartialEq)]
 pub enum Val {
     VVar(DeBruijnIndex),
