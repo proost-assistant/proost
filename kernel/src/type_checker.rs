@@ -75,21 +75,22 @@ fn eval(e: &Env, t: Term) -> Val {
     }
 }
 
-//TODO transform into Into
-fn quote(v: Val) -> Term {
-    match v {
-        Val::Prop => Prop,
-        Val::Type(i) => Type(i),
-        Val::Var(i) => Var(i),
-        Val::App(box t, box u) => App(box quote(t), box quote(u)),
-        Val::Abs(s, box t, u) => Abs(s, box quote(t), box u.term),
-        Val::Prod(s, box t, u) => Prod(s, box quote(t), box u.term),
+impl From<Val> for Term {
+    fn from(v: Val) -> Term {
+        match v {
+            Val::Prop => Prop,
+            Val::Type(i) => Type(i),
+            Val::Var(i) => Var(i),
+            Val::App(box t, box u) => App(box t.into(), box u.into()),
+            Val::Abs(s, box t, u) => Abs(s, box t.into(), box u.term),
+            Val::Prod(s, box t, u) => Prod(s, box t.into(), box u.term),
+        }
     }
 }
 
 // returns normal form of term t in env e, should only be used for Reduce/Eval command, not when type-checking
 pub fn nf(e: Env, t: Term) -> Term {
-    quote(eval(&e, t))
+    eval(&e, t).into()
 }
 
 // /!\ IMPORTANT /!\
@@ -249,7 +250,7 @@ pub fn infer(ctx: &Ctx, t: Val) -> Val {
                 box infer(ctx, t1),
                 Closure {
                     env: ctx2.env.clone(),
-                    term: quote(infer(&ctx2, eval(&ctx2.env, c.term))),
+                    term: infer(&ctx2, eval(&ctx2.env, c.term)).into(),
                 },
             )
         }
