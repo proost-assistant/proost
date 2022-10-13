@@ -249,7 +249,7 @@ pub fn infer(env: &Env, t: Val) -> Val {
     match t {
         VProp => VType(0.into()),
         VType(i) => VType(i + 1.into()),
-        VVar(i) => env[i].clone(),
+        VVar(i) => env[i].clone(), //see test polymorphism, doesn't work, need to use Ctx and check Ctx.types here
         VProd(_, box a, c) => {
             let ua = infer(env, a.clone());
             let mut env2 = env.clone();
@@ -450,5 +450,18 @@ mod tests {
         println!("r nf : {}", nff.clone());
         assert_eq!(reduced.clone(), nff.clone());
         assert_def_eq(reduced, nff);
+    }
+
+    #[test]
+    fn polymorphism() {
+        let id = Abs("A".into(),
+            box Type(0.into()),
+            box Abs("x".into(),
+                box Var(0.into()),
+                box Var(1.into())
+            )
+        );
+        let _ = infer(&Vec::new(),eval(&Vec::new(),id));
+        ()
     }
 }
