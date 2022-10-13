@@ -1,14 +1,10 @@
 use crate::term::*;
 use core::panic;
-use derive_more::{Add, Display, From, Into, Sub};
 use std::cmp::max;
 use std::ops::Index;
 use Term::*;
 
 type Env = Vec<Val>;
-
-#[derive(Add, Copy, Clone, Debug, Display, Eq, Into, From, Sub, PartialEq, PartialOrd, Ord)]
-pub struct DeBruijnLevel(usize);
 
 impl Index<DeBruijnIndex> for Vec<Val> {
     type Output = Val;
@@ -18,17 +14,9 @@ impl Index<DeBruijnIndex> for Vec<Val> {
     }
 }
 
-impl Index<DeBruijnLevel> for Vec<Val> {
-    type Output = Val;
-
-    fn index(&self, i: DeBruijnLevel) -> &Self::Output {
-        &self[usize::from(i)]
-    }
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub enum Val {
-    VVar(DeBruijnLevel),
+    VVar(DeBruijnIndex),
 
     VProp,
 
@@ -85,11 +73,7 @@ fn eval(e: &Env, t: Term) -> Val {
     }
 }
 
-fn level_to_index(l1: Level, l2: Level) -> Index {
-    l1 - l2 - 1
-}
-
-fn quote(l: DeBruijnLevel, v: Val) -> Term {
+fn quote(l: DeBruijnIndex, v: Val) -> Term {
     match v {
         VProp => Prop,
         VType(i) => Type(i),
@@ -118,7 +102,7 @@ pub fn nf(e: Env, t: Term) -> Term {
 // The conversion is untyped, meaning that it should **Only**
 // be called during type-checking when the two vals are already
 // known to be of the same type.
-pub fn conv(l: DeBruijnLevel, v1: Val, v2: Val) -> bool {
+pub fn conv(l: DeBruijnIndex, v1: Val, v2: Val) -> bool {
     println!(
         "checking conversion between {:?} and {:?} at level {}",
         v1, v2, l
@@ -252,7 +236,7 @@ pub fn infer(ctx: &Ctx, t: Val) -> Val {
     match t {
         VProp => VType(0.into()),
         VType(i) => VType(i + 1.into()),
-        VVar(i) => ctx.types[i].clone(), //see test polymorphism, doesn't work, need to use Ctx and check Ctx.types here
+        VVar(i) => ctx.types[i].clone(),
         VProd(_, box a, c) => {
             let ua = infer(ctx, a.clone());
             assert!(is_universe(ua.clone()));
@@ -288,7 +272,10 @@ mod tests {
     use crate::type_checker::*;
 
     fn assert_def_eq(t1: Term, t2: Term) {
-        assert_eq!(conv(0, eval(&Vec::new(), t1), eval(&Vec::new(), t2)), true)
+        assert_eq!(
+            conv(0.into(), eval(&Vec::new(), t1), eval(&Vec::new(), t2)),
+            true
+        )
     }
 
     #[test]
@@ -307,7 +294,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "Wrong argument, function\n  VVar(DeBruijnLevel(0))\n expected argument of type\n  VProp\n but term\n    VVar(DeBruijnLevel(0))\n is of type\n    VProd(\"\", VProp, Closure { env: [], term: Prop })"
+        expected = "Wrong argument, function\n  VVar(DeBruijnIndex(0))\n expected argument of type\n  VProp\n but term\n    VVar(DeBruijnIndex(0))\n is of type\n    VProd(\"\", VProp, Closure { env: [], term: Prop })"
     )]
     fn simple_subst() {
         env::set_var("RUST_BACKTRACE", "0");
@@ -336,41 +323,6 @@ mod tests {
         let v1 = eval(&Vec::new(), term.clone());
         let _ty = infer(&Ctx::empty(), v1);
     }
-
-    #[test]
-    fn complex_subst() {
-        // λa.λb.(((λc.λd.c d) (λc.λd.d (c a))) (λ_.b)) (λc.c)
-        let term = Abs(
-                    box Prop, //a
-                    box Abs(
-                        box Prop, //b
-                        box App(
-                            box App(
-                                box App(
-                                    box Abs(
-                                        box Prod(box Prop,box Prop),
-                                        box Abs(box Prop, box App(box Var(1), box Var(0)))),
-                                    box Abs(
-                                        box Prod(box Prop,box Prop),
-                                        box Abs(
-                                            box Prod(box Prod(box Prop,box Prop),box Prop),
-                                            box App(box Var(0), box App(box Var(1), box Var(3))),
-                                        ),
-                                    ),
-                                ),
-                                box Abs(box Prop, box Var(1)),
-                            ),
-                            box Abs(box Prop, box Var(2)),
-                        ),
-                    ),
-                );
-
-        // λa.λb.b
-        let term_step_7 = Abs(box Prop, box Abs(box Prop, box Var(0)));
-
-        assert_def_eq(term, term_step_7);
-    }
-
 
     fn id(l: usize) -> Box<Term> {
         box Abs("".into(), box Prop, box Var(l.into()))
