@@ -48,7 +48,7 @@ pub struct Closure {
 }
 
 impl Closure {
-    pub fn shift(self, v: Val) -> Val {
+    pub fn subst(self, v: Val) -> Val {
         let e = &mut self.env.clone();
         e.push(v);
         eval(e, self.term)
@@ -63,7 +63,7 @@ fn eval(e: &Env, t: Term) -> Val {
         Type(i) => VType(i),
         Var(i) => e[i].clone(),
         App(box t1, box t2) => match eval(e, t1) {
-            VAbs(_, _, t) => t.shift(eval(e, t2)),
+            VAbs(_, _, t) => t.subst(eval(e, t2)),
             t => VApp(box t, box eval(e, t2)),
         },
         Abs(s, box a, box b) => VAbs(
@@ -98,12 +98,12 @@ fn quote(l: DeBruijnLevel, v: Val) -> Term {
         VAbs(s, box t, u) => Abs(
             s,
             box quote(l, t),
-            box quote(l + 1.into(), u.shift(VVar(l))),
+            box quote(l + 1.into(), u.subst(VVar(l))),
         ),
         VProd(s, box t, u) => Prod(
             s,
             box quote(l, t),
-            box quote(l + 1.into(), u.shift(VVar(l))),
+            box quote(l + 1.into(), u.subst(VVar(l))),
         ),
     }
 }
@@ -131,17 +131,17 @@ pub fn conv(l: DeBruijnLevel, v1: Val, v2: Val) -> bool {
         (VVar(i), VVar(j)) => i == j,
 
         (VProd(_, box a1, b1), VProd(_, box a2, b2)) => {
-            conv(l, a1, a2) && conv(l + 1.into(), b1.shift(VVar(l)), b2.shift(VVar(l)))
+            conv(l, a1, a2) && conv(l + 1.into(), b1.subst(VVar(l)), b2.subst(VVar(l)))
         }
 
         //Since we assume that both vals already have the same type,
         //checking conversion over the argument type is useless.
         //However, this doesn't mean we can simply remove the arg type
         //from the type constructor in the enum, it is needed to quote back to terms.
-        (VAbs(_, _, t), VAbs(_, _, u)) => conv(l + 1.into(), t.shift(VVar(l)), u.shift(VVar(l))),
+        (VAbs(_, _, t), VAbs(_, _, u)) => conv(l + 1.into(), t.subst(VVar(l)), u.subst(VVar(l))),
 
         (VAbs(_, _, t), u) | (u, VAbs(_, _, t)) => {
-            conv(l + 1.into(), t.shift(VVar(l)), VApp(box u, box VVar(l)))
+            conv(l + 1.into(), t.subst(VVar(l)), VApp(box u, box VVar(l)))
         }
 
         (VApp(box t1, box u1), VApp(box t2, box u2)) => conv(l, t1, t2) && conv(l, u1, u2),
@@ -167,12 +167,11 @@ pub fn assert_def_eq(t1: Term, t2: Term) {
 //The context, which is supposed to contain other definitions in the environment, is not implemented for now, though it wouldn't be too hard to implement
 
 //type of lists of tuples representing the respective types of each variables
-/*type Types = Vec<Val>;
-#[derive(Clone)]
-struct Ctx {
+type Types = Vec<Val>;
+#[derive(Clone, Debug)]
+pub struct Ctx {
     env: Env,
     types: Types,
-    lvl: DeBruijnLevel,
 }
 
 impl Ctx {
@@ -180,37 +179,37 @@ impl Ctx {
         Ctx {
             env: Vec::new(),
             types: Vec::new(),
-            lvl: 0.into(),
         }
     }
+
     // Extend Ctx with a bound variable.
-    fn bind(vty : Val, Ctx{env, types, lvl} : Ctx) -> Ctx {
-        let mut new_env = env.clone();
-        new_env.push(VVar(lvl.into()));
-        let mut new_types = types.clone();
+    fn bind(self, vty: Val) -> Ctx {
+        let mut new_env = self.env.clone();
+        new_env.push(VVar(self.env.len().into()));
+        let mut new_types = self.types;
         new_types.push(vty);
         Ctx {
-            env : new_env,
-            types : new_types,
-            lvl : lvl + 1.into(), //note, currently, lvl = types.len()
+            env: new_env,
+            types: new_types,
+            //lvl : lvl + 1.into(), //note, currently, lvl = types.len()
         }
     }
     // Extend Ctx with a definition.
-    fn define(v : Val, vty : Val, Ctx{env, types, lvl} : Ctx) -> Ctx {
-        let mut new_env = env.clone();
-        new_env.push(vty);
-        let mut new_types = types.clone();
-        new_types.push(v);
+    fn define(self, v: Val, vty: Val) -> Ctx {
+        let mut new_env = self.env.clone();
+        new_env.push(v);
+        let mut new_types = self.types;
+        new_types.push(vty);
         Ctx {
-            env : new_env,
-            types : new_types,
-            lvl : lvl + 1.into()
+            env: new_env,
+            types: new_types,
+            //lvl : lvl + 1.into()
         }
     }
-}*/
+}
 
-fn is_type(env: &Env, t: Val) -> bool {
-    matches!(quote(env.len().into(), t), Prop | Type(_) | Prod(_, _, _))
+fn is_universe(t: Val) -> bool {
+    matches!(t, VProp | VType(_) | VProd(_, _, _))
 }
 
 // Computes universe the universe in which (x : A) -> B lives when A : u1 and B : u2
@@ -227,17 +226,21 @@ fn imax(u1: Val, u2: Val) -> Val {
     }
 }
 
-pub fn check(env: &Env, t: Term, vty: Val) {
+pub fn check(ctx: &Ctx, t: Term, vty: Val) {
     match (t.clone(), vty.clone()) {
         (Abs(_, box t1, box t2), VProd(_, box a, b)) => {
-            check(env, t1, a);
-            check(env, t2, b.shift(VVar(env.len().into())))
+            check(&ctx.clone(), t1, a.clone());
+            check(
+                &ctx.clone().bind(a),
+                t2,
+                b.subst(VVar(ctx.env.len().into())),
+            )
         }
         _ => {
-            let tty = infer(&env.clone(), eval(env, t));
-            if !conv(env.len().into(), tty.clone(), vty.clone()) {
+            let tty = infer(ctx, eval(&ctx.env, t));
+            if !conv(ctx.env.len().into(), tty.clone(), vty.clone()) {
                 panic!(
-                    "type mismatch\n\nexpected type:\n\n  {:?}\n\ninferred type:\n\n  {:?}\n",
+                    "type mismatch\nexpected type:\n  {:?}\n\ninferred type:\n  {:?}\n",
                     vty, tty
                 )
             };
@@ -245,34 +248,34 @@ pub fn check(env: &Env, t: Term, vty: Val) {
     }
 }
 
-pub fn infer(env: &Env, t: Val) -> Val {
+pub fn infer(ctx: &Ctx, t: Val) -> Val {
     match t {
         VProp => VType(0.into()),
         VType(i) => VType(i + 1.into()),
-        VVar(i) => env[i].clone(), //see test polymorphism, doesn't work, need to use Ctx and check Ctx.types here
+        VVar(i) => ctx.types[i].clone(), //see test polymorphism, doesn't work, need to use Ctx and check Ctx.types here
         VProd(_, box a, c) => {
-            let ua = infer(env, a.clone());
-            let mut env2 = env.clone();
-            env2.push(ua.clone());
-            let ub = infer(&env2, a.clone());
-            assert!(is_type(env, a));
-            assert!(is_type(&env2, eval(&c.env, c.term)));
+            let ua = infer(ctx, a.clone());
+            assert!(is_universe(ua.clone()));
+            let ctx2 = ctx.clone().define(a, ua.clone());
+            let ub = infer(&ctx2, eval(&ctx2.env, c.term));
+            assert!(is_universe(ub.clone()));
             imax(ua, ub)
         }
-        VAbs(s, box t1, c) => {
-            let mut env2 = env.clone();
-            env2.push(eval(env, quote(env.len().into(), t1.clone())));
-            let ty = VProd(s, box t1, c.clone());
-            check(&env2, c.term, ty.clone());
-            ty
+        VAbs(_s, box t1, c) => {
+            let ctx2 = ctx.clone().bind(t1);
+            println!("{:?}", ctx2);
+            infer(&ctx2, eval(&ctx2.env, c.term))
         }
         VApp(box a, box b) => {
-            if let VProd(_, box t1, cls) = infer(env, a.clone()) {
-                let t1_ = infer(env, b);
-                assert!(conv(env.len().into(), t1, t1_));
+            if let VProd(_, box t1, cls) = infer(ctx, a.clone()) {
+                let t1_ = infer(ctx, b.clone());
+                if !conv(ctx.env.len().into(), t1.clone(), t1_.clone()) {
+                    panic!("Wrong argument, function\n  {:?}\n expected argument of type\n  {:?}\n but term\n    {:?}\n is of type\n    {:?}",
+                a,t1,b,t1_)
+                };
                 eval(&cls.env, cls.term)
             } else {
-                panic!("\n    {:?}\nIs not a function, hence argument \n\n    {:?}\ncan't be given to it",a,b)
+                panic!("\n    {:?}\nIs not a function, hence argument \n    {:?}\ncan't be given to it",a,b)
             }
         }
     }
@@ -280,6 +283,7 @@ pub fn infer(env: &Env, t: Val) -> Val {
 
 #[cfg(test)]
 mod tests {
+    use std::env;
     // TODO: Correctly types lambda terms.
     use crate::type_checker::*;
 
@@ -296,17 +300,17 @@ mod tests {
         let t2 = Prop;
         let v1 = eval(&Vec::new(), t1.clone());
         assert_eq!(conv(0.into(), v1.clone(), eval(&Vec::new(), t2)), true);
-        let ty = infer(&Vec::new(), v1);
+        let ty = infer(&Ctx::empty(), v1);
         println!("{:?}", ty.clone());
         assert_eq!(ty, VType(0.into()));
     }
 
     #[test]
     #[should_panic(
-        expected = "\n    VProd(\"\", VProp, Closure { env: [], term: Prop })\nIs not a function, hence argument \n\n    VProd(\"\", VProp, Closure { env: [], term: Prop })\ncan't be given to it"
+        expected = "Wrong argument, function\n  VVar(DeBruijnLevel(0))\n expected argument of type\n  VProp\n but term\n    VVar(DeBruijnLevel(0))\n is of type\n    VProd(\"\", VProp, Closure { env: [], term: Prop })"
     )]
     fn simple_subst() {
-        //env::set_var("RUST_BACKTRACE", "1");
+        env::set_var("RUST_BACKTRACE", "0");
         // λx.(λy.x y) x
         let term = Abs(
             "".into(),
@@ -330,7 +334,7 @@ mod tests {
 
         assert_def_eq(term.clone(), reduced);
         let v1 = eval(&Vec::new(), term.clone());
-        let _ty = infer(&Vec::new(), v1);
+        let _ty = infer(&Ctx::empty(), v1);
     }
 
     #[test]
@@ -454,14 +458,13 @@ mod tests {
 
     #[test]
     fn polymorphism() {
-        let id = Abs("A".into(),
+        env::set_var("RUST_BACKTRACE", "full");
+        let id = Abs(
+            "A".into(),
             box Type(0.into()),
-            box Abs("x".into(),
-                box Var(0.into()),
-                box Var(1.into())
-            )
+            box Abs("x".into(), box Var(0.into()), box Var(1.into())),
         );
-        let _ = infer(&Vec::new(),eval(&Vec::new(),id));
+        let _ = infer(&Ctx::empty(), eval(&Vec::new(), id));
         ()
     }
 }
