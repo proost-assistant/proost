@@ -282,7 +282,6 @@ mod tests {
         let v1 = eval(&Vec::new(), t1.clone());
         assert_eq!(conv(0.into(), v1.clone(), eval(&Vec::new(), t2)), true);
         let ty = infer(&Ctx::empty(), v1);
-        println!("{:?}", ty.clone());
         assert_eq!(ty, VType(0.into()));
     }
 
