@@ -78,28 +78,21 @@ fn eval(e: &Env, t: Term) -> Val {
     }
 }
 
-fn quote(l: DeBruijnIndex, v: Val) -> Term {
+//TODO transform into Into
+fn quote(v: Val) -> Term {
     match v {
         VProp => Prop,
         VType(i) => Type(i),
-        VVar(i) => Var(usize::from(i).into()),
-        VApp(box t, box u) => App(box quote(l, t), box quote(l, u)),
-        VAbs(s, box t, u) => Abs(
-            s,
-            box quote(l, t),
-            box quote(l + 1.into(), u.subst(VVar(l))),
-        ),
-        VProd(s, box t, u) => Prod(
-            s,
-            box quote(l, t),
-            box quote(l + 1.into(), u.subst(VVar(l))),
-        ),
+        VVar(i) => Var(i),
+        VApp(box t, box u) => App(box quote(t), box quote(u)),
+        VAbs(s, box t, u) => Abs(s, box quote(t), box u.term),
+        VProd(s, box t, u) => Prod(s, box quote(t), box u.term),
     }
 }
 
 // returns normal form of term t in env e, should only be used for Reduce/Eval command, not when type-checking
 pub fn nf(e: Env, t: Term) -> Term {
-    quote(e.len().into(), eval(&e, t))
+    quote(eval(&e, t))
 }
 
 // /!\ IMPORTANT /!\
