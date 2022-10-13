@@ -99,7 +99,7 @@ pub fn nf(e: Env, t: Term) -> Term {
 // Conversion function, checks whether two values are equal.
 // The conversion is untyped, meaning that it should **Only**
 // be called during type-checking when the two vals are already
-// known to be of the same type.
+// known to be of the same type and in the same context
 pub fn conv(l: DeBruijnIndex, v1: Val, v2: Val) -> bool {
     println!(
         "checking conversion between {:?} and {:?} at level {}",
