@@ -14,7 +14,7 @@ impl Index<DeBruijnIndex> for Vec<Val> {
     }
 }
 
-// describe the type
+// terms with closures
 // maintains the invariant that a val is in normal form, which is unnecessary for type checking/conversion, we should only need
 // weak-head normal forms
 #[derive(Clone, Debug, PartialEq)]
