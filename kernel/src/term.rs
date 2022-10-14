@@ -7,12 +7,6 @@ pub struct DeBruijnIndex(usize);
 #[derive(Add, Clone, Debug, Display, Eq, Into, From, Sub, PartialEq, PartialOrd, Ord)]
 pub struct UniverseLevel(BigUint);
 
-impl From<usize> for UniverseLevel {
-    fn from(i: usize) -> Self {
-        BigUint::from(i).into()
-    }
-}
-
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum Term {
     #[display(fmt = "{}", _0)]
