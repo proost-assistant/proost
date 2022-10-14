@@ -1,7 +1,7 @@
 #![feature(box_syntax)]
 
 use clap::Parser;
-use parser::{parse_command, parse_file};
+use parser::parse_file;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use std::error::Error;
@@ -47,10 +47,16 @@ fn main() -> Result<(), Box<dyn Error>> {
         let readline = rl.readline(">> ");
         match readline {
             Ok(line) => {
-                rl.add_history_entry(line.as_str());
-                match parse_command(line.as_str()) {
-                    Ok(command) => println!("{}", command),
-                    Err(err) => println!("{}", *err),
+                if !line.is_empty() {
+                    rl.add_history_entry(line.as_str());
+                    match parse_file(line.as_str()) {
+                        Ok(commands) => {
+                            for command in commands {
+                                println!("{}", command);
+                            }
+                        }
+                        Err(err) => println!("{}", *err),
+                    }
                 }
             }
             Err(ReadlineError::Interrupted) => {}

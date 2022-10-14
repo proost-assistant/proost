@@ -1,20 +1,41 @@
-WHITESPACE = _{ " " | "\t" }
+WHITESPACE = _{ WHITE_SPACE }
 COMMENT = _{ "#" ~ (!"\n" ~ ANY)* }
-number = @{ ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* }
-string = @{ ASCII_ALPHA ~ ASCII_ALPHANUMERIC* }
+number = @{ ASCII_DIGIT+ }
+string = @{ !keywords ~ ASCII_ALPHA ~ ( "_" | ASCII_ALPHANUMERIC )* }
+keywords = @{ ( "fun" | "type" | "def" | "check" | "P" | "T" ) ~ !ASCII_ALPHANUMERIC }
+eoi = _{ !ANY }
 
-Term = _{ Prop | Type | Var | App | Abs | Prod | ParTerm }
+Term = _{ Abs | dProd | Prod | App | Var | Prop | Type | "(" ~ Term ~ ")" }
+term_prod = _{ App | Abs | dProd | Var | Prop | Type | "(" ~ term_prod ~ ")" }
+term_app = _{ Abs | dProd | Var | Prop | Type | "(" ~ Prod ~ ")" | "(" ~ term_app ~ ")" } 
+term_dprod = _{ App | Abs | dProd | Var | Prop | Type | "(" ~ Prod ~ ")" | "(" ~ term_dprod ~ ")" }
+term_abs = _{ App | Abs | dProd | Var | Prop | Type  | "(" ~ Prod ~ ")" | "(" ~ term_abs ~ ")" }
+
+Abs = { ( "fun" ~ ( arg_abs_par ~ ( "," ~ arg_abs_par )* ) ~ "=>" ~ Term ) }
+Abs_ = { ( "fun" ~ ( string ~ ( "," ~ string )* ) ~ "=>" ~ Term ) }
+arg_abs = { ( string ~ ":" ~ term_abs ) }
+arg_abs_par = _{ arg_abs | "(" ~ arg_abs ~ ")" }
+
+dProd = { "(" ~ ( arg_dprod_par ~ ( "," ~ arg_dprod_par )* ) ~ ")" ~ "->" ~ Term }
+dProd_ = { "(" ~ ( string ~ ( "," ~ string )* ) ~ ")" ~ "->" ~ Term }
+arg_dprod = { ( string ~ ":" ~ term_dprod ) }
+arg_dprod_par = _{ arg_dprod | "(" ~ arg_dprod ~ ")" }
+
+App = { term_app ~ term_app+ }
+Prod = { term_prod ~ ( "->" ~ term_prod )+ }
+
+Jocker = { "_" }
 Prop = { "P" }
 Type = { "T(" ~ number ~ ")" }
 Var = { string }
-App = { "(" ~ ( Var | Abs | Prod ) ~ ")" ~ Term }
-Abs = { "/\\" ~ string ~ ":" ~ Term ~ "->" ~ Term }
-Prod = { "\\/" ~ string ~ ":" ~ Term ~ "->" ~ Term }
-ParTerm = _{ "(" ~ Term ~ ")" }
 
-Command = _{ ( Define | CheckType | GetType ) ~ "." }
-Define = { ( "define" | "Define" ) ~ string ~ ":=" ~ Term }
-CheckType = { ( "CheckType" | "Check" | "check" ) ~  Term ~ ":" ~ Term }
-GetType = { ( "Type" | "GetType" | "type" ) ~ Term }
+Command = _{ ( Define | CheckType | GetType | DefineCheckType ) ~ "." }
+Define = { "def" ~ string ~ ":=" ~ Term }
+DefineCheckType = { "def" ~ string ~ ":" ~ Term ~ ":=" ~ Term }
+CheckType = { "check" ~ Term ~ ":" ~ Term }
+GetType = { "type" ~ Term }
 
-File = { SOI ~ (NEWLINE* ~ Command)* ~ NEWLINE* ~ EOI }
+Error = _{ error_dot }
+error_dot = { ( Define | CheckType | GetType | DefineCheckType ) }
+
+File = _{ SOI ~ ( NEWLINE* ~ ( Command | Error ) )* ~ NEWLINE* ~ eoi }
