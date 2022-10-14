@@ -3,7 +3,6 @@ use core::panic;
 use num_bigint::BigUint;
 use std::cmp::max;
 use std::ops::Index;
-use Term::*;
 
 type Env = Vec<Val>;
 
@@ -18,7 +17,7 @@ impl Index<DeBruijnIndex> for Vec<Val> {
 // terms with closures
 // maintains the invariant that a val is in normal form, which is unnecessary for type checking/conversion, we should only need
 // weak-head normal forms
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Val {
     Var(DeBruijnIndex),
 
@@ -33,11 +32,12 @@ pub enum Val {
     Prod(String, Box<Val>, Closure),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Closure {
     env: Env,
     term: Term,
 }
+use Val::*;
 
 impl Closure {
     pub fn subst(self, v: Val) -> Val {
@@ -50,14 +50,14 @@ impl Closure {
 // TODO modify eval to get WHNFs instead of NFs
 fn eval(e: &Env, t: Term) -> Val {
     match t {
-        Prop => Val::Prop,
-        Type(i) => Val::Type(i),
-        Var(i) => e[i].clone(),
-        App(box t1, box t2) => match eval(e, t1) {
-            Val::Abs(_, _, t) => t.subst(eval(e, t2)),
-            t => Val::App(box t, box eval(e, t2)),
+        Term::Prop => Prop,
+        Term::Type(i) => Type(i),
+        Term::Var(i) => e[i].clone(),
+        Term::App(box t1, box t2) => match eval(e, t1) {
+            Abs(_, _, t) => t.subst(eval(e, t2)),
+            t => App(box t, box eval(e, t2)),
         },
-        Abs(s, box a, box b) => Val::Abs(
+        Term::Abs(s, box a, box b) => Abs(
             s,
             box eval(e, a),
             Closure {
@@ -65,7 +65,7 @@ fn eval(e: &Env, t: Term) -> Val {
                 term: b,
             },
         ),
-        Prod(s, box a, box b) => Val::Prod(
+        Term::Prod(s, box a, box b) => Prod(
             s,
             box eval(e, a),
             Closure {
@@ -79,12 +79,12 @@ fn eval(e: &Env, t: Term) -> Val {
 impl From<Val> for Term {
     fn from(v: Val) -> Term {
         match v {
-            Val::Prop => Prop,
-            Val::Type(i) => Type(i),
-            Val::Var(i) => Var(i),
-            Val::App(box t, box u) => App(box t.into(), box u.into()),
-            Val::Abs(s, box t, u) => Abs(s, box t.into(), box u.term),
-            Val::Prod(s, box t, u) => Prod(s, box t.into(), box u.term),
+            Prop => Term::Prop,
+            Type(i) => Term::Type(i),
+            Var(i) => Term::Var(i),
+            App(box t, box u) => Term::App(box t.into(), box u.into()),
+            Abs(s, box t, u) => Term::Abs(s, box t.into(), box u.term),
+            Prod(s, box t, u) => Term::Prod(s, box t.into(), box u.term),
         }
     }
 }
@@ -101,31 +101,27 @@ pub fn nf(e: Env, t: Term) -> Term {
 // known to be of the same type and in the same context
 pub fn conv(l: DeBruijnIndex, v1: Val, v2: Val) -> bool {
     match (v1, v2) {
-        (Val::Type(i), Val::Type(j)) => i == j,
+        (Type(i), Type(j)) => i == j,
 
-        (Val::Prop, Val::Prop) => true,
+        (Prop, Prop) => true,
 
-        (Val::Var(i), Val::Var(j)) => i == j,
+        (Var(i), Var(j)) => i == j,
 
-        (Val::Prod(_, box a1, b1), Val::Prod(_, box a2, b2)) => {
-            conv(l, a1, a2) && conv(l + 1.into(), b1.subst(Val::Var(l)), b2.subst(Val::Var(l)))
+        (Prod(_, box a1, b1), Prod(_, box a2, b2)) => {
+            conv(l, a1, a2) && conv(l + 1.into(), b1.subst(Var(l)), b2.subst(Var(l)))
         }
 
         //Since we assume that both vals already have the same type,
         //checking conversion over the argument type is useless.
         //However, this doesn't mean we can simply remove the arg type
         //from the type constructor in the enum, it is needed to quote back to terms.
-        (Val::Abs(_, _, t), Val::Abs(_, _, u)) => {
-            conv(l + 1.into(), t.subst(Val::Var(l)), u.subst(Val::Var(l)))
+        (Abs(_, _, t), Abs(_, _, u)) => conv(l + 1.into(), t.subst(Var(l)), u.subst(Var(l))),
+
+        (Abs(_, _, t), u) | (u, Abs(_, _, t)) => {
+            conv(l + 1.into(), t.subst(Var(l)), App(box u, box Var(l)))
         }
 
-        (Val::Abs(_, _, t), u) | (u, Val::Abs(_, _, t)) => conv(
-            l + 1.into(),
-            t.subst(Val::Var(l)),
-            Val::App(box u, box Val::Var(l)),
-        ),
-
-        (Val::App(box t1, box u1), Val::App(box t2, box u2)) => conv(l, t1, t2) && conv(l, u1, u2),
+        (App(box t1, box u1), App(box t2, box u2)) => conv(l, t1, t2) && conv(l, u1, u2),
 
         _ => false,
     }
@@ -156,7 +152,7 @@ impl Ctx {
     // Extend Ctx with a bound variable.
     fn bind(self, vty: Val) -> Ctx {
         let mut new_env = self.env.clone();
-        new_env.push(Val::Var(self.env.len().into()));
+        new_env.push(Var(self.env.len().into()));
         let mut new_types = self.types;
         new_types.push(vty);
         Ctx {
@@ -178,17 +174,17 @@ impl Ctx {
 }
 
 fn is_universe(t: Val) -> bool {
-    matches!(t, Val::Prop | Val::Type(_))
+    matches!(t, Prop | Type(_))
 }
 
 // Computes universe the universe in which (x : A) -> B lives when A : u1 and B : u2
 fn imax(u1: Val, u2: Val) -> Val {
     match u2 {
-        Val::Prop => Val::Prop, // Because Prop is impredicative, if B : Prop, then (x : A) -> b : Prop
-        Val::Type(ref i) => match u1 {
-            Val::Prop => Val::Type(i.clone()),
-            // else if u1 = Type(i) and u2 = Type(j), then (x : A) -> B : Type(max(i,j))
-            Val::Type(j) => Val::Type(max(i.clone(), j)),
+        Prop => Prop, // Because Term::Prop is impredicative, if B : Term::Prop, then (x : A) -> b : Term::Prop
+        Type(ref i) => match u1 {
+            Prop => Type(i.clone()),
+            // else if u1 = Term::Type(i) and u2 = Term::Type(j), then (x : A) -> B : Term::Type(max(i,j))
+            Type(j) => Type(max(i.clone(), j)),
             _ => panic!("Expected universe, found {:?}", u2.clone()),
         },
         _ => panic!("Expected universe, found {:?}", u1),
@@ -197,13 +193,9 @@ fn imax(u1: Val, u2: Val) -> Val {
 
 pub fn check(ctx: &Ctx, t: Term, vty: Val) {
     match (t.clone(), vty.clone()) {
-        (Abs(_, box t1, box t2), Val::Prod(_, box a, b)) => {
+        (Term::Abs(_, box t1, box t2), Prod(_, box a, b)) => {
             check(&ctx.clone(), t1, a.clone());
-            check(
-                &ctx.clone().bind(a),
-                t2,
-                b.subst(Val::Var(ctx.env.len().into())),
-            )
+            check(&ctx.clone().bind(a), t2, b.subst(Var(ctx.env.len().into())))
         }
         _ => {
             let tty = infer(ctx, eval(&ctx.env, t));
@@ -219,10 +211,10 @@ pub fn check(ctx: &Ctx, t: Term, vty: Val) {
 
 pub fn infer(ctx: &Ctx, t: Val) -> Val {
     match t {
-        Val::Prop => Val::Type(BigUint::from(0_u64).into()),
-        Val::Type(i) => Val::Type(i + BigUint::from(1_u64).into()),
-        Val::Var(i) => ctx.types[i].clone(),
-        Val::Prod(_, box a, c) => {
+        Prop => Type(BigUint::from(0_u64).into()),
+        Type(i) => Type(i + BigUint::from(1_u64).into()),
+        Var(i) => ctx.types[i].clone(),
+        Prod(_, box a, c) => {
             let ua = infer(ctx, a.clone());
             assert!(is_universe(ua.clone()));
             let ctx2 = ctx.clone().define(a, ua.clone());
@@ -230,9 +222,9 @@ pub fn infer(ctx: &Ctx, t: Val) -> Val {
             assert!(is_universe(ub.clone()));
             imax(ua, ub)
         }
-        Val::Abs(s, box t1, c) => {
+        Abs(s, box t1, c) => {
             let ctx2 = ctx.clone().bind(t1.clone());
-            Val::Prod(
+            Prod(
                 s,
                 box infer(ctx, t1),
                 Closure {
@@ -241,8 +233,8 @@ pub fn infer(ctx: &Ctx, t: Val) -> Val {
                 },
             )
         }
-        Val::App(box a, box b) => {
-            if let Val::Prod(_, box t1, cls) = infer(ctx, a.clone()) {
+        App(box a, box b) => {
+            if let Prod(_, box t1, cls) = infer(ctx, a.clone()) {
                 let t1_ = infer(ctx, b.clone());
                 if !conv(ctx.env.len().into(), t1.clone(), t1_.clone()) {
                     panic!("Wrong argument, function\n  {:?}\n expected argument of type\n  {:?}\n but term\n    {:?}\n is of type\n    {:?}",
@@ -270,19 +262,19 @@ mod tests {
 
     #[test]
     fn simple() {
-        let t1 = App(
-            box Abs(
+        let t1 = Term::App(
+            box Term::Abs(
                 "".into(),
-                box Type(BigUint::from(0_u64).into()),
-                box Var(0.into()),
+                box Term::Type(BigUint::from(0_u64).into()),
+                box Term::Var(0.into()),
             ),
-            box Prop,
+            box Term::Prop,
         );
-        let t2 = Prop;
+        let t2 = Term::Prop;
         let v1 = eval(&Vec::new(), t1.clone());
         assert_eq!(conv(0.into(), v1.clone(), eval(&Vec::new(), t2)), true);
         let ty = infer(&Ctx::empty(), v1);
-        assert_eq!(ty, Val::Type(BigUint::from(0_u64).into()));
+        assert_eq!(ty, Type(BigUint::from(0_u64).into()));
     }
 
     #[test]
@@ -292,24 +284,24 @@ mod tests {
     fn simple_subst() {
         env::set_var("RUST_BACKTRACE", "0");
         // λx.(λy.x y) x
-        let term = Abs(
+        let term = Term::Abs(
             "".into(),
-            box Prod("".into(), box Prop, box Prop),
-            box App(
-                box Abs(
+            box Term::Prod("".into(), box Term::Prop, box Term::Prop),
+            box Term::App(
+                box Term::Abs(
                     "".into(),
-                    box Prop,
-                    box App(box Var(1.into()), box Var(0.into())),
+                    box Term::Prop,
+                    box Term::App(box Term::Var(1.into()), box Term::Var(0.into())),
                 ),
-                box Var(0.into()),
+                box Term::Var(0.into()),
             ),
         );
 
         // λx.x x
-        let reduced = Abs(
+        let reduced = Term::Abs(
             "".into(),
-            box Prop,
-            box App(box Var(0.into()), box Var(0.into())),
+            box Term::Prop,
+            box Term::App(box Term::Var(0.into()), box Term::Var(0.into())),
         );
 
         assert_def_eq(term.clone(), reduced);
@@ -318,34 +310,37 @@ mod tests {
     }
 
     fn id(l: usize) -> Box<Term> {
-        box Abs("".into(), box Prop, box Var(l.into()))
+        box Term::Abs("".into(), box Term::Prop, box Term::Var(l.into()))
     }
 
     #[test]
     fn complex_conv() {
         //(λa.λb.λc.a ((λd.λe.e b d)(λx.x))) ((λa.λb.a b) ((λx.x) (λx.x)))
-        let term = App(
-            box Abs(
+        let term = Term::App(
+            box Term::Abs(
                 "".into(),
-                box Prop,
-                box Abs(
+                box Term::Prop,
+                box Term::Abs(
                     "".into(),
-                    box Prop,
-                    box Abs(
+                    box Term::Prop,
+                    box Term::Abs(
                         "".into(),
-                        box Prop,
-                        box App(
-                            box Var(0.into()),
-                            box App(
-                                box Abs(
+                        box Term::Prop,
+                        box Term::App(
+                            box Term::Var(0.into()),
+                            box Term::App(
+                                box Term::Abs(
                                     "".into(),
-                                    box Prop,
-                                    box Abs(
+                                    box Term::Prop,
+                                    box Term::Abs(
                                         "".into(),
-                                        box Prop,
-                                        box App(
-                                            box App(box Var(4.into()), box Var(1.into())),
-                                            box Var(3.into()),
+                                        box Term::Prop,
+                                        box Term::App(
+                                            box Term::App(
+                                                box Term::Var(4.into()),
+                                                box Term::Var(1.into()),
+                                            ),
+                                            box Term::Var(3.into()),
                                         ),
                                     ),
                                 ),
@@ -355,30 +350,33 @@ mod tests {
                     ),
                 ),
             ),
-            box App(
-                box Abs(
+            box Term::App(
+                box Term::Abs(
                     "".into(),
-                    box Prop,
-                    box Abs(
+                    box Term::Prop,
+                    box Term::Abs(
                         "".into(),
-                        box Prop,
-                        box App(box Var(0.into()), box Var(1.into())),
+                        box Term::Prop,
+                        box Term::App(box Term::Var(0.into()), box Term::Var(1.into())),
                     ),
                 ),
-                box App(id(0), id(0)),
+                box Term::App(id(0), id(0)),
             ),
         );
         //(λb.(λc.(λe.((e b) (λx.x)))))
-        let reduced = Abs(
+        let reduced = Term::Abs(
             "".into(),
-            box Prop,
-            box Abs(
+            box Term::Prop,
+            box Term::Abs(
                 "".into(),
-                box Prop,
-                box Abs(
+                box Term::Prop,
+                box Term::Abs(
                     "".into(),
-                    box Prop,
-                    box App(box App(box Var(2.into()), box Var(0.into())), id(3)),
+                    box Term::Prop,
+                    box Term::App(
+                        box Term::App(box Term::Var(2.into()), box Term::Var(0.into())),
+                        id(3),
+                    ),
                 ),
             ),
         );
@@ -389,10 +387,10 @@ mod tests {
     #[test]
     fn nf_test() {
         //λa.a (λx.x) (λx.x)
-        let reduced = Abs(
+        let reduced = Term::Abs(
             "".into(),
-            box Prop,
-            box App(box App(box Var(0.into()), id(1)), id(1)),
+            box Term::Prop,
+            box Term::App(box Term::App(box Term::Var(0.into()), id(1)), id(1)),
         );
         let nff = nf(Vec::new(), reduced.clone());
         println!("r : {}", reduced.clone());
@@ -404,10 +402,10 @@ mod tests {
     #[test]
     fn polymorphism() {
         env::set_var("RUST_BACKTRACE", "full");
-        let id = Abs(
+        let id = Term::Abs(
             "A".into(),
-            box Type(BigUint::from(0_u64).into()),
-            box Abs("x".into(), box Var(0.into()), box Var(1.into())),
+            box Term::Type(BigUint::from(0_u64).into()),
+            box Term::Abs("x".into(), box Term::Var(0.into()), box Term::Var(1.into())),
         );
         let _ = infer(&Ctx::empty(), eval(&Vec::new(), id));
         ()
