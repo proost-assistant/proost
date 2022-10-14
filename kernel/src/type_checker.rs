@@ -3,6 +3,7 @@ use core::panic;
 use std::cmp::max;
 use std::ops::Index;
 use Term::*;
+use num_bigint::BigUint;
 
 type Env = Vec<Val>;
 
@@ -218,8 +219,8 @@ pub fn check(ctx: &Ctx, t: Term, vty: Val) {
 
 pub fn infer(ctx: &Ctx, t: Val) -> Val {
     match t {
-        Val::Prop => Val::Type(0.into()),
-        Val::Type(i) => Val::Type(i + 1.into()),
+        Val::Prop => Val::Type(BigUint::from(0_u64).into()),
+        Val::Type(i) => Val::Type(i + BigUint::from(1_u64).into()),
         Val::Var(i) => ctx.types[i].clone(),
         Val::Prod(_, box a, c) => {
             let ua = infer(ctx, a.clone());
@@ -270,14 +271,14 @@ mod tests {
     #[test]
     fn simple() {
         let t1 = App(
-            box Abs("".into(), box Type(0.into()), box Var(0.into())),
+            box Abs("".into(), box Type(BigUint::from(0_u64).into()), box Var(0.into())),
             box Prop,
         );
         let t2 = Prop;
         let v1 = eval(&Vec::new(), t1.clone());
         assert_eq!(conv(0.into(), v1.clone(), eval(&Vec::new(), t2)), true);
         let ty = infer(&Ctx::empty(), v1);
-        assert_eq!(ty, Val::Type(0.into()));
+        assert_eq!(ty, Val::Type(BigUint::from(0_u64).into()));
     }
 
     #[test]
@@ -401,7 +402,7 @@ mod tests {
         env::set_var("RUST_BACKTRACE", "full");
         let id = Abs(
             "A".into(),
-            box Type(0.into()),
+            box Type(BigUint::from(0_u64).into()),
             box Abs("x".into(), box Var(0.into()), box Var(1.into())),
         );
         let _ = infer(&Ctx::empty(), eval(&Vec::new(), id));
