@@ -4,7 +4,7 @@ use num_bigint::BigUint;
 #[derive(Add, Copy, Clone, Debug, Display, Eq, Into, From, Sub, PartialEq, PartialOrd, Ord)]
 pub struct DeBruijnIndex(usize);
 
-#[derive(Add, Clone, Debug, Display, Eq, Into, From, Sub, PartialEq, PartialOrd, Ord)]
+#[derive(Add, Clone, Debug, Display, Eq, From, Sub, PartialEq, PartialOrd, Ord)]
 pub struct UniverseLevel(BigUint);
 
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
