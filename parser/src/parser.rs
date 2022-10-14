@@ -38,7 +38,14 @@ fn build_term_from_expr(
                 )),
             }
         }
-
+        Rule::Prod => {
+            let mut iter = pair
+                .into_inner()
+                .map(|x| build_term_from_expr(x, known_vars))
+                .rev();
+            let t = iter.next().unwrap()?;
+            iter.try_fold(t, |acc, x| Ok(Term::Prod(box x?, box acc)))
+        }
         Rule::App => {
             let mut iter = pair
                 .into_inner()
@@ -47,7 +54,6 @@ fn build_term_from_expr(
             let t = iter.next().unwrap()?;
             iter.try_fold(t, |acc, x| Ok(Term::App(box x?, box acc)))
         }
-
         Rule::Abs => {
             let iter = pair.into_inner();
             let mut iter2 = iter.clone().rev();
@@ -66,16 +72,6 @@ fn build_term_from_expr(
                 Ok(Term::Abs(box t, box acc))
             })
         }
-
-        Rule::Prod => {
-            let mut iter = pair
-                .into_inner()
-                .map(|x| build_term_from_expr(x, known_vars))
-                .rev();
-            let t = iter.next().unwrap()?;
-            iter.try_fold(t, |acc, x| Ok(Term::Prod(box x?, box acc)))
-        }
-
         Rule::dProd => {
             let iter = pair.into_inner();
             let mut iter2 = iter.clone().rev();
@@ -94,7 +90,6 @@ fn build_term_from_expr(
                 Ok(Term::Prod(box t, box acc))
             })
         }
-
         term => panic!("Unexpected term: {:?}", term),
     }
 }
@@ -135,6 +130,8 @@ fn build_command_from_expr(pair: Pair<Rule>) -> Result<Command, Box<Error<Rule>>
     }
 }
 
+// Parse a text input and try to convert it into a vector of commands.
+// If unsuccessful, the first error that was encountered is returned.
 pub fn parse_file(file: &str) -> Result<Vec<Command>, Box<Error<Rule>>> {
     FileParser::parse(Rule::File, file)?
         .map(build_command_from_expr)
