@@ -152,7 +152,7 @@ pub struct Ctx {
 }
 
 impl Ctx {
-    pub fn empty() -> Ctx {
+    pub fn new() -> Ctx {
         Ctx {
             env: Vec::new(),
             types: Vec::new(),
@@ -180,6 +180,12 @@ impl Ctx {
             env: new_env,
             types: new_types,
         }
+    }
+}
+
+impl Default for Ctx {
+    fn default() -> Self {
+        Ctx::new()
     }
 }
 
@@ -279,7 +285,7 @@ mod tests {
             Term::conv(0.into(), v1.clone(), Term::eval(&Vec::new(), t2)),
             true
         );
-        let ty = infer(&Ctx::empty(), v1);
+        let ty = infer(&Ctx::new(), v1);
         assert_eq!(ty, Type(BigUint::from(0_u64).into()));
     }
 
@@ -310,9 +316,9 @@ mod tests {
             box Term::App(box Term::Var(0.into()), box Term::Var(0.into())),
         );
 
-        assert_def_eq(term.clone(), reduced);
+        Term::assert_def_eq(term.clone(), reduced);
         let v1 = Term::eval(&Vec::new(), term.clone());
-        let _ty = infer(&Ctx::empty(), v1);
+        let _ty = infer(&Ctx::new(), v1);
     }
 
     fn id(l: usize) -> Box<Term> {
@@ -386,7 +392,7 @@ mod tests {
                 ),
             ),
         );
-        assert_def_eq(term, reduced)
+        Term::assert_def_eq(term, reduced)
     }
 
     //(λ ℙ → λ ℙ → λ ℙ → (0 (λ ℙ → λ ℙ → ((4 1) 3) λ ℙ → 3)) (λ ℙ → λ ℙ → (0 1) (λ ℙ → 0 λ ℙ → 0)))
@@ -402,7 +408,7 @@ mod tests {
         println!("r : {}", reduced.clone());
         println!("r nf : {}", nff.clone());
         assert_eq!(reduced.clone(), nff.clone());
-        assert_def_eq(reduced, nff);
+        Term::assert_def_eq(reduced, nff);
     }
 
     #[test]
@@ -413,7 +419,7 @@ mod tests {
             box Term::Type(BigUint::from(0_u64).into()),
             box Term::Abs("x".into(), box Term::Var(0.into()), box Term::Var(1.into())),
         );
-        let _ = infer(&Ctx::empty(), Term::eval(&Vec::new(), id));
+        let _ = infer(&Ctx::new(), Term::eval(&Vec::new(), id));
         ()
     }
 }
