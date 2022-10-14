@@ -94,48 +94,53 @@ impl Term {
     pub fn normal_form(e: Env, t: Term) -> Term {
         Self::eval(&e, t).into()
     }
-}
-// /!\ IMPORTANT /!\
-// Conversion function, checks whether two values are equal.
-// The conversion is untyped, meaning that it should **Only**
-// be called during type-checking when the two vals are already
-// known to be of the same type and in the same context
-pub fn conv(l: DeBruijnIndex, v1: Val, v2: Val) -> bool {
-    match (v1, v2) {
-        (Type(i), Type(j)) => i == j,
 
-        (Prop, Prop) => true,
+    // /!\ IMPORTANT /!\
+    // Conversion function, checks whether two values are equal.
+    // The conversion is untyped, meaning that it should **Only**
+    // be called during type-checking when the two vals are already
+    // known to be of the same type and in the same context
+    pub fn conv(l: DeBruijnIndex, v1: Val, v2: Val) -> bool {
+        match (v1, v2) {
+            (Type(i), Type(j)) => i == j,
 
-        (Var(i), Var(j)) => i == j,
+            (Prop, Prop) => true,
 
-        (Prod(_, box a1, b1), Prod(_, box a2, b2)) => {
-            conv(l, a1, a2) && conv(l + 1.into(), b1.subst(Var(l)), b2.subst(Var(l)))
+            (Var(i), Var(j)) => i == j,
+
+            (Prod(_, box a1, b1), Prod(_, box a2, b2)) => {
+                Term::conv(l, a1, a2)
+                    && Term::conv(l + 1.into(), b1.subst(Var(l)), b2.subst(Var(l)))
+            }
+
+            //Since we assume that both vals already have the same type,
+            //checking conversion over the argument type is useless.
+            //However, this doesn't mean we can simply remove the arg type
+            //from the type constructor in the enum, it is needed to quote back to terms.
+            (Abs(_, _, t), Abs(_, _, u)) => {
+                Term::conv(l + 1.into(), t.subst(Var(l)), u.subst(Var(l)))
+            }
+
+            (Abs(_, _, t), u) | (u, Abs(_, _, t)) => {
+                Term::conv(l + 1.into(), t.subst(Var(l)), App(box u, box Var(l)))
+            }
+
+            (App(box t1, box u1), App(box t2, box u2)) => {
+                Term::conv(l, t1, t2) && Term::conv(l, u1, u2)
+            }
+
+            _ => false,
         }
+    }
 
-        //Since we assume that both vals already have the same type,
-        //checking conversion over the argument type is useless.
-        //However, this doesn't mean we can simply remove the arg type
-        //from the type constructor in the enum, it is needed to quote back to terms.
-        (Abs(_, _, t), Abs(_, _, u)) => conv(l + 1.into(), t.subst(Var(l)), u.subst(Var(l))),
-
-        (Abs(_, _, t), u) | (u, Abs(_, _, t)) => {
-            conv(l + 1.into(), t.subst(Var(l)), App(box u, box Var(l)))
-        }
-
-        (App(box t1, box u1), App(box t2, box u2)) => conv(l, t1, t2) && conv(l, u1, u2),
-
-        _ => false,
+    pub fn assert_def_eq(t1: Term, t2: Term) {
+        assert!(Term::conv(
+            0.into(),
+            Term::eval(&Vec::new(), t1),
+            Term::eval(&Vec::new(), t2)
+        ))
     }
 }
-
-pub fn assert_def_eq(t1: Term, t2: Term) {
-    assert!(conv(
-        0.into(),
-        Term::eval(&Vec::new(), t1),
-        Term::eval(&Vec::new(), t2)
-    ))
-}
-
 //The context, which is supposed to contain other definitions in the environment, is not implemented for now, though it wouldn't be too hard to implement
 
 //type of lists of tuples representing the respective types of each variables
@@ -204,7 +209,7 @@ pub fn check(ctx: &Ctx, t: Term, vty: Val) {
         }
         _ => {
             let tty = infer(ctx, Term::eval(&ctx.env, t));
-            if !conv(ctx.env.len().into(), tty.clone(), vty.clone()) {
+            if !Term::conv(ctx.env.len().into(), tty.clone(), vty.clone()) {
                 panic!(
                     "type mismatch\nexpected type:\n  {:?}\n\ninferred type:\n  {:?}\n",
                     vty, tty
@@ -241,7 +246,7 @@ pub fn infer(ctx: &Ctx, t: Val) -> Val {
         App(box a, box b) => {
             if let Prod(_, box t1, cls) = infer(ctx, a.clone()) {
                 let t1_ = infer(ctx, b.clone());
-                if !conv(ctx.env.len().into(), t1.clone(), t1_.clone()) {
+                if !Term::conv(ctx.env.len().into(), t1.clone(), t1_.clone()) {
                     panic!("Wrong argument, function\n  {:?}\n expected argument of type\n  {:?}\n but term\n    {:?}\n is of type\n    {:?}",
                 a,t1,b,t1_)
                 };
@@ -258,17 +263,6 @@ mod tests {
     use crate::type_checker::*;
     use std::env;
 
-    fn assert_def_eq(t1: Term, t2: Term) {
-        assert_eq!(
-            conv(
-                0.into(),
-                Term::eval(&Vec::new(), t1),
-                Term::eval(&Vec::new(), t2)
-            ),
-            true
-        )
-    }
-
     #[test]
     fn simple() {
         let t1 = Term::App(
@@ -282,7 +276,7 @@ mod tests {
         let t2 = Term::Prop;
         let v1 = Term::eval(&Vec::new(), t1.clone());
         assert_eq!(
-            conv(0.into(), v1.clone(), Term::eval(&Vec::new(), t2)),
+            Term::conv(0.into(), v1.clone(), Term::eval(&Vec::new(), t2)),
             true
         );
         let ty = infer(&Ctx::empty(), v1);
