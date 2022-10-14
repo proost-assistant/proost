@@ -99,11 +99,7 @@ pub fn nf(e: Env, t: Term) -> Term {
 // be called during type-checking when the two vals are already
 // known to be of the same type and in the same context
 pub fn conv(l: DeBruijnIndex, v1: Val, v2: Val) -> bool {
-    println!(
-        "checking conversion between {:?} and {:?} at level {}",
-        v1, v2, l
-    );
-    let res = match (v1, v2) {
+    match (v1, v2) {
         (Val::Type(i), Val::Type(j)) => i == j,
 
         (Val::Prop, Val::Prop) => true,
@@ -131,20 +127,10 @@ pub fn conv(l: DeBruijnIndex, v1: Val, v2: Val) -> bool {
         (Val::App(box t1, box u1), Val::App(box t2, box u2)) => conv(l, t1, t2) && conv(l, u1, u2),
 
         _ => false,
-    };
-    if res {
-        println!("SUCCESS")
-    } else {
-        println!("FAIL")
-    };
-    res
+    }
 }
 
 pub fn assert_def_eq(t1: Term, t2: Term) {
-    println!("t1 : {}", t1);
-    println!("t1 nf : {}", nf(Vec::new(), t1.clone()));
-    println!("t2 : {}", t2);
-    println!("t2 nf : {}", nf(Vec::new(), t2.clone()));
     assert!(conv(0.into(), eval(&Vec::new(), t1), eval(&Vec::new(), t2)))
 }
 
