@@ -43,36 +43,7 @@ impl Closure {
     pub fn subst(self, v: Val) -> Val {
         let e = &mut self.env.clone();
         e.push(v);
-        eval(e, self.term)
-    }
-}
-
-// TODO modify eval to get WHNFs instead of NFs
-fn eval(e: &Env, t: Term) -> Val {
-    match t {
-        Term::Prop => Prop,
-        Term::Type(i) => Type(i),
-        Term::Var(i) => e[i].clone(),
-        Term::App(box t1, box t2) => match eval(e, t1) {
-            Abs(_, _, t) => t.subst(eval(e, t2)),
-            t => App(box t, box eval(e, t2)),
-        },
-        Term::Abs(s, box a, box b) => Abs(
-            s,
-            box eval(e, a),
-            Closure {
-                env: e.clone(),
-                term: b,
-            },
-        ),
-        Term::Prod(s, box a, box b) => Prod(
-            s,
-            box eval(e, a),
-            Closure {
-                env: e.clone(),
-                term: b,
-            },
-        ),
+        Term::eval(e, self.term)
     }
 }
 
@@ -89,11 +60,41 @@ impl From<Val> for Term {
     }
 }
 
-// returns normal form of term t in env e, should only be used for Reduce/Eval command, not when type-checking
-pub fn nf(e: Env, t: Term) -> Term {
-    eval(&e, t).into()
-}
+impl Term {
+    // TODO modify eval to get WHNFs instead of NFs
+    fn eval(e: &Env, t: Term) -> Val {
+        match t {
+            Term::Prop => Prop,
+            Term::Type(i) => Type(i),
+            Term::Var(i) => e[i].clone(),
+            Term::App(box t1, box t2) => match Term::eval(e, t1) {
+                Abs(_, _, t) => t.subst(Term::eval(e, t2)),
+                t => App(box t, box Term::eval(e, t2)),
+            },
+            Term::Abs(s, box a, box b) => Abs(
+                s,
+                box Term::eval(e, a),
+                Closure {
+                    env: e.clone(),
+                    term: b,
+                },
+            ),
+            Term::Prod(s, box a, box b) => Prod(
+                s,
+                box Term::eval(e, a),
+                Closure {
+                    env: e.clone(),
+                    term: b,
+                },
+            ),
+        }
+    }
 
+    // returns normal form of term t in env e, should only be used for Reduce/Eval command, not when type-checking
+    pub fn normal_form(e: Env, t: Term) -> Term {
+        Self::eval(&e, t).into()
+    }
+}
 // /!\ IMPORTANT /!\
 // Conversion function, checks whether two values are equal.
 // The conversion is untyped, meaning that it should **Only**
@@ -128,7 +129,11 @@ pub fn conv(l: DeBruijnIndex, v1: Val, v2: Val) -> bool {
 }
 
 pub fn assert_def_eq(t1: Term, t2: Term) {
-    assert!(conv(0.into(), eval(&Vec::new(), t1), eval(&Vec::new(), t2)))
+    assert!(conv(
+        0.into(),
+        Term::eval(&Vec::new(), t1),
+        Term::eval(&Vec::new(), t2)
+    ))
 }
 
 //The context, which is supposed to contain other definitions in the environment, is not implemented for now, though it wouldn't be too hard to implement
@@ -198,7 +203,7 @@ pub fn check(ctx: &Ctx, t: Term, vty: Val) {
             check(&ctx.clone().bind(a), t2, b.subst(Var(ctx.env.len().into())))
         }
         _ => {
-            let tty = infer(ctx, eval(&ctx.env, t));
+            let tty = infer(ctx, Term::eval(&ctx.env, t));
             if !conv(ctx.env.len().into(), tty.clone(), vty.clone()) {
                 panic!(
                     "type mismatch\nexpected type:\n  {:?}\n\ninferred type:\n  {:?}\n",
@@ -218,7 +223,7 @@ pub fn infer(ctx: &Ctx, t: Val) -> Val {
             let ua = infer(ctx, a.clone());
             assert!(is_universe(ua.clone()));
             let ctx2 = ctx.clone().define(a, ua.clone());
-            let ub = infer(&ctx2, eval(&ctx2.env, c.term));
+            let ub = infer(&ctx2, Term::eval(&ctx2.env, c.term));
             assert!(is_universe(ub.clone()));
             imax(ua, ub)
         }
@@ -229,7 +234,7 @@ pub fn infer(ctx: &Ctx, t: Val) -> Val {
                 box infer(ctx, t1),
                 Closure {
                     env: ctx2.env.clone(),
-                    term: infer(&ctx2, eval(&ctx2.env, c.term)).into(),
+                    term: infer(&ctx2, Term::eval(&ctx2.env, c.term)).into(),
                 },
             )
         }
@@ -240,7 +245,7 @@ pub fn infer(ctx: &Ctx, t: Val) -> Val {
                     panic!("Wrong argument, function\n  {:?}\n expected argument of type\n  {:?}\n but term\n    {:?}\n is of type\n    {:?}",
                 a,t1,b,t1_)
                 };
-                eval(&cls.env, cls.term)
+                Term::eval(&cls.env, cls.term)
             } else {
                 panic!("\n    {:?}\nIs not a function, hence argument \n    {:?}\ncan't be given to it",a,b)
             }
@@ -255,7 +260,11 @@ mod tests {
 
     fn assert_def_eq(t1: Term, t2: Term) {
         assert_eq!(
-            conv(0.into(), eval(&Vec::new(), t1), eval(&Vec::new(), t2)),
+            conv(
+                0.into(),
+                Term::eval(&Vec::new(), t1),
+                Term::eval(&Vec::new(), t2)
+            ),
             true
         )
     }
@@ -271,8 +280,11 @@ mod tests {
             box Term::Prop,
         );
         let t2 = Term::Prop;
-        let v1 = eval(&Vec::new(), t1.clone());
-        assert_eq!(conv(0.into(), v1.clone(), eval(&Vec::new(), t2)), true);
+        let v1 = Term::eval(&Vec::new(), t1.clone());
+        assert_eq!(
+            conv(0.into(), v1.clone(), Term::eval(&Vec::new(), t2)),
+            true
+        );
         let ty = infer(&Ctx::empty(), v1);
         assert_eq!(ty, Type(BigUint::from(0_u64).into()));
     }
@@ -305,7 +317,7 @@ mod tests {
         );
 
         assert_def_eq(term.clone(), reduced);
-        let v1 = eval(&Vec::new(), term.clone());
+        let v1 = Term::eval(&Vec::new(), term.clone());
         let _ty = infer(&Ctx::empty(), v1);
     }
 
@@ -392,7 +404,7 @@ mod tests {
             box Term::Prop,
             box Term::App(box Term::App(box Term::Var(0.into()), id(1)), id(1)),
         );
-        let nff = nf(Vec::new(), reduced.clone());
+        let nff = Term::normal_form(Vec::new(), reduced.clone());
         println!("r : {}", reduced.clone());
         println!("r nf : {}", nff.clone());
         assert_eq!(reduced.clone(), nff.clone());
@@ -407,7 +419,7 @@ mod tests {
             box Term::Type(BigUint::from(0_u64).into()),
             box Term::Abs("x".into(), box Term::Var(0.into()), box Term::Var(1.into())),
         );
-        let _ = infer(&Ctx::empty(), eval(&Vec::new(), id));
+        let _ = infer(&Ctx::empty(), Term::eval(&Vec::new(), id));
         ()
     }
 }
