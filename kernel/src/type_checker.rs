@@ -1,9 +1,9 @@
 use crate::term::*;
 use core::panic;
+use num_bigint::BigUint;
 use std::cmp::max;
 use std::ops::Index;
 use Term::*;
-use num_bigint::BigUint;
 
 type Env = Vec<Val>;
 
@@ -271,7 +271,11 @@ mod tests {
     #[test]
     fn simple() {
         let t1 = App(
-            box Abs("".into(), box Type(BigUint::from(0_u64).into()), box Var(0.into())),
+            box Abs(
+                "".into(),
+                box Type(BigUint::from(0_u64).into()),
+                box Var(0.into()),
+            ),
             box Prop,
         );
         let t2 = Prop;
