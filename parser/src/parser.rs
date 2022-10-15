@@ -12,7 +12,7 @@ struct FileParser;
 fn build_term_from_expr(
     pair: Pair<Rule>,
     known_vars: &mut VecDeque<String>,
-    //defined_vars: TODO use a hash map of known variables
+    //defined_vars: issue #18 TODO use a hash map of known variables
 ) -> Result<Term, Box<Error<Rule>>> {
     match pair.as_rule() {
         Rule::Prop => Ok(Term::Prop),
@@ -25,7 +25,7 @@ fn build_term_from_expr(
         )),
 
         Rule::Var => {
-            //TODO use a hash map of known variables
+            //issue #18 TODO use a hash map of known variables
             let span = pair.as_span();
             let name = pair.into_inner().as_str().to_string();
             match known_vars.iter().position(|x| *x == name) {

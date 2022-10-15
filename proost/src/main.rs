@@ -46,19 +46,18 @@ fn main() -> Result<(), Box<dyn Error>> {
     loop {
         let readline = rl.readline(">> ");
         match readline {
-            Ok(line) => {
-                if !line.is_empty() {
-                    rl.add_history_entry(line.as_str());
-                    match parse_file(line.as_str()) {
-                        Ok(commands) => {
-                            for command in commands {
-                                println!("{}", command);
-                            }
+            Ok(line) if !line.is_empty() => {
+                rl.add_history_entry(line.as_str());
+                match parse_file(line.as_str()) {
+                    Ok(commands) => {
+                        for command in commands {
+                            println!("{}", command);
                         }
-                        Err(err) => println!("{}", *err),
                     }
+                    Err(err) => println!("{}", *err),
                 }
             }
+            Ok(_) => (),
             Err(ReadlineError::Interrupted) => {}
             Err(ReadlineError::Eof) => break,
             Err(err) => {
