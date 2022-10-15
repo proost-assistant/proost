@@ -24,7 +24,6 @@ arg_dprod_par = _{ arg_dprod | "(" ~ arg_dprod ~ ")" }
 App = { term_app ~ term_app+ }
 Prod = { term_prod ~ ( "->" ~ term_prod )+ }
 
-Jocker = { "_" }
 Prop = { "P" }
 Type = { "T(" ~ number ~ ")" }
 Var = { string }

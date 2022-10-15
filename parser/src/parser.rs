@@ -130,8 +130,9 @@ fn build_command_from_expr(pair: Pair<Rule>) -> Result<Command, Box<Error<Rule>>
     }
 }
 
-// Parse a text input and try to convert it into a vector of commands.
-// If unsuccessful, the first error that was encountered is returned.
+/// Parse a text input and try to convert it into a vector of commands.
+///
+/// If unsuccessful, the first error that was encountered is returned.
 pub fn parse_file(file: &str) -> Result<Vec<Command>, Box<Error<Rule>>> {
     FileParser::parse(Rule::File, file)?
         .map(build_command_from_expr)

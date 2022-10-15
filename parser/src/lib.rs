@@ -1,3 +1,7 @@
+//! Fast parser for λ-terms and commands using pest.
+//!
+//! Provides a single function `parse_file` to parse both files and commands.
+
 #![feature(box_syntax)]
 
 #[macro_use]
