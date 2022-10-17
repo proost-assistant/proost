@@ -6,8 +6,8 @@ use pest::Parser;
 use std::collections::VecDeque;
 
 #[derive(Parser)]
-#[grammar = "classic_term.pest"]
-struct FileParser;
+#[grammar = "term.pest"]
+struct CommandParser;
 
 fn build_term_from_expr(
     pair: Pair<Rule>,
@@ -132,9 +132,9 @@ fn build_command_from_expr(pair: Pair<Rule>) -> Result<Command, Box<Error<Rule>>
 
 /// Parse a text input and try to convert it into a vector of commands.
 ///
-/// If unsuccessful, the first error that was encountered is returned.
+/// If unsuccessful, a box containing the first error that was encountered is returned.
 pub fn parse_commands(file: &str) -> Result<Vec<Command>, Box<Error<Rule>>> {
-    FileParser::parse(Rule::File, file)?
+    CommandParser::parse(Rule::File, file)?
         .map(build_command_from_expr)
         .collect()
 }
