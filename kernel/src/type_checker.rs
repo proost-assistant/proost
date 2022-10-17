@@ -430,7 +430,9 @@ mod tests {
             box Term::Type(BigUint::from(0_u64).into()),
             box Term::Abs("x".into(), box Term::Var(0.into()), box Term::Var(1.into())),
         );
-        let _ = id.eval(&Vec::new()).infer(&Ctx::new());
-        ()
+        assert_eq!(
+            matches!(id.eval(&Vec::new()).infer(&Ctx::new()), Ok(_)),
+            true
+        )
     }
 }
