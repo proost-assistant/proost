@@ -151,6 +151,25 @@ impl Term {
             Ok(())
         }
     }
+
+    pub fn check(self, ctx: &Ctx, vty: Val) -> Result<(), String> {
+        match (self.clone(), vty.clone()) {
+            (Term::Abs(_, box t1, box t2), Prod(_, box a, b)) => {
+                t1.check(&ctx.clone(), a.clone())?;
+                t2.check(&ctx.clone().bind(a), b.subst(Var(ctx.env.len().into())))
+            }
+            _ => {
+                let tty = self.eval(&ctx.env).infer(ctx)?;
+                if !tty.clone().conversion(vty.clone(), ctx.env.len().into()) {
+                    return Err(format!(
+                        "type mismatch\nexpected type:\n  {:?}\n\ninferred type:\n  {:?}\n",
+                        vty, tty
+                    ));
+                };
+                Ok(())
+            }
+        }
+    }
 }
 //The context, which is supposed to contain other definitions in the environment, is not implemented for now
 //TODO use context for type-checking(#17)
@@ -201,78 +220,61 @@ impl Default for Ctx {
     }
 }
 
-// Computes universe the universe in which (x : A) -> B lives when A : u1 and B : u2
-fn imax(u1: Val, u2: Val) -> Result<Val, String> {
-    match u2 {
-        Prop => Ok(Prop), // Because Term::Prop is impredicative, if B : Term::Prop, then (x : A) -> b : Term::Prop
-        Type(ref i) => match u1 {
-            Prop => Ok(Type(i.clone())),
-            // else if u1 = Term::Type(i) and u2 = Term::Type(j), then (x : A) -> B : Term::Type(max(i,j))
-            Type(j) => Ok(Type(max(i.clone(), j))),
-            _ => Err(format!("Expected universe, found {:?}", u2.clone())),
-        },
-        _ => Err(format!("Expected universe, found {:?}", u1)),
-    }
-}
-
-pub fn check(ctx: &Ctx, t: Term, vty: Val) -> Result<(), String> {
-    match (t.clone(), vty.clone()) {
-        (Term::Abs(_, box t1, box t2), Prod(_, box a, b)) => {
-            check(&ctx.clone(), t1, a.clone())?;
-            check(&ctx.clone().bind(a), t2, b.subst(Var(ctx.env.len().into())))
-        }
-        _ => {
-            let tty = infer(ctx, t.eval(&ctx.env))?;
-            if !tty.clone().conversion(vty.clone(), ctx.env.len().into()) {
-                return Err(format!(
-                    "type mismatch\nexpected type:\n  {:?}\n\ninferred type:\n  {:?}\n",
-                    vty, tty
-                ));
-            };
-            Ok(())
+impl Val {
+    // Computes universe the universe in which (x : A) -> B lives when A : u1 and B : u2
+    fn imax(self, u2: Val) -> Result<Val, String> {
+        match u2 {
+            Prop => Ok(Prop), // Because Term::Prop is impredicative, if B : Term::Prop, then (x : A) -> b : Term::Prop
+            Type(ref i) => match self {
+                Prop => Ok(Type(i.clone())),
+                // else if u1 = Term::Type(i) and u2 = Term::Type(j), then (x : A) -> B : Term::Type(max(i,j))
+                Type(j) => Ok(Type(max(i.clone(), j))),
+                _ => Err(format!("Expected universe, found {:?}", u2.clone())),
+            },
+            _ => Err(format!("Expected universe, found {:?}", self)),
         }
     }
-}
 
-pub fn infer(ctx: &Ctx, t: Val) -> Result<Val, String> {
-    match t {
-        Prop => Ok(Type(BigUint::from(0_u64).into())),
-        Type(i) => Ok(Type(i + BigUint::from(1_u64).into())),
-        Var(i) => Ok(ctx.types[i].clone()),
-        Prod(_, box a, c) => {
-            let ua = infer(ctx, a.clone())?;
-            if !ua.is_universe() {
-                Err(format!("   {:?}\n Is not a type.", ua))
-            } else {
-                let ctx2 = ctx.clone().define(a, ua.clone());
-                let ub = infer(&ctx2, c.term.eval(&ctx2.env))?;
-                if !ub.is_universe() {
-                    Err(format!("   {:?}\n Is not a type.", ub))
+    pub fn infer(self, ctx: &Ctx) -> Result<Val, String> {
+        match self {
+            Prop => Ok(Type(BigUint::from(0_u64).into())),
+            Type(i) => Ok(Type(i + BigUint::from(1_u64).into())),
+            Var(i) => Ok(ctx.types[i].clone()),
+            Prod(_, box a, c) => {
+                let ua = a.clone().infer(ctx)?;
+                if !ua.is_universe() {
+                    Err(format!("   {:?}\n Is not a type.", ua))
                 } else {
-                    imax(ua, ub)
+                    let ctx2 = ctx.clone().define(a, ua.clone());
+                    let ub = c.term.eval(&ctx2.env).infer(&ctx2)?;
+                    if !ub.is_universe() {
+                        Err(format!("   {:?}\n Is not a type.", ub))
+                    } else {
+                        ua.imax(ub)
+                    }
                 }
             }
-        }
-        Abs(s, box t1, c) => {
-            let ctx2 = ctx.clone().bind(t1.clone());
-            Ok(Prod(
-                s,
-                box infer(ctx, t1)?,
-                Closure {
-                    env: ctx2.env.clone(),
-                    term: infer(&ctx2, c.term.eval(&ctx2.env))?.into(),
-                },
-            ))
-        }
-        App(box a, box b) => {
-            if let Prod(_, box t1, cls) = infer(ctx, a.clone())? {
-                let t1_ = infer(ctx, b.clone());
-                if !t1.clone().conversion(t1_.clone()?, ctx.env.len().into()) {
-                    return Err(format!("Wrong argument, function\n  {:?}\n expected argument of type\n  {:?}\n but term\n    {:?}\n is of type\n    {:?}",a,t1,b,t1_));
-                };
-                Ok(cls.term.eval(&cls.env))
-            } else {
-                Err(format!("\n    {:?}\nIs not a function, hence argument \n    {:?}\ncan't be given to it",a,b))
+            Abs(s, box t1, c) => {
+                let ctx2 = ctx.clone().bind(t1.clone());
+                Ok(Prod(
+                    s,
+                    box t1.infer(ctx)?,
+                    Closure {
+                        env: ctx2.env.clone(),
+                        term: c.term.eval(&ctx2.env).infer(&ctx2)?.into(),
+                    },
+                ))
+            }
+            App(box a, box b) => {
+                if let Prod(_, box t1, cls) = a.clone().infer(ctx)? {
+                    let t1_ = b.clone().infer(ctx);
+                    if !t1.clone().conversion(t1_.clone()?, ctx.env.len().into()) {
+                        return Err(format!("Wrong argument, function\n  {:?}\n expected argument of type\n  {:?}\n but term\n    {:?}\n is of type\n    {:?}",a,t1,b,t1_));
+                    };
+                    Ok(cls.term.eval(&cls.env))
+                } else {
+                    Err(format!("\n    {:?}\nIs not a function, hence argument \n    {:?}\ncan't be given to it",a,b))
+                }
             }
         }
     }
@@ -296,7 +298,7 @@ mod tests {
         let t2 = Term::Prop;
         let v1 = t1.clone().eval(&Vec::new());
         assert_eq!(v1.clone().conversion(t2.eval(&Vec::new()), 0.into()), true);
-        let ty = infer(&Ctx::new(), v1);
+        let ty = v1.infer(&Ctx::new());
         assert_eq!(ty, Ok(Type(BigUint::from(0_u64).into())));
     }
 
@@ -326,7 +328,7 @@ mod tests {
 
         assert_eq!(Term::is_def_eq(term.clone(), reduced), Ok(()));
         let v1 = term.clone().eval(&Vec::new());
-        let _ty = infer(&Ctx::new(), v1);
+        let _ty = v1.infer(&Ctx::new());
         assert_eq!(_ty, Err("Wrong argument, function\n  Var(DeBruijnIndex(0))\n expected argument of type\n  Prop\n but term\n    Var(DeBruijnIndex(0))\n is of type\n    Ok(Prod(\"\", Prop, Closure { env: [], term: Prop }))".into()))
     }
 
@@ -428,7 +430,7 @@ mod tests {
             box Term::Type(BigUint::from(0_u64).into()),
             box Term::Abs("x".into(), box Term::Var(0.into()), box Term::Var(1.into())),
         );
-        let _ = infer(&Ctx::new(), id.eval(&Vec::new()));
+        let _ = id.eval(&Vec::new()).infer(&Ctx::new());
         ()
     }
 }
