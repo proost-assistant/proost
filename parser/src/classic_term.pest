@@ -2,7 +2,7 @@ WHITESPACE = _{ WHITE_SPACE }
 COMMENT = _{ "#" ~ (!"\n" ~ ANY)* }
 number = @{ ASCII_DIGIT+ }
 string = @{ !keywords ~ ASCII_ALPHA ~ ( "_" | ASCII_ALPHANUMERIC )* }
-keywords = @{ ( "fun" | "type" | "def" | "check" | "P" | "T" ) ~ !ASCII_ALPHANUMERIC }
+keywords = @{ ( "fun" | "type" | "def" | "check" | "Prop" | "Type" ) ~ !ASCII_ALPHANUMERIC }
 eoi = _{ !ANY }
 
 Term = _{ Abs | dProd | Prod | App | Var | Prop | Type | "(" ~ Term ~ ")" }
@@ -24,8 +24,8 @@ arg_dprod_par = _{ arg_dprod | "(" ~ arg_dprod ~ ")" }
 App = { term_app ~ term_app+ }
 Prod = { term_prod ~ ( "->" ~ term_prod )+ }
 
-Prop = { "P" }
-Type = { "T(" ~ number ~ ")" }
+Prop = { "Prop" }
+Type = { "Type(" ~ number ~ ")" }
 Var = { string }
 
 Command = _{ ( Define | CheckType | GetType | DefineCheckType ) ~ "." }

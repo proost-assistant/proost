@@ -1,6 +1,6 @@
 //! Fast parser for λ-terms and commands using pest.
 //!
-//! Provides a single function `parse_file` to parse both files and commands.
+//! Provides the function `parse_commands` to parse both files and single commands.
 
 #![feature(box_syntax)]
 
@@ -9,4 +9,4 @@ extern crate pest_derive;
 
 mod parser;
 
-pub use self::parser::parse_file;
+pub use self::parser::parse_commands;
