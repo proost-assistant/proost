@@ -140,7 +140,8 @@ impl Term {
         ))
     }
 }
-//The context, which is supposed to contain other definitions in the environment, is not implemented for now, though it wouldn't be too hard to implement
+//The context, which is supposed to contain other definitions in the environment, is not implemented for now
+//TODO use context for type-checking(#17)
 
 //type of lists of tuples representing the respective types of each variables
 type Types = Vec<Val>;
