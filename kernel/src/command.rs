@@ -11,4 +11,7 @@ pub enum Command {
 
     #[display(fmt = "Type {}.", _0)]
     GetType(Term),
+
+    #[display(fmt = "Define {} : {} := {}.", _0, _1, _2)]
+    DefineCheckType(String, Term, Term),
 }

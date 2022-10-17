@@ -1,7 +1,7 @@
 #![feature(box_syntax)]
 
 use clap::Parser;
-use parser::{parse_command, parse_file};
+use parser::parse_commands;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use std::error::Error;
@@ -25,7 +25,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         for path in args.files.iter() {
             match fs::read_to_string(path) {
                 Ok(contents) => {
-                    let _ = parse_file(&contents);
+                    let _ = parse_commands(&contents);
                 }
                 Err(_) => {
                     println!("Error: No such file or directory: {}", path);
@@ -46,13 +46,18 @@ fn main() -> Result<(), Box<dyn Error>> {
     loop {
         let readline = rl.readline(">> ");
         match readline {
-            Ok(line) => {
+            Ok(line) if !line.is_empty() => {
                 rl.add_history_entry(line.as_str());
-                match parse_command(line.as_str()) {
-                    Ok(command) => println!("{}", command),
+                match parse_commands(line.as_str()) {
+                    Ok(commands) => {
+                        for command in commands {
+                            println!("{}", command);
+                        }
+                    }
                     Err(err) => println!("{}", *err),
                 }
             }
+            Ok(_) => (),
             Err(ReadlineError::Interrupted) => {}
             Err(ReadlineError::Eof) => break,
             Err(err) => {
