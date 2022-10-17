@@ -3,16 +3,6 @@ use num_bigint::BigUint;
 use std::cmp::max;
 use std::ops::Index;
 
-type Env = Vec<Val>;
-
-impl Index<DeBruijnIndex> for Vec<Val> {
-    type Output = Val;
-
-    fn index(&self, i: DeBruijnIndex) -> &Self::Output {
-        &self[usize::from(i)]
-    }
-}
-
 // terms with closures
 // maintains the invariant that a val is in normal form, which is unnecessary for type checking/conversion, we should only need
 // weak-head normal forms
@@ -42,6 +32,16 @@ impl From<Val> for Term {
             Abs(s, box t, u) => Term::Abs(s, box t.into(), box u.term),
             Prod(s, box t, u) => Term::Prod(s, box t.into(), box u.term),
         }
+    }
+}
+
+type Env = Vec<Val>;
+
+impl Index<DeBruijnIndex> for Vec<Val> {
+    type Output = Val;
+
+    fn index(&self, i: DeBruijnIndex) -> &Self::Output {
+        &self[usize::from(i)]
     }
 }
 
