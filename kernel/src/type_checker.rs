@@ -30,21 +30,7 @@ pub enum Val {
 
     Prod(String, Box<Val>, Closure),
 }
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Closure {
-    env: Env,
-    term: Term,
-}
 use Val::*;
-
-impl Closure {
-    pub fn subst(self, v: Val) -> Val {
-        let e = &mut self.env.clone();
-        e.push(v);
-        self.term.eval(e)
-    }
-}
 
 impl From<Val> for Term {
     fn from(v: Val) -> Term {
@@ -56,6 +42,20 @@ impl From<Val> for Term {
             Abs(s, box t, u) => Term::Abs(s, box t.into(), box u.term),
             Prod(s, box t, u) => Term::Prod(s, box t.into(), box u.term),
         }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Closure {
+    env: Env,
+    term: Term,
+}
+
+impl Closure {
+    pub fn subst(self, v: Val) -> Val {
+        let e = &mut self.env.clone();
+        e.push(v);
+        self.term.eval(e)
     }
 }
 
@@ -96,6 +96,10 @@ impl Val {
             _ => false,
         }
     }
+
+    fn is_universe(&self) -> bool {
+        matches!(*self, Prop | Type(_))
+    }
 }
 
 impl Term {
@@ -133,10 +137,19 @@ impl Term {
         self.eval(&e).into()
     }
 
-    pub fn assert_def_eq(t1: Term, t2: Term) {
-        assert!(t1
+    pub fn is_def_eq(self, rhs: Term) -> Result<(), String> {
+        if !self
+            .clone()
             .eval(&Vec::new())
-            .conversion(t2.eval(&Vec::new()), 0.into()))
+            .conversion(rhs.clone().eval(&Vec::new()), 0.into())
+        {
+            Err(format!(
+                "Error, term\n  {:?}\n is not definitionally equal to \n    {:?}\n",
+                self, rhs
+            ))
+        } else {
+            Ok(())
+        }
     }
 }
 //The context, which is supposed to contain other definitions in the environment, is not implemented for now
@@ -188,10 +201,6 @@ impl Default for Ctx {
     }
 }
 
-fn is_universe(t: Val) -> bool {
-    matches!(t, Prop | Type(_))
-}
-
 // Computes universe the universe in which (x : A) -> B lives when A : u1 and B : u2
 fn imax(u1: Val, u2: Val) -> Result<Val, String> {
     match u2 {
@@ -232,12 +241,12 @@ pub fn infer(ctx: &Ctx, t: Val) -> Result<Val, String> {
         Var(i) => Ok(ctx.types[i].clone()),
         Prod(_, box a, c) => {
             let ua = infer(ctx, a.clone())?;
-            if !is_universe(ua.clone()) {
+            if !ua.is_universe() {
                 Err(format!("   {:?}\n Is not a type.", ua))
             } else {
                 let ctx2 = ctx.clone().define(a, ua.clone());
                 let ub = infer(&ctx2, c.term.eval(&ctx2.env))?;
-                if !is_universe(ub.clone()) {
+                if !ub.is_universe() {
                     Err(format!("   {:?}\n Is not a type.", ub))
                 } else {
                     imax(ua, ub)
@@ -315,7 +324,7 @@ mod tests {
             box Term::App(box Term::Var(0.into()), box Term::Var(0.into())),
         );
 
-        Term::assert_def_eq(term.clone(), reduced);
+        assert_eq!(Term::is_def_eq(term.clone(), reduced), Ok(()));
         let v1 = term.clone().eval(&Vec::new());
         let _ty = infer(&Ctx::new(), v1);
         assert_eq!(_ty, Err("Wrong argument, function\n  Var(DeBruijnIndex(0))\n expected argument of type\n  Prop\n but term\n    Var(DeBruijnIndex(0))\n is of type\n    Ok(Prod(\"\", Prop, Closure { env: [], term: Prop }))".into()))
@@ -392,7 +401,7 @@ mod tests {
                 ),
             ),
         );
-        Term::assert_def_eq(term, reduced)
+        assert_eq!(Term::is_def_eq(term, reduced), Ok(()))
     }
 
     //(λ ℙ → λ ℙ → λ ℙ → (0 (λ ℙ → λ ℙ → ((4 1) 3) λ ℙ → 3)) (λ ℙ → λ ℙ → (0 1) (λ ℙ → 0 λ ℙ → 0)))
@@ -408,7 +417,7 @@ mod tests {
         println!("r : {}", reduced.clone());
         println!("r nf : {}", nff.clone());
         assert_eq!(reduced.clone(), nff.clone());
-        Term::assert_def_eq(reduced, nff);
+        assert_eq!(Term::is_def_eq(reduced, nff), Ok(()));
     }
 
     #[test]
