@@ -61,7 +61,7 @@ impl From<Val> for Term {
 
 impl Term {
     // TODO modify eval to get WHNFs instead of NFs
-    fn eval(self: Term, e: &Env) -> Val {
+    fn eval(self, e: &Env) -> Val {
         match self {
             Term::Prop => Prop,
             Term::Type(i) => Type(i),
@@ -90,8 +90,8 @@ impl Term {
     }
 
     // returns normal form of term t in env e, should only be used for Reduce/Eval command, not when type-checking
-    pub fn normal_form(e: Env, t: Term) -> Term {
-        t.eval(&e).into()
+    pub fn normal_form(self, e: Env) -> Term {
+        self.eval(&e).into()
     }
 
     // /!\ IMPORTANT /!\
@@ -405,7 +405,7 @@ mod tests {
             box Term::Prop,
             box Term::App(box Term::App(box Term::Var(0.into()), id(1)), id(1)),
         );
-        let nff = Term::normal_form(Vec::new(), reduced.clone());
+        let nff = reduced.clone().normal_form(Vec::new());
         println!("r : {}", reduced.clone());
         println!("r nf : {}", nff.clone());
         assert_eq!(reduced.clone(), nff.clone());
