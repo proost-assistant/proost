@@ -59,6 +59,45 @@ impl From<Val> for Term {
     }
 }
 
+impl Val {
+    // /!\ IMPORTANT /!\
+    // Conversion function, checks whether two values are equal.
+    // The conversion is untyped, meaning that it should **Only**
+    // be called during type-checking when the two vals are already
+    // known to be of the same type and in the same context
+    pub fn conversion(self, rhs: Val, l: DeBruijnIndex) -> bool {
+        match (self, rhs) {
+            (Type(i), Type(j)) => i == j,
+
+            (Prop, Prop) => true,
+
+            (Var(i), Var(j)) => i == j,
+
+            (Prod(_, box a1, b1), Prod(_, box a2, b2)) => {
+                a1.conversion(a2, l) && b1.subst(Var(l)).conversion(b2.subst(Var(l)), l + 1.into())
+            }
+
+            //Since we assume that both vals already have the same type,
+            //checking conversion over the argument type is useless.
+            //However, this doesn't mean we can simply remove the arg type
+            //from the type constructor in the enum, it is needed to quote back to terms.
+            (Abs(_, _, t), Abs(_, _, u)) => {
+                t.subst(Var(l)).conversion(u.subst(Var(l)), l + 1.into())
+            }
+
+            (Abs(_, _, t), u) | (u, Abs(_, _, t)) => t
+                .subst(Var(l))
+                .conversion(App(box u, box Var(l)), l + 1.into()),
+
+            (App(box t1, box u1), App(box t2, box u2)) => {
+                t1.conversion(t2, l) && u1.conversion(u2, l)
+            }
+
+            _ => false,
+        }
+    }
+}
+
 impl Term {
     // TODO modify eval to get WHNFs instead of NFs
     fn eval(self, e: &Env) -> Val {
@@ -94,50 +133,10 @@ impl Term {
         self.eval(&e).into()
     }
 
-    // /!\ IMPORTANT /!\
-    // Conversion function, checks whether two values are equal.
-    // The conversion is untyped, meaning that it should **Only**
-    // be called during type-checking when the two vals are already
-    // known to be of the same type and in the same context
-    pub fn conv(l: DeBruijnIndex, v1: Val, v2: Val) -> bool {
-        match (v1, v2) {
-            (Type(i), Type(j)) => i == j,
-
-            (Prop, Prop) => true,
-
-            (Var(i), Var(j)) => i == j,
-
-            (Prod(_, box a1, b1), Prod(_, box a2, b2)) => {
-                Term::conv(l, a1, a2)
-                    && Term::conv(l + 1.into(), b1.subst(Var(l)), b2.subst(Var(l)))
-            }
-
-            //Since we assume that both vals already have the same type,
-            //checking conversion over the argument type is useless.
-            //However, this doesn't mean we can simply remove the arg type
-            //from the type constructor in the enum, it is needed to quote back to terms.
-            (Abs(_, _, t), Abs(_, _, u)) => {
-                Term::conv(l + 1.into(), t.subst(Var(l)), u.subst(Var(l)))
-            }
-
-            (Abs(_, _, t), u) | (u, Abs(_, _, t)) => {
-                Term::conv(l + 1.into(), t.subst(Var(l)), App(box u, box Var(l)))
-            }
-
-            (App(box t1, box u1), App(box t2, box u2)) => {
-                Term::conv(l, t1, t2) && Term::conv(l, u1, u2)
-            }
-
-            _ => false,
-        }
-    }
-
     pub fn assert_def_eq(t1: Term, t2: Term) {
-        assert!(Term::conv(
-            0.into(),
-            t1.eval(&Vec::new()),
-            t2.eval(&Vec::new())
-        ))
+        assert!(t1
+            .eval(&Vec::new())
+            .conversion(t2.eval(&Vec::new()), 0.into()))
     }
 }
 //The context, which is supposed to contain other definitions in the environment, is not implemented for now
@@ -215,7 +214,7 @@ pub fn check(ctx: &Ctx, t: Term, vty: Val) -> Result<(), String> {
         }
         _ => {
             let tty = infer(ctx, t.eval(&ctx.env))?;
-            if !Term::conv(ctx.env.len().into(), tty.clone(), vty.clone()) {
+            if !tty.clone().conversion(vty.clone(), ctx.env.len().into()) {
                 return Err(format!(
                     "type mismatch\nexpected type:\n  {:?}\n\ninferred type:\n  {:?}\n",
                     vty, tty
@@ -259,7 +258,7 @@ pub fn infer(ctx: &Ctx, t: Val) -> Result<Val, String> {
         App(box a, box b) => {
             if let Prod(_, box t1, cls) = infer(ctx, a.clone())? {
                 let t1_ = infer(ctx, b.clone());
-                if !Term::conv(ctx.env.len().into(), t1.clone(), t1_.clone()?) {
+                if !t1.clone().conversion(t1_.clone()?, ctx.env.len().into()) {
                     return Err(format!("Wrong argument, function\n  {:?}\n expected argument of type\n  {:?}\n but term\n    {:?}\n is of type\n    {:?}",a,t1,b,t1_));
                 };
                 Ok(cls.term.eval(&cls.env))
@@ -287,7 +286,7 @@ mod tests {
         );
         let t2 = Term::Prop;
         let v1 = t1.clone().eval(&Vec::new());
-        assert_eq!(Term::conv(0.into(), v1.clone(), t2.eval(&Vec::new())), true);
+        assert_eq!(v1.clone().conversion(t2.eval(&Vec::new()), 0.into()), true);
         let ty = infer(&Ctx::new(), v1);
         assert_eq!(ty, Ok(Type(BigUint::from(0_u64).into())));
     }
