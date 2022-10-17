@@ -283,7 +283,6 @@ impl Val {
 #[cfg(test)]
 mod tests {
     use crate::type_checker::*;
-    use std::env;
 
     #[test]
     fn simple() {
@@ -304,7 +303,6 @@ mod tests {
 
     #[test]
     fn simple_subst() {
-        env::set_var("RUST_BACKTRACE", "0");
         // λx.(λy.x y) x
         let term = Term::Abs(
             "".into(),
@@ -424,7 +422,6 @@ mod tests {
 
     #[test]
     fn polymorphism() {
-        env::set_var("RUST_BACKTRACE", "full");
         let id = Term::Abs(
             "A".into(),
             box Term::Type(BigUint::from(0_u64).into()),
