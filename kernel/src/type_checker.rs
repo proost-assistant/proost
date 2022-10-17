@@ -143,6 +143,7 @@ impl Term {
             .eval(&Vec::new())
             .conversion(rhs.clone().eval(&Vec::new()), 0.into())
         {
+            //TODO #19
             Err(format!(
                 "Error, term\n  {:?}\n is not definitionally equal to \n    {:?}\n",
                 self, rhs
@@ -161,6 +162,7 @@ impl Term {
             _ => {
                 let tty = self.eval(&ctx.env).infer(ctx)?;
                 if !tty.clone().conversion(vty.clone(), ctx.env.len().into()) {
+                    //TODO #19
                     return Err(format!(
                         "type mismatch\nexpected type:\n  {:?}\n\ninferred type:\n  {:?}\n",
                         vty, tty
@@ -229,8 +231,10 @@ impl Val {
                 Prop => Ok(Type(i.clone())),
                 // else if u1 = Term::Type(i) and u2 = Term::Type(j), then (x : A) -> B : Term::Type(max(i,j))
                 Type(j) => Ok(Type(max(i.clone(), j))),
+                //TODO #19
                 _ => Err(format!("Expected universe, found {:?}", u2.clone())),
             },
+            //TODO #19
             _ => Err(format!("Expected universe, found {:?}", self)),
         }
     }
@@ -243,11 +247,13 @@ impl Val {
             Prod(_, box a, c) => {
                 let ua = a.clone().infer(ctx)?;
                 if !ua.is_universe() {
+                    //TODO #19
                     Err(format!("   {:?}\n Is not a type.", ua))
                 } else {
                     let ctx2 = ctx.clone().define(a, ua.clone());
                     let ub = c.term.eval(&ctx2.env).infer(&ctx2)?;
                     if !ub.is_universe() {
+                        //TODO #19
                         Err(format!("   {:?}\n Is not a type.", ub))
                     } else {
                         ua.imax(ub)
@@ -269,10 +275,12 @@ impl Val {
                 if let Prod(_, box t1, cls) = a.clone().infer(ctx)? {
                     let t1_ = b.clone().infer(ctx);
                     if !t1.clone().conversion(t1_.clone()?, ctx.env.len().into()) {
+                        //TODO #19
                         return Err(format!("Wrong argument, function\n  {:?}\n expected argument of type\n  {:?}\n but term\n    {:?}\n is of type\n    {:?}",a,t1,b,t1_));
                     };
                     Ok(cls.term.eval(&cls.env))
                 } else {
+                    //TODO #19
                     Err(format!("\n    {:?}\nIs not a function, hence argument \n    {:?}\ncan't be given to it",a,b))
                 }
             }
