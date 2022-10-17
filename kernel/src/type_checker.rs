@@ -422,8 +422,6 @@ mod tests {
             box Term::App(box Term::App(box Term::Var(0.into()), id(1)), id(1)),
         );
         let nff = reduced.clone().normal_form(Vec::new());
-        println!("r : {}", reduced.clone());
-        println!("r nf : {}", nff.clone());
         assert_eq!(reduced.clone(), nff.clone());
         assert_eq!(Term::is_def_eq(reduced, nff), Ok(()));
     }
