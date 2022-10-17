@@ -49,10 +49,9 @@ fn build_term_from_expr(
         Rule::App => {
             let mut iter = pair
                 .into_inner()
-                .map(|x| build_term_from_expr(x, known_vars))
-                .rev();
+                .map(|x| build_term_from_expr(x, known_vars));
             let t = iter.next().unwrap()?;
-            iter.try_fold(t, |acc, x| Ok(Term::App(box x?, box acc)))
+            iter.try_fold(t, |acc, x| Ok(Term::App(box acc, box x?)))
         }
         Rule::Abs => {
             let iter = pair.into_inner();
