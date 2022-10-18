@@ -4,9 +4,7 @@ variables:
   CARGO_HOME: "$CI_PROJECT_DIR/.cache/cargo/"
 
 cache:
-  key:
-    files:
-      - Cargo.lock
+  key: "$CI_COMMIT_REF_SLUG"
   paths:
     - .cache/cargo/
     - target/
@@ -26,8 +24,24 @@ build:
 
 test:
   needs: [build]
+  variables:
+    CARGO_INCREMENTAL: 0
+    LLVM_PROFILE_FILE: "coverage-%p-%m.profraw"
+    RUSTDOCFLAGS: "-Cpanic=abort"
+    RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort"
+
   script:
     - cargo test
+    - grcov . -s . --binary-path ./target/debug/ -t cobertura --branch --ignore "*cargo*" --ignore-not-existing -o coverage.xml 
+    - sed -n '3p' coverage.xml | grep -oE '[a-z-]+="[0-9](.[0-9]+)?"' | sed -r 's/(branch-rate|line-rate)="(0|(1)).([0-9]{2})([0-9]{2})[0-9]*"/\1="\3\4.\5%"/'
+
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+
+  coverage: '/^branch-rate="\d+.\d+%"/'
 
 docs:
   only:
