@@ -16,9 +16,9 @@ pub enum Val {
 
     App(Box<Val>, Box<Val>),
 
-    Abs(String, Box<Val>, Closure),
+    Abs(Box<Val>, Closure),
 
-    Prod(String, Box<Val>, Closure),
+    Prod(Box<Val>, Closure),
 }
 
 use Val::*;
@@ -35,7 +35,7 @@ impl Val {
 
             (Var(i), Var(j)) => i == j,
 
-            (Prod(_, box a1, b1), Prod(_, box a2, b2)) => {
+            (Prod(box a1, b1), Prod(box a2, b2)) => {
                 a1.conversion(a2, l) && b1.subst(Var(l)).conversion(b2.subst(Var(l)), l + 1.into())
             }
 
@@ -43,11 +43,9 @@ impl Val {
             // checking conversion over the argument type is useless.
             // However, this doesn't mean we can simply remove the arg type
             // from the type constructor in the enum, it is needed to quote back to terms.
-            (Abs(_, _, t), Abs(_, _, u)) => {
-                t.subst(Var(l)).conversion(u.subst(Var(l)), l + 1.into())
-            }
+            (Abs(_, t), Abs(_, u)) => t.subst(Var(l)).conversion(u.subst(Var(l)), l + 1.into()),
 
-            (Abs(_, _, t), u) | (u, Abs(_, _, t)) => t
+            (Abs(_, t), u) | (u, Abs(_, t)) => t
                 .subst(Var(l))
                 .conversion(App(box u, box Var(l)), l + 1.into()),
 
@@ -90,7 +88,7 @@ impl Val {
             Prop => Ok(Type(BigUint::from(0_u64).into())),
             Type(i) => Ok(Type(i + BigUint::from(1_u64).into())),
             Var(i) => Ok(ctx.types[i].clone()),
-            Prod(_, box a, c) => {
+            Prod(box a, c) => {
                 let ua = a.clone().infer(ctx)?;
                 if !ua.is_universe() {
                     //TODO #19
@@ -106,10 +104,9 @@ impl Val {
                     }
                 }
             }
-            Abs(s, box t1, c) => {
+            Abs(box t1, c) => {
                 let ctx2 = ctx.clone().bind(t1.clone());
                 Ok(Prod(
-                    s,
                     box t1.infer(ctx)?,
                     Closure {
                         env: ctx2.env.clone(),
@@ -118,7 +115,7 @@ impl Val {
                 ))
             }
             App(box a, box b) => {
-                if let Prod(_, box t1, cls) = a.clone().infer(ctx)? {
+                if let Prod(box t1, cls) = a.clone().infer(ctx)? {
                     let t1_ = b.clone().infer(ctx);
                     if !t1.clone().conversion(t1_.clone()?, ctx.env.len().into()) {
                         //TODO #19
@@ -141,8 +138,8 @@ impl From<Val> for Term {
             Type(i) => Term::Type(i),
             Var(i) => Term::Var(i),
             App(box t, box u) => Term::App(box t.into(), box u.into()),
-            Abs(s, box t, u) => Term::Abs(s, box t.into(), box u.term),
-            Prod(s, box t, u) => Term::Prod(s, box t.into(), box u.term),
+            Abs(box t, u) => Term::Abs(box t.into(), box u.term),
+            Prod(box t, u) => Term::Prod(box t.into(), box u.term),
         }
     }
 }
@@ -179,19 +176,17 @@ impl Term {
             Term::Type(i) => Type(i),
             Term::Var(i) => e[i].clone(),
             Term::App(box t1, box t2) => match t1.eval(e) {
-                Abs(_, _, t) => t.subst(t2.eval(e)),
+                Abs(_, t) => t.subst(t2.eval(e)),
                 t => App(box t, box t2.eval(e)),
             },
-            Term::Abs(s, box a, box b) => Abs(
-                s,
+            Term::Abs(box a, box b) => Abs(
                 box a.eval(e),
                 Closure {
                     env: e.clone(),
                     term: b,
                 },
             ),
-            Term::Prod(s, box a, box b) => Prod(
-                s,
+            Term::Prod(box a, box b) => Prod(
                 box a.eval(e),
                 Closure {
                     env: e.clone(),
@@ -228,7 +223,7 @@ impl Term {
     /// Checks whether a given term is of type `vty` in a given context.
     pub fn check(self, ctx: &Ctx, vty: Val) -> Result<(), String> {
         match (self.clone(), vty.clone()) {
-            (Term::Abs(_, box t1, box t2), Prod(_, box a, b)) => {
+            (Term::Abs(box t1, box t2), Prod(box a, b)) => {
                 t1.check(&ctx.clone(), a.clone())?;
                 t2.check(&ctx.clone().bind(a), b.subst(Var(ctx.env.len().into())))
             }
@@ -300,7 +295,6 @@ mod tests {
     fn simple() {
         let t1 = Term::App(
             box Term::Abs(
-                "".into(),
                 box Term::Type(BigUint::from(0_u64).into()),
                 box Term::Var(0.into()),
             ),
@@ -317,11 +311,9 @@ mod tests {
     fn simple_subst() {
         // λx.(λy.x y) x
         let term = Term::Abs(
-            "".into(),
-            box Term::Prod("".into(), box Term::Prop, box Term::Prop),
+            box Term::Prod(box Term::Prop, box Term::Prop),
             box Term::App(
                 box Term::Abs(
-                    "".into(),
                     box Term::Prop,
                     box Term::App(box Term::Var(1.into()), box Term::Var(0.into())),
                 ),
@@ -331,7 +323,6 @@ mod tests {
 
         // λx.x x
         let reduced = Term::Abs(
-            "".into(),
             box Term::Prop,
             box Term::App(box Term::Var(0.into()), box Term::Var(0.into())),
         );
@@ -339,11 +330,11 @@ mod tests {
         assert_eq!(Term::is_def_eq(term.clone(), reduced), Ok(()));
         let v1 = term.clone().eval(&Vec::new());
         let _ty = v1.infer(&Ctx::new());
-        assert_eq!(_ty, Err("Wrong argument, function\n  Var(DeBruijnIndex(0))\n expected argument of type\n  Prop\n but term\n    Var(DeBruijnIndex(0))\n is of type\n    Ok(Prod(\"\", Prop, Closure { env: [], term: Prop }))".into()))
+        assert_eq!(_ty, Err("Wrong argument, function\n  Var(DeBruijnIndex(0))\n expected argument of type\n  Prop\n but term\n    Var(DeBruijnIndex(0))\n is of type\n    Ok(Prod(Prop, Closure { env: [], term: Prop }))".into()))
     }
 
     fn id(l: usize) -> Box<Term> {
-        box Term::Abs("".into(), box Term::Prop, box Term::Var(l.into()))
+        box Term::Abs(box Term::Prop, box Term::Var(l.into()))
     }
 
     #[test]
@@ -351,22 +342,17 @@ mod tests {
         //(λa.λb.λc.a ((λd.λe.e b d)(λx.x))) ((λa.λb.a b) ((λx.x) (λx.x)))
         let term = Term::App(
             box Term::Abs(
-                "".into(),
                 box Term::Prop,
                 box Term::Abs(
-                    "".into(),
                     box Term::Prop,
                     box Term::Abs(
-                        "".into(),
                         box Term::Prop,
                         box Term::App(
                             box Term::Var(0.into()),
                             box Term::App(
                                 box Term::Abs(
-                                    "".into(),
                                     box Term::Prop,
                                     box Term::Abs(
-                                        "".into(),
                                         box Term::Prop,
                                         box Term::App(
                                             box Term::App(
@@ -385,10 +371,8 @@ mod tests {
             ),
             box Term::App(
                 box Term::Abs(
-                    "".into(),
                     box Term::Prop,
                     box Term::Abs(
-                        "".into(),
                         box Term::Prop,
                         box Term::App(box Term::Var(0.into()), box Term::Var(1.into())),
                     ),
@@ -398,13 +382,10 @@ mod tests {
         );
         //(λb.(λc.(λe.((e b) (λx.x)))))
         let reduced = Term::Abs(
-            "".into(),
             box Term::Prop,
             box Term::Abs(
-                "".into(),
                 box Term::Prop,
                 box Term::Abs(
-                    "".into(),
                     box Term::Prop,
                     box Term::App(
                         box Term::App(box Term::Var(2.into()), box Term::Var(0.into())),
@@ -421,7 +402,6 @@ mod tests {
     fn nf_test() {
         //λa.a (λx.x) (λx.x)
         let reduced = Term::Abs(
-            "".into(),
             box Term::Prop,
             box Term::App(box Term::App(box Term::Var(0.into()), id(1)), id(1)),
         );
@@ -433,9 +413,8 @@ mod tests {
     #[test]
     fn polymorphism() {
         let id = Term::Abs(
-            "A".into(),
             box Term::Type(BigUint::from(0_u64).into()),
-            box Term::Abs("x".into(), box Term::Var(0.into()), box Term::Var(1.into())),
+            box Term::Abs(box Term::Var(0.into()), box Term::Var(1.into())),
         );
         assert_eq!(
             matches!(id.eval(&Vec::new()).infer(&Ctx::new()), Ok(_)),
