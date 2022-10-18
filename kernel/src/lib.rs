@@ -7,6 +7,6 @@ mod type_checker;
 
 pub use command::Command;
 pub use term::Term;
-
+pub use type_checker::Val;
 pub use derive_more;
 pub use num_bigint;
