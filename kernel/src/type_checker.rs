@@ -83,7 +83,7 @@ impl Val {
     }
 
     /// Infers the type of a `Val` in a given context.
-    pub fn infer(self, ctx: &Ctx) -> Result<Val, String> {
+    pub fn infer(self, ctx: &Context) -> Result<Val, String> {
         match self {
             Prop => Ok(Type(BigUint::from(0_u64).into())),
             Type(i) => Ok(Type(i + BigUint::from(1_u64).into())),
@@ -221,7 +221,7 @@ impl Term {
     }
 
     /// Checks whether a given term is of type `vty` in a given context.
-    pub fn check(self, ctx: &Ctx, vty: Val) -> Result<(), String> {
+    pub fn check(self, ctx: &Context, vty: Val) -> Result<(), String> {
         match (self.clone(), vty.clone()) {
             (Term::Abs(box t1, box t2), Prod(box a, b)) => {
                 t1.check(&ctx.clone(), a.clone())?;
@@ -249,38 +249,35 @@ impl Term {
 type Types = Vec<Val>;
 
 #[derive(Clone, Debug, Default)]
-pub struct Ctx {
+pub struct Context {
     env: Env,
     types: Types,
 }
 
-impl Ctx {
-    pub fn new() -> Ctx {
-        Ctx {
-            env: Vec::new(),
-            types: Vec::new(),
-        }
+impl Context {
+    pub fn new() -> Self {
+        Default::default()
     }
 
-    /// Extend Ctx with a bound variable.
-    fn bind(self, vty: Val) -> Ctx {
+    /// Extend Context with a bound variable.
+    fn bind(self, vty: Val) -> Context {
         let mut new_env = self.env.clone();
         new_env.push(Var(self.env.len().into()));
         let mut new_types = self.types;
         new_types.push(vty);
-        Ctx {
+        Context {
             env: new_env,
             types: new_types,
         }
     }
 
-    /// Extend Ctx with a definition.
-    fn define(self, v: Val, vty: Val) -> Ctx {
+    /// Extend Context with a definition.
+    fn define(self, v: Val, vty: Val) -> Context {
         let mut new_env = self.env.clone();
         new_env.push(v);
         let mut new_types = self.types;
         new_types.push(vty);
-        Ctx {
+        Context {
             env: new_env,
             types: new_types,
         }
@@ -303,7 +300,7 @@ mod tests {
         let t2 = Term::Prop;
         let v1 = t1.eval(&Vec::new());
         assert!(v1.clone().conversion(t2.eval(&Vec::new()), 0.into()));
-        let ty = v1.infer(&Ctx::new());
+        let ty = v1.infer(&Context::new());
         assert_eq!(ty, Ok(Type(BigUint::from(0_u64).into())));
     }
 
@@ -329,7 +326,7 @@ mod tests {
 
         assert_eq!(Term::is_def_eq(term.clone(), reduced), Ok(()));
         let v1 = term.eval(&Vec::new());
-        let _ty = v1.infer(&Ctx::new());
+        let _ty = v1.infer(&Context::new());
         assert_eq!(_ty, Err("Wrong argument, function\n  Var(DeBruijnIndex(0))\n expected argument of type\n  Prop\n but term\n    Var(DeBruijnIndex(0))\n is of type\n    Ok(Prod(Prop, Closure { env: [], term: Prop }))".into()))
     }
 
@@ -416,6 +413,6 @@ mod tests {
             box Term::Type(BigUint::from(0_u64).into()),
             box Term::Abs(box Term::Var(0.into()), box Term::Var(1.into())),
         );
-        assert!(matches!(id.eval(&Vec::new()).infer(&Ctx::new()), Ok(_)))
+        assert!(matches!(id.eval(&Vec::new()).infer(&Context::new()), Ok(_)))
     }
 }
