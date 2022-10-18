@@ -301,8 +301,8 @@ mod tests {
             box Term::Prop,
         );
         let t2 = Term::Prop;
-        let v1 = t1.clone().eval(&Vec::new());
-        assert_eq!(v1.clone().conversion(t2.eval(&Vec::new()), 0.into()), true);
+        let v1 = t1.eval(&Vec::new());
+        assert!(v1.clone().conversion(t2.eval(&Vec::new()), 0.into()));
         let ty = v1.infer(&Ctx::new());
         assert_eq!(ty, Ok(Type(BigUint::from(0_u64).into())));
     }
@@ -328,7 +328,7 @@ mod tests {
         );
 
         assert_eq!(Term::is_def_eq(term.clone(), reduced), Ok(()));
-        let v1 = term.clone().eval(&Vec::new());
+        let v1 = term.eval(&Vec::new());
         let _ty = v1.infer(&Ctx::new());
         assert_eq!(_ty, Err("Wrong argument, function\n  Var(DeBruijnIndex(0))\n expected argument of type\n  Prop\n but term\n    Var(DeBruijnIndex(0))\n is of type\n    Ok(Prod(Prop, Closure { env: [], term: Prop }))".into()))
     }
@@ -406,7 +406,7 @@ mod tests {
             box Term::App(box Term::App(box Term::Var(0.into()), id(1)), id(1)),
         );
         let nff = reduced.clone().normal_form(Vec::new());
-        assert_eq!(reduced.clone(), nff.clone());
+        assert_eq!(reduced, nff);
         assert_eq!(Term::is_def_eq(reduced, nff), Ok(()));
     }
 
@@ -416,9 +416,6 @@ mod tests {
             box Term::Type(BigUint::from(0_u64).into()),
             box Term::Abs(box Term::Var(0.into()), box Term::Var(1.into())),
         );
-        assert_eq!(
-            matches!(id.eval(&Vec::new()).infer(&Ctx::new()), Ok(_)),
-            true
-        )
+        assert!(matches!(id.eval(&Vec::new()).infer(&Ctx::new()), Ok(_)))
     }
 }
