@@ -3,7 +3,9 @@ use num_bigint::BigUint;
 use std::cmp::max;
 use std::ops::Index;
 
-/// Terms with closures, `Val`s maintain the invariant that a `Val` is in normal form, which is unnecessary for type checking/conversion, we should only need weak-head normal forms
+/// Terms with closures.
+///
+/// `Val`s maintain the invariant that a `Val` is in normal form, which is unnecessary for type checking/conversion, we should only need weak-head normal forms.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Val {
     Var(DeBruijnIndex),
@@ -18,48 +20,13 @@ pub enum Val {
 
     Prod(String, Box<Val>, Closure),
 }
+
 use Val::*;
 
-impl From<Val> for Term {
-    fn from(v: Val) -> Term {
-        match v {
-            Prop => Term::Prop,
-            Type(i) => Term::Type(i),
-            Var(i) => Term::Var(i),
-            App(box t, box u) => Term::App(box t.into(), box u.into()),
-            Abs(s, box t, u) => Term::Abs(s, box t.into(), box u.term),
-            Prod(s, box t, u) => Term::Prod(s, box t.into(), box u.term),
-        }
-    }
-}
-
-type Env = Vec<Val>;
-
-impl Index<DeBruijnIndex> for Vec<Val> {
-    type Output = Val;
-
-    fn index(&self, i: DeBruijnIndex) -> &Self::Output {
-        &self[usize::from(i)]
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Closure {
-    env: Env,
-    term: Term,
-}
-
-impl Closure {
-    pub fn subst(self, v: Val) -> Val {
-        let e = &mut self.env.clone();
-        e.push(v);
-        self.term.eval(e)
-    }
-}
-
 impl Val {
-    // /!\ IMPORTANT /!\
-    /// Conversion function, checks whether two values are definitionally equal. The conversion is untyped, meaning that it should **only** be called during type-checking when the two `Val`s are already known to be of the same type and in the same context.
+    /// Conversion function, checks whether two values are definitionally equal.
+    ///
+    /// The conversion is untyped, meaning that it should **only** be called during type-checking when the two `Val`s are already known to be of the same type and in the same context.
     pub fn conversion(self, rhs: Val, l: DeBruijnIndex) -> bool {
         match (self, rhs) {
             (Type(i), Type(j)) => i == j,
@@ -96,22 +63,28 @@ impl Val {
         matches!(*self, Prop | Type(_))
     }
 
-    /// Computes universe the universe in which (x : A) -> B lives when A : u1 and B : u2
+    /// Computes universe the universe in which `(x : A) -> B` lives when `A : u1` and `B : u2`.
     fn imax(self, u2: Val) -> Result<Val, String> {
         match u2 {
-            Prop => Ok(Prop), // Because Term::Prop is impredicative, if B : Term::Prop, then (x : A) -> b : Term::Prop
+            // Because Term::Prop is impredicative, if B : Term::Prop, then (x : A) -> b : Term::Prop
+            Prop => Ok(Prop),
+
             Type(ref i) => match self {
                 Prop => Ok(Type(i.clone())),
+
                 // else if u1 = Term::Type(i) and u2 = Term::Type(j), then (x : A) -> B : Term::Type(max(i,j))
                 Type(j) => Ok(Type(max(i.clone(), j))),
+
                 //TODO #19
                 _ => Err(format!("Expected universe, found {:?}", u2.clone())),
             },
+
             //TODO #19
             _ => Err(format!("Expected universe, found {:?}", self)),
         }
     }
-    /// Infers the type of a `Val` in a given context
+
+    /// Infers the type of a `Val` in a given context.
     pub fn infer(self, ctx: &Ctx) -> Result<Val, String> {
         match self {
             Prop => Ok(Type(BigUint::from(0_u64).into())),
@@ -161,6 +134,44 @@ impl Val {
     }
 }
 
+impl From<Val> for Term {
+    fn from(v: Val) -> Term {
+        match v {
+            Prop => Term::Prop,
+            Type(i) => Term::Type(i),
+            Var(i) => Term::Var(i),
+            App(box t, box u) => Term::App(box t.into(), box u.into()),
+            Abs(s, box t, u) => Term::Abs(s, box t.into(), box u.term),
+            Prod(s, box t, u) => Term::Prod(s, box t.into(), box u.term),
+        }
+    }
+}
+
+type Env = Vec<Val>;
+
+impl Index<DeBruijnIndex> for Env {
+    type Output = Val;
+
+    fn index(&self, i: DeBruijnIndex) -> &Self::Output {
+        &self[usize::from(i)]
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Closure {
+    env: Env,
+    term: Term,
+}
+
+impl Closure {
+    pub fn subst(self, v: Val) -> Val {
+        let e = &mut self.env.clone();
+        e.push(v);
+        self.term.eval(e)
+    }
+}
+
+
 impl Term {
     // TODO modify eval to get WHNFs instead of NFs
     fn eval(self, e: &Env) -> Val {
@@ -191,7 +202,9 @@ impl Term {
         }
     }
 
-    /// Returns the normal form of a term in a given environment. This function is computationally expensive and should only be used for Reduce/Eval commands, not when type-checking.
+    /// Returns the normal form of a term in a given environment.
+    ///
+    /// This function is computationally expensive and should only be used for Reduce/Eval commands, not when type-checking.
     pub fn normal_form(self, e: Env) -> Term {
         self.eval(&e).into()
     }
@@ -212,7 +225,8 @@ impl Term {
             Ok(())
         }
     }
-    /// Checks whether a given term is of type `vty` in a given context
+
+    /// Checks whether a given term is of type `vty` in a given context.
     pub fn check(self, ctx: &Ctx, vty: Val) -> Result<(), String> {
         match (self.clone(), vty.clone()) {
             (Term::Abs(_, box t1, box t2), Prod(_, box a, b)) => {
@@ -233,12 +247,14 @@ impl Term {
         }
     }
 }
-//The context, which is supposed to contain other definitions in the environment, is not implemented for now
-//TODO use context for type-checking(#17)
 
-//type of lists of tuples representing the respective types of each variables
+// The context, which is supposed to contain other definitions in the environment, is not implemented for now.
+// TODO use context for type-checking (#17)
+
+// Type of lists of tuples representing the respective types of each variables
 type Types = Vec<Val>;
-#[derive(Clone, Debug)]
+
+#[derive(Clone, Debug, Default)]
 pub struct Ctx {
     env: Env,
     types: Types,
@@ -252,7 +268,7 @@ impl Ctx {
         }
     }
 
-    // Extend Ctx with a bound variable.
+    /// Extend Ctx with a bound variable.
     fn bind(self, vty: Val) -> Ctx {
         let mut new_env = self.env.clone();
         new_env.push(Var(self.env.len().into()));
@@ -263,7 +279,8 @@ impl Ctx {
             types: new_types,
         }
     }
-    // Extend Ctx with a definition.
+
+    /// Extend Ctx with a definition.
     fn define(self, v: Val, vty: Val) -> Ctx {
         let mut new_env = self.env.clone();
         new_env.push(v);
@@ -273,12 +290,6 @@ impl Ctx {
             env: new_env,
             types: new_types,
         }
-    }
-}
-
-impl Default for Ctx {
-    fn default() -> Self {
-        Ctx::new()
     }
 }
 
