@@ -171,7 +171,6 @@ impl Closure {
     }
 }
 
-
 impl Term {
     // TODO modify eval to get WHNFs instead of NFs
     fn eval(self, e: &Env) -> Val {
