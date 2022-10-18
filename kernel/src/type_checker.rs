@@ -3,9 +3,7 @@ use num_bigint::BigUint;
 use std::cmp::max;
 use std::ops::Index;
 
-// terms with closures
-// maintains the invariant that a val is in normal form, which is unnecessary for type checking/conversion, we should only need
-// weak-head normal forms
+/// Terms with closures, `Val`s maintain the invariant that a `Val` is in normal form, which is unnecessary for type checking/conversion, we should only need weak-head normal forms
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Val {
     Var(DeBruijnIndex),
@@ -61,10 +59,7 @@ impl Closure {
 
 impl Val {
     // /!\ IMPORTANT /!\
-    // Conversion function, checks whether two values are equal.
-    // The conversion is untyped, meaning that it should **Only**
-    // be called during type-checking when the two vals are already
-    // known to be of the same type and in the same context
+    /// Conversion function, checks whether two values are definitionally equal. The conversion is untyped, meaning that it should **only** be called during type-checking when the two `Val`s are already known to be of the same type and in the same context.
     pub fn conversion(self, rhs: Val, l: DeBruijnIndex) -> bool {
         match (self, rhs) {
             (Type(i), Type(j)) => i == j,
@@ -77,10 +72,10 @@ impl Val {
                 a1.conversion(a2, l) && b1.subst(Var(l)).conversion(b2.subst(Var(l)), l + 1.into())
             }
 
-            //Since we assume that both vals already have the same type,
-            //checking conversion over the argument type is useless.
-            //However, this doesn't mean we can simply remove the arg type
-            //from the type constructor in the enum, it is needed to quote back to terms.
+            // Since we assume that both vals already have the same type,
+            // checking conversion over the argument type is useless.
+            // However, this doesn't mean we can simply remove the arg type
+            // from the type constructor in the enum, it is needed to quote back to terms.
             (Abs(_, _, t), Abs(_, _, u)) => {
                 t.subst(Var(l)).conversion(u.subst(Var(l)), l + 1.into())
             }
@@ -101,7 +96,7 @@ impl Val {
         matches!(*self, Prop | Type(_))
     }
 
-    // Computes universe the universe in which (x : A) -> B lives when A : u1 and B : u2
+    /// Computes universe the universe in which (x : A) -> B lives when A : u1 and B : u2
     fn imax(self, u2: Val) -> Result<Val, String> {
         match u2 {
             Prop => Ok(Prop), // Because Term::Prop is impredicative, if B : Term::Prop, then (x : A) -> b : Term::Prop
@@ -116,7 +111,7 @@ impl Val {
             _ => Err(format!("Expected universe, found {:?}", self)),
         }
     }
-
+    /// Infers the type of a `Val` in a given context
     pub fn infer(self, ctx: &Ctx) -> Result<Val, String> {
         match self {
             Prop => Ok(Type(BigUint::from(0_u64).into())),
@@ -196,11 +191,12 @@ impl Term {
         }
     }
 
-    // returns normal form of term t in env e, should only be used for Reduce/Eval command, not when type-checking
+    /// Returns the normal form of a term in a given environment. This function is computationally expensive and should only be used for Reduce/Eval commands, not when type-checking.
     pub fn normal_form(self, e: Env) -> Term {
         self.eval(&e).into()
     }
 
+    /// Checks whether two terms are definitionally equal.
     pub fn is_def_eq(self, rhs: Term) -> Result<(), String> {
         if !self
             .clone()
@@ -216,7 +212,7 @@ impl Term {
             Ok(())
         }
     }
-
+    /// Checks whether a given term is of type `vty` in a given context
     pub fn check(self, ctx: &Ctx, vty: Val) -> Result<(), String> {
         match (self.clone(), vty.clone()) {
             (Term::Abs(_, box t1, box t2), Prod(_, box a, b)) => {
