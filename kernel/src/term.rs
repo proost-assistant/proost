@@ -1,7 +1,9 @@
 use derive_more::{Add, Display, From, Into, Sub};
 use num_bigint::BigUint;
 
-#[derive(Add, Copy, Clone, Debug, Display, Eq, Into, From, Sub, PartialEq, PartialOrd, Ord)]
+#[derive(
+    Add, Copy, Clone, Debug, Default, Display, Eq, Into, From, Sub, PartialEq, PartialOrd, Ord,
+)]
 pub struct DeBruijnIndex(usize);
 
 #[derive(Add, Clone, Debug, Display, Eq, From, Sub, PartialEq, PartialOrd, Ord)]
@@ -51,7 +53,7 @@ impl Term {
         }
     }
 
-    fn substitute(self, rhs: Term, depth: usize) -> Term {
+    pub fn substitute(self, rhs: Term, depth: usize) -> Term {
         match self {
             Var(i) if i == depth.into() => rhs.shift(depth - 1, 0),
             Var(i) if i > depth.into() => Var(i - 1.into()),
