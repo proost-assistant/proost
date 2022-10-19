@@ -1,29 +1,37 @@
 image: vlafeychine/rust
 
+stages:
+  - check
+  - build
+  - tests
+  - docs
+
 variables:
   CARGO_HOME: "$CI_PROJECT_DIR/.cache/cargo/"
 
 cache:
-  key: "$CI_COMMIT_REF_SLUG"
+  key: "$CI_JOB_STAGE-$CI_COMMIT_REF_SLUG"
   paths:
     - .cache/cargo/
     - target/
 
 format:
+  stage: check
   script:
     - cargo fmt --check
 
 lint:
+  stage: check
   script:
     - cargo clippy --all-targets --all-features -- -D warnings
 
 build:
-  needs: [format, lint]
+  stage: build
   script:
     - cargo build
 
-test:
-  needs: [build]
+tests:
+  stage: tests
   variables:
     CARGO_INCREMENTAL: 0
     LLVM_PROFILE_FILE: "coverage-%p-%m.profraw"
@@ -44,6 +52,7 @@ test:
   coverage: '/^branch-rate="\d+.\d+%"/'
 
 docs:
+  stage: docs
   only:
     refs:
       - main
