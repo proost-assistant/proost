@@ -70,7 +70,7 @@ impl Term {
 
             (Var(i), Var(j)) => i == j,
 
-            (Prod(box a1, b1), Prod(box a2, b2)) => {
+            (Prod(a1, b1), Prod(box a2, b2)) => {
                 a1.conversion(a2, l)
                     && b1
                         .substitute(Var(l), l.into())
@@ -269,19 +269,39 @@ mod tests {
         // (λa.λb.λc.a (λd.λe.e (d b)) (λ_.c) (λd.d)) (λa.λb.a b)
         let term = App(
             box Abs(
-                box Prop,
+                // a : ((P → P) → (P → P) → P) → ((P → P) → ((P → P) → P))
+                box Prod(
+                    // (P → P) → ((P → P) → P)
+                    box Prod(
+                        // P -> P
+                        box Prod(box Prop, box Prop),
+                        // (P -> P) -> P
+                        box Prod(box Prod(box Prop, box Prop), box Prop),
+                    ),
+                    // (P → P) → ((P → P) → P)
+                    box Prod(
+                        // P -> P
+                        box Prod(box Prop, box Prop),
+                        // (P -> P) -> P
+                        box Prod(box Prod(box Prop, box Prop), box Prop),
+                    ),
+                ),
                 box Abs(
+                    // b : P
                     box Prop,
                     box Abs(
+                        // c : P
                         box Prop,
                         box App(
                             box App(
                                 box App(
                                     box Var(3.into()),
                                     box Abs(
-                                        box Prop,
+                                        // d : P -> P
+                                        box Prod(box Prop, box Prop),
                                         box Abs(
-                                            box Prop,
+                                            // e : P -> P
+                                            box Prod(box Prop, box Prop),
                                             box App(
                                                 box Var(1.into()),
                                                 box App(box Var(2.into()), box Var(4.into())),
@@ -289,21 +309,32 @@ mod tests {
                                         ),
                                     ),
                                 ),
+                                // _ : P
                                 box Abs(box Prop, box Var(2.into())),
                             ),
+                            //d : P
                             box Abs(box Prop, box Var(1.into())),
                         ),
                     ),
                 ),
             ),
             box Abs(
-                box Prop,
-                box Abs(box Prop, box App(box Var(2.into()), box Var(1.into()))),
+                //a : (P -> P) -> (P -> P) -> P
+                box Prod(
+                    box Prod(box Prop, box Prop),
+                    box Prod(box Prod(box Prop, box Prop), box Prop),
+                ),
+                box Abs(
+                    //b : P -> P
+                    box Prod(box Prop, box Prop),
+                    box App(box Var(2.into()), box Var(1.into())),
+                ),
             ),
         );
-        // λa.λb.b
+        // λa : P.λb : P .b
         let reduced = Abs(box Prop, box Abs(box Prop, box Var(1.into())));
-        assert_eq!(term.is_def_eq(reduced), Ok(()))
+        assert_eq!(term.clone().is_def_eq(reduced), Ok(()));
+        assert_eq!(matches!(term.infer(&Context::new()), Ok(_)), true)
     }
 
     //(λ ℙ → λ ℙ → λ ℙ → (0 (λ ℙ → λ ℙ → ((4 1) 3) λ ℙ → 3)) (λ ℙ → λ ℙ → (0 1) (λ ℙ → 0 λ ℙ → 0)))
