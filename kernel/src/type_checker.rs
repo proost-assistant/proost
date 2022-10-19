@@ -47,7 +47,6 @@ impl Term {
     /// Returns the normal form of a term in a given environment.
     ///
     /// This function is computationally expensive and should only be used for Reduce/Eval commands, not when type-checking.
-    /// It is however used for now in the conversion algorithm. It will be replaced by the usage of weak-head normal forms at some point later on.
     pub fn normal_form(self) -> Term {
         let mut res = self.clone().beta_reduction();
         let mut temp = self;
@@ -58,12 +57,25 @@ impl Term {
         res
     }
 
+    pub fn whnf(self) -> Term {
+        match self.clone() {
+            App(box Abs(_, _), _) => self.beta_reduction().whnf(),
+            App(box t, t2) => {
+                let whnf = t.whnf();
+                match whnf {
+                    Abs(_, _) => App(box whnf, t2).beta_reduction().whnf(),
+                    _ => self,
+                }
+            }
+            _ => self,
+        }
+    }
+
     /// Conversion function, checks whether two values are definitionally equal.
     ///
     /// The conversion is untyped, meaning that it should **only** be called during type-checking when the two `Term`s are already known to be of the same type and in the same context.
     pub fn conversion(self, rhs: Term, l: DeBruijnIndex) -> bool {
-        //TODO remove these .normal_form() and adapt the algorithm to work on whnfs
-        match (self.normal_form(), rhs.normal_form()) {
+        match (self.whnf(), rhs.whnf()) {
             (Type(i), Type(j)) => i == j,
 
             (Prop, Prop) => true,
@@ -102,7 +114,7 @@ impl Term {
         if !self.clone().conversion(rhs.clone(), 1.into()) {
             //TODO #19
             Err(format!(
-                "Error, term\n  {}\n is not definitionally equal to \n    {}\n",
+                "Error, term\n  {:?}\n is not definitionally equal to \n    {:?}\n",
                 self, rhs
             ))
         } else {
@@ -334,7 +346,7 @@ mod tests {
         // λa : P.λb : P .b
         let reduced = Abs(box Prop, box Abs(box Prop, box Var(1.into())));
         assert_eq!(term.clone().is_def_eq(reduced), Ok(()));
-        assert_eq!(matches!(term.infer(&Context::new()), Ok(_)), true)
+        assert!(matches!(term.infer(&Context::new()), Ok(_)))
     }
 
     //(λ ℙ → λ ℙ → λ ℙ → (0 (λ ℙ → λ ℙ → ((4 1) 3) λ ℙ → 3)) (λ ℙ → λ ℙ → (0 1) (λ ℙ → 0 λ ℙ → 0)))
