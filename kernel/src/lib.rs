@@ -9,4 +9,3 @@ pub use command::Command;
 pub use derive_more;
 pub use num_bigint;
 pub use term::Term;
-pub use type_checker::Val;
