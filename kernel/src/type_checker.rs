@@ -161,22 +161,11 @@ impl Term {
 
     /// Checks whether a given term is of type `ty` in a given context.
     pub fn check(self, ctx: &mut Context, ty: Term) -> Result<(), TypeCheckingError> {
-        match (self.clone(), ty.clone()) {
-            (Abs(box t1, box t2), Prod(box a, b)) => {
-                t1.check(ctx, a.clone())?;
-                t2.check(
-                    &mut ctx.clone().bind(a),
-                    b.substitute(Var(ctx.types.len().into()), 1),
-                )
-            }
-            _ => {
-                let tty = self.infer(ctx)?;
-                if !tty.clone().conversion(ty.clone(), ctx.types.len().into()) {
-                    return Err(TypeMismatch(ty, tty));
-                };
-                Ok(())
-            }
-        }
+        let tty = self.infer(ctx)?;
+        if !tty.clone().conversion(ty.clone(), ctx.types.len().into()) {
+            return Err(TypeMismatch(ty, tty));
+        };
+        Ok(())
     }
 }
 
@@ -358,5 +347,11 @@ mod tests {
         ));
         let wf_prod2 = Prod(box Prop, box Var(1.into()));
         assert!(matches!(wf_prod2.check(&mut Context::new(), Prop), Ok(())));
+        // Type0 -> (A : Prop) ->
+        let wf_prod3 = Prod(box Prop, box Prop);
+        assert!(matches!(
+            wf_prod3.check(&mut Context::new(), Type(BigUint::from(0_u64).into())),
+            Ok(())
+        ));
     }
 }
