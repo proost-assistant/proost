@@ -162,7 +162,7 @@ impl Term {
     pub fn infer(self) -> Result<Term, TypeCheckingError> {
         self._infer(&Context::new())
     }
-    fn _check(self, ctx: &mut Context, ty: Term) -> Result<(), TypeCheckingError> {
+    fn _check(self, ctx: &Context, ty: Term) -> Result<(), TypeCheckingError> {
         let tty = self._infer(ctx)?;
         if !tty.clone().conversion(ty.clone(), ctx.types.len().into()) {
             return Err(TypeMismatch(ty, tty));
