@@ -26,16 +26,10 @@ fn build_term_from_expr(
 
         Rule::Var => {
             //issue #18 TODO use a hash map of known variables
-            let span = pair.as_span();
             let name = pair.into_inner().as_str().to_string();
             match known_vars.iter().position(|x| *x == name) {
                 Some(i) => Ok(Term::Var((i + 1).into())),
-                None => Err(box Error::new_from_span(
-                    ErrorVariant::CustomError {
-                        message: String::from("free variable: ") + &name,
-                    },
-                    span,
-                )),
+                None => Ok(Term::Const(name)),
             }
         }
         Rule::Prod => {
