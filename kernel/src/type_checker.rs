@@ -11,7 +11,17 @@ impl Index<DeBruijnIndex> for Vec<Term> {
         &self[usize::from(i)]
     }
 }
+#[derive(Debug, Eq)]
+pub enum Type_checking_error {
+    not_universe(Term),
+    not_type(Term),
+    not_def_eq(Term,Term),
+    wrong_argument_type(Term,Term,Term,Term),
+    not_a_function(Term,Term,Term),
+    type_mismatch(Term,Term)
+}
 
+use Type_checking_error::*;
 // The context, which is supposed to contain other definitions in the environment, is not implemented for now.
 // TODO use context for type-checking (#17)
 
@@ -83,11 +93,10 @@ impl Term {
     }
 
     /// Checks whether two terms are definitionally equal.
-    pub fn is_def_eq(self, rhs: Term) -> Result<(), String> {
+    pub fn is_def_eq(self, rhs: Term) -> Result<(), Type_checking_error> {
         if !self.clone().conversion(rhs.clone(), 1.into()) {
             //TODO #19
-            Err(format!(
-                "Error, term\n  {:?}\n is not definitionally equal to \n    {:?}\n",
+            Err(not_def_eq(
                 self, rhs
             ))
         } else {
@@ -100,7 +109,7 @@ impl Term {
     }
 
     /// Computes universe the universe in which `(x : A) -> B` lives when `A : u1` and `B : u2`.
-    fn imax(self, u2: Term) -> Result<Term, String> {
+    fn imax(self, u2: Term) -> Result<Term, Type_checking_error> {
         match u2 {
             // Because Prop is impredicative, if B : Prop, then (x : A) -> b : Prop
             Prop => Ok(Prop),
@@ -112,16 +121,16 @@ impl Term {
                 Type(j) => Ok(Type(max(i.clone(), j))),
 
                 //TODO #19
-                _ => Err(format!("Expected universe, found {:?}", u2.clone())),
+                _ => Err(not_universe( u2.clone())),
             },
 
             //TODO #19
-            _ => Err(format!("Expected universe, found {:?}", self)),
+            _ => Err(not_universe(self)),
         }
     }
 
     /// Infers the type of a `Term` in a given context.
-    pub fn infer(self, ctx: &Context) -> Result<Term, String> {
+    pub fn infer(self, ctx: &Context) -> Result<Term, Type_checking_error> {
         match self {
             Prop => Ok(Type(BigUint::from(0_u64).into())),
             Type(i) => Ok(Type(i + BigUint::from(1_u64).into())),
@@ -130,13 +139,13 @@ impl Term {
                 let ua = a.infer(ctx)?;
                 if !ua.is_universe() {
                     //TODO #19
-                    Err(format!("   {:?}\n Is not a type.", ua))
+                    Err(not_type(ua))
                 } else {
                     let ctx2 = ctx.clone().bind(ua.clone());
                     let ub = c.infer(&ctx2)?;
                     if !ub.is_universe() {
                         //TODO #19
-                        Err(format!("   {:?}\n Is not a type.", ub))
+                        Err(not_type(ub))
                     } else {
                         ua.imax(ub)
                     }
@@ -149,22 +158,22 @@ impl Term {
             App(box a, box b) => {
                 let type_a = a.clone().infer(ctx)?;
                 if let Prod(box t1, cls) = type_a {
-                    let t1_ = b.clone().infer(ctx);
-                    if !t1.clone().conversion(t1_.clone()?, ctx.types.len().into()) {
+                    let t1_ = b.clone().infer(ctx)?;
+                    if !t1.clone().conversion(t1_.clone(), ctx.types.len().into()) {
                         //TODO #19
-                        return Err(format!("Wrong argument, function\n  {:?}\n expected argument of type\n  {:?}\n but term\n    {:?}\n is of type\n    {:?}",a,t1,b,t1_));
+                        return Err(wrong_argument_type( a,t1,b,t1_));
                     };
                     Ok(*cls)
                 } else {
                     //TODO #19
-                    Err(format!("\n    {:?}\nIs not a function since it is of type {:?}, hence argument \n    {:?}\ncan't be given to it",a,type_a,b))
+                    Err(not_a_function(a,type_a,b))
                 }
             }
         }
     }
 
     /// Checks whether a given term is of type `ty` in a given context.
-    pub fn check(self, ctx: &mut Context, ty: Term) -> Result<(), String> {
+    pub fn check(self, ctx: &mut Context, ty: Term) -> Result<(), Type_checking_error> {
         match (self.clone(), ty.clone()) {
             (Abs(box t1, box t2), Prod(box a, b)) => {
                 t1.check(ctx, a.clone())?;
@@ -177,8 +186,7 @@ impl Term {
                 let tty = self.infer(ctx)?;
                 if !tty.clone().conversion(ty.clone(), ctx.types.len().into()) {
                     //TODO #19
-                    return Err(format!(
-                        "type mismatch\nexpected type:\n  {:?}\n\ninferred type:\n  {:?}\n",
+                    return Err(type_mismatch( 
                         ty, tty
                     ));
                 };
