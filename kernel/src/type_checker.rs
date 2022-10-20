@@ -14,11 +14,22 @@ impl Index<DeBruijnIndex> for Vec<Term> {
 /// Type representing kernel errors, is used by the toplevel to pretty-print errors.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TypeCheckingError {
+    /// t is not a universe
     NotUniverse(Term),
+
+    /// t is not a type
     NotType(Term),
+
+    /// t1 and t2 are not definitionally equal
     NotDefEq(Term, Term),
-    WrongArgumentType(Term, Term, Term, Term), // f of type t1 can't take argument x of type t2
+
+    /// f of type t1 can't take argument x of type t2
+    WrongArgumentType(Term, Term, Term, Term),
+
+    /// t1 is of type ty is not a function, and thus cannot be applied to t2
     NotAFunction(Term, Term, Term),
+
+    /// Expected ty1, found ty2
     TypeMismatch(Term, Term),
 }
 
