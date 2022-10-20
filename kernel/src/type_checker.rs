@@ -17,7 +17,7 @@ pub enum TypeCheckingError {
     NotUniverse(Term),
     NotType(Term),
     NotDefEq(Term, Term),
-    WrongArgumentType(Term, Term, Term, Term),
+    WrongArgumentType(Term, Term, Term, Term), // f of type t1 can't take argument x of type t2
     NotAFunction(Term, Term, Term),
     TypeMismatch(Term, Term),
 }
