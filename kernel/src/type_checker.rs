@@ -4,6 +4,7 @@ use std::cmp::max;
 use std::ops::Index;
 use Term::*;
 
+
 impl Index<DeBruijnIndex> for Vec<Term> {
     type Output = Term;
 
@@ -71,7 +72,7 @@ impl Term {
     /// Conversion function, checks whether two values are definitionally equal.
     ///
     /// The conversion is untyped, meaning that it should **only** be called during type-checking when the two `Term`s are already known to be of the same type and in the same context.
-    pub fn conversion(self, rhs: Term, l: DeBruijnIndex, ctx: &GlobalContext) -> bool {
+    pub fn conversion(self, rhs: Term, l: DeBruijnIndex, ctx: &Environment) -> bool {
         match (self.whnf(ctx), rhs.whnf(ctx)) {
             (Type(i), Type(j)) => i == j,
 
@@ -103,7 +104,7 @@ impl Term {
     }
 
     /// Checks whether two terms are definitionally equal.
-    pub fn is_def_eq(self, rhs: Term, ctx : &GlobalContext) -> Result<(), TypeCheckingError> {
+    pub fn is_def_eq(self, rhs: Term, ctx : &Environment) -> Result<(), TypeCheckingError> {
         if !self.clone().conversion(rhs.clone(), 1.into(),ctx) {
             Err(NotDefEq(self, rhs))
         } else {
@@ -134,18 +135,22 @@ impl Term {
         }
     }
 
-    fn _infer(self, ctx: &Context, global : &GlobalContext) -> Result<Term, TypeCheckingError> {
+    fn _infer(self, ctx: &Context, env : &Environment) -> Result<Term, TypeCheckingError> {
         match self {
             Prop => Ok(Type(BigUint::from(0_u64).into())),
             Type(i) => Ok(Type(i + BigUint::from(1_u64).into())),
             Var(i) => Ok(ctx.types[ctx.lvl - i].clone()),
+            Const(s) => match env.get(&s) {
+                Some((_,ty)) => Ok(ty.clone()),
+                None => Err(ConstNotFound(s))
+            }
             Prod(box a, c) => {
-                let ua = a.clone()._infer(ctx, global)?;
+                let ua = a.clone()._infer(ctx, env)?;
                 if !ua.is_universe() {
                     Err(NotType(ua))
                 } else {
                     let ctx2 = ctx.clone().bind(a);
-                    let ub = c._infer(&ctx2, global)?;
+                    let ub = c._infer(&ctx2, env)?;
                     if !ub.is_universe() {
                         Err(NotType(ub))
                     } else {
@@ -155,13 +160,13 @@ impl Term {
             }
             Abs(box t1, c) => {
                 let ctx2 = ctx.clone().bind(t1.clone());
-                Ok(Prod(box t1, box (*c)._infer(&ctx2, global)?))
+                Ok(Prod(box t1, box (*c)._infer(&ctx2, env)?))
             }
             App(box a, box b) => {
-                let type_a = a.clone()._infer(ctx, global)?;
+                let type_a = a.clone()._infer(ctx, env)?;
                 if let Prod(box t1, cls) = type_a {
-                    let t1_ = b.clone()._infer(ctx, global)?;
-                    if !t1.clone().conversion(t1_.clone(), ctx.types.len().into(), global) {
+                    let t1_ = b.clone()._infer(ctx, env)?;
+                    if !t1.clone().conversion(t1_.clone(), ctx.types.len().into(), env) {
                         return Err(WrongArgumentType(a, t1, b, t1_));
                     };
                     Ok(*cls)
@@ -173,19 +178,19 @@ impl Term {
     }
 
     /// Infers the type of a `Term` in a given context.
-    pub fn infer(self, global : &GlobalContext) -> Result<Term, TypeCheckingError> {
-        self._infer(&Context::new(), global)
+    pub fn infer(self, env : &Environment) -> Result<Term, TypeCheckingError> {
+        self._infer(&Context::new(), env)
     }
-    fn _check(self, ctx: &Context, ty: Term, global : &GlobalContext) -> Result<(), TypeCheckingError> {
-        let tty = self._infer(ctx, global)?;
-        if !tty.clone().conversion(ty.clone(), ctx.types.len().into(), global) {
+    fn _check(self, ctx: &Context, ty: Term, env : &Environment) -> Result<(), TypeCheckingError> {
+        let tty = self._infer(ctx, env)?;
+        if !tty.clone().conversion(ty.clone(), ctx.types.len().into(), env) {
             return Err(TypeMismatch(ty, tty));
         };
         Ok(())
     }
     /// Checks whether a given term is of type `ty` in a given context.
-    pub fn check(self, ty: Term, global : &GlobalContext) -> Result<(), TypeCheckingError> {
-        self._check(&Context::new(), ty, global)
+    pub fn check(self, ty: Term, env : &Environment) -> Result<(), TypeCheckingError> {
+        self._check(&Context::new(), ty, env)
     }
 }
 

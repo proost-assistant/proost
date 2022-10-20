@@ -10,7 +10,7 @@ pub struct DeBruijnIndex(usize);
 #[derive(Add, Clone, Debug, Display, Eq, From, Sub, PartialEq, PartialOrd, Ord)]
 pub struct UniverseLevel(BigUint);
 
-pub type GlobalContext = HashMap<String,(Term,Term)>;
+pub type Environment = HashMap<String,(Term,Term)>;
 
 
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
@@ -41,12 +41,12 @@ use Term::*;
 
 impl Term {
     /// Apply one step of β-reduction, using leftmost outermost evaluation strategy.
-    pub fn beta_reduction(self, ctx : &GlobalContext) -> Term {
+    pub fn beta_reduction(self, env : &Environment) -> Term {
         match self {
             App(box Abs(_, box t1), box t2) => t1.substitute(t2, 1),
-            App(box t1, box t2) => App(box t1.beta_reduction(ctx), box t2),
-            Abs(x, box t) => Abs(x, box t.beta_reduction(ctx)),
-            Const(s) => match ctx.get(&s) {
+            App(box t1, box t2) => App(box t1.beta_reduction(env), box t2),
+            Abs(x, box t) => Abs(x, box t.beta_reduction(env)),
+            Const(s) => match env.get(&s) {
                 Some((t,_)) => t.clone(),
                 None => panic!("unreachable code has been reached")
             }
@@ -82,22 +82,26 @@ impl Term {
     /// Returns the normal form of a term in a given environment.
     ///
     /// This function is computationally expensive and should only be used for Reduce/Eval commands, not when type-checking.
-    pub fn normal_form(self,ctx : &GlobalContext) -> Term {
-        let mut res = self.clone().beta_reduction(ctx);
+    pub fn normal_form(self,env : &Environment) -> Term {
+        let mut res = self.clone().beta_reduction(env);
         let mut temp = self;
         while res != temp {
             temp = res.clone();
-            res = res.beta_reduction(ctx)
+            res = res.beta_reduction(env)
         }
         res
     }
     /// Returns the weak-head normal form of a term in a given environment.
-    pub fn whnf(self, ctx : &GlobalContext) -> Term {
+    pub fn whnf(self, env : &Environment) -> Term {
         match self.clone() {
-            App(box t, t2) => match t.whnf(ctx) {
-                whnf @ Abs(_, _) => App(box whnf, t2).beta_reduction(ctx).whnf(ctx),
+            App(box t, t2) => match t.whnf(env) {
+                whnf @ Abs(_, _) => App(box whnf, t2).beta_reduction(env).whnf(env),
                 _ => self,
             },
+            Const(s) => match env.get(&s) {
+                Some((t,_)) => t.clone(),
+                None => panic!("unreachable")
+            }
             _ => self,
         }
     }
