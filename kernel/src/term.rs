@@ -83,14 +83,10 @@ impl Term {
     /// Returns the weak-head normal form of a term in a given environment.
     pub fn whnf(self) -> Term {
         match self.clone() {
-            App(box Abs(_, _), _) => self.beta_reduction().whnf(),
-            App(box t, t2) => {
-                let whnf = t.whnf();
-                match whnf {
-                    Abs(_, _) => App(box whnf, t2).beta_reduction().whnf(),
-                    _ => self,
-                }
-            }
+            App(box t, t2) => match t.whnf() {
+                whnf @ Abs(_, _) => App(box whnf, t2).beta_reduction().whnf(),
+                _ => self,
+            },
             _ => self,
         }
     }
