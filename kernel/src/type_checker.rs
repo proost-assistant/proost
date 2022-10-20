@@ -80,10 +80,6 @@ impl Term {
                 .substitute(Var(l), l.into())
                 .conversion(u.substitute(Var(l), l.into()), l + 1.into()),
 
-            (Abs(_, t), u) | (u, Abs(_, t)) => t
-                .substitute(Var(l), l.into())
-                .conversion(App(box u, box Var(l)), l + 1.into()),
-
             (App(box t1, box u1), App(box t2, box u2)) => {
                 t1.conversion(t2, l) && u1.conversion(u2, l)
             }
