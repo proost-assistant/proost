@@ -11,17 +11,17 @@ impl Index<DeBruijnIndex> for Vec<Term> {
         &self[usize::from(i)]
     }
 }
-#[derive(Debug, Eq)]
-pub enum Type_checking_error {
-    not_universe(Term),
-    not_type(Term),
-    not_def_eq(Term,Term),
-    wrong_argument_type(Term,Term,Term,Term),
-    not_a_function(Term,Term,Term),
-    type_mismatch(Term,Term)
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum TypeCheckingError {
+    NotUniverse(Term),
+    NotType(Term),
+    NotDefEq(Term, Term),
+    WrongArgumentType(Term, Term, Term, Term),
+    NotAFunction(Term, Term, Term),
+    TypeMismatch(Term, Term),
 }
 
-use Type_checking_error::*;
+use TypeCheckingError::*;
 // The context, which is supposed to contain other definitions in the environment, is not implemented for now.
 // TODO use context for type-checking (#17)
 
@@ -53,7 +53,6 @@ impl Context {
 }
 
 impl Term {
-
     /// Conversion function, checks whether two values are definitionally equal.
     ///
     /// The conversion is untyped, meaning that it should **only** be called during type-checking when the two `Term`s are already known to be of the same type and in the same context.
@@ -93,12 +92,10 @@ impl Term {
     }
 
     /// Checks whether two terms are definitionally equal.
-    pub fn is_def_eq(self, rhs: Term) -> Result<(), Type_checking_error> {
+    pub fn is_def_eq(self, rhs: Term) -> Result<(), TypeCheckingError> {
         if !self.clone().conversion(rhs.clone(), 1.into()) {
             //TODO #19
-            Err(not_def_eq(
-                self, rhs
-            ))
+            Err(NotDefEq(self, rhs))
         } else {
             Ok(())
         }
@@ -109,7 +106,7 @@ impl Term {
     }
 
     /// Computes universe the universe in which `(x : A) -> B` lives when `A : u1` and `B : u2`.
-    fn imax(self, u2: Term) -> Result<Term, Type_checking_error> {
+    fn imax(self, u2: Term) -> Result<Term, TypeCheckingError> {
         match u2 {
             // Because Prop is impredicative, if B : Prop, then (x : A) -> b : Prop
             Prop => Ok(Prop),
@@ -121,16 +118,16 @@ impl Term {
                 Type(j) => Ok(Type(max(i.clone(), j))),
 
                 //TODO #19
-                _ => Err(not_universe( u2.clone())),
+                _ => Err(NotUniverse(u2.clone())),
             },
 
             //TODO #19
-            _ => Err(not_universe(self)),
+            _ => Err(NotUniverse(self)),
         }
     }
 
     /// Infers the type of a `Term` in a given context.
-    pub fn infer(self, ctx: &Context) -> Result<Term, Type_checking_error> {
+    pub fn infer(self, ctx: &Context) -> Result<Term, TypeCheckingError> {
         match self {
             Prop => Ok(Type(BigUint::from(0_u64).into())),
             Type(i) => Ok(Type(i + BigUint::from(1_u64).into())),
@@ -139,13 +136,13 @@ impl Term {
                 let ua = a.infer(ctx)?;
                 if !ua.is_universe() {
                     //TODO #19
-                    Err(not_type(ua))
+                    Err(NotType(ua))
                 } else {
                     let ctx2 = ctx.clone().bind(ua.clone());
                     let ub = c.infer(&ctx2)?;
                     if !ub.is_universe() {
                         //TODO #19
-                        Err(not_type(ub))
+                        Err(NotType(ub))
                     } else {
                         ua.imax(ub)
                     }
@@ -161,19 +158,19 @@ impl Term {
                     let t1_ = b.clone().infer(ctx)?;
                     if !t1.clone().conversion(t1_.clone(), ctx.types.len().into()) {
                         //TODO #19
-                        return Err(wrong_argument_type( a,t1,b,t1_));
+                        return Err(WrongArgumentType(a, t1, b, t1_));
                     };
                     Ok(*cls)
                 } else {
                     //TODO #19
-                    Err(not_a_function(a,type_a,b))
+                    Err(NotAFunction(a, type_a, b))
                 }
             }
         }
     }
 
     /// Checks whether a given term is of type `ty` in a given context.
-    pub fn check(self, ctx: &mut Context, ty: Term) -> Result<(), Type_checking_error> {
+    pub fn check(self, ctx: &mut Context, ty: Term) -> Result<(), TypeCheckingError> {
         match (self.clone(), ty.clone()) {
             (Abs(box t1, box t2), Prod(box a, b)) => {
                 t1.check(ctx, a.clone())?;
@@ -186,9 +183,7 @@ impl Term {
                 let tty = self.infer(ctx)?;
                 if !tty.clone().conversion(ty.clone(), ctx.types.len().into()) {
                     //TODO #19
-                    return Err(type_mismatch( 
-                        ty, tty
-                    ));
+                    return Err(TypeMismatch(ty, tty));
                 };
                 Ok(())
             }
@@ -236,7 +231,7 @@ mod tests {
     }
 
     #[test]
-    fn simple_substitute() {
+    fn simple_substitute() -> Result<(), TypeCheckingError> {
         // λ (x : P -> P).(λ (y :P).x y) x
         //λ P -> P.(λ P.2 1) 1
         let term = Abs(
@@ -251,7 +246,8 @@ mod tests {
         let reduced = Abs(box Prop, box App(box Var(1.into()), box Var(1.into())));
         assert_eq!(term.clone().is_def_eq(reduced), Ok(()));
         let _ty = term.infer(&Context::new());
-        assert_eq!(_ty, Err("Wrong argument, function\n  Abs(Prop, App(Var(DeBruijnIndex(2)), Var(DeBruijnIndex(1))))\n expected argument of type\n  Prop\n but term\n    Var(DeBruijnIndex(1))\n is of type\n    Ok(Prod(Prop, Prop))".into()))
+        assert!(matches!(_ty, Err(WrongArgumentType(_, _, _, _))));
+        Ok(())
     }
 
     #[test]
