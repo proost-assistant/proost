@@ -337,7 +337,7 @@ mod tests {
     fn polymorphism() {
         let id = Abs(
             box Type(BigUint::from(0_u64).into()),
-            box Abs(box Var(0.into()), box Var(1.into())),
+            box Abs(box Var(1.into()), box Var(1.into())),
         );
         assert!(matches!(id.infer(&Context::new()), Ok(_)))
     }
