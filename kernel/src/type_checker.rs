@@ -91,7 +91,6 @@ impl Term {
     /// Checks whether two terms are definitionally equal.
     pub fn is_def_eq(self, rhs: Term) -> Result<(), TypeCheckingError> {
         if !self.clone().conversion(rhs.clone(), 1.into()) {
-            //TODO #19
             Err(NotDefEq(self, rhs))
         } else {
             Ok(())
@@ -114,11 +113,9 @@ impl Term {
                 // else if u1 = Type(i) and u2 = Type(j), then (x : A) -> B : Type(max(i,j))
                 Type(j) => Ok(Type(max(i.clone(), j))),
 
-                //TODO #19
                 _ => Err(NotUniverse(u2.clone())),
             },
 
-            //TODO #19
             _ => Err(NotUniverse(self)),
         }
     }
@@ -132,13 +129,11 @@ impl Term {
             Prod(box a, c) => {
                 let ua = a.clone().infer(ctx)?;
                 if !ua.is_universe() {
-                    //TODO #19
                     Err(NotType(ua))
                 } else {
                     let ctx2 = ctx.clone().bind(a);
                     let ub = c.infer(&ctx2)?;
                     if !ub.is_universe() {
-                        //TODO #19
                         Err(NotType(ub))
                     } else {
                         ua.imax(ub)
@@ -154,12 +149,10 @@ impl Term {
                 if let Prod(box t1, cls) = type_a {
                     let t1_ = b.clone().infer(ctx)?;
                     if !t1.clone().conversion(t1_.clone(), ctx.types.len().into()) {
-                        //TODO #19
                         return Err(WrongArgumentType(a, t1, b, t1_));
                     };
                     Ok(*cls)
                 } else {
-                    //TODO #19
                     Err(NotAFunction(a, type_a, b))
                 }
             }
@@ -179,7 +172,6 @@ impl Term {
             _ => {
                 let tty = self.infer(ctx)?;
                 if !tty.clone().conversion(ty.clone(), ctx.types.len().into()) {
-                    //TODO #19
                     return Err(TypeMismatch(ty, tty));
                 };
                 Ok(())
