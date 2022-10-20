@@ -28,9 +28,9 @@ use TypeCheckingError::*;
 // Type of lists of tuples representing the respective types of each variables
 type Types = Vec<Term>;
 
-#[derive(Clone, Debug, Default)]
 /// Structure containing a context used for typechecking. It serves to store the types of variables in the following way :
 /// in a given context {types,lvl}, the type of `Var(i)` is in `types[lvl-i]`.
+#[derive(Clone, Debug, Default)]
 pub struct Context {
     types: Types,
     lvl: DeBruijnIndex,
