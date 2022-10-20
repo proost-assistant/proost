@@ -32,8 +32,7 @@
           };
 
           docker-ci = let
-            rust-ci =
-              rust.minimal.override { extensions = [ "clippy" "rustfmt" ]; };
+            rust-ci = rust.minimal.override { extensions = [ "clippy" "llvm-tools-preview" "rustfmt" ]; };
           in pkgs.dockerTools.buildImage {
             name = "proost-ci";
 
@@ -41,7 +40,7 @@
 
             copyToRoot = pkgs.buildEnv {
               name = "proost-dependencies";
-              paths = (with pkgs; [ coreutils gcc openssh rust-ci ])
+              paths = (with pkgs; [ coreutils gcc gnugrep gnused grcov openssh rust-ci ])
                 ++ (with pkgs.dockerTools; [ binSh caCertificates fakeNss ]);
               pathsToLink = [ "/bin" "/etc" ];
             };
@@ -52,8 +51,7 @@
 
         devShells.default = pkgs.mkShell {
           name = "proost-dev";
-          packages = [ rust.default rust.rust-analyzer ];
+          packages = [ (rust.default.override { extensions = [ "rust-src" "rust-analyzer" ]; }) ];
         };
       });
 }
-
