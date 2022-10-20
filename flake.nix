@@ -51,7 +51,7 @@
 
         devShells.default = pkgs.mkShell {
           name = "proost-dev";
-          packages = [ (rust.default.override { extensions = [ "rust-analyzer" ]; }) ];
+          packages = [ (rust.default.override { extensions = [ "rust-src" "rust-analyzer" ]; }) ];
         };
       });
 }
