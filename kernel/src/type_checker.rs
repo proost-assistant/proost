@@ -151,10 +151,7 @@ impl Term {
         match self {
             Prop => Ok(Type(BigUint::from(0_u64).into())),
             Type(i) => Ok(Type(i + BigUint::from(1_u64).into())),
-            Var(i) => {
-                println!("Checking type of Var({}) in context {:?}", i, ctx);
-                Ok(ctx.types[ctx.lvl - i].clone())
-            }
+            Var(i) => Ok(ctx.types[ctx.lvl - i].clone()),
             Prod(box a, c) => {
                 let ua = a.infer(ctx)?;
                 if !ua.is_universe() {
