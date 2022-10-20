@@ -369,7 +369,6 @@ mod tests {
             Ok(())
         ));
         let wf_prod2 = Prod(box Prop, box Var(1.into()));
-        println!("{:?}", wf_prod2.clone().infer(&Context::new()));
         assert!(matches!(wf_prod2.check(&mut Context::new(), Prop), Ok(())));
     }
 }
