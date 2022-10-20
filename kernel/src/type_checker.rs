@@ -43,32 +43,6 @@ impl Context {
 }
 
 impl Term {
-    /// Returns the normal form of a term in a given environment.
-    ///
-    /// This function is computationally expensive and should only be used for Reduce/Eval commands, not when type-checking.
-    pub fn normal_form(self) -> Term {
-        let mut res = self.clone().beta_reduction();
-        let mut temp = self;
-        while res != temp {
-            temp = res.clone();
-            res = res.beta_reduction()
-        }
-        res
-    }
-    /// Returns the weak-head normal form of a term in a given environment.
-    pub fn whnf(self) -> Term {
-        match self.clone() {
-            App(box Abs(_, _), _) => self.beta_reduction().whnf(),
-            App(box t, t2) => {
-                let whnf = t.whnf();
-                match whnf {
-                    Abs(_, _) => App(box whnf, t2).beta_reduction().whnf(),
-                    _ => self,
-                }
-            }
-            _ => self,
-        }
-    }
 
     /// Conversion function, checks whether two values are definitionally equal.
     ///
