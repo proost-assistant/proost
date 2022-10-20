@@ -14,6 +14,9 @@ impl Index<DeBruijnIndex> for Vec<Term> {
 /// Type representing kernel errors, is used by the toplevel to pretty-print errors.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TypeCheckingError {
+    // Constant s has not been found in the current context
+    ConstNotFound(String),
+
     /// t is not a universe
     NotUniverse(Term),
 
@@ -68,8 +71,8 @@ impl Term {
     /// Conversion function, checks whether two values are definitionally equal.
     ///
     /// The conversion is untyped, meaning that it should **only** be called during type-checking when the two `Term`s are already known to be of the same type and in the same context.
-    pub fn conversion(self, rhs: Term, l: DeBruijnIndex) -> bool {
-        match (self.whnf(), rhs.whnf()) {
+    pub fn conversion(self, rhs: Term, l: DeBruijnIndex, ctx: &GlobalContext) -> bool {
+        match (self.whnf(ctx), rhs.whnf(ctx)) {
             (Type(i), Type(j)) => i == j,
 
             (Prop, Prop) => true,
@@ -77,10 +80,10 @@ impl Term {
             (Var(i), Var(j)) => i == j,
 
             (Prod(a1, b1), Prod(box a2, b2)) => {
-                a1.conversion(a2, l)
+                a1.conversion(a2, l, ctx)
                     && b1
                         .substitute(Var(l), l.into())
-                        .conversion(b2.substitute(Var(l), l.into()), l + 1.into())
+                        .conversion(b2.substitute(Var(l), l.into()), l + 1.into(), ctx)
             }
 
             // Since we assume that both vals already have the same type,
@@ -89,10 +92,10 @@ impl Term {
             // from the type constructor in the enum, it is needed to quote back to terms.
             (Abs(_, t), Abs(_, u)) => t
                 .substitute(Var(l), l.into())
-                .conversion(u.substitute(Var(l), l.into()), l + 1.into()),
+                .conversion(u.substitute(Var(l), l.into()), l + 1.into(), ctx),
 
             (App(box t1, box u1), App(box t2, box u2)) => {
-                t1.conversion(t2, l) && u1.conversion(u2, l)
+                t1.conversion(t2, l, ctx) && u1.conversion(u2, l, ctx)
             }
 
             _ => false,
@@ -100,8 +103,8 @@ impl Term {
     }
 
     /// Checks whether two terms are definitionally equal.
-    pub fn is_def_eq(self, rhs: Term) -> Result<(), TypeCheckingError> {
-        if !self.clone().conversion(rhs.clone(), 1.into()) {
+    pub fn is_def_eq(self, rhs: Term, ctx : &GlobalContext) -> Result<(), TypeCheckingError> {
+        if !self.clone().conversion(rhs.clone(), 1.into(),ctx) {
             Err(NotDefEq(self, rhs))
         } else {
             Ok(())
@@ -131,18 +134,18 @@ impl Term {
         }
     }
 
-    fn _infer(self, ctx: &Context) -> Result<Term, TypeCheckingError> {
+    fn _infer(self, ctx: &Context, global : &GlobalContext) -> Result<Term, TypeCheckingError> {
         match self {
             Prop => Ok(Type(BigUint::from(0_u64).into())),
             Type(i) => Ok(Type(i + BigUint::from(1_u64).into())),
             Var(i) => Ok(ctx.types[ctx.lvl - i].clone()),
             Prod(box a, c) => {
-                let ua = a.clone()._infer(ctx)?;
+                let ua = a.clone()._infer(ctx, global)?;
                 if !ua.is_universe() {
                     Err(NotType(ua))
                 } else {
                     let ctx2 = ctx.clone().bind(a);
-                    let ub = c._infer(&ctx2)?;
+                    let ub = c._infer(&ctx2, global)?;
                     if !ub.is_universe() {
                         Err(NotType(ub))
                     } else {
@@ -152,13 +155,13 @@ impl Term {
             }
             Abs(box t1, c) => {
                 let ctx2 = ctx.clone().bind(t1.clone());
-                Ok(Prod(box t1, box (*c)._infer(&ctx2)?))
+                Ok(Prod(box t1, box (*c)._infer(&ctx2, global)?))
             }
             App(box a, box b) => {
-                let type_a = a.clone()._infer(ctx)?;
+                let type_a = a.clone()._infer(ctx, global)?;
                 if let Prod(box t1, cls) = type_a {
-                    let t1_ = b.clone()._infer(ctx)?;
-                    if !t1.clone().conversion(t1_.clone(), ctx.types.len().into()) {
+                    let t1_ = b.clone()._infer(ctx, global)?;
+                    if !t1.clone().conversion(t1_.clone(), ctx.types.len().into(), global) {
                         return Err(WrongArgumentType(a, t1, b, t1_));
                     };
                     Ok(*cls)
@@ -170,19 +173,19 @@ impl Term {
     }
 
     /// Infers the type of a `Term` in a given context.
-    pub fn infer(self) -> Result<Term, TypeCheckingError> {
-        self._infer(&Context::new())
+    pub fn infer(self, global : &GlobalContext) -> Result<Term, TypeCheckingError> {
+        self._infer(&Context::new(), global)
     }
-    fn _check(self, ctx: &Context, ty: Term) -> Result<(), TypeCheckingError> {
-        let tty = self._infer(ctx)?;
-        if !tty.clone().conversion(ty.clone(), ctx.types.len().into()) {
+    fn _check(self, ctx: &Context, ty: Term, global : &GlobalContext) -> Result<(), TypeCheckingError> {
+        let tty = self._infer(ctx, global)?;
+        if !tty.clone().conversion(ty.clone(), ctx.types.len().into(), global) {
             return Err(TypeMismatch(ty, tty));
         };
         Ok(())
     }
     /// Checks whether a given term is of type `ty` in a given context.
-    pub fn check(self, ty: Term) -> Result<(), TypeCheckingError> {
-        self._check(&Context::new(), ty)
+    pub fn check(self, ty: Term, global : &GlobalContext) -> Result<(), TypeCheckingError> {
+        self._check(&Context::new(), ty, global)
     }
 }
 
@@ -201,7 +204,7 @@ mod tests {
             id(1),
         );
         let nf = Abs(box Prop, box Var(1.into()));
-        assert_eq!(t.normal_form(), nf)
+        assert_eq!(t.normal_form(&Default::default()), nf)
     }
 
     #[test]
@@ -211,7 +214,7 @@ mod tests {
             id(1),
         );
         let nf = Abs(box Prop, id(1));
-        assert_eq!(t.normal_form(), nf)
+        assert_eq!(t.normal_form(&Default::default()), nf)
     }
     #[test]
     fn simple() {
@@ -220,8 +223,8 @@ mod tests {
             box Prop,
         );
         let t2 = Prop;
-        assert!(t1.clone().conversion(t2, 0.into()));
-        let ty = t1._infer(&Context::new());
+        assert!(t1.clone().conversion(t2, 0.into(), &Default::default()));
+        let ty = t1._infer(&Context::new(), &Default::default());
         assert_eq!(ty, Ok(Type(BigUint::from(0_u64).into())));
     }
 
@@ -239,8 +242,8 @@ mod tests {
 
         // λx.x x
         let reduced = Abs(box Prop, box App(box Var(1.into()), box Var(1.into())));
-        assert_eq!(term.clone().is_def_eq(reduced), Ok(()));
-        let _ty = term.infer();
+        assert_eq!(term.clone().is_def_eq(reduced, &Default::default()), Ok(()));
+        let _ty = term.infer(&Default::default());
         assert!(matches!(_ty, Err(WrongArgumentType(_, _, _, _))));
         Ok(())
     }
@@ -314,8 +317,8 @@ mod tests {
         );
         // λa : P.λb : P .b
         let reduced = Abs(box Prop, box Abs(box Prop, box Var(1.into())));
-        assert_eq!(term.clone().is_def_eq(reduced), Ok(()));
-        assert!(matches!(term.infer(), Ok(_)))
+        assert_eq!(term.clone().is_def_eq(reduced, &Default::default()), Ok(()));
+        assert!(matches!(term.infer( &Default::default()), Ok(_)))
     }
 
     //(λ ℙ → λ ℙ → λ ℙ → (0 (λ ℙ → λ ℙ → ((4 1) 3) λ ℙ → 3)) (λ ℙ → λ ℙ → (0 1) (λ ℙ → 0 λ ℙ → 0)))
@@ -323,9 +326,9 @@ mod tests {
     fn nf_test() {
         //λa.a (λx.x) (λx.x)
         let reduced = Abs(box Prop, box App(box App(box Var(2.into()), id(1)), id(1)));
-        let nff = reduced.clone().normal_form();
+        let nff = reduced.clone().normal_form(&Default::default());
         assert_eq!(reduced, nff);
-        assert_eq!(reduced.is_def_eq(nff), Ok(()));
+        assert_eq!(reduced.is_def_eq(nff, &Default::default()), Ok(()));
     }
 
     #[test]
@@ -334,12 +337,12 @@ mod tests {
             box Type(BigUint::from(0_u64).into()),
             box Abs(box Var(1.into()), box Var(1.into())),
         );
-        assert!(matches!(id.infer(), Ok(_)))
+        assert!(matches!(id.infer(&Default::default()), Ok(_)))
     }
     #[test]
     fn type_type() {
         assert!(matches!(
-            Type(BigUint::from(0_u64).into()).check(Type(BigUint::from(1_u64).into())),
+            Type(BigUint::from(0_u64).into()).check(Type(BigUint::from(1_u64).into()),&Default::default()),
             Ok(_)
         ))
     }
@@ -347,26 +350,26 @@ mod tests {
     #[test]
     fn not_function() {
         let t = App(box Prop, box Prop);
-        assert!(matches!(t.infer(), Err(NotAFunction(..))))
+        assert!(matches!(t.infer(&Default::default()), Err(NotAFunction(..))))
     }
 
     #[test]
     fn not_type_prod() {
         let t1 = Prod(box Abs(box Prop, box Var(1.into())), box Prop);
-        assert!(matches!(t1.infer(), Err(NotType(..))));
+        assert!(matches!(t1.infer(&Default::default()), Err(NotType(..))));
         let t2 = Prod(box Prop, box Abs(box Prop, box Prop));
-        assert!(matches!(t2.infer(), Err(NotType(..))));
+        assert!(matches!(t2.infer(&Default::default()), Err(NotType(..))));
         let wf_prod1 = Prod(box Prop, box Prop);
         assert!(matches!(
-            wf_prod1.check(Type(BigUint::from(0_u64).into())),
+            wf_prod1.check(Type(BigUint::from(0_u64).into()), &Default::default()),
             Ok(())
         ));
         let wf_prod2 = Prod(box Prop, box Var(1.into()));
-        assert!(matches!(wf_prod2.check(Prop), Ok(())));
+        assert!(matches!(wf_prod2.check(Prop, &Default::default()), Ok(())));
         // Type0 -> (A : Prop) ->
         let wf_prod3 = Prod(box Prop, box Prop);
         assert!(matches!(
-            wf_prod3.check(Type(BigUint::from(0_u64).into())),
+            wf_prod3.check(Type(BigUint::from(0_u64).into()), &Default::default()),
             Ok(())
         ));
     }

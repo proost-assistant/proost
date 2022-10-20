@@ -1,5 +1,6 @@
 use derive_more::{Add, Display, From, Into, Sub};
 use num_bigint::BigUint;
+use std::collections::HashMap;
 
 #[derive(
     Add, Copy, Clone, Debug, Default, Display, Eq, Into, From, Sub, PartialEq, PartialOrd, Ord,
@@ -9,10 +10,16 @@ pub struct DeBruijnIndex(usize);
 #[derive(Add, Clone, Debug, Display, Eq, From, Sub, PartialEq, PartialOrd, Ord)]
 pub struct UniverseLevel(BigUint);
 
+pub type GlobalContext = HashMap<String,(Term,Term)>;
+
+
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum Term {
     #[display(fmt = "{}", _0)]
     Var(DeBruijnIndex),
+
+    #[display(fmt = "{}", _0)]
+    Const(String),
 
     #[display(fmt = "\u{02119}")]
     Prop,
@@ -34,11 +41,15 @@ use Term::*;
 
 impl Term {
     /// Apply one step of β-reduction, using leftmost outermost evaluation strategy.
-    pub fn beta_reduction(self) -> Term {
+    pub fn beta_reduction(self, ctx : &GlobalContext) -> Term {
         match self {
             App(box Abs(_, box t1), box t2) => t1.substitute(t2, 1),
-            App(box t1, box t2) => App(box t1.beta_reduction(), box t2),
-            Abs(x, box t) => Abs(x, box t.beta_reduction()),
+            App(box t1, box t2) => App(box t1.beta_reduction(ctx), box t2),
+            Abs(x, box t) => Abs(x, box t.beta_reduction(ctx)),
+            Const(s) => match ctx.get(&s) {
+                Some((t,_)) => t.clone(),
+                None => panic!("unreachable code has been reached")
+            }
             _ => self,
         }
     }
@@ -71,20 +82,20 @@ impl Term {
     /// Returns the normal form of a term in a given environment.
     ///
     /// This function is computationally expensive and should only be used for Reduce/Eval commands, not when type-checking.
-    pub fn normal_form(self) -> Term {
-        let mut res = self.clone().beta_reduction();
+    pub fn normal_form(self,ctx : &GlobalContext) -> Term {
+        let mut res = self.clone().beta_reduction(ctx);
         let mut temp = self;
         while res != temp {
             temp = res.clone();
-            res = res.beta_reduction()
+            res = res.beta_reduction(ctx)
         }
         res
     }
     /// Returns the weak-head normal form of a term in a given environment.
-    pub fn whnf(self) -> Term {
+    pub fn whnf(self, ctx : &GlobalContext) -> Term {
         match self.clone() {
-            App(box t, t2) => match t.whnf() {
-                whnf @ Abs(_, _) => App(box whnf, t2).beta_reduction().whnf(),
+            App(box t, t2) => match t.whnf(ctx) {
+                whnf @ Abs(_, _) => App(box whnf, t2).beta_reduction(ctx).whnf(ctx),
                 _ => self,
             },
             _ => self,
@@ -111,7 +122,7 @@ mod tests {
         // λx.x x
         let reduced = Abs(box Prop, box App(box Var(1.into()), box Var(1.into())));
 
-        assert_eq!(term.beta_reduction(), reduced);
+        assert_eq!(term.beta_reduction(&Default::default()), reduced);
     }
 
     #[test]
@@ -272,13 +283,13 @@ mod tests {
         // λa.λb.b
         let term_step_7 = Abs(box Prop, box Abs(box Prop, box Var(1.into())));
 
-        assert_eq!(term.beta_reduction(), term_step_1);
-        assert_eq!(term_step_1.beta_reduction(), term_step_2);
-        assert_eq!(term_step_2.beta_reduction(), term_step_3);
-        assert_eq!(term_step_3.beta_reduction(), term_step_4);
-        assert_eq!(term_step_4.beta_reduction(), term_step_5);
-        assert_eq!(term_step_5.beta_reduction(), term_step_6);
-        assert_eq!(term_step_6.beta_reduction(), term_step_7);
-        assert_eq!(term_step_7.clone().beta_reduction(), term_step_7);
+        assert_eq!(term.beta_reduction(&Default::default()), term_step_1);
+        assert_eq!(term_step_1.beta_reduction( &Default::default()), term_step_2);
+        assert_eq!(term_step_2.beta_reduction( &Default::default()), term_step_3);
+        assert_eq!(term_step_3.beta_reduction( &Default::default()), term_step_4);
+        assert_eq!(term_step_4.beta_reduction( &Default::default()), term_step_5);
+        assert_eq!(term_step_5.beta_reduction( &Default::default()), term_step_6);
+        assert_eq!(term_step_6.beta_reduction( &Default::default()), term_step_7);
+        assert_eq!(term_step_7.clone().beta_reduction(&Default::default()), term_step_7);
     }
 }
