@@ -1,7 +1,9 @@
-use derive_more::{Add, Display, From, Sub};
+use derive_more::{Add, Display, From, Into, Sub};
 use num_bigint::BigUint;
 
-#[derive(Add, Clone, Debug, Display, Eq, From, Sub, PartialEq, PartialOrd, Ord)]
+#[derive(
+    Add, Copy, Clone, Debug, Default, Display, Eq, Into, From, Sub, PartialEq, PartialOrd, Ord,
+)]
 pub struct DeBruijnIndex(usize);
 
 #[derive(Add, Clone, Debug, Display, Eq, From, Sub, PartialEq, PartialOrd, Ord)]
@@ -51,7 +53,7 @@ impl Term {
         }
     }
 
-    fn substitute(self, rhs: Term, depth: usize) -> Term {
+    pub(crate) fn substitute(self, rhs: Term, depth: usize) -> Term {
         match self {
             Var(i) if i == depth.into() => rhs.shift(depth - 1, 0),
             Var(i) if i > depth.into() => Var(i - 1.into()),
@@ -65,12 +67,34 @@ impl Term {
             _ => self,
         }
     }
+
+    /// Returns the normal form of a term in a given environment.
+    ///
+    /// This function is computationally expensive and should only be used for Reduce/Eval commands, not when type-checking.
+    pub fn normal_form(self) -> Term {
+        let mut res = self.clone().beta_reduction();
+        let mut temp = self;
+        while res != temp {
+            temp = res.clone();
+            res = res.beta_reduction()
+        }
+        res
+    }
+    /// Returns the weak-head normal form of a term in a given environment.
+    pub fn whnf(self) -> Term {
+        match self.clone() {
+            App(box t, t2) => match t.whnf() {
+                whnf @ Abs(_, _) => App(box whnf, t2).beta_reduction().whnf(),
+                _ => self,
+            },
+            _ => self,
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    // TODO: Correctly types lambda terms (#9)
-
+    // /!\ most of these tests are on ill-typed terms and should not be used for further testings
     use super::Term::*;
 
     #[test]
