@@ -4,7 +4,6 @@ use std::cmp::max;
 use std::ops::Index;
 use Term::*;
 
-
 impl Index<DeBruijnIndex> for Vec<Term> {
     type Output = Term;
 
@@ -82,18 +81,22 @@ impl Term {
 
             (Prod(a1, b1), Prod(box a2, b2)) => {
                 a1.conversion(a2, l, ctx)
-                    && b1
-                        .substitute(Var(l), l.into())
-                        .conversion(b2.substitute(Var(l), l.into()), l + 1.into(), ctx)
+                    && b1.substitute(Var(l), l.into()).conversion(
+                        b2.substitute(Var(l), l.into()),
+                        l + 1.into(),
+                        ctx,
+                    )
             }
 
             // Since we assume that both vals already have the same type,
             // checking conversion over the argument type is useless.
             // However, this doesn't mean we can simply remove the arg type
             // from the type constructor in the enum, it is needed to quote back to terms.
-            (Abs(_, t), Abs(_, u)) => t
-                .substitute(Var(l), l.into())
-                .conversion(u.substitute(Var(l), l.into()), l + 1.into(), ctx),
+            (Abs(_, t), Abs(_, u)) => t.substitute(Var(l), l.into()).conversion(
+                u.substitute(Var(l), l.into()),
+                l + 1.into(),
+                ctx,
+            ),
 
             (App(box t1, box u1), App(box t2, box u2)) => {
                 t1.conversion(t2, l, ctx) && u1.conversion(u2, l, ctx)
@@ -104,8 +107,8 @@ impl Term {
     }
 
     /// Checks whether two terms are definitionally equal.
-    pub fn is_def_eq(self, rhs: Term, ctx : &Environment) -> Result<(), TypeCheckingError> {
-        if !self.clone().conversion(rhs.clone(), 1.into(),ctx) {
+    pub fn is_def_eq(self, rhs: Term, ctx: &Environment) -> Result<(), TypeCheckingError> {
+        if !self.clone().conversion(rhs.clone(), 1.into(), ctx) {
             Err(NotDefEq(self, rhs))
         } else {
             Ok(())
@@ -135,15 +138,15 @@ impl Term {
         }
     }
 
-    fn _infer(self, ctx: &Context, env : &Environment) -> Result<Term, TypeCheckingError> {
+    fn _infer(self, ctx: &Context, env: &Environment) -> Result<Term, TypeCheckingError> {
         match self {
             Prop => Ok(Type(BigUint::from(0_u64).into())),
             Type(i) => Ok(Type(i + BigUint::from(1_u64).into())),
             Var(i) => Ok(ctx.types[ctx.lvl - i].clone()),
             Const(s) => match env.get(&s) {
-                Some((_,ty)) => Ok(ty.clone()),
-                None => Err(ConstNotFound(s))
-            }
+                Some((_, ty)) => Ok(ty.clone()),
+                None => Err(ConstNotFound(s)),
+            },
             Prod(box a, c) => {
                 let ua = a.clone()._infer(ctx, env)?;
                 if !ua.is_universe() {
@@ -166,7 +169,10 @@ impl Term {
                 let type_a = a.clone()._infer(ctx, env)?;
                 if let Prod(box t1, cls) = type_a {
                     let t1_ = b.clone()._infer(ctx, env)?;
-                    if !t1.clone().conversion(t1_.clone(), ctx.types.len().into(), env) {
+                    if !t1
+                        .clone()
+                        .conversion(t1_.clone(), ctx.types.len().into(), env)
+                    {
                         return Err(WrongArgumentType(a, t1, b, t1_));
                     };
                     Ok(*cls)
@@ -178,18 +184,21 @@ impl Term {
     }
 
     /// Infers the type of a `Term` in a given context.
-    pub fn infer(self, env : &Environment) -> Result<Term, TypeCheckingError> {
+    pub fn infer(self, env: &Environment) -> Result<Term, TypeCheckingError> {
         self._infer(&Context::new(), env)
     }
-    fn _check(self, ctx: &Context, ty: Term, env : &Environment) -> Result<(), TypeCheckingError> {
+    fn _check(self, ctx: &Context, ty: Term, env: &Environment) -> Result<(), TypeCheckingError> {
         let tty = self._infer(ctx, env)?;
-        if !tty.clone().conversion(ty.clone(), ctx.types.len().into(), env) {
+        if !tty
+            .clone()
+            .conversion(ty.clone(), ctx.types.len().into(), env)
+        {
             return Err(TypeMismatch(ty, tty));
         };
         Ok(())
     }
     /// Checks whether a given term is of type `ty` in a given context.
-    pub fn check(self, ty: Term, env : &Environment) -> Result<(), TypeCheckingError> {
+    pub fn check(self, ty: Term, env: &Environment) -> Result<(), TypeCheckingError> {
         self._check(&Context::new(), ty, env)
     }
 }
@@ -323,7 +332,7 @@ mod tests {
         // λa : P.λb : P .b
         let reduced = Abs(box Prop, box Abs(box Prop, box Var(1.into())));
         assert_eq!(term.clone().is_def_eq(reduced, &Default::default()), Ok(()));
-        assert!(matches!(term.infer( &Default::default()), Ok(_)))
+        assert!(matches!(term.infer(&Default::default()), Ok(_)))
     }
 
     //(λ ℙ → λ ℙ → λ ℙ → (0 (λ ℙ → λ ℙ → ((4 1) 3) λ ℙ → 3)) (λ ℙ → λ ℙ → (0 1) (λ ℙ → 0 λ ℙ → 0)))
@@ -347,7 +356,8 @@ mod tests {
     #[test]
     fn type_type() {
         assert!(matches!(
-            Type(BigUint::from(0_u64).into()).check(Type(BigUint::from(1_u64).into()),&Default::default()),
+            Type(BigUint::from(0_u64).into())
+                .check(Type(BigUint::from(1_u64).into()), &Default::default()),
             Ok(_)
         ))
     }
@@ -355,7 +365,10 @@ mod tests {
     #[test]
     fn not_function() {
         let t = App(box Prop, box Prop);
-        assert!(matches!(t.infer(&Default::default()), Err(NotAFunction(..))))
+        assert!(matches!(
+            t.infer(&Default::default()),
+            Err(NotAFunction(..))
+        ))
     }
 
     #[test]
@@ -377,5 +390,33 @@ mod tests {
             wf_prod3.check(Type(BigUint::from(0_u64).into()), &Default::default()),
             Ok(())
         ));
+    }
+    #[test]
+    fn poly_test2() {
+        let t = Abs(
+            box Prop,
+            box Abs(
+                box Prop,
+                box Abs(
+                    box Prod(box Prop, box Prod(box Prop, box Prop)),
+                    box App(
+                        box App(box Var(1.into()), box Var(3.into())),
+                        box Var(2.into()),
+                    ),
+                ),
+            ),
+        );
+        assert!(matches!(t.infer(&Default::default()), Ok(_)))
+    }
+
+    #[test]
+    fn env_test() {
+        let id_prop = Prod(box Prop, box Prod(box Var(1.into()), box Var(1.into())));
+        let env = &mut Environment::new();
+        env.insert("foo".into(), (id_prop.clone(), Prop));
+        let t = Abs(box Prop, box Abs(box Var(1.into()), box Var(1.into())));
+        println!("{:?}", t.clone().infer(env));
+        assert!(matches!(t.check(Const("foo".into()), env), Ok(_)));
+        assert!(id_prop.conversion(Const("foo".into()), 1.into(), env))
     }
 }

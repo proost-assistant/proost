@@ -10,8 +10,7 @@ pub struct DeBruijnIndex(usize);
 #[derive(Add, Clone, Debug, Display, Eq, From, Sub, PartialEq, PartialOrd, Ord)]
 pub struct UniverseLevel(BigUint);
 
-pub type Environment = HashMap<String,(Term,Term)>;
-
+pub type Environment = HashMap<String, (Term, Term)>;
 
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum Term {
@@ -41,15 +40,15 @@ use Term::*;
 
 impl Term {
     /// Apply one step of β-reduction, using leftmost outermost evaluation strategy.
-    pub fn beta_reduction(self, env : &Environment) -> Term {
+    pub fn beta_reduction(self, env: &Environment) -> Term {
         match self {
             App(box Abs(_, box t1), box t2) => t1.substitute(t2, 1),
             App(box t1, box t2) => App(box t1.beta_reduction(env), box t2),
             Abs(x, box t) => Abs(x, box t.beta_reduction(env)),
             Const(s) => match env.get(&s) {
-                Some((t,_)) => t.clone(),
-                None => panic!("unreachable code has been reached")
-            }
+                Some((t, _)) => t.clone(),
+                None => panic!("unreachable code has been reached"),
+            },
             _ => self,
         }
     }
@@ -82,7 +81,7 @@ impl Term {
     /// Returns the normal form of a term in a given environment.
     ///
     /// This function is computationally expensive and should only be used for Reduce/Eval commands, not when type-checking.
-    pub fn normal_form(self,env : &Environment) -> Term {
+    pub fn normal_form(self, env: &Environment) -> Term {
         let mut res = self.clone().beta_reduction(env);
         let mut temp = self;
         while res != temp {
@@ -92,16 +91,16 @@ impl Term {
         res
     }
     /// Returns the weak-head normal form of a term in a given environment.
-    pub fn whnf(self, env : &Environment) -> Term {
+    pub fn whnf(self, env: &Environment) -> Term {
         match self.clone() {
             App(box t, t2) => match t.whnf(env) {
                 whnf @ Abs(_, _) => App(box whnf, t2).beta_reduction(env).whnf(env),
                 _ => self,
             },
             Const(s) => match env.get(&s) {
-                Some((t,_)) => t.clone(),
-                None => panic!("unreachable")
-            }
+                Some((t, _)) => t.clone(),
+                None => panic!("unreachable"),
+            },
             _ => self,
         }
     }
@@ -288,12 +287,15 @@ mod tests {
         let term_step_7 = Abs(box Prop, box Abs(box Prop, box Var(1.into())));
 
         assert_eq!(term.beta_reduction(&Default::default()), term_step_1);
-        assert_eq!(term_step_1.beta_reduction( &Default::default()), term_step_2);
-        assert_eq!(term_step_2.beta_reduction( &Default::default()), term_step_3);
-        assert_eq!(term_step_3.beta_reduction( &Default::default()), term_step_4);
-        assert_eq!(term_step_4.beta_reduction( &Default::default()), term_step_5);
-        assert_eq!(term_step_5.beta_reduction( &Default::default()), term_step_6);
-        assert_eq!(term_step_6.beta_reduction( &Default::default()), term_step_7);
-        assert_eq!(term_step_7.clone().beta_reduction(&Default::default()), term_step_7);
+        assert_eq!(term_step_1.beta_reduction(&Default::default()), term_step_2);
+        assert_eq!(term_step_2.beta_reduction(&Default::default()), term_step_3);
+        assert_eq!(term_step_3.beta_reduction(&Default::default()), term_step_4);
+        assert_eq!(term_step_4.beta_reduction(&Default::default()), term_step_5);
+        assert_eq!(term_step_5.beta_reduction(&Default::default()), term_step_6);
+        assert_eq!(term_step_6.beta_reduction(&Default::default()), term_step_7);
+        assert_eq!(
+            term_step_7.clone().beta_reduction(&Default::default()),
+            term_step_7
+        );
     }
 }
