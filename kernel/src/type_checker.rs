@@ -182,7 +182,7 @@ impl Term {
     }
     /// Checks whether a given term is of type `ty` in a given context.
     pub fn check(self, ty: Term) -> Result<(), TypeCheckingError> {
-        self._check(&mut Context::new(), ty)
+        self._check(&Context::new(), ty)
     }
 }
 
