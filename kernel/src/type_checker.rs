@@ -133,12 +133,12 @@ impl Term {
             Type(i) => Ok(Type(i + BigUint::from(1_u64).into())),
             Var(i) => Ok(ctx.types[ctx.lvl - i].clone()),
             Prod(box a, c) => {
-                let ua = a.infer(ctx)?;
+                let ua = a.clone().infer(ctx)?;
                 if !ua.is_universe() {
                     //TODO #19
                     Err(NotType(ua))
                 } else {
-                    let ctx2 = ctx.clone().bind(ua.clone());
+                    let ctx2 = ctx.clone().bind(a);
                     let ub = c.infer(&ctx2)?;
                     if !ub.is_universe() {
                         //TODO #19
@@ -340,5 +340,35 @@ mod tests {
             box Abs(box Var(1.into()), box Var(1.into())),
         );
         assert!(matches!(id.infer(&Context::new()), Ok(_)))
+    }
+    #[test]
+    fn type_type() {
+        assert!(matches!(
+            Type(BigUint::from(0_u64).into())
+                .check(&mut Context::new(), Type(BigUint::from(1_u64).into())),
+            Ok(_)
+        ))
+    }
+
+    #[test]
+    fn not_function() {
+        let t = App(box Prop, box Prop);
+        assert!(matches!(t.infer(&Context::new()), Err(NotAFunction(..))))
+    }
+
+    #[test]
+    fn not_type_prod() {
+        let t1 = Prod(box Abs(box Prop, box Var(1.into())), box Prop);
+        assert!(matches!(t1.infer(&Context::new()), Err(NotType(..))));
+        let t2 = Prod(box Prop, box Abs(box Prop, box Prop));
+        assert!(matches!(t2.infer(&Context::new()), Err(NotType(..))));
+        let wf_prod1 = Prod(box Prop, box Prop);
+        assert!(matches!(
+            wf_prod1.check(&mut Context::new(), Type(BigUint::from(0_u64).into())),
+            Ok(())
+        ));
+        let wf_prod2 = Prod(box Prop, box Var(1.into()));
+        println!("{:?}", wf_prod2.clone().infer(&Context::new()));
+        assert!(matches!(wf_prod2.check(&mut Context::new(), Prop), Ok(())));
     }
 }
