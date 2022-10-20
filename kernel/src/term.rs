@@ -53,7 +53,7 @@ impl Term {
         }
     }
 
-    pub fn substitute(self, rhs: Term, depth: usize) -> Term {
+    pub(crate) fn substitute(self, rhs: Term, depth: usize) -> Term {
         match self {
             Var(i) if i == depth.into() => rhs.shift(depth - 1, 0),
             Var(i) if i > depth.into() => Var(i - 1.into()),
