@@ -19,6 +19,8 @@ impl Index<DeBruijnIndex> for Vec<Term> {
 type Types = Vec<Term>;
 
 #[derive(Clone, Debug, Default)]
+/// Structure containing a context used for typechecking. It serves to store the types of variables in the following way :
+/// in a given context {types,lvl}, the type of `Var(i)` is in `types[lvl-i]`.
 pub struct Context {
     types: Types,
     lvl: DeBruijnIndex,
@@ -26,10 +28,7 @@ pub struct Context {
 
 impl Context {
     pub fn new() -> Self {
-        Context {
-            types: Default::default(),
-            lvl: 0.into(),
-        }
+        Default::default()
     }
 
     /// Extend Context with a bound variable of type ty.
@@ -56,7 +55,7 @@ impl Term {
         }
         res
     }
-
+    /// Returns the weak-head normal form of a term in a given environment.
     pub fn whnf(self) -> Term {
         match self.clone() {
             App(box Abs(_, _), _) => self.beta_reduction().whnf(),
