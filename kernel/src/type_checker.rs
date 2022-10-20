@@ -32,13 +32,13 @@ type Types = Vec<Term>;
 /// Structure containing a context used for typechecking. It serves to store the types of variables in the following way :
 /// in a given context {types,lvl}, the type of `Var(i)` is in `types[lvl-i]`.
 #[derive(Clone, Debug, Default)]
-pub struct Context {
+struct Context {
     types: Types,
     lvl: DeBruijnIndex,
 }
 
 impl Context {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Default::default()
     }
 
@@ -120,19 +120,18 @@ impl Term {
         }
     }
 
-    /// Infers the type of a `Term` in a given context.
-    pub fn infer(self, ctx: &Context) -> Result<Term, TypeCheckingError> {
+    fn _infer(self, ctx: &Context) -> Result<Term, TypeCheckingError> {
         match self {
             Prop => Ok(Type(BigUint::from(0_u64).into())),
             Type(i) => Ok(Type(i + BigUint::from(1_u64).into())),
             Var(i) => Ok(ctx.types[ctx.lvl - i].clone()),
             Prod(box a, c) => {
-                let ua = a.clone().infer(ctx)?;
+                let ua = a.clone()._infer(ctx)?;
                 if !ua.is_universe() {
                     Err(NotType(ua))
                 } else {
                     let ctx2 = ctx.clone().bind(a);
-                    let ub = c.infer(&ctx2)?;
+                    let ub = c._infer(&ctx2)?;
                     if !ub.is_universe() {
                         Err(NotType(ub))
                     } else {
@@ -142,12 +141,12 @@ impl Term {
             }
             Abs(box t1, c) => {
                 let ctx2 = ctx.clone().bind(t1.clone());
-                Ok(Prod(box t1, box (*c).infer(&ctx2)?))
+                Ok(Prod(box t1, box (*c)._infer(&ctx2)?))
             }
             App(box a, box b) => {
-                let type_a = a.clone().infer(ctx)?;
+                let type_a = a.clone()._infer(ctx)?;
                 if let Prod(box t1, cls) = type_a {
-                    let t1_ = b.clone().infer(ctx)?;
+                    let t1_ = b.clone()._infer(ctx)?;
                     if !t1.clone().conversion(t1_.clone(), ctx.types.len().into()) {
                         return Err(WrongArgumentType(a, t1, b, t1_));
                     };
@@ -159,13 +158,20 @@ impl Term {
         }
     }
 
-    /// Checks whether a given term is of type `ty` in a given context.
-    pub fn check(self, ctx: &mut Context, ty: Term) -> Result<(), TypeCheckingError> {
-        let tty = self.infer(ctx)?;
+    /// Infers the type of a `Term` in a given context.
+    pub fn infer(self) -> Result<Term, TypeCheckingError> {
+        self._infer(&Context::new())
+    }
+    fn _check(self, ctx: &mut Context, ty: Term) -> Result<(), TypeCheckingError> {
+        let tty = self._infer(ctx)?;
         if !tty.clone().conversion(ty.clone(), ctx.types.len().into()) {
             return Err(TypeMismatch(ty, tty));
         };
         Ok(())
+    }
+    /// Checks whether a given term is of type `ty` in a given context.
+    pub fn check(self, ty: Term) -> Result<(), TypeCheckingError> {
+        self._check(&mut Context::new(), ty)
     }
 }
 
@@ -204,7 +210,7 @@ mod tests {
         );
         let t2 = Prop;
         assert!(t1.clone().conversion(t2, 0.into()));
-        let ty = t1.infer(&Context::new());
+        let ty = t1._infer(&Context::new());
         assert_eq!(ty, Ok(Type(BigUint::from(0_u64).into())));
     }
 
@@ -223,7 +229,7 @@ mod tests {
         // λx.x x
         let reduced = Abs(box Prop, box App(box Var(1.into()), box Var(1.into())));
         assert_eq!(term.clone().is_def_eq(reduced), Ok(()));
-        let _ty = term.infer(&Context::new());
+        let _ty = term.infer();
         assert!(matches!(_ty, Err(WrongArgumentType(_, _, _, _))));
         Ok(())
     }
@@ -298,7 +304,7 @@ mod tests {
         // λa : P.λb : P .b
         let reduced = Abs(box Prop, box Abs(box Prop, box Var(1.into())));
         assert_eq!(term.clone().is_def_eq(reduced), Ok(()));
-        assert!(matches!(term.infer(&Context::new()), Ok(_)))
+        assert!(matches!(term.infer(), Ok(_)))
     }
 
     //(λ ℙ → λ ℙ → λ ℙ → (0 (λ ℙ → λ ℙ → ((4 1) 3) λ ℙ → 3)) (λ ℙ → λ ℙ → (0 1) (λ ℙ → 0 λ ℙ → 0)))
@@ -317,13 +323,12 @@ mod tests {
             box Type(BigUint::from(0_u64).into()),
             box Abs(box Var(1.into()), box Var(1.into())),
         );
-        assert!(matches!(id.infer(&Context::new()), Ok(_)))
+        assert!(matches!(id.infer(), Ok(_)))
     }
     #[test]
     fn type_type() {
         assert!(matches!(
-            Type(BigUint::from(0_u64).into())
-                .check(&mut Context::new(), Type(BigUint::from(1_u64).into())),
+            Type(BigUint::from(0_u64).into()).check(Type(BigUint::from(1_u64).into())),
             Ok(_)
         ))
     }
@@ -331,26 +336,26 @@ mod tests {
     #[test]
     fn not_function() {
         let t = App(box Prop, box Prop);
-        assert!(matches!(t.infer(&Context::new()), Err(NotAFunction(..))))
+        assert!(matches!(t.infer(), Err(NotAFunction(..))))
     }
 
     #[test]
     fn not_type_prod() {
         let t1 = Prod(box Abs(box Prop, box Var(1.into())), box Prop);
-        assert!(matches!(t1.infer(&Context::new()), Err(NotType(..))));
+        assert!(matches!(t1.infer(), Err(NotType(..))));
         let t2 = Prod(box Prop, box Abs(box Prop, box Prop));
-        assert!(matches!(t2.infer(&Context::new()), Err(NotType(..))));
+        assert!(matches!(t2.infer(), Err(NotType(..))));
         let wf_prod1 = Prod(box Prop, box Prop);
         assert!(matches!(
-            wf_prod1.check(&mut Context::new(), Type(BigUint::from(0_u64).into())),
+            wf_prod1.check(Type(BigUint::from(0_u64).into())),
             Ok(())
         ));
         let wf_prod2 = Prod(box Prop, box Var(1.into()));
-        assert!(matches!(wf_prod2.check(&mut Context::new(), Prop), Ok(())));
+        assert!(matches!(wf_prod2.check(Prop), Ok(())));
         // Type0 -> (A : Prop) ->
         let wf_prod3 = Prod(box Prop, box Prop);
         assert!(matches!(
-            wf_prod3.check(&mut Context::new(), Type(BigUint::from(0_u64).into())),
+            wf_prod3.check(Type(BigUint::from(0_u64).into())),
             Ok(())
         ));
     }
