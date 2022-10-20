@@ -222,7 +222,7 @@ mod tests {
     }
 
     #[test]
-    fn bug() {
+    fn var_subst_1() {
         // (λ P. λP. 1) (λP.1)
         let t = App(
             box Abs(box Prop, box Abs(box Prop, box Var(1.into()))),
@@ -233,7 +233,7 @@ mod tests {
     }
 
     #[test]
-    fn bug2() {
+    fn var_subst_2() {
         let t = App(
             box Abs(box Prop, box Abs(box Prop, box Var(2.into()))),
             id(1),
