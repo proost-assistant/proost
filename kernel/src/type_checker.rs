@@ -11,6 +11,7 @@ impl Index<DeBruijnIndex> for Vec<Term> {
         &self[usize::from(i)]
     }
 }
+/// Type representing kernel errors, is used by the toplevel to pretty-print errors.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TypeCheckingError {
     NotUniverse(Term),
