@@ -24,10 +24,10 @@ impl Environment {
         t: Term,
         ty: Term,
     ) -> Result<Environment, EnvError> {
-        match <Environment as Into<HashMap<String, (Term, Term)>>>::into(self.clone()).get(&s) {
+        match self.0.clone().get(&s) {
             Some(_) => Err(EnvError::AlreadyDefined(s.clone())),
             None => {
-                let mut res = <Environment as Into<HashMap<String, (Term, Term)>>>::into(self);
+                let mut res = self.0;
                 res.insert(s.clone(), (t, ty));
                 Ok(res.into())
             }
