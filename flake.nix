@@ -32,7 +32,7 @@
           };
 
           docker-ci = let
-            rust-ci = rust.minimal.override { extensions = [ "clippy" "llvm-tools-preview" "rustfmt" ]; };
+            rust-ci = rust.minimal.override { extensions = [ "clippy" "rustfmt" ]; };
           in pkgs.dockerTools.buildImage {
             name = "proost-ci";
 
