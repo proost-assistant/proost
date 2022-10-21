@@ -79,12 +79,10 @@ impl Term {
             (Var(i), Var(j)) => i == j,
 
             (Prod(a1, b1), Prod(box a2, b2)) => {
-                a1.conversion(a2, l, ctx)
-                    && b1.substitute(Var(l), l.into()).conversion(
-                        b2.substitute(Var(l), l.into()),
-                        l + 1.into(),
-                        ctx,
-                    )
+                let b1 = b1.substitute(Var(l), l.into());
+                let b2 = b2.substitute(Var(l), l.into());
+
+                a1.conversion(a2, l, ctx) && b1.conversion(b2, l + 1.into(), ctx)
             }
 
             // Since we assume that both vals already have the same type,
