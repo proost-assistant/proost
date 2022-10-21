@@ -1,11 +1,12 @@
 use crate::term::Term;
-use derive_more::{From, Into};
+use derive_more::From;
 use std::collections::HashMap;
 
 /// Global Environment, contains the term and type of every definitions, denoted by their strings.
 #[derive(Clone, From, Default)]
 pub struct Environment(HashMap<String, (Term, Term)>);
 
+// TODO #19
 #[derive(Debug, Clone)]
 pub enum EnvError {
     AlreadyDefined(String),
