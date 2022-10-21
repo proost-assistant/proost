@@ -20,10 +20,11 @@ impl Environment {
     /// Creates a new environment binding s with (t,ty)
     pub fn insert(self, s: String, t: Term, ty: Term) -> Result<Self, EnvError> {
         match self.0.clone().get(&s) {
-            Some(_) => Err(EnvError::AlreadyDefined(s.clone())),
+            Some(_) => Err(EnvError::AlreadyDefined(s)),
             None => {
                 let mut res = self.0;
-                res.insert(s.clone(), (t, ty));
+
+                res.insert(s, (t, ty));
                 Ok(res.into())
             }
         }
