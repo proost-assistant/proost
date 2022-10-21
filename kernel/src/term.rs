@@ -43,7 +43,7 @@ impl Term {
             App(box Abs(_, box t1), box t2) => t1.substitute(t2, 1),
             App(box t1, box t2) => App(box t1.beta_reduction(env), box t2.clone()),
             Abs(x, box t) => Abs(x.clone(), box t.beta_reduction(env)),
-            Const(s) => match env.clone().get_term(s) {
+            Const(s) => match env.get_term(s) {
                 Some(t) => t,
                 None => unreachable!(),
             },
@@ -284,13 +284,15 @@ mod tests {
         // λa.λb.b
         let term_step_7 = Abs(box Prop, box Abs(box Prop, box Var(1.into())));
 
-        assert_eq!(term.beta_reduction(&Environment::new()), term_step_1);
-        assert_eq!(term_step_1.beta_reduction(&Environment::new()), term_step_2);
-        assert_eq!(term_step_2.beta_reduction(&Environment::new()), term_step_3);
-        assert_eq!(term_step_3.beta_reduction(&Environment::new()), term_step_4);
-        assert_eq!(term_step_4.beta_reduction(&Environment::new()), term_step_5);
-        assert_eq!(term_step_5.beta_reduction(&Environment::new()), term_step_6);
-        assert_eq!(term_step_6.beta_reduction(&Environment::new()), term_step_7);
-        assert_eq!(term_step_7.beta_reduction(&Environment::new()), term_step_7);
+        let env = Environment::new();
+
+        assert_eq!(term.beta_reduction(&env), term_step_1);
+        assert_eq!(term_step_1.beta_reduction(&env), term_step_2);
+        assert_eq!(term_step_2.beta_reduction(&env), term_step_3);
+        assert_eq!(term_step_3.beta_reduction(&env), term_step_4);
+        assert_eq!(term_step_4.beta_reduction(&env), term_step_5);
+        assert_eq!(term_step_5.beta_reduction(&env), term_step_6);
+        assert_eq!(term_step_6.beta_reduction(&env), term_step_7);
+        assert_eq!(term_step_7.beta_reduction(&env), term_step_7);
     }
 }
