@@ -2,7 +2,7 @@ WHITESPACE = _{ WHITE_SPACE }
 COMMENT = _{ "#" ~ (!"\n" ~ ANY)* }
 number = @{ ASCII_DIGIT+ }
 string = @{ !keywords ~ ASCII_ALPHA ~ ( "_" | ASCII_ALPHANUMERIC )* }
-keywords = @{ ( "fun" | "type" | "def" | "check" | "Prop" | "Type" ) ~ !ASCII_ALPHANUMERIC }
+keywords = @{ ( "fun" | "def" | "check" | "Prop" | "Type" ) ~ !ASCII_ALPHANUMERIC }
 eoi = _{ !ANY }
 
 Term = _{ Abs | dProd | Prod | App | Var | Prop | Type | "(" ~ Term ~ ")" }
@@ -30,7 +30,7 @@ Command = _{ Define | CheckType | GetType | DefineCheckType }
 Define = { "def" ~ string ~ ":=" ~ Term }
 DefineCheckType = { "def" ~ string ~ ":" ~ Term ~ ":=" ~ Term }
 CheckType = { "check" ~ Term ~ ":" ~ Term }
-GetType = { "type" ~ Term }
+GetType = { "check" ~ Term }
 
 command = _{SOI ~ Command ~ eoi }
 file = _{ SOI ~ NEWLINE* ~ (Command ~ NEWLINE+)* ~ Command? ~ eoi }

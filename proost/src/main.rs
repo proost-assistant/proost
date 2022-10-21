@@ -2,7 +2,7 @@
 
 use clap::Parser;
 use colored::*;
-use kernel::Command;
+use kernel::{Command, Term, TypeCheckingError};
 use parser::*;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
@@ -21,16 +21,13 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 const NAME: &str = env!("CARGO_PKG_NAME");
 
 // managing commands results
-struct CommandResult(Result<String, String>);
+struct CommandResult(Result<Option<Term>, TypeCheckingError>);
 impl fmt::Display for CommandResult {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match (*self).0 {
-            Ok(s) => if s.is_empty() {
-                write!(f, "\u{2731}")
-            } else {
-                write!(f, "\u{2713} \n {}", s)
-            },
-            Err(s) => write!(f, "\u{2717} \n {}", s),
+        match &self.0 {
+            Ok(Some(t)) => write!(f, "{} {}", "\u{2713}".green(), t),
+            Ok(None) => write!(f, "{}", "\u{2713}".green()),
+            Err(err) => write!(f, "{} {}", "\u{2717}".red(), err),
         }
     }
 }
@@ -62,17 +59,25 @@ fn main() -> Result<(), Box<dyn Error>> {
         match readline {
             Ok(line) if !line.is_empty() => {
                 rl.add_history_entry(line.as_str());
+
                 match parse_command(line.as_str()) {
                     Ok(command) => {
                         let res = match command {
-                            Command::Define(_, _) => ,
-                            Command::CheckType(t1, t2) => println!("{:?}", t1.check(t2)),
-                            Command::GetType(t) => println!("{:?}", t.infer()),
-                            Command::DefineCheckType(_, t1, t2) => {
-                                println!("{:?}", t1.check(t2))
-                            }
+                            Command::Define(_, _) => CommandResult(Ok(None)),
+                            Command::CheckType(t1, t2) => match t1.check(t2) {
+                                Ok(_) => CommandResult(Ok(None)),
+                                Err(err) => CommandResult(Err(err)),
+                            },
+                            Command::GetType(t) => match t.infer() {
+                                Ok(t) => CommandResult(Ok(Some(t))),
+                                Err(err) => CommandResult(Err(err)),
+                            },
+                            Command::DefineCheckType(_, t1, t2) => match t2.check(t1) {
+                                Ok(_) => CommandResult(Ok(None)),
+                                Err(err) => CommandResult(Err(err)),
+                            },
                         };
-                        print!(" {}", res);
+                        println!("{}", res);
                     }
                     Err(err) => println!("{}", *err),
                 };

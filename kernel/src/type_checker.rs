@@ -1,5 +1,6 @@
 use crate::environment::Environment;
 use crate::term::{DeBruijnIndex, Term};
+use derive_more::Display;
 use num_bigint::BigUint;
 use std::cmp::max;
 use std::ops::Index;
@@ -15,24 +16,44 @@ impl Index<DeBruijnIndex> for Vec<Term> {
 
 // TODO #19
 /// Type representing kernel errors, is used by the toplevel to pretty-print errors.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Display, PartialEq, Eq)]
 pub enum TypeCheckingError {
     /// Constant s has not been found in the current context
     ConstNotFound(String),
 
     /// t is not a universe
+    #[display(fmt = "{} is not a universe", _0)]
     NotUniverse(Term),
 
+    /// t is not a type
+    #[display(fmt = "{} is not a type", _0)]
+    NotType(Term),
+
     /// t1 and t2 are not definitionally equal
+    #[display(fmt = "{} and {} are not definitionaly equal", _0, _1)]
     NotDefEq(Term, Term),
 
-    /// f of type t1 can't take argument x of type t2
+    /// f of type t1 cannot be applied to x of type t2
+    #[display(
+        fmt = "{} of type {} cannot be applied to {} of type {}",
+        _0,
+        _1,
+        _2,
+        _3
+    )]
     WrongArgumentType(Term, Term, Term, Term),
 
-    /// t1 is of type ty is not a function, and thus cannot be applied to t2
+    /// t1 of type ty is not a function so cannot be applied to t2
+    #[display(
+        fmt = "{} of type {} is not a function so cannot be applied to {}",
+        _0,
+        _1,
+        _2
+    )]
     NotAFunction(Term, Term, Term),
 
     /// Expected ty1, found ty2
+    #[display(fmt = "expected {}, found {}", _0, _1)]
     TypeMismatch(Term, Term),
 }
 

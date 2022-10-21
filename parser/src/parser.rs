@@ -1,6 +1,6 @@
 use kernel::num_bigint::BigUint;
 use kernel::{Command, Term};
-use pest::error::{Error, ErrorVariant};
+use pest::error::Error;
 use pest::iterators::Pair;
 use pest::Parser;
 use std::collections::VecDeque;
