@@ -161,10 +161,13 @@ impl Term {
                     }
                 }
             }
+
             Abs(box t1, c) => {
                 let ctx2 = ctx.clone().bind(t1.clone());
-                Ok(Prod(box t1, box (*c)._infer(&ctx2, env)?))
+
+                Ok(Prod(box t1, box c._infer(&ctx2, env)?))
             }
+
             App(box a, box b) => {
                 let type_a = a.clone()._infer(ctx, env)?;
                 if let Prod(box t1, cls) = type_a {
