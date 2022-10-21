@@ -4,8 +4,8 @@ use std::collections::HashMap;
 
 #[derive(Clone, From, Into, Default)]
 pub struct Environment(HashMap<String, (Term, Term)>);
-#[derive(Debug, Clone)]
 
+#[derive(Debug, Clone)]
 pub enum EnvError {
     AlreadyDefined(String),
 }

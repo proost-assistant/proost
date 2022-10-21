@@ -44,7 +44,7 @@ impl Term {
             Abs(x, box t) => Abs(x, box t.beta_reduction(env)),
             Const(s) => match env.clone().get_term(s) {
                 Some(t) => t,
-                None => panic!("unreachable code has been reached"),
+                None => unreachable!(),
             },
             _ => self,
         }
@@ -96,7 +96,7 @@ impl Term {
             },
             Const(s) => match env.clone().get_term(s) {
                 Some(t) => t,
-                None => panic!("unreachable"),
+                None => unreachable!(),
             },
             _ => self,
         }

@@ -419,4 +419,32 @@ mod tests {
         assert!(id_prop.conversion(Const("foo".into()), 1.into(), &env.clone()?));
         Ok(())
     }
+
+    #[test]
+    fn check_bad() {
+        assert!(matches!(
+            Prop.check(Prop, &Default::default()),
+            Err(TypeMismatch(..))
+        ));
+    }
+
+    #[test]
+    fn not_def_eq() {
+        assert!(matches!(
+            Prop.is_def_eq(Type(BigUint::from(0_u64).into()), &Default::default()),
+            Err(_)
+        ));
+    }
+
+    #[test]
+    fn infer_const() -> Result<(), EnvError> {
+        let id_prop = Prod(box Prop, box Prod(box Var(1.into()), box Var(1.into())));
+        let env = &mut Environment::new().insert("foo".into(), id_prop, Prop);
+        assert!(matches!(Const("foo".into()).infer(&env.clone()?), Ok(_)));
+        assert!(matches!(
+            Const("foo".into()).infer(&Environment::new()),
+            Err(_)
+        ));
+        Ok(())
+    }
 }
