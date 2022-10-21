@@ -52,7 +52,7 @@ struct Context {
 
 impl Context {
     fn new() -> Self {
-        Default::default()
+        Self::default()
     }
 
     /// Extend Context with a bound variable of type ty.
