@@ -437,14 +437,16 @@ mod tests {
     }
 
     #[test]
-    fn infer_const() -> Result<(), EnvError> {
+    fn infer_const() {
         let id_prop = Prod(box Prop, box Prod(box Var(1.into()), box Var(1.into())));
-        let env = &mut Environment::new().insert("foo".into(), id_prop, Prop);
-        assert!(matches!(Const("foo".into()).infer(&env.clone()?), Ok(_)));
+        let env = &mut Environment::new()
+            .insert("foo".into(), id_prop, Prop)
+            .unwrap();
+
+        assert!(matches!(Const("foo".into()).infer(&env.clone()), Ok(_)));
         assert!(matches!(
             Const("foo".into()).infer(&Environment::new()),
             Err(_)
         ));
-        Ok(())
     }
 }
