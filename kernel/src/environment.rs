@@ -36,9 +36,7 @@ impl Environment {
 
     /// Returns the term linked to a definition in a given environment.
     pub fn get_term(self: Environment, s: String) -> Option<Term> {
-        <Environment as Into<HashMap<String, (Term, Term)>>>::into(self)
-            .get(&s)
-            .map(|(t, _)| t.clone())
+        self.0.get(&s).map(|(t, _)| t.clone())
     }
 
     /// Returns the type linked to a definition in a given environment.
