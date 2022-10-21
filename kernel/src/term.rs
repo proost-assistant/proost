@@ -18,19 +18,19 @@ pub enum Term {
     #[display(fmt = "{}", _0)]
     Const(String),
 
-    #[display(fmt = "\u{02119}")]
+    #[display(fmt = "Prop")]
     Prop,
 
-    #[display(fmt = "Type({})", _0)]
+    #[display(fmt = "Type {}", _0)]
     Type(UniverseLevel),
 
-    #[display(fmt = "({} {})", _0, _1)]
+    #[display(fmt = "{} {}", _0, _1)]
     App(Box<Term>, Box<Term>),
 
     #[display(fmt = "\u{003BB}{} \u{02192} {}", _0, _1)]
     Abs(Box<Term>, Box<Term>),
 
-    #[display(fmt = "\u{02200}{} \u{02192} {}", _0, _1)]
+    #[display(fmt = "\u{03A0}{} \u{02192} {}", _0, _1)]
     Prod(Box<Term>, Box<Term>),
 }
 

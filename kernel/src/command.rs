@@ -1,17 +1,17 @@
 use crate::Term;
 use derive_more::Display;
 
-#[derive(Debug, Display, Eq, PartialEq)]
+#[derive(Debug, Display, Clone, Eq, PartialEq)]
 pub enum Command {
-    #[display(fmt = "Define {} := {}.", _0, _1)]
+    #[display(fmt = "define {} := {}.", _0, _1)]
     Define(String, Term),
 
-    #[display(fmt = "Check {} : {}.", _0, _1)]
+    #[display(fmt = "check {} : {}.", _0, _1)]
     CheckType(Term, Term),
 
-    #[display(fmt = "Type {}.", _0)]
+    #[display(fmt = "type {}.", _0)]
     GetType(Term),
 
-    #[display(fmt = "Define {} : {} := {}.", _0, _1, _2)]
+    #[display(fmt = "define {} : {} := {}.", _0, _1, _2)]
     DefineCheckType(String, Term, Term),
 }
