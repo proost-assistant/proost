@@ -13,8 +13,8 @@ pub enum EnvError {
 
 impl Environment {
     /// Creates an empty environment.
-    pub fn new() -> Environment {
-        Default::default()
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Creates a new environment binding s with (t,ty)
