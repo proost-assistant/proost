@@ -219,7 +219,7 @@ mod tests {
             id(1),
         );
         let nf = Abs(box Prop, box Var(1.into()));
-        assert_eq!(t.normal_form(&Default::default()), nf)
+        assert_eq!(t.normal_form(&Environment::new()), nf)
     }
 
     #[test]
@@ -229,7 +229,7 @@ mod tests {
             id(1),
         );
         let nf = Abs(box Prop, id(1));
-        assert_eq!(t.normal_form(&Default::default()), nf)
+        assert_eq!(t.normal_form(&Environment::new()), nf)
     }
     #[test]
     fn simple() {
@@ -238,8 +238,8 @@ mod tests {
             box Prop,
         );
         let t2 = Prop;
-        assert!(t1.clone().conversion(t2, 0.into(), &Default::default()));
-        let ty = t1._infer(&Context::new(), &Default::default());
+        assert!(t1.clone().conversion(t2, 0.into(), &Environment::new()));
+        let ty = t1._infer(&Context::new(), &Environment::new());
         assert_eq!(ty, Ok(Type(BigUint::from(0_u64).into())));
     }
 
@@ -257,8 +257,8 @@ mod tests {
 
         // λx.x x
         let reduced = Abs(box Prop, box App(box Var(1.into()), box Var(1.into())));
-        assert_eq!(term.clone().is_def_eq(reduced, &Default::default()), Ok(()));
-        let _ty = term.infer(&Default::default());
+        assert_eq!(term.clone().is_def_eq(reduced, &Environment::new()), Ok(()));
+        let _ty = term.infer(&Environment::new());
         assert!(matches!(_ty, Err(WrongArgumentType(_, _, _, _))));
         Ok(())
     }
@@ -332,8 +332,8 @@ mod tests {
         );
         // λa : P.λb : P .b
         let reduced = Abs(box Prop, box Abs(box Prop, box Var(1.into())));
-        assert_eq!(term.clone().is_def_eq(reduced, &Default::default()), Ok(()));
-        assert!(matches!(term.infer(&Default::default()), Ok(_)))
+        assert_eq!(term.clone().is_def_eq(reduced, &Environment::new()), Ok(()));
+        assert!(matches!(term.infer(&Environment::new()), Ok(_)))
     }
 
     //(λ ℙ → λ ℙ → λ ℙ → (0 (λ ℙ → λ ℙ → ((4 1) 3) λ ℙ → 3)) (λ ℙ → λ ℙ → (0 1) (λ ℙ → 0 λ ℙ → 0)))
@@ -341,9 +341,9 @@ mod tests {
     fn nf_test() {
         //λa.a (λx.x) (λx.x)
         let reduced = Abs(box Prop, box App(box App(box Var(2.into()), id(1)), id(1)));
-        let nff = reduced.clone().normal_form(&Default::default());
+        let nff = reduced.clone().normal_form(&Environment::new());
         assert_eq!(reduced, nff);
-        assert_eq!(reduced.is_def_eq(nff, &Default::default()), Ok(()));
+        assert_eq!(reduced.is_def_eq(nff, &Environment::new()), Ok(()));
     }
 
     #[test]
@@ -352,13 +352,13 @@ mod tests {
             box Type(BigUint::from(0_u64).into()),
             box Abs(box Var(1.into()), box Var(1.into())),
         );
-        assert!(matches!(id.infer(&Default::default()), Ok(_)))
+        assert!(matches!(id.infer(&Environment::new()), Ok(_)))
     }
     #[test]
     fn type_type() {
         assert!(matches!(
             Type(BigUint::from(0_u64).into())
-                .check(Type(BigUint::from(1_u64).into()), &Default::default()),
+                .check(Type(BigUint::from(1_u64).into()), &Environment::new()),
             Ok(_)
         ))
     }
@@ -367,7 +367,7 @@ mod tests {
     fn not_function() {
         let t = App(box Prop, box Prop);
         assert!(matches!(
-            t.infer(&Default::default()),
+            t.infer(&Environment::new()),
             Err(NotAFunction(..))
         ))
     }
@@ -375,20 +375,20 @@ mod tests {
     #[test]
     fn not_type_prod() {
         let t1 = Prod(box Abs(box Prop, box Var(1.into())), box Prop);
-        assert!(matches!(t1.infer(&Default::default()), Err(NotType(..))));
+        assert!(matches!(t1.infer(&Environment::new()), Err(NotType(..))));
         let t2 = Prod(box Prop, box Abs(box Prop, box Prop));
-        assert!(matches!(t2.infer(&Default::default()), Err(NotType(..))));
+        assert!(matches!(t2.infer(&Environment::new()), Err(NotType(..))));
         let wf_prod1 = Prod(box Prop, box Prop);
         assert!(matches!(
-            wf_prod1.check(Type(BigUint::from(0_u64).into()), &Default::default()),
+            wf_prod1.check(Type(BigUint::from(0_u64).into()), &Environment::new()),
             Ok(())
         ));
         let wf_prod2 = Prod(box Prop, box Var(1.into()));
-        assert!(matches!(wf_prod2.check(Prop, &Default::default()), Ok(())));
+        assert!(matches!(wf_prod2.check(Prop, &Environment::new()), Ok(())));
         // Type0 -> (A : Prop) ->
         let wf_prod3 = Prod(box Prop, box Prop);
         assert!(matches!(
-            wf_prod3.check(Type(BigUint::from(0_u64).into()), &Default::default()),
+            wf_prod3.check(Type(BigUint::from(0_u64).into()), &Environment::new()),
             Ok(())
         ));
     }
@@ -407,7 +407,7 @@ mod tests {
                 ),
             ),
         );
-        assert!(matches!(t.infer(&Default::default()), Ok(_)))
+        assert!(matches!(t.infer(&Environment::new()), Ok(_)))
     }
 
     #[test]
@@ -423,7 +423,7 @@ mod tests {
     #[test]
     fn check_bad() {
         assert!(matches!(
-            Prop.check(Prop, &Default::default()),
+            Prop.check(Prop, &Environment::new()),
             Err(TypeMismatch(..))
         ));
     }
@@ -431,7 +431,7 @@ mod tests {
     #[test]
     fn not_def_eq() {
         assert!(matches!(
-            Prop.is_def_eq(Type(BigUint::from(0_u64).into()), &Default::default()),
+            Prop.is_def_eq(Type(BigUint::from(0_u64).into()), &Environment::new()),
             Err(_)
         ));
     }

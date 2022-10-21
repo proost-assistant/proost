@@ -107,6 +107,7 @@ impl Term {
 mod tests {
     // /!\ most of these tests are on ill-typed terms and should not be used for further testings
     use super::Term::*;
+    use crate::term::Environment;
 
     #[test]
     fn simple_subst() {
@@ -122,7 +123,7 @@ mod tests {
         // λx.x x
         let reduced = Abs(box Prop, box App(box Var(1.into()), box Var(1.into())));
 
-        assert_eq!(term.beta_reduction(&Default::default()), reduced);
+        assert_eq!(term.beta_reduction(&Environment::new()), reduced);
     }
 
     #[test]
@@ -283,15 +284,15 @@ mod tests {
         // λa.λb.b
         let term_step_7 = Abs(box Prop, box Abs(box Prop, box Var(1.into())));
 
-        assert_eq!(term.beta_reduction(&Default::default()), term_step_1);
-        assert_eq!(term_step_1.beta_reduction(&Default::default()), term_step_2);
-        assert_eq!(term_step_2.beta_reduction(&Default::default()), term_step_3);
-        assert_eq!(term_step_3.beta_reduction(&Default::default()), term_step_4);
-        assert_eq!(term_step_4.beta_reduction(&Default::default()), term_step_5);
-        assert_eq!(term_step_5.beta_reduction(&Default::default()), term_step_6);
-        assert_eq!(term_step_6.beta_reduction(&Default::default()), term_step_7);
+        assert_eq!(term.beta_reduction(&Environment::new()), term_step_1);
+        assert_eq!(term_step_1.beta_reduction(&Environment::new()), term_step_2);
+        assert_eq!(term_step_2.beta_reduction(&Environment::new()), term_step_3);
+        assert_eq!(term_step_3.beta_reduction(&Environment::new()), term_step_4);
+        assert_eq!(term_step_4.beta_reduction(&Environment::new()), term_step_5);
+        assert_eq!(term_step_5.beta_reduction(&Environment::new()), term_step_6);
+        assert_eq!(term_step_6.beta_reduction(&Environment::new()), term_step_7);
         assert_eq!(
-            term_step_7.clone().beta_reduction(&Default::default()),
+            term_step_7.clone().beta_reduction(&Environment::new()),
             term_step_7
         );
     }
