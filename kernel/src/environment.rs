@@ -3,7 +3,7 @@ use derive_more::{From, Into};
 use std::collections::HashMap;
 
 /// Global Environment, contains the term and type of every definitions, denoted by their strings.
-#[derive(Clone, From, Into, Default)]
+#[derive(Clone, From, Default)]
 pub struct Environment(HashMap<String, (Term, Term)>);
 
 #[derive(Debug, Clone)]
