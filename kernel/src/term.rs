@@ -38,41 +38,38 @@ use Term::*;
 
 impl Term {
     /// Apply one step of β-reduction, using leftmost outermost evaluation strategy.
-    pub fn beta_reduction(self, env: &Environment) -> Term {
+    pub fn beta_reduction(&self, env: &Environment) -> Term {
         match self {
             App(box Abs(_, box t1), box t2) => t1.substitute(t2, 1),
-            App(box t1, box t2) => App(box t1.beta_reduction(env), box t2),
-            Abs(x, box t) => Abs(x, box t.beta_reduction(env)),
-            Const(s) => match env.clone().get_term(&s) {
+            App(box t1, box t2) => App(box t1.beta_reduction(env), box t2.clone()),
+            Abs(x, box t) => Abs(x.clone(), box t.beta_reduction(env)),
+            Const(s) => match env.clone().get_term(s) {
                 Some(t) => t,
                 None => unreachable!(),
             },
-            _ => self,
+            _ => self.clone(),
         }
     }
 
-    fn shift(self, offset: usize, depth: usize) -> Term {
+    fn shift(&self, offset: usize, depth: usize) -> Term {
         match self {
-            Var(i) if i > depth.into() => Var(i + offset.into()),
+            Var(i) if *i > depth.into() => Var(*i + offset.into()),
             App(box t1, box t2) => App(box t1.shift(offset, depth), box t2.shift(offset, depth)),
-            Abs(t1, box t2) => Abs(t1, box t2.shift(offset, depth + 1)),
-            Prod(t1, box t2) => Prod(t1, box t2.shift(offset, depth + 1)),
-            _ => self,
+            Abs(t1, box t2) => Abs(t1.clone(), box t2.shift(offset, depth + 1)),
+            Prod(t1, box t2) => Prod(t1.clone(), box t2.shift(offset, depth + 1)),
+            _ => self.clone(),
         }
     }
 
-    pub(crate) fn substitute(self, rhs: Term, depth: usize) -> Term {
+    pub(crate) fn substitute(&self, rhs: &Term, depth: usize) -> Term {
         match self {
-            Var(i) if i == depth.into() => rhs.shift(depth - 1, 0),
-            Var(i) if i > depth.into() => Var(i - 1.into()),
+            Var(i) if *i == depth.into() => rhs.shift(depth - 1, 0),
+            Var(i) if *i > depth.into() => Var(*i - 1.into()),
 
-            App(l, r) => App(
-                box l.substitute(rhs.clone(), depth),
-                box r.substitute(rhs, depth),
-            ),
-            Abs(t, term) => Abs(t, box term.substitute(rhs, depth + 1)),
-            Prod(t, term) => Prod(t, box term.substitute(rhs, depth + 1)),
-            _ => self,
+            App(l, r) => App(box l.substitute(rhs, depth), box r.substitute(rhs, depth)),
+            Abs(t, term) => Abs(t.clone(), box term.substitute(rhs, depth + 1)),
+            Prod(t, term) => Prod(t.clone(), box term.substitute(rhs, depth + 1)),
+            _ => self.clone(),
         }
     }
 
@@ -80,7 +77,7 @@ impl Term {
     ///
     /// This function is computationally expensive and should only be used for Reduce/Eval commands, not when type-checking.
     pub fn normal_form(self, env: &Environment) -> Term {
-        let mut res = self.clone().beta_reduction(env);
+        let mut res = self.beta_reduction(env);
         let mut temp = self;
 
         while res != temp {
@@ -294,9 +291,6 @@ mod tests {
         assert_eq!(term_step_4.beta_reduction(&Environment::new()), term_step_5);
         assert_eq!(term_step_5.beta_reduction(&Environment::new()), term_step_6);
         assert_eq!(term_step_6.beta_reduction(&Environment::new()), term_step_7);
-        assert_eq!(
-            term_step_7.clone().beta_reduction(&Environment::new()),
-            term_step_7
-        );
+        assert_eq!(term_step_7.beta_reduction(&Environment::new()), term_step_7);
     }
 }

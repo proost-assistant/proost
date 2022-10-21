@@ -81,8 +81,8 @@ impl Term {
             (Var(i), Var(j)) => i == j,
 
             (Prod(a1, b1), Prod(box a2, b2)) => {
-                let b1 = b1.substitute(Var(l), l.into());
-                let b2 = b2.substitute(Var(l), l.into());
+                let b1 = b1.substitute(&Var(l), l.into());
+                let b2 = b2.substitute(&Var(l), l.into());
 
                 a1.conversion(&a2, l, ctx) && b1.conversion(&b2, l + 1.into(), ctx)
             }
@@ -92,8 +92,8 @@ impl Term {
             // However, this doesn't mean we can simply remove the arg type
             // from the type constructor in the enum, it is needed to quote back to terms.
             (Abs(_, t), Abs(_, u)) => {
-                let t = t.substitute(Var(l), l.into());
-                let u = u.substitute(Var(l), l.into());
+                let t = t.substitute(&Var(l), l.into());
+                let u = u.substitute(&Var(l), l.into());
 
                 t.conversion(&u, l + 1.into(), ctx)
             }
@@ -447,7 +447,7 @@ mod tests {
             .insert("foo".into(), id_prop, Prop)
             .unwrap();
 
-        assert!(matches!(Const("foo".into()).infer(&env.clone()), Ok(_)));
+        assert!(matches!(Const("foo".into()).infer(&env), Ok(_)));
         assert!(matches!(
             Const("foo".into()).infer(&Environment::new()),
             Err(_)
