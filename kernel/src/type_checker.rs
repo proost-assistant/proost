@@ -1,4 +1,5 @@
-use crate::term::*;
+use crate::environment::Environment;
+use crate::term::{DeBruijnIndex, Term};
 use num_bigint::BigUint;
 use std::cmp::max;
 use std::ops::Index;
@@ -37,8 +38,6 @@ pub enum TypeCheckingError {
 }
 
 use TypeCheckingError::*;
-// The context, which is supposed to contain other definitions in the environment, is not implemented for now.
-// TODO use context for type-checking (#17)
 
 // Type of lists of tuples representing the respective types of each variables
 type Types = Vec<Term>;
@@ -68,7 +67,7 @@ impl Context {
 }
 
 impl Term {
-    /// Conversion function, checks whether two values are definitionally equal.
+    /// Conversion function, checks whether two terms are definitionally equal.
     ///
     /// The conversion is untyped, meaning that it should **only** be called during type-checking when the two `Term`s are already known to be of the same type and in the same context.
     pub fn conversion(self, rhs: Term, l: DeBruijnIndex, ctx: &Environment) -> bool {
@@ -143,8 +142,8 @@ impl Term {
             Prop => Ok(Type(BigUint::from(0_u64).into())),
             Type(i) => Ok(Type(i + BigUint::from(1_u64).into())),
             Var(i) => Ok(ctx.types[ctx.lvl - i].clone()),
-            Const(s) => match env.get(&s) {
-                Some((_, ty)) => Ok(ty.clone()),
+            Const(s) => match env.clone().get_type(s.clone()) {
+                Some(ty) => Ok(ty),
                 None => Err(ConstNotFound(s)),
             },
             Prod(box a, c) => {
@@ -205,7 +204,9 @@ impl Term {
 
 #[cfg(test)]
 mod tests {
+    use crate::environment::EnvError;
     use crate::type_checker::*;
+
     fn id(l: usize) -> Box<Term> {
         box Abs(box Prop, box Var(l.into()))
     }
@@ -410,13 +411,12 @@ mod tests {
     }
 
     #[test]
-    fn env_test() {
+    fn env_test() -> Result<(), EnvError> {
         let id_prop = Prod(box Prop, box Prod(box Var(1.into()), box Var(1.into())));
-        let env = &mut Environment::new();
-        env.insert("foo".into(), (id_prop.clone(), Prop));
         let t = Abs(box Prop, box Abs(box Var(1.into()), box Var(1.into())));
-        println!("{:?}", t.clone().infer(env));
-        assert!(matches!(t.check(Const("foo".into()), env), Ok(_)));
-        assert!(id_prop.conversion(Const("foo".into()), 1.into(), env))
+        let env = &mut Environment::new().insert("foo".into(), id_prop.clone(), Prop);
+        assert!(matches!(t.check(Const("foo".into()), &env.clone()?), Ok(_)));
+        assert!(id_prop.conversion(Const("foo".into()), 1.into(), &env.clone()?));
+        Ok(())
     }
 }

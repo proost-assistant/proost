@@ -2,6 +2,7 @@
 #![feature(box_syntax)]
 
 mod command;
+mod environment;
 mod term;
 mod type_checker;
 

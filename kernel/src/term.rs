@@ -1,7 +1,6 @@
+use crate::environment::Environment;
 use derive_more::{Add, Display, From, Into, Sub};
 use num_bigint::BigUint;
-use std::collections::HashMap;
-
 #[derive(
     Add, Copy, Clone, Debug, Default, Display, Eq, Into, From, Sub, PartialEq, PartialOrd, Ord,
 )]
@@ -9,8 +8,6 @@ pub struct DeBruijnIndex(usize);
 
 #[derive(Add, Clone, Debug, Display, Eq, From, Sub, PartialEq, PartialOrd, Ord)]
 pub struct UniverseLevel(BigUint);
-
-pub type Environment = HashMap<String, (Term, Term)>;
 
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum Term {
@@ -45,8 +42,8 @@ impl Term {
             App(box Abs(_, box t1), box t2) => t1.substitute(t2, 1),
             App(box t1, box t2) => App(box t1.beta_reduction(env), box t2),
             Abs(x, box t) => Abs(x, box t.beta_reduction(env)),
-            Const(s) => match env.get(&s) {
-                Some((t, _)) => t.clone(),
+            Const(s) => match env.clone().get_term(s) {
+                Some(t) => t,
                 None => panic!("unreachable code has been reached"),
             },
             _ => self,
@@ -97,8 +94,8 @@ impl Term {
                 whnf @ Abs(_, _) => App(box whnf, t2).beta_reduction(env).whnf(env),
                 _ => self,
             },
-            Const(s) => match env.get(&s) {
-                Some((t, _)) => t.clone(),
+            Const(s) => match env.clone().get_term(s) {
+                Some(t) => t,
                 None => panic!("unreachable"),
             },
             _ => self,
