@@ -89,11 +89,12 @@ impl Term {
             // checking conversion over the argument type is useless.
             // However, this doesn't mean we can simply remove the arg type
             // from the type constructor in the enum, it is needed to quote back to terms.
-            (Abs(_, t), Abs(_, u)) => t.substitute(Var(l), l.into()).conversion(
-                u.substitute(Var(l), l.into()),
-                l + 1.into(),
-                ctx,
-            ),
+            (Abs(_, t), Abs(_, u)) => {
+                let t = t.substitute(Var(l), l.into());
+                let u = u.substitute(Var(l), l.into());
+
+                t.conversion(u, l + 1.into(), ctx)
+            }
 
             (App(box t1, box u1), App(box t2, box u2)) => {
                 t1.conversion(t2, l, ctx) && u1.conversion(u2, l, ctx)
