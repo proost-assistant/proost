@@ -43,8 +43,6 @@ impl Environment {
 
     /// Returns the type linked to a definition in a given environment.
     pub fn get_type(self: Environment, s: String) -> Option<Term> {
-        <Environment as Into<HashMap<String, (Term, Term)>>>::into(self)
-            .get(&s)
-            .map(|(_, t)| t.clone())
+        self.0.get(&s).map(|(_, t)| t.clone())
     }
 }
