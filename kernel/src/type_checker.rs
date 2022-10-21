@@ -8,8 +8,8 @@ use Term::*;
 impl Index<DeBruijnIndex> for Vec<Term> {
     type Output = Term;
 
-    fn index(&self, i: DeBruijnIndex) -> &Self::Output {
-        &self[usize::from(i)]
+    fn index(&self, idx: DeBruijnIndex) -> &Self::Output {
+        &self[usize::from(idx)]
     }
 }
 
@@ -22,9 +22,6 @@ pub enum TypeCheckingError {
 
     /// t is not a universe
     NotUniverse(Term),
-
-    /// t is not a type
-    NotType(Term),
 
     /// t1 and t2 are not definitionally equal
     NotDefEq(Term, Term),
@@ -72,7 +69,7 @@ impl Term {
     /// Conversion function, checks whether two terms are definitionally equal.
     ///
     /// The conversion is untyped, meaning that it should **only** be called during type-checking when the two `Term`s are already known to be of the same type and in the same context.
-    fn conversion(&self, rhs: &Term, lvl: DeBruijnIndex, env: &Environment) -> bool {
+    fn conversion(&self, rhs: &Term, env: &Environment, lvl: DeBruijnIndex) -> bool {
         match (self.whnf(env), rhs.whnf(env)) {
             (Type(i), Type(j)) => i == j,
 
@@ -80,11 +77,11 @@ impl Term {
 
             (Var(i), Var(j)) => i == j,
 
-            (Prod(a1, b1), Prod(box a2, b2)) => {
-                let b1 = b1.substitute(&Var(lvl), lvl.into());
-                let b2 = b2.substitute(&Var(lvl), lvl.into());
+            (Prod(t1, u1), Prod(box t2, u2)) => {
+                let u1 = u1.substitute(&Var(lvl), lvl.into());
+                let u2 = u2.substitute(&Var(lvl), lvl.into());
 
-                a1.conversion(&a2, lvl, env) && b1.conversion(&b2, lvl + 1.into(), env)
+                t1.conversion(&t2, env, lvl) && u1.conversion(&u2, env, lvl + 1.into())
             }
 
             // Since we assume that both vals already have the same type,
@@ -95,11 +92,11 @@ impl Term {
                 let t = t.substitute(&Var(lvl), lvl.into());
                 let u = u.substitute(&Var(lvl), lvl.into());
 
-                t.conversion(&u, lvl + 1.into(), env)
+                t.conversion(&u, env, lvl + 1.into())
             }
 
             (App(box t1, box u1), App(box t2, box u2)) => {
-                t1.conversion(&t2, lvl, env) && u1.conversion(&u2, lvl, env)
+                t1.conversion(&t2, env, lvl) && u1.conversion(&u2, env, lvl)
             }
 
             _ => false,
@@ -108,20 +105,16 @@ impl Term {
 
     /// Checks whether two terms are definitionally equal.
     pub fn is_def_eq(&self, rhs: &Term, env: &Environment) -> Result<(), TypeCheckingError> {
-        if !self.conversion(rhs, 1.into(), env) {
+        if !self.conversion(rhs, env, 1.into()) {
             Err(NotDefEq(self.clone(), rhs.clone()))
         } else {
             Ok(())
         }
     }
 
-    fn is_universe(&self) -> bool {
-        matches!(*self, Prop | Type(_))
-    }
-
     /// Computes universe the universe in which `(x : A) -> B` lives when `A : u1` and `B : u2`.
-    fn imax(&self, u2: &Term) -> Result<Term, TypeCheckingError> {
-        match u2 {
+    fn imax(&self, rhs: &Term) -> Result<Term, TypeCheckingError> {
+        match rhs {
             // Because Prop is impredicative, if B : Prop, then (x : A) -> b : Prop
             Prop => Ok(Prop),
 
@@ -131,7 +124,7 @@ impl Term {
                 // else if u1 = Type(i) and u2 = Type(j), then (x : A) -> B : Type(max(i,j))
                 Type(j) => Ok(Type(max(i.clone(), j.clone()))),
 
-                _ => Err(NotUniverse(u2.clone())),
+                _ => Err(NotUniverse(rhs.clone())),
             },
 
             _ => Err(NotUniverse(self.clone())),
@@ -149,44 +142,32 @@ impl Term {
                 None => Err(ConstNotFound(s.clone())),
             },
 
-            Prod(box a, c) => {
-                let ua = a._infer(env, ctx)?;
+            Prod(box t, u) => {
+                let univ_t = t._infer(env, ctx)?;
+                let univ_u = u._infer(env, ctx.clone().bind(t))?;
 
-                if !ua.is_universe() {
-                    Err(NotType(ua))
-                } else {
-                    let ub = c._infer(env, ctx.clone().bind(a))?;
-
-                    if !ub.is_universe() {
-                        Err(NotType(ub))
-                    } else {
-                        ua.imax(&ub)
-                    }
-                }
+                univ_t.imax(&univ_u)
             }
 
-            Abs(box t1, c) => Ok(Prod(
-                box t1.clone(),
-                box c._infer(env, ctx.clone().bind(t1))?,
-            )),
+            Abs(box t, u) => {
+                let u = u._infer(env, ctx.clone().bind(t))?;
 
-            App(box a, box b) => {
-                let type_a = a._infer(env, ctx)?;
+                Ok(Prod(box t.clone(), box u))
+            }
 
-                match type_a {
-                    Prod(box t1, cls) => {
-                        let t1_ = b._infer(env, ctx)?;
+            App(box t, box u) => match t._infer(env, ctx)? {
+                Prod(box typ_lhs, cls) => {
+                    let typ_rhs = u._infer(env, ctx)?;
 
-                        if !t1.conversion(&t1_, ctx.types.len().into(), env) {
-                            return Err(WrongArgumentType(a.clone(), t1, b.clone(), t1_));
-                        };
-
+                    if typ_lhs.conversion(&typ_rhs, env, ctx.types.len().into()) {
                         Ok(*cls)
+                    } else {
+                        Err(WrongArgumentType(t.clone(), typ_lhs, u.clone(), typ_rhs))
                     }
-
-                    _ => Err(NotAFunction(a.clone(), type_a, b.clone())),
                 }
-            }
+
+                x => Err(NotAFunction(t.clone(), x, u.clone())),
+            },
         }
     }
 
@@ -200,7 +181,7 @@ impl Term {
         let ctx = &mut Context::new();
         let tty = self._infer(env, ctx)?;
 
-        if !tty.conversion(ty, ctx.types.len().into(), env) {
+        if !tty.conversion(ty, env, ctx.types.len().into()) {
             return Err(TypeMismatch(ty.clone(), tty));
         };
         Ok(())
@@ -246,7 +227,7 @@ mod tests {
         );
 
         let t2 = Prop;
-        assert!(t1.conversion(&t2, 0.into(), &Environment::new()));
+        assert!(t1.conversion(&t2, &Environment::new(), 0.into()));
 
         let ty = t1.infer(&Environment::new());
         assert_eq!(ty, Ok(Type(BigUint::from(0_u64).into())));
@@ -266,10 +247,8 @@ mod tests {
 
         // λx.x x
         let reduced = Abs(box Prop, box App(box Var(1.into()), box Var(1.into())));
-        assert_eq!(term.is_def_eq(&reduced, &Environment::new()), Ok(()));
-
-        let ty = term.infer(&Environment::new());
-        assert!(matches!(ty, Err(WrongArgumentType(_, _, _, _))));
+        assert!(term.is_def_eq(&reduced, &Environment::new()).is_ok());
+        assert!(term.infer(&Environment::new()).is_err());
     }
 
     #[test]
@@ -431,7 +410,7 @@ mod tests {
             .unwrap();
 
         assert!(t.check(&Const("foo".into()), &env).is_ok());
-        assert!(id_prop.conversion(&Const("foo".into()), 1.into(), &env));
+        assert!(id_prop.is_def_eq(&Const("foo".into()), &env).is_ok());
     }
 
     #[test]
