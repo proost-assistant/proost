@@ -1,12 +1,13 @@
 use crate::environment::Environment;
 use derive_more::{Add, Display, From, Into, Sub};
 use num_bigint::BigUint;
+
 #[derive(
     Add, Copy, Clone, Debug, Default, Display, Eq, Into, From, Sub, PartialEq, PartialOrd, Ord,
 )]
 pub struct DeBruijnIndex(usize);
 
-#[derive(Add, Clone, Debug, Display, Eq, From, Sub, PartialEq, PartialOrd, Ord)]
+#[derive(Add, Clone, Debug, Default, Display, Eq, From, Sub, PartialEq, PartialOrd, Ord)]
 pub struct UniverseLevel(BigUint);
 
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
@@ -42,7 +43,7 @@ impl Term {
             App(box Abs(_, box t1), box t2) => t1.substitute(t2, 1),
             App(box t1, box t2) => App(box t1.beta_reduction(env), box t2),
             Abs(x, box t) => Abs(x, box t.beta_reduction(env)),
-            Const(s) => match env.clone().get_term(s) {
+            Const(s) => match env.clone().get_term(&s) {
                 Some(t) => t,
                 None => unreachable!(),
             },
@@ -81,24 +82,26 @@ impl Term {
     pub fn normal_form(self, env: &Environment) -> Term {
         let mut res = self.clone().beta_reduction(env);
         let mut temp = self;
+
         while res != temp {
             temp = res.clone();
             res = res.beta_reduction(env)
         }
         res
     }
+
     /// Returns the weak-head normal form of a term in a given environment.
-    pub fn whnf(self, env: &Environment) -> Term {
-        match self.clone() {
+    pub fn whnf(&self, env: &Environment) -> Term {
+        match self {
             App(box t, t2) => match t.whnf(env) {
-                whnf @ Abs(_, _) => App(box whnf, t2).beta_reduction(env).whnf(env),
-                _ => self,
+                whnf @ Abs(_, _) => App(box whnf, t2.clone()).beta_reduction(env).whnf(env),
+                _ => self.clone(),
             },
-            Const(s) => match env.clone().get_term(s) {
+            Const(s) => match env.get_term(s) {
                 Some(t) => t,
                 None => unreachable!(),
             },
-            _ => self,
+            _ => self.clone(),
         }
     }
 }
