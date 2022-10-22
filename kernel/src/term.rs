@@ -3,7 +3,7 @@ use derive_more::{Add, Display, From, Into, Sub};
 use num_bigint::BigUint;
 
 #[derive(
-    Add, Copy, Clone, Debug, Default, Display, Eq, Into, From, Sub, PartialEq, PartialOrd, Ord,
+    Add, Copy, Clone, Debug, Default, Display, Eq, PartialEq, From, Into, Sub, PartialOrd, Ord,
 )]
 pub struct DeBruijnIndex(usize);
 
@@ -300,6 +300,7 @@ mod tests {
     fn shift_prod() {
         let t1 = Prod(box Var(1.into()), box Var(1.into()));
         let t2 = App(box Abs(box Prop, box t1.clone()), box Prop);
+
         assert_eq!(t2.beta_reduction(&Environment::new()), t1)
     }
 
@@ -309,6 +310,7 @@ mod tests {
         let env = Environment::new()
             .insert("foo".into(), id_prop.clone(), Prop)
             .unwrap();
+
         assert_eq!(Const("foo".into()).beta_reduction(&env), id_prop);
     }
 }

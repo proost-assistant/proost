@@ -17,7 +17,7 @@ impl Index<DeBruijnIndex> for Vec<Term> {
 /// Type representing kernel errors, is used by the toplevel to pretty-print errors.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TypeCheckingError {
-    // Constant s has not been found in the current context
+    /// Constant s has not been found in the current context
     ConstNotFound(String),
 
     /// t is not a universe
@@ -105,11 +105,9 @@ impl Term {
 
     /// Checks whether two terms are definitionally equal.
     pub fn is_def_eq(&self, rhs: &Term, env: &Environment) -> Result<(), TypeCheckingError> {
-        if !self.conversion(rhs, env, 1.into()) {
-            Err(NotDefEq(self.clone(), rhs.clone()))
-        } else {
-            Ok(())
-        }
+        self.conversion(rhs, env, 1.into())
+            .then_some(())
+            .ok_or_else(|| NotDefEq(self.clone(), rhs.clone()))
     }
 
     /// Computes universe the universe in which `(x : A) -> B` lives when `A : u1` and `B : u2`.
@@ -159,11 +157,10 @@ impl Term {
                 Prod(box typ_lhs, cls) => {
                     let typ_rhs = u._infer(env, ctx)?;
 
-                    if typ_lhs.conversion(&typ_rhs, env, ctx.types.len().into()) {
-                        Ok(*cls)
-                    } else {
-                        Err(WrongArgumentType(t.clone(), typ_lhs, u.clone(), typ_rhs))
-                    }
+                    typ_lhs
+                        .conversion(&typ_rhs, env, ctx.types.len().into())
+                        .then_some(*cls)
+                        .ok_or_else(|| WrongArgumentType(t.clone(), typ_lhs, u.clone(), typ_rhs))
                 }
 
                 x => Err(NotAFunction(t.clone(), x, u.clone())),
@@ -181,10 +178,9 @@ impl Term {
         let ctx = &mut Context::new();
         let tty = self._infer(env, ctx)?;
 
-        if !tty.conversion(ty, env, ctx.types.len().into()) {
-            return Err(TypeMismatch(ty.clone(), tty));
-        };
-        Ok(())
+        tty.conversion(ty, env, ctx.types.len().into())
+            .then_some(())
+            .ok_or_else(|| TypeMismatch(ty.clone(), tty))
     }
 }
 

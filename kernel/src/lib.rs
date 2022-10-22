@@ -1,3 +1,5 @@
+//! TODO: Make a documentation (#15)
+
 #![feature(box_patterns)]
 #![feature(box_syntax)]
 
