@@ -1,7 +1,10 @@
+//! TODO: Make a documentation (#15)
+
 #![feature(box_patterns)]
 #![feature(box_syntax)]
 
 mod command;
+mod environment;
 mod term;
 mod type_checker;
 
