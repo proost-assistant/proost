@@ -295,4 +295,20 @@ mod tests {
         assert_eq!(term_step_6.beta_reduction(&env), term_step_7);
         assert_eq!(term_step_7.beta_reduction(&env), term_step_7);
     }
+
+    #[test]
+    fn shift_prod() {
+        let t1 = Prod(box Var(1.into()), box Var(1.into()));
+        let t2 = App(box Abs(box Prop, box t1.clone()), box Prop);
+        assert_eq!(t2.beta_reduction(&Environment::new()), t1)
+    }
+
+    #[test]
+    fn beta_red_const() {
+        let id_prop = Prod(box Prop, box Prod(box Var(1.into()), box Var(1.into())));
+        let env = Environment::new()
+            .insert("foo".into(), id_prop.clone(), Prop)
+            .unwrap();
+        assert_eq!(Const("foo".into()).beta_reduction(&env), id_prop);
+    }
 }
