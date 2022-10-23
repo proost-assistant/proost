@@ -41,7 +41,7 @@ tests:
 
   variables:
     CARGO_INCREMENTAL: 0
-    EXCLUDE_BR_REGEXP: "#\\[|unreachable!()|assert(_eq)?!"
+    EXCLUDE_BR_REGEXP: "#\\[|unreachable!|assert(_eq)?!"
     EXCLUDE_REGEXP: "//!|///|#\\[|use"
     GRCOV: "grcov . -s . -b ./target/debug/ --branch --ignore-not-existing --excl-line ${EXCLUDE_REGEXP} --excl-br-line ${EXCLUDE_BR_REGEXP}"
     RUSTDOCFLAGS: "${RUSTFLAGS}"
@@ -51,10 +51,11 @@ tests:
 
   script:
     - cargo test
-    - ${GRCOV} --ignore "*cargo*" -t cobertura -o ./target/coverage.xml || true
+    - ${GRCOV} --ignore "*cargo*" -t cobertura -o ./coverage.xml || true
+    - xsltproc --output ./target/coverage.xml ./.gitlab-cov.xsl ./coverage.xml
     - ${GRCOV} --ignore "*cargo*" -t lcov -o ./target/coverage.lcov || true
-    - find ./target \( -name "*.gcda" -or -name "*.gcno" \) -delete
     - genhtml --branch --no-function-coverage --precision 2 ./target/coverage.lcov -o ./coverage
+    - find ./target \( -name "*.gcda" -or -name "*.gcno" \) -delete
     - *push-zamok
 
   artifacts:

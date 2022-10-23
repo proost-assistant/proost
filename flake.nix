@@ -44,7 +44,7 @@
 
             copyToRoot = pkgs.buildEnv {
               name = "proost-dependencies";
-              paths = (with pkgs; [ coreutils findutils gcc gnugrep gnused grcov lcov openssh rsync rust-ci ])
+              paths = (with pkgs; [ coreutils findutils gcc gnugrep gnused grcov lcov libxslt openssh rsync rust-ci ])
                 ++ (with pkgs.dockerTools; [ binSh caCertificates fakeNss ]);
               pathsToLink = [ "/bin" "/etc" ];
             };
