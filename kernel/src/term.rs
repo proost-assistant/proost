@@ -307,9 +307,8 @@ mod tests {
     #[test]
     fn beta_red_const() {
         let id_prop = Prod(box Prop, box Prod(box Var(1.into()), box Var(1.into())));
-        let env = Environment::new()
-            .insert("foo".into(), id_prop.clone(), Prop)
-            .unwrap();
+        let mut env = Environment::new();
+        env.insert("foo".into(), id_prop.clone(), Prop).unwrap();
 
         assert_eq!(Const("foo".into()).beta_reduction(&env), id_prop);
     }

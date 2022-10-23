@@ -24,8 +24,7 @@ fn build_term_from_expr(
             let name = pair.into_inner().as_str().to_string();
             match known_vars.iter().position(|x| *x == name) {
                 Some(i) => Ok(Term::Var((i + 1).into())),
-                // TODO
-                None => Ok(Term::Prop),
+                None => Ok(Term::Const(name)),
             }
         }
         Rule::Prod => {
