@@ -2,6 +2,8 @@
 
 #![feature(box_patterns)]
 #![feature(box_syntax)]
+#![feature(once_cell)]
+#![feature(trait_alias)]
 
 mod command;
 mod environment;
