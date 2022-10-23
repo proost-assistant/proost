@@ -3,7 +3,8 @@ image: vlafeychine/rust
 .push-zamok: &push-zamok
   - eval $(ssh-agent -s)
   - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
-  - rsync -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" -rqz ${ZAMOK_SOURCE}/. v-lafeychine@zamok.crans.org:www/proost/${ZAMOK_TARGET}
+  - \[ -d ${ZAMOK_SOURCE} \] && 
+        rsync -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" -rqz ${ZAMOK_SOURCE}/. v-lafeychine@zamok.crans.org:www/proost/${ZAMOK_TARGET} || true
 
 stages: [check, build, tests, docs]
 
@@ -12,7 +13,7 @@ variables:
   RUSTFLAGS: "-D warnings"
 
 cache:
-  key: "$CI_JOB_STAGE"
+  key: "$CI_JOB_STAGE-$CI_COMMIT_REF_SLUG"
   paths:
     - .cache/cargo/
     - target/
@@ -51,10 +52,10 @@ tests:
 
   script:
     - cargo test
-    - ${GRCOV} --ignore "*cargo*" -t cobertura -o ./coverage.xml || true
-    - xsltproc --output ./target/coverage.xml ./.gitlab-cov.xsl ./coverage.xml
-    - ${GRCOV} --ignore "*cargo*" -t lcov -o ./target/coverage.lcov || true
-    - genhtml --branch --no-function-coverage --precision 2 ./target/coverage.lcov -o ./coverage
+    - ${GRCOV} --ignore "*cargo*" -t cobertura -o ./coverage.xml &&
+        xsltproc --novalid --output ./target/coverage.xml ./.gitlab-cov.xsl ./coverage.xml || true
+    - ${GRCOV} --ignore "*cargo*" -t lcov -o ./target/coverage.lcov &&
+        genhtml --branch --no-function-coverage --precision 2 ./target/coverage.lcov -o ./coverage || true
     - find ./target \( -name "*.gcda" -or -name "*.gcno" \) -delete
     - *push-zamok
 
