@@ -68,11 +68,12 @@
                   + " RUSTDOCFLAGS=\"-Cpanic=abort\"";
             in ''
               ${env} cargo test
-              grcov . -s . -b ./target/debug/ --branch --ignore '*cargo*' --ignore-not-existing --excl-line "${excl_regexp}" --excl-br-line "${excl_br_regexp}" -o coverage.lcov
-              genhtml --branch --no-function-coverage --precision 2 coverage.lcov -o coverage
+              grcov . -s . -b ./target/debug/ --branch --ignore '*cargo*' --ignore-not-existing \
+                  --excl-line "${excl_regexp}" --excl-br-line "${excl_br_regexp}" -o ./target/coverage.lcov --log /dev/null || true
               find target \( -name "*.gcda" -or -name "*.gcno" \) -delete
+              genhtml --branch --no-function-coverage --precision 2 target/coverage.lcov -o coverage
             '';
-            help = "blabla";
+            help = "Launch tests and generate HTML coverage website";
           }];
 
           packages = with pkgs; [ grcov lcov rust-dev ];
