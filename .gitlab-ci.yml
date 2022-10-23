@@ -1,10 +1,11 @@
 image: vlafeychine/rust
 
-stages:
-  - check
-  - build
-  - tests
-  - docs
+.push-zamok: &push-zamok
+  - eval $(ssh-agent -s)
+  - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+  - rsync -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" -rqz ${ZAMOK_SOURCE}/. v-lafeychine@zamok.crans.org:www/proost/${ZAMOK_TARGET}
+
+stages: [check, build, tests, docs]
 
 variables:
   CARGO_HOME: "$CI_PROJECT_DIR/.cache/cargo/"
@@ -37,33 +38,45 @@ build:
 
 tests:
   stage: tests
+
   variables:
     CARGO_INCREMENTAL: 0
-    EXCLUDE_REGEXP: "//!|///|#\\[|unreachable!()|use"
-    RUSTDOCFLAGS: "-Cpanic=abort"
+    EXCLUDE_BR_REGEXP: "#\\[|unreachable!()|assert(_eq)?!"
+    EXCLUDE_REGEXP: "//!|///|#\\[|use"
+    GRCOV: "grcov . -s . -b ./target/debug/ --branch --ignore-not-existing --excl-line ${EXCLUDE_REGEXP} --excl-br-line ${EXCLUDE_BR_REGEXP}"
+    RUSTDOCFLAGS: "${RUSTFLAGS}"
     RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort"
+    ZAMOK_SOURCE: coverage
+    ZAMOK_TARGET: coverage/${CI_COMMIT_REF_SLUG}
 
   script:
     - cargo test
-    - grcov . -s . --binary-path ./target/debug/ -t cobertura --branch --ignore "*cargo*" --ignore-not-existing --excl-line ${EXCLUDE_REGEXP} --excl-br-line ${EXCLUDE_REGEXP} -o coverage.xml
-    - sed -n '3p' coverage.xml | grep -oE '[a-z-]+="[0-9](.[0-9]+)?"' | sed -r 's/(branch-rate|line-rate)="(0|(1)).([0-9]{2})([0-9]{2})[0-9]*"/\1="\3\4.\5%"/'
-    - find target \( -name "*.gcda" -or -name "*.gcno" \) -delete
+    - ${GRCOV} --ignore "*cargo*" -t cobertura -o ./target/coverage.xml || true
+    - ${GRCOV} --ignore "*cargo*" -t lcov -o ./target/coverage.lcov || true
+    - find ./target \( -name "*.gcda" -or -name "*.gcno" \) -delete
+    - genhtml --branch --no-function-coverage --precision 2 ./target/coverage.lcov -o ./coverage
+    - *push-zamok
 
   artifacts:
     reports:
       coverage_report:
         coverage_format: cobertura
-        path: coverage.xml
+        path: ./target/coverage.xml
 
-  coverage: '/^branch-rate="\d+.\d+%"/'
+  coverage: '/^  branches...: \d+.\d+%/'
+
 
 docs:
   stage: docs
+
+  variables:
+    ZAMOK_SOURCE: target/doc
+    ZAMOK_TARGET: doc
+
   only:
     refs:
       - main
+
   script:
     - cargo doc --no-deps
-    - eval $(ssh-agent -s)
-    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
-    - scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -q -r target/doc/* v-lafeychine@zamok.crans.org:www/.
+    - *push-zamok

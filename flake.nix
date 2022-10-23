@@ -1,16 +1,20 @@
 {
   inputs = {
-    flake-utils.url = "github:numtide/flake-utils";
     nixpkgs.url = "nixpkgs/nixos-unstable";
 
-    rust-overlay.url = "github:oxalica/rust-overlay";
-    rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
+    devshell.url = "github:numtide/devshell";
+    flake-utils.url = "github:numtide/flake-utils";
+
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, flake-utils, rust-overlay, nixpkgs }:
+  outputs = { self, devshell, flake-utils, rust-overlay, nixpkgs }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        overlays = [ (import rust-overlay) ];
+        overlays = [ devshell.overlay (import rust-overlay) ];
         pkgs = import nixpkgs { inherit overlays system; };
         rust = pkgs.rust-bin.nightly.latest;
       in rec {
@@ -40,7 +44,7 @@
 
             copyToRoot = pkgs.buildEnv {
               name = "proost-dependencies";
-              paths = (with pkgs; [ coreutils gcc gnugrep gnused grcov openssh rust-ci ])
+              paths = (with pkgs; [ coreutils findutils gcc gnugrep gnused grcov lcov openssh rsync rust-ci ])
                 ++ (with pkgs.dockerTools; [ binSh caCertificates fakeNss ]);
               pathsToLink = [ "/bin" "/etc" ];
             };
@@ -49,9 +53,29 @@
           };
         };
 
-        devShells.default = pkgs.mkShell {
-          name = "proost-dev";
-          packages = [ (rust.default.override { extensions = [ "rust-src" "rust-analyzer" ]; }) ];
+        devShell = let
+          rust-dev = rust.default.override { extensions = [ "rust-src" "rust-analyzer" ]; };
+        in pkgs.devshell.mkShell {
+          name = "proost";
+
+          commands = [{
+            name = "coverage";
+            command = let 
+              excl_br_regexp = "#\\[|unreachable!()|assert(_eq)?!";
+              excl_regexp = "//!|///|#\\[|use";
+              env = "CARGO_INCREMENTAL=0"
+                  + " RUSTFLAGS=\"-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort\""
+                  + " RUSTDOCFLAGS=\"-Cpanic=abort\"";
+            in ''
+              ${env} cargo test
+              grcov . -s . -b ./target/debug/ --branch --ignore '*cargo*' --ignore-not-existing --excl-line "${excl_regexp}" --excl-br-line "${excl_br_regexp}" -o coverage.lcov
+              genhtml --branch --no-function-coverage --precision 2 coverage.lcov -o coverage
+              find target \( -name "*.gcda" -or -name "*.gcno" \) -delete
+            '';
+            help = "blabla";
+          }];
+
+          packages = with pkgs; [ grcov lcov rust-dev ];
         };
       });
 }
