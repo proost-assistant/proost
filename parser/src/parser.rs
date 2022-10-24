@@ -1,6 +1,5 @@
 use kernel::num_bigint::BigUint;
-use kernel::{Command, Term};
-use pest::error::Error;
+use kernel::{Command, KernelError, Term};
 use pest::iterators::Pair;
 use pest::Parser;
 use std::collections::VecDeque;
@@ -9,22 +8,17 @@ use std::collections::VecDeque;
 #[grammar = "term.pest"]
 struct CommandParser;
 
-fn build_term_from_expr(
-    pair: Pair<Rule>,
-    known_vars: &mut VecDeque<String>,
-) -> Result<Term, Box<Error<Rule>>> {
+fn build_term_from_expr(pair: Pair<Rule>, known_vars: &mut VecDeque<String>) -> Term {
     match pair.as_rule() {
-        Rule::Prop => Ok(Term::Prop),
-        Rule::Type => Ok(Term::Type(
-            pair.into_inner().fold(BigUint::from(0_u64).into(), |_, x| {
-                x.as_str().parse::<BigUint>().unwrap().into()
-            }),
-        )),
+        Rule::Prop => Term::Prop,
+        Rule::Type => Term::Type(pair.into_inner().fold(BigUint::from(0_u64).into(), |_, x| {
+            x.as_str().parse::<BigUint>().unwrap().into()
+        })),
         Rule::Var => {
             let name = pair.into_inner().as_str().to_string();
             match known_vars.iter().position(|x| *x == name) {
-                Some(i) => Ok(Term::Var((i + 1).into())),
-                None => Ok(Term::Const(name)),
+                Some(i) => Term::Var((i + 1).into()),
+                None => Term::Const(name),
             }
         }
         Rule::Prod => {
@@ -32,15 +26,15 @@ fn build_term_from_expr(
                 .into_inner()
                 .map(|x| build_term_from_expr(x, known_vars))
                 .rev();
-            let t = iter.next().unwrap()?;
-            iter.try_fold(t, |acc, x| Ok(Term::Prod(box x?, box acc)))
+            let t = iter.next().unwrap();
+            iter.fold(t, |acc, x| Term::Prod(box x, box acc))
         }
         Rule::App => {
             let mut iter = pair
                 .into_inner()
                 .map(|x| build_term_from_expr(x, known_vars));
-            let t = iter.next().unwrap()?;
-            iter.try_fold(t, |acc, x| Ok(Term::App(box acc, box x?)))
+            let t = iter.next().unwrap();
+            iter.fold(t, |acc, x| Term::App(box acc, box x))
         }
         Rule::Abs => {
             let mut iter = pair.into_inner().rev();
@@ -49,7 +43,7 @@ fn build_term_from_expr(
             let mut terms = Vec::new();
             for pair in iter {
                 let mut iter = pair.into_inner().rev();
-                let t = build_term_from_expr(iter.next().unwrap(), known_vars)?;
+                let t = build_term_from_expr(iter.next().unwrap(), known_vars);
                 for pair in iter {
                     names.push(pair.as_str().to_string());
                     terms.push(t.clone());
@@ -59,10 +53,10 @@ fn build_term_from_expr(
                 .into_iter()
                 .rev()
                 .for_each(|x| known_vars.push_front(x));
-            let t = build_term_from_expr(pair, known_vars)?;
-            terms.into_iter().try_fold(t, |acc, x| {
+            let t = build_term_from_expr(pair, known_vars);
+            terms.into_iter().fold(t, |acc, x| {
                 known_vars.pop_front();
-                Ok(Term::Abs(box x, box acc))
+                Term::Abs(box x, box acc)
             })
         }
         Rule::dProd => {
@@ -72,7 +66,7 @@ fn build_term_from_expr(
             let mut terms = Vec::new();
             for pair in iter {
                 let mut iter = pair.into_inner().rev();
-                let t = build_term_from_expr(iter.next().unwrap(), known_vars)?;
+                let t = build_term_from_expr(iter.next().unwrap(), known_vars);
                 for pair in iter {
                     names.push(pair.as_str().to_string());
                     terms.push(t.clone());
@@ -82,41 +76,41 @@ fn build_term_from_expr(
                 .into_iter()
                 .rev()
                 .for_each(|x| known_vars.push_front(x));
-            let t = build_term_from_expr(pair, known_vars)?;
-            terms.into_iter().try_fold(t, |acc, x| {
+            let t = build_term_from_expr(pair, known_vars);
+            terms.into_iter().fold(t, |acc, x| {
                 known_vars.pop_front();
-                Ok(Term::Prod(box x, box acc))
+                Term::Prod(box x, box acc)
             })
         }
         term => unreachable!("Unexpected term: {:?}", term),
     }
 }
 
-fn build_command_from_expr(pair: Pair<Rule>) -> Result<Command, Box<Error<Rule>>> {
+fn build_command_from_expr(pair: Pair<Rule>) -> Command {
     match pair.as_rule() {
         Rule::GetType => {
             let mut iter = pair.into_inner();
-            let t = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new())?;
-            Ok(Command::GetType(t))
+            let t = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new());
+            Command::GetType(t)
         }
         Rule::CheckType => {
             let mut iter = pair.into_inner();
-            let t1 = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new())?;
-            let t2 = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new())?;
-            Ok(Command::CheckType(t1, t2))
+            let t1 = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new());
+            let t2 = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new());
+            Command::CheckType(t1, t2)
         }
         Rule::Define => {
             let mut iter = pair.into_inner();
             let s = iter.next().unwrap().as_str().to_string();
-            let t = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new())?;
-            Ok(Command::Define(s, t))
+            let t = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new());
+            Command::Define(s, t)
         }
         Rule::DefineCheckType => {
             let mut iter = pair.into_inner();
             let s = iter.next().unwrap().as_str().to_string();
-            let t1 = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new())?;
-            let t2 = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new())?;
-            Ok(Command::DefineCheckType(s, t1, t2))
+            let t1 = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new());
+            let t2 = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new());
+            Command::DefineCheckType(s, t1, t2)
         }
         command => unreachable!("Unexpected command: {:?}", command),
     }
@@ -125,20 +119,21 @@ fn build_command_from_expr(pair: Pair<Rule>) -> Result<Command, Box<Error<Rule>>
 /// Parse a text input and try to convert it into a command.
 ///
 /// If unsuccessful, a box containing the first error that was encountered is returned.
-pub fn parse_command(file: &str) -> Result<Command, Box<Error<Rule>>> {
-    build_command_from_expr(
-        CommandParser::parse(Rule::command, file)?
-            .into_iter()
-            .next()
-            .unwrap(),
-    )
+pub fn parse_line(line: &str) -> Result<Command, KernelError> {
+    match CommandParser::parse(Rule::command, line) {
+        Ok(mut pairs) => Ok(build_command_from_expr(pairs.next().unwrap())),
+        //TODO
+        Err(err) => Err(KernelError::CannotParse(err.to_string())),
+    }
 }
 
 /// Parse a text input and try to convert it into a vector of commands.
 ///
 /// If unsuccessful, a box containing the first error that was encountered is returned.
-pub fn parse_file(file: &str) -> Result<Vec<Command>, Box<Error<Rule>>> {
-    CommandParser::parse(Rule::file, file)?
-        .map(build_command_from_expr)
-        .collect()
+pub fn parse_file(file: &str) -> Result<Vec<Command>, KernelError> {
+    match CommandParser::parse(Rule::file, file) {
+        Ok(pairs) => Ok(pairs.into_iter().map(build_command_from_expr).collect()),
+        // TODO
+        Err(err) => Err(KernelError::CannotParse(err.to_string())),
+    }
 }

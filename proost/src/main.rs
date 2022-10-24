@@ -2,10 +2,10 @@
 
 mod process;
 
-use crate::process::process_command;
+use crate::process::process_line;
 use clap::Parser;
+use colored::*;
 use kernel::Environment;
-use parser::{parse_command, parse_file};
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use std::error::Error;
@@ -28,9 +28,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     if !args.files.is_empty() {
         for path in args.files.iter() {
             match fs::read_to_string(path) {
-                Ok(contents) => {
-                    let _ = parse_file(&contents);
-                }
+                Ok(_contents) => (),
                 Err(_) => {
                     println!("no such file or directory: {}", path);
                 }
@@ -50,13 +48,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         match readline {
             Ok(line) if !line.is_empty() => {
                 rl.add_history_entry(line.as_str());
-
-                match parse_command(line.as_str()) {
-                    Ok(command) => {
-                        println!("{}", process_command(command, &mut env));
-                    }
-                    Err(err) => println!("{}", *err),
-                };
+                match process_line(line.as_str(), &mut env) {
+                    Ok(Some(t)) => println!("{} {}", "\u{2713}".green(), t),
+                    Ok(None) => println!("{}", "\u{2713}".green()),
+                    Err(err) => println!("{} {}", "\u{2717}".red(), err),
+                }
             }
 
             Ok(_) => (),

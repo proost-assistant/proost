@@ -5,6 +5,10 @@ use derive_more::Display;
 /// Type representing kernel errors, is used by the toplevel to pretty-print errors.
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
 pub enum KernelError {
+    // cannot parse command
+    #[display(fmt = "cannot parse: {}", _0)]
+    CannotParse(String),
+
     // s is already defined
     #[display(fmt = "{} is already defined", _0)]
     AlreadyDefined(String),
