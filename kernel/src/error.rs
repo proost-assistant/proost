@@ -2,12 +2,31 @@ use crate::term::Term;
 use derive_more::Display;
 
 // TODO #19
+#[derive(Clone, Debug, Display, PartialEq, Eq)]
+#[display(fmt = "{}:{}", line, column)]
+// Line/column position
+pub struct Pos {
+    line: usize,
+    column: usize,
+}
+
+impl Pos {
+    pub fn new(x: usize, y: usize) -> Pos {
+        Pos { line: x, column: y }
+    }
+
+    fn to_pointer(&self) -> String {
+        format!("{1:0$}^", self.column - 1, "")
+    }
+}
+
+// TODO #19
 /// Type representing kernel errors, is used by the toplevel to pretty-print errors.
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
 pub enum KernelError {
     // cannot parse command
-    #[display(fmt = "cannot parse: {}", _0)]
-    CannotParse(String),
+    #[display(fmt = "{}\n{}", "_0.to_pointer()", _1)]
+    CannotParse(Pos, String),
 
     // s is already defined
     #[display(fmt = "{} is already defined", _0)]
