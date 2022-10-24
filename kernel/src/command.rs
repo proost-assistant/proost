@@ -41,3 +41,29 @@ impl Command {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{num_bigint::BigUint, Command, Environment, KernelError, Term};
+
+    #[test]
+    fn succession() {
+        let mut env = Environment::new();
+        assert_eq!(
+            Command::Define("x".to_string(), Term::Prop).process(&mut env),
+            Ok(None)
+        );
+        assert_eq!(
+            Command::GetType(Term::Const("x".to_string())).process(&mut env),
+            Ok(Some(Term::Type(BigUint::from(0_u64).into())))
+        );
+        assert_eq!(
+            Command::Define("x".to_string(), Term::Prop).process(&mut env),
+            Err(KernelError::AlreadyDefined("x".to_string()))
+        );
+        assert_eq!(
+            Command::Define("x".to_string(), Term::Prop).process(&mut env),
+            Err(KernelError::AlreadyDefined("x".to_string()))
+        );
+    }
+}
