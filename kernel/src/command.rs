@@ -37,16 +37,10 @@ mod tests {
     use crate::{num_bigint::BigUint, Command, Environment, KernelError, Term};
 
     #[test]
-    fn checktype() {
-        let mut env = Environment::new();
-        assert_eq!(
-            Command::CheckType(Term::Type(BigUint::from(1_u64).into()), Term::Prop)
-                .process(&mut env),
-            Err(KernelError::TypeMismatch(
-                Term::Type(BigUint::from(2_u64).into()),
-                Term::Prop
-            ))
-        );
+    fn fail_checktype() {
+        let cmd = Command::CheckType(Term::Type(BigUint::from(1_u64).into()), Term::Prop);
+
+        assert!(cmd.process(&mut Environment::new()).is_err());
     }
 
     #[test]
