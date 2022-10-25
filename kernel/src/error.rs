@@ -3,16 +3,23 @@ use derive_more::Display;
 
 // TODO #19
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
-#[display(fmt = "{}:{}", line, column)]
+#[display(fmt = "{}:{}-{}:{}", line1, column1, line2, column2)]
 // Line/column position
-pub struct Pos {
-    pub line: usize,
-    pub column: usize,
+pub struct Loc {
+    pub line1: usize,
+    pub column1: usize,
+    pub line2: usize,
+    pub column2: usize,
 }
 
-impl Pos {
-    pub fn new(x: usize, y: usize) -> Pos {
-        Pos { line: x, column: y }
+impl Loc {
+    pub fn new(x1: usize, y1: usize, x2: usize, y2: usize) -> Loc {
+        Loc {
+            line1: x1,
+            column1: y1,
+            line2: x2,
+            column2: y2,
+        }
     }
 }
 
@@ -22,7 +29,7 @@ impl Pos {
 pub enum KernelError {
     // cannot parse command
     #[display(fmt = "cannot parse: {}", _1)]
-    CannotParse(Pos, String),
+    CannotParse(Loc, String),
 
     // s is already defined
     #[display(fmt = "{} is already defined", _0)]

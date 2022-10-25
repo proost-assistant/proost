@@ -16,8 +16,19 @@ pub fn print_repl(res: Result<Option<Term>, KernelError>) {
         }
         Err(err) => {
             let string = match err {
-                KernelError::CannotParse(pos, message) => {
-                    format!("{:0w$}^\n{m}", "", w = pos.column - 1, m = message)
+                KernelError::CannotParse(loc, message) => {
+                    if loc.column1 == loc.column2 {
+                        format!("{:0w1$}^\n{m}", "", w1 = loc.column1 - 1, m = message)
+                    } else {
+                        format!(
+                            "{:0w1$}^{:-<w2$}^\n{m}",
+                            "",
+                            "",
+                            w1 = loc.column1 - 1,
+                            w2 = loc.column2 - loc.column1 - 1,
+                            m = message
+                        )
+                    }
                 }
                 _ => err.to_string(),
             };

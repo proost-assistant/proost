@@ -1,7 +1,7 @@
 use crate::{Environment, KernelError, Term};
 use derive_more::Display;
 
-#[derive(Debug, Display, Clone, Eq, PartialEq)]
+#[derive(Debug, Display, Eq, PartialEq)]
 pub enum Command {
     #[display(fmt = "define {} := {}.", _0, _1)]
     Define(String, Term),
@@ -17,6 +17,7 @@ pub enum Command {
 }
 
 impl Command {
+    // TODO (#19)
     pub fn process(self, env: &mut Environment) -> Result<Option<Term>, KernelError> {
         match self {
             Command::CheckType(t1, t2) => t1.check(&t2, env).map(|_| None),
@@ -36,7 +37,20 @@ mod tests {
     use crate::{num_bigint::BigUint, Command, Environment, KernelError, Term};
 
     #[test]
-    fn succession() {
+    fn checktype() {
+        let mut env = Environment::new();
+        assert_eq!(
+            Command::CheckType(Term::Type(BigUint::from(1_u64).into()), Term::Prop)
+                .process(&mut env),
+            Err(KernelError::TypeMismatch(
+                Term::Type(BigUint::from(2_u64).into()),
+                Term::Prop
+            ))
+        );
+    }
+
+    #[test]
+    fn env() {
         let mut env = Environment::new();
         assert_eq!(
             Command::Define("x".to_string(), Term::App(box Term::Prop, box Term::Prop))
@@ -47,21 +61,48 @@ mod tests {
                 Term::Prop
             ))
         );
+        // The environment was not changed, as seen with the following test.
         assert_eq!(
             Command::Define("x".to_string(), Term::Prop).process(&mut env),
             Ok(None)
+        );
+        assert_eq!(
+            Command::DefineCheckType(
+                "y".to_string(),
+                Term::Type(BigUint::from(2_u64).into()),
+                Term::Type(BigUint::from(1_u64).into())
+            )
+            .process(&mut env),
+            Ok(None)
+        );
+        // The environment was successfully changed, as seen with the following tests.
+        assert_eq!(
+            Command::GetType(Term::Const("y".to_string())).process(&mut env),
+            Ok(Some(Term::Type(BigUint::from(1_u64).into())))
         );
         assert_eq!(
             Command::GetType(Term::Const("x".to_string())).process(&mut env),
             Ok(Some(Term::Type(BigUint::from(0_u64).into())))
         );
         assert_eq!(
-            Command::Define("x".to_string(), Term::Prop).process(&mut env),
+            Command::Define("x".to_string(), Term::Type(BigUint::from(0_u64).into()))
+                .process(&mut env),
             Err(KernelError::AlreadyDefined("x".to_string()))
         );
         assert_eq!(
-            Command::Define("x".to_string(), Term::Prop).process(&mut env),
+            Command::DefineCheckType(
+                "x".to_string(),
+                Term::Type(BigUint::from(1_u64).into()),
+                Term::Type(BigUint::from(0_u64).into())
+            )
+            .process(&mut env),
             Err(KernelError::AlreadyDefined("x".to_string()))
+        );
+        // Furthermore, the previous commands did not alter the content of the environment,
+        // as seen with the following test.
+        assert_eq!(
+            Command::GetType(Term::Const("x".to_string())).process(&mut env),
+            Ok(Some(Term::Type(BigUint::from(0_u64).into())))
         );
     }
 }
