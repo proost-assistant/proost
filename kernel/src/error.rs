@@ -6,17 +6,13 @@ use derive_more::Display;
 #[display(fmt = "{}:{}", line, column)]
 // Line/column position
 pub struct Pos {
-    line: usize,
-    column: usize,
+    pub line: usize,
+    pub column: usize,
 }
 
 impl Pos {
     pub fn new(x: usize, y: usize) -> Pos {
         Pos { line: x, column: y }
-    }
-
-    fn to_pointer(&self) -> String {
-        format!("{1:0$}^", self.column - 1, "")
     }
 }
 
@@ -25,7 +21,7 @@ impl Pos {
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
 pub enum KernelError {
     // cannot parse command
-    #[display(fmt = "{}\n{}", "_0.to_pointer()", _1)]
+    #[display(fmt = "cannot parse: {}", _1)]
     CannotParse(Pos, String),
 
     // s is already defined

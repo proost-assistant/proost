@@ -19,25 +19,14 @@ pub enum Command {
 impl Command {
     pub fn process(self, env: &mut Environment) -> Result<Option<Term>, KernelError> {
         match self {
-            Command::Define(s, t1) => match t1.infer(env) {
-                Ok(t2) => match env.insert(s, t1, t2) {
-                    Ok(()) => Ok(None),
-                    Err(err) => Err(err),
-                },
-                Err(err) => Err(err),
-            },
-            Command::CheckType(t1, t2) => match t1.check(&t2, env) {
-                Ok(_) => Ok(None),
-                Err(err) => Err(err),
-            },
-            Command::GetType(t) => match t.infer(env) {
-                Ok(t) => Ok(Some(t)),
-                Err(err) => Err(err),
-            },
-            Command::DefineCheckType(_, t1, t2) => match t2.check(&t1, env) {
-                Ok(_) => Ok(None),
-                Err(err) => Err(err),
-            },
+            Command::CheckType(t1, t2) => t1.check(&t2, env).map(|_| None),
+            Command::GetType(t) => t.infer(env).map(Some),
+            Command::Define(s, t1) => t1
+                .infer(env)
+                .and_then(|t2| env.insert(s, t1, t2).map(|_| None)),
+            Command::DefineCheckType(s, t1, t2) => t2
+                .check(&t1, env)
+                .and_then(|_| env.insert(s, t1, t2).map(|_| None)),
         }
     }
 }
@@ -49,6 +38,15 @@ mod tests {
     #[test]
     fn succession() {
         let mut env = Environment::new();
+        assert_eq!(
+            Command::Define("x".to_string(), Term::App(box Term::Prop, box Term::Prop))
+                .process(&mut env),
+            Err(KernelError::NotAFunction(
+                Term::Prop,
+                Term::Type(BigUint::from(0_u64).into()),
+                Term::Prop
+            ))
+        );
         assert_eq!(
             Command::Define("x".to_string(), Term::Prop).process(&mut env),
             Ok(None)

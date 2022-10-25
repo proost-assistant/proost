@@ -1,9 +1,10 @@
 #![feature(box_syntax)]
 
+mod process;
+
 use clap::Parser;
-use colored::*;
-use kernel::{Environment, KernelError, Term};
-use parser::*;
+use kernel::Environment;
+use process::*;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use std::error::Error;
@@ -19,11 +20,6 @@ struct Args {
 // constants fetching
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const NAME: &str = env!("CARGO_PKG_NAME");
-
-// usefull functions
-fn process_line(line: &str, env: &mut Environment) -> Result<Option<Term>, KernelError> {
-    parse_line(line)?.process(env)
-}
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
@@ -51,21 +47,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         match readline {
             Ok(line) if !line.is_empty() => {
                 rl.add_history_entry(line.as_str());
-                match process_line(line.as_str(), &mut env) {
-                    Ok(Some(t)) => {
-                        for line in t.to_string().lines() {
-                            println!("{} {}", "\u{2713}".green(), line)
-                        }
-                    }
-                    Ok(None) => println!("{}", "\u{2713}".green()),
-                    Err(err) => {
-                        for line in err.to_string().lines() {
-                            println!("{} {}", "\u{2717}".red(), line)
-                        }
-                    }
-                }
+                print_repl(process_line(line.as_str(), &mut env));
             }
-
             Ok(_) => (),
             Err(ReadlineError::Interrupted) => {}
             Err(ReadlineError::Eof) => break,
