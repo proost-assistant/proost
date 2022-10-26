@@ -1,102 +1,143 @@
 use crate::{Environment, KernelError, Term};
-use derive_more::Display;
 
-#[derive(Debug, Display, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Command {
-    #[display(fmt = "define {} := {}.", _0, _1)]
-    Define(String, Term),
+    Define(String, Option<Term>, Term),
 
-    #[display(fmt = "check {} : {}.", _0, _1)]
     CheckType(Term, Term),
 
-    #[display(fmt = "type {}.", _0)]
     GetType(Term),
-
-    #[display(fmt = "define {} : {} := {}.", _0, _1, _2)]
-    DefineCheckType(String, Term, Term),
 }
 
 impl Command {
     // TODO (#19)
     pub fn process(self, env: &mut Environment) -> Result<Option<Term>, KernelError> {
         match self {
-            Command::CheckType(t1, t2) => t1.check(&t2, env).map(|_| None),
-            Command::GetType(t) => t.infer(env).map(Some),
-            Command::Define(s, t1) => t1
+            Command::Define(s, None, term) => term
                 .infer(env)
-                .and_then(|t2| env.insert(s, t1, t2).map(|_| None)),
-            Command::DefineCheckType(s, t1, t2) => t2
-                .check(&t1, env)
-                .and_then(|_| env.insert(s, t1, t2).map(|_| None)),
+                .and_then(|t| env.insert(s, t, term).map(|_| None)),
+
+            Command::Define(s, Some(t), term) => term
+                .check(&t, env)
+                .and_then(|_| env.insert(s, t, term).map(|_| None)),
+
+            Command::CheckType(t1, t2) => t1.check(&t2, env).map(|_| None),
+
+            Command::GetType(t) => t.infer(env).map(Some),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{num_bigint::BigUint, Command, Environment, KernelError, Term};
+    use crate::{num_bigint::BigUint, Command, Environment, Term};
 
-    #[test]
-    fn fail_checktype() {
-        let cmd = Command::CheckType(Term::Type(BigUint::from(1_u64).into()), Term::Prop);
-
-        assert!(cmd.process(&mut Environment::new()).is_err());
+    fn simple_env() -> Environment {
+        Environment::new()
+            .insert(
+                "x".to_string(),
+                Term::Type(BigUint::from(0_u64).into()),
+                Term::Prop,
+            )
+            .unwrap()
+            .clone()
     }
 
     #[test]
-    fn env() {
-        let mut env = Environment::new();
+    fn failed_untyped_define() {
+        let cmd = Command::Define("x".to_string(), None, Term::Prop);
+        let mut env = simple_env();
+
+        assert!(cmd.process(&mut env).is_err());
+        assert_eq!(env, simple_env());
+    }
+
+    #[test]
+    fn successful_untyped_define() {
+        let cmd = Command::Define("y".to_string(), None, Term::Prop);
+        let mut env = simple_env();
+
+        assert!(cmd.process(&mut env).is_ok());
         assert_eq!(
-            Command::Define("x".to_string(), Term::App(box Term::Prop, box Term::Prop))
-                .process(&mut env),
-            Err(KernelError::NotAFunction(
-                Term::Prop,
-                Term::Type(BigUint::from(0_u64).into()),
-                Term::Prop
-            ))
+            env,
+            *(simple_env()
+                .insert(
+                    "y".to_string(),
+                    Term::Type(BigUint::from(0_u64).into()),
+                    Term::Prop
+                )
+                .unwrap())
         );
-        // The environment was not changed, as seen with the following test.
+    }
+
+    #[test]
+    fn failed_typed_define() {
+        let cmd = Command::Define(
+            "y".to_string(),
+            Some(Term::Type(BigUint::from(1_u64).into())),
+            Term::Prop,
+        );
+        let mut env = simple_env();
+
+        assert!(cmd.process(&mut env).is_err());
+        assert_eq!(env, simple_env());
+    }
+
+    #[test]
+    fn successful_typed_define() {
+        let cmd = Command::Define(
+            "y".to_string(),
+            Some(Term::Type(BigUint::from(0_u64).into())),
+            Term::Prop,
+        );
+        let mut env = simple_env();
+
+        assert!(cmd.process(&mut env).is_ok());
         assert_eq!(
-            Command::Define("x".to_string(), Term::Prop).process(&mut env),
-            Ok(None)
+            env,
+            *(simple_env()
+                .insert(
+                    "y".to_string(),
+                    Term::Type(BigUint::from(0_u64).into()),
+                    Term::Prop
+                )
+                .unwrap())
         );
-        assert_eq!(
-            Command::DefineCheckType(
-                "y".to_string(),
-                Term::Type(BigUint::from(2_u64).into()),
-                Term::Type(BigUint::from(1_u64).into())
-            )
-            .process(&mut env),
-            Ok(None)
-        );
-        // The environment was successfully changed, as seen with the following tests.
-        assert_eq!(
-            Command::GetType(Term::Const("y".to_string())).process(&mut env),
-            Ok(Some(Term::Type(BigUint::from(1_u64).into())))
-        );
-        assert_eq!(
-            Command::GetType(Term::Const("x".to_string())).process(&mut env),
-            Ok(Some(Term::Type(BigUint::from(0_u64).into())))
-        );
-        assert_eq!(
-            Command::Define("x".to_string(), Term::Type(BigUint::from(0_u64).into()))
-                .process(&mut env),
-            Err(KernelError::AlreadyDefined("x".to_string()))
-        );
-        assert_eq!(
-            Command::DefineCheckType(
-                "x".to_string(),
-                Term::Type(BigUint::from(1_u64).into()),
-                Term::Type(BigUint::from(0_u64).into())
-            )
-            .process(&mut env),
-            Err(KernelError::AlreadyDefined("x".to_string()))
-        );
-        // Furthermore, the previous commands did not alter the content of the environment,
-        // as seen with the following test.
-        assert_eq!(
-            Command::GetType(Term::Const("x".to_string())).process(&mut env),
-            Ok(Some(Term::Type(BigUint::from(0_u64).into())))
-        );
+    }
+
+    #[test]
+    fn failed_checktype() {
+        let cmd = Command::CheckType(Term::Prop, Term::Prop);
+        let mut env = simple_env();
+
+        assert!(cmd.process(&mut env).is_err());
+        assert!(env == simple_env());
+    }
+
+    #[test]
+    fn successful_checktype() {
+        let cmd = Command::CheckType(Term::Prop, Term::Type(BigUint::from(0_u64).into()));
+        let mut env = simple_env();
+
+        assert!(cmd.process(&mut env).is_ok());
+        assert_eq!(env, simple_env());
+    }
+
+    #[test]
+    fn failed_gettype() {
+        let cmd = Command::GetType(Term::Const("y".to_string()));
+        let mut env = simple_env();
+
+        assert!(cmd.process(&mut env).is_err());
+        assert!(env == simple_env());
+    }
+
+    #[test]
+    fn successful_gettype() {
+        let cmd = Command::GetType(Term::Prop);
+        let mut env = simple_env();
+
+        assert!(cmd.process(&mut env).is_ok());
+        assert_eq!(env, simple_env());
     }
 }

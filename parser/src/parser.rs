@@ -115,21 +115,21 @@ fn build_command_from_expr(pair: Pair<Rule>) -> Command {
             let mut iter = pair.into_inner();
             let s = iter.next().unwrap().as_str().to_string();
             let t = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new());
-            Command::Define(s, t)
+            Command::Define(s, None, t)
         }
         Rule::DefineCheckType => {
             let mut iter = pair.into_inner();
             let s = iter.next().unwrap().as_str().to_string();
             let t1 = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new());
             let t2 = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new());
-            Command::DefineCheckType(s, t1, t2)
+            Command::Define(s, Some(t1), t2)
         }
         command => unreachable!("Unexpected command: {:?}", command),
     }
 }
 
 // convert pest error to kernel error
-fn convert_error<Rule: RuleType, T>(err: Error<Rule>) -> Result<T, KernelError> {
+fn convert_error<Rule: RuleType>(err: Error<Rule>) -> KernelError {
     // extracting the location from the pest output
     let loc = match err.line_col {
         LineColLocation::Pos((x, y)) => {
@@ -160,7 +160,7 @@ fn convert_error<Rule: RuleType, T>(err: Error<Rule>) -> Result<T, KernelError> 
     for _ in 0..4 {
         chars.next();
     }
-    Err(KernelError::CannotParse(loc, chars.as_str().to_string()))
+    KernelError::CannotParse(loc, chars.as_str().to_string())
 }
 
 /// Parse a text input and try to convert it into a command.
@@ -169,7 +169,7 @@ fn convert_error<Rule: RuleType, T>(err: Error<Rule>) -> Result<T, KernelError> 
 pub fn parse_line(line: &str) -> Result<Command, KernelError> {
     match CommandParser::parse(Rule::command, line) {
         Ok(mut pairs) => Ok(build_command_from_expr(pairs.next().unwrap())),
-        Err(err) => convert_error(err.renamed_rules(|rule| match *rule {
+        Err(err) => Err(convert_error(err.renamed_rules(|rule| match *rule {
             Rule::string | Rule::Var => "variable".to_owned(),
             Rule::number => "number".to_owned(),
             Rule::Define => "def var := term".to_owned(),
@@ -183,7 +183,7 @@ pub fn parse_line(line: &str) -> Result<Command, KernelError> {
             Rule::Prop => "Prop".to_owned(),
             Rule::Type => "Type".to_owned(),
             _ => "".to_owned(),
-        })),
+        }))),
     }
 }
 
@@ -193,7 +193,7 @@ pub fn parse_line(line: &str) -> Result<Command, KernelError> {
 pub fn parse_file(file: &str) -> Result<Vec<Command>, KernelError> {
     match CommandParser::parse(Rule::file, file) {
         Ok(pairs) => Ok(pairs.into_iter().map(build_command_from_expr).collect()),
-        Err(err) => convert_error(err.renamed_rules(|rule| match *rule {
+        Err(err) => Err(convert_error(err.renamed_rules(|rule| match *rule {
             Rule::string | Rule::Var => "variable".to_owned(),
             Rule::number => "number".to_owned(),
             Rule::Define => "def var := term".to_owned(),
@@ -207,6 +207,6 @@ pub fn parse_file(file: &str) -> Result<Vec<Command>, KernelError> {
             Rule::Prop => "Prop".to_owned(),
             Rule::Type => "Type".to_owned(),
             _ => "".to_owned(),
-        })),
+        }))),
     }
 }
