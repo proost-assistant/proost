@@ -2,7 +2,7 @@ use kernel::num_bigint::BigUint;
 use kernel::{Command, KernelError, Loc, Term};
 use pest::error::{Error, LineColLocation};
 use pest::iterators::Pair;
-use pest::{Parser, RuleType, Span};
+use pest::{Parser, Span};
 use std::collections::VecDeque;
 
 #[derive(Parser)]
@@ -114,22 +114,38 @@ fn build_command_from_expr(pair: Pair<Rule>) -> Command {
         Rule::Define => {
             let mut iter = pair.into_inner();
             let s = iter.next().unwrap().as_str().to_string();
-            let t = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new());
-            Command::Define(s, None, t)
+            let term = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new());
+            Command::Define(s, None, term)
         }
         Rule::DefineCheckType => {
             let mut iter = pair.into_inner();
             let s = iter.next().unwrap().as_str().to_string();
-            let t1 = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new());
-            let t2 = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new());
-            Command::Define(s, Some(t1), t2)
+            let t = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new());
+            let term = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new());
+            Command::Define(s, Some(t), term)
         }
         command => unreachable!("Unexpected command: {:?}", command),
     }
 }
 
 // convert pest error to kernel error
-fn convert_error<Rule: RuleType>(err: Error<Rule>) -> KernelError {
+fn convert_error(err: Error<Rule>) -> KernelError {
+    let err = err.renamed_rules(|rule| match *rule {
+        Rule::string | Rule::Var => "variable".to_owned(),
+        Rule::number => "number".to_owned(),
+        Rule::Define => "def var := term".to_owned(),
+        Rule::CheckType => "check term : term".to_owned(),
+        Rule::GetType => "check term".to_owned(),
+        Rule::DefineCheckType => "def var : term := term".to_owned(),
+        Rule::Abs => "abstraction".to_owned(),
+        Rule::dProd => "dependent product".to_owned(),
+        Rule::Prod => "product".to_owned(),
+        Rule::App => "application".to_owned(),
+        Rule::Prop => "Prop".to_owned(),
+        Rule::Type => "Type".to_owned(),
+        _ => "".to_owned(),
+    });
+
     // extracting the location from the pest output
     let loc = match err.line_col {
         LineColLocation::Pos((x, y)) => {
@@ -154,6 +170,7 @@ fn convert_error<Rule: RuleType>(err: Error<Rule>) -> KernelError {
         }
         LineColLocation::Span((x1, y1), (x2, y2)) => Loc::new(x1, y1, x2, y2),
     };
+
     // extracting the message from the pest output
     let message = err.to_string();
     let mut chars = message.lines().next_back().unwrap().chars();
@@ -169,21 +186,7 @@ fn convert_error<Rule: RuleType>(err: Error<Rule>) -> KernelError {
 pub fn parse_line(line: &str) -> Result<Command, KernelError> {
     match CommandParser::parse(Rule::command, line) {
         Ok(mut pairs) => Ok(build_command_from_expr(pairs.next().unwrap())),
-        Err(err) => Err(convert_error(err.renamed_rules(|rule| match *rule {
-            Rule::string | Rule::Var => "variable".to_owned(),
-            Rule::number => "number".to_owned(),
-            Rule::Define => "def var := term".to_owned(),
-            Rule::CheckType => "check term : term".to_owned(),
-            Rule::GetType => "check term".to_owned(),
-            Rule::DefineCheckType => "def var : term := term".to_owned(),
-            Rule::Abs => "abstraction".to_owned(),
-            Rule::dProd => "dependent product".to_owned(),
-            Rule::Prod => "product".to_owned(),
-            Rule::App => "application".to_owned(),
-            Rule::Prop => "Prop".to_owned(),
-            Rule::Type => "Type".to_owned(),
-            _ => "".to_owned(),
-        }))),
+        Err(err) => Err(convert_error(err)),
     }
 }
 
@@ -193,20 +196,6 @@ pub fn parse_line(line: &str) -> Result<Command, KernelError> {
 pub fn parse_file(file: &str) -> Result<Vec<Command>, KernelError> {
     match CommandParser::parse(Rule::file, file) {
         Ok(pairs) => Ok(pairs.into_iter().map(build_command_from_expr).collect()),
-        Err(err) => Err(convert_error(err.renamed_rules(|rule| match *rule {
-            Rule::string | Rule::Var => "variable".to_owned(),
-            Rule::number => "number".to_owned(),
-            Rule::Define => "def var := term".to_owned(),
-            Rule::CheckType => "check term : term".to_owned(),
-            Rule::GetType => "check term".to_owned(),
-            Rule::DefineCheckType => "def var : term := term".to_owned(),
-            Rule::Abs => "abstraction".to_owned(),
-            Rule::dProd => "dependent product".to_owned(),
-            Rule::Prod => "product".to_owned(),
-            Rule::App => "application".to_owned(),
-            Rule::Prop => "Prop".to_owned(),
-            Rule::Type => "Type".to_owned(),
-            _ => "".to_owned(),
-        }))),
+        Err(err) => Err(convert_error(err)),
     }
 }
