@@ -2,14 +2,23 @@ use kernel::num_bigint::BigUint;
 use kernel::{Command, KernelError, Loc, Term};
 use pest::error::{Error, LineColLocation};
 use pest::iterators::Pair;
-use pest::{Parser, RuleType};
+use pest::{Parser, RuleType, Span};
 use std::collections::VecDeque;
 
 #[derive(Parser)]
 #[grammar = "term.pest"]
 struct CommandParser;
 
+// convert pest location to kernel location
+fn convert_span(span: Span) -> Loc {
+    let (x1, y1) = span.start_pos().line_col();
+    let (x2, y2) = span.end_pos().line_col();
+    Loc::new(x1, y1, x2, y2)
+}
+
 fn build_term_from_expr(pair: Pair<Rule>, known_vars: &mut VecDeque<String>) -> Term {
+    // location to be used in a future version
+    let _loc = convert_span(pair.as_span());
     match pair.as_rule() {
         Rule::Prop => Term::Prop,
         Rule::Type => Term::Type(pair.into_inner().fold(BigUint::from(0_u64).into(), |_, x| {
@@ -88,6 +97,8 @@ fn build_term_from_expr(pair: Pair<Rule>, known_vars: &mut VecDeque<String>) -> 
 }
 
 fn build_command_from_expr(pair: Pair<Rule>) -> Command {
+    // location to be used in a future version
+    let _loc = convert_span(pair.as_span());
     match pair.as_rule() {
         Rule::GetType => {
             let mut iter = pair.into_inner();
@@ -117,22 +128,29 @@ fn build_command_from_expr(pair: Pair<Rule>) -> Command {
     }
 }
 
-fn create_error<Rule: RuleType>(err: Error<Rule>) -> KernelError {
+// convert pest error to kernel error
+fn convert_error<Rule: RuleType>(err: Error<Rule>) -> KernelError {
     // extracting the location from the pest output
-    let pos = match err.line_col {
+    let loc = match err.line_col {
         LineColLocation::Pos((x, y)) => {
-            let mut i = 0;
+            let mut right = 0;
+            let mut left = 1;
             let mut chars = err.line().chars();
-            for _ in 0..y {
-                chars.next();
+            for i in 0..y {
+                match chars.next() {
+                    Some(c) if char::is_whitespace(c) => {
+                        left = i + 2;
+                    }
+                    _ => (),
+                }
             }
             while !match chars.next() {
                 None => true,
                 Some(c) => char::is_whitespace(c),
             } {
-                i += 1;
+                right += 1;
             }
-            Loc::new(x, y, x, y + i)
+            Loc::new(x, left, x, y + right)
         }
         LineColLocation::Span((x1, y1), (x2, y2)) => Loc::new(x1, y1, x2, y2),
     };
@@ -142,7 +160,7 @@ fn create_error<Rule: RuleType>(err: Error<Rule>) -> KernelError {
     for _ in 0..4 {
         chars.next();
     }
-    KernelError::CannotParse(pos, chars.as_str().to_string())
+    KernelError::CannotParse(loc, chars.as_str().to_string())
 }
 
 /// Parse a text input and try to convert it into a command.
@@ -151,7 +169,7 @@ fn create_error<Rule: RuleType>(err: Error<Rule>) -> KernelError {
 pub fn parse_line(line: &str) -> Result<Command, KernelError> {
     match CommandParser::parse(Rule::command, line) {
         Ok(mut pairs) => Ok(build_command_from_expr(pairs.next().unwrap())),
-        Err(err) => Err(create_error(err.renamed_rules(|rule| match *rule {
+        Err(err) => Err(convert_error(err.renamed_rules(|rule| match *rule {
             Rule::string | Rule::Var => "variable".to_owned(),
             Rule::number => "number".to_owned(),
             Rule::Define => "def var := term".to_owned(),
@@ -175,7 +193,7 @@ pub fn parse_line(line: &str) -> Result<Command, KernelError> {
 pub fn parse_file(file: &str) -> Result<Vec<Command>, KernelError> {
     match CommandParser::parse(Rule::file, file) {
         Ok(pairs) => Ok(pairs.into_iter().map(build_command_from_expr).collect()),
-        Err(err) => Err(create_error(err.renamed_rules(|rule| match *rule {
+        Err(err) => Err(convert_error(err.renamed_rules(|rule| match *rule {
             Rule::string | Rule::Var => "variable".to_owned(),
             Rule::number => "number".to_owned(),
             Rule::Define => "def var := term".to_owned(),
