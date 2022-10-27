@@ -201,3 +201,25 @@ pub fn parse_file(file: &str) -> Result<Vec<Command>, KernelError> {
         Err(err) => Err(convert_error(err)),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Command::*;
+    use super::KernelError::*;
+    use super::Term::*;
+    use super::*;
+
+    #[test]
+    fn base_terms() {
+        assert_eq!(
+            build_term_from_expr(
+                CommandParser::parse(Rule::Term, "Prop")
+                    .unwrap()
+                    .next()
+                    .unwrap(),
+                &mut VecDeque::new()
+            ),
+            Prop
+        )
+    }
+}
