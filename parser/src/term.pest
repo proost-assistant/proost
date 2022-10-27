@@ -12,12 +12,12 @@ term_dprod = _{ App | Abs | Prod | dProd | Var | Prop | Type | "(" ~ term_dprod 
 term_abs = _{ App | Abs | Prod | dProd | Var | Prop | Type | "(" ~ term_abs ~ ")" }
 
 Abs = { ( "fun" ~ ( arg_abs_par ~ ( "," ~ arg_abs_par )* ) ~ "=>" ~ Term ) }
-arg_abs_par = _{ arg_abs | "(" ~ arg_abs ~ ")" }
-arg_abs = { ( string+ ~ ":" ~ term_abs ) }
+arg_abs_par = _{ arg_abs | "(" ~ arg_abs_par ~ ")" }
+arg_abs = { string+ ~ ":" ~ term_abs }
 
 dProd = { "(" ~ ( arg_dprod_par ~ ( "," ~ arg_dprod_par )* ) ~ ")" ~ "->" ~ Term }
-arg_dprod_par = _{ arg_dprod | "(" ~ arg_dprod ~ ")" }
-arg_dprod = { ( string+ ~ ":" ~ term_dprod ) }
+arg_dprod_par = _{ arg_dprod | "(" ~ arg_dprod_par ~ ")" }
+arg_dprod = { string+ ~ ":" ~ term_dprod }
 
 App = { term_app ~ term_app+ }
 Prod = { term_prod ~ ( "->" ~ term_prod )+ }

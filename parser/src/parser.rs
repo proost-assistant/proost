@@ -32,14 +32,6 @@ fn build_term_from_expr(pair: Pair<Rule>, known_vars: &mut VecDeque<String>) -> 
                 None => Term::Const(name),
             }
         }
-        Rule::Prod => {
-            let mut iter = pair
-                .into_inner()
-                .map(|x| build_term_from_expr(x, known_vars))
-                .rev();
-            let t = iter.next().unwrap();
-            iter.fold(t, |acc, x| Term::Prod(box x, box acc))
-        }
         Rule::App => {
             let mut iter = pair
                 .into_inner()
@@ -76,6 +68,21 @@ fn build_term_from_expr(pair: Pair<Rule>, known_vars: &mut VecDeque<String>) -> 
                     known_vars.push_front(pair.as_str().to_string());
                     terms.push(t.clone());
                 }
+            }
+            let t = build_term_from_expr(pair, known_vars);
+            terms.into_iter().rev().fold(t, |acc, x| {
+                known_vars.pop_front();
+                Term::Prod(box x, box acc)
+            })
+        }
+        Rule::Prod => {
+            let mut iter = pair.into_inner();
+            let pair = iter.next_back().unwrap();
+            let mut terms = Vec::new();
+            for pair in iter {
+                let t = build_term_from_expr(pair, known_vars);
+                known_vars.push_front("_".to_string());
+                terms.push(t);
             }
             let t = build_term_from_expr(pair, known_vars);
             terms.into_iter().rev().fold(t, |acc, x| {
