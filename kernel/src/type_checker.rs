@@ -1,4 +1,5 @@
 use crate::environment::Environment;
+use crate::error::KernelError;
 use crate::term::{DeBruijnIndex, Term};
 use num_bigint::BigUint;
 use std::cmp::max;
@@ -12,31 +13,6 @@ impl Index<DeBruijnIndex> for Vec<Term> {
         &self[usize::from(idx)]
     }
 }
-
-// TODO #19
-/// Type representing kernel errors, is used by the toplevel to pretty-print errors.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum TypeCheckingError {
-    /// Constant s has not been found in the current context
-    ConstNotFound(String),
-
-    /// t is not a universe
-    NotUniverse(Term),
-
-    /// t1 and t2 are not definitionally equal
-    NotDefEq(Term, Term),
-
-    /// f of type t1 can't take argument x of type t2
-    WrongArgumentType(Term, Term, Term, Term),
-
-    /// t1 is of type ty is not a function, and thus cannot be applied to t2
-    NotAFunction(Term, Term, Term),
-
-    /// Expected ty1, found ty2
-    TypeMismatch(Term, Term),
-}
-
-use TypeCheckingError::*;
 
 /// Type of lists of tuples representing the respective types of each variables
 type Types = Vec<Term>;
@@ -99,19 +75,23 @@ impl Term {
                 t1.conversion(&t2, env, lvl) && u1.conversion(&u2, env, lvl)
             }
 
+            (app @ App(box Abs(_, _), box _), u) | (u, app @ App(box Abs(_, _), box _)) => {
+                app.beta_reduction(env).conversion(&u, env, lvl)
+            }
+
             _ => false,
         }
     }
 
     /// Checks whether two terms are definitionally equal.
-    pub fn is_def_eq(&self, rhs: &Term, env: &Environment) -> Result<(), TypeCheckingError> {
+    pub fn is_def_eq(&self, rhs: &Term, env: &Environment) -> Result<(), KernelError> {
         self.conversion(rhs, env, 1.into())
             .then_some(())
-            .ok_or_else(|| NotDefEq(self.clone(), rhs.clone()))
+            .ok_or_else(|| KernelError::NotDefEq(self.clone(), rhs.clone()))
     }
 
     /// Computes universe the universe in which `(x : A) -> B` lives when `A : u1` and `B : u2`.
-    fn imax(&self, rhs: &Term) -> Result<Term, TypeCheckingError> {
+    fn imax(&self, rhs: &Term) -> Result<Term, KernelError> {
         match rhs {
             // Because Prop is impredicative, if B : Prop, then (x : A) -> b : Prop
             Prop => Ok(Prop),
@@ -122,14 +102,14 @@ impl Term {
                 // else if u1 = Type(i) and u2 = Type(j), then (x : A) -> B : Type(max(i,j))
                 Type(j) => Ok(Type(max(i.clone(), j.clone()))),
 
-                _ => Err(NotUniverse(rhs.clone())),
+                _ => Err(KernelError::NotUniverse(self.clone())),
             },
 
-            _ => Err(NotUniverse(self.clone())),
+            _ => Err(KernelError::NotUniverse(rhs.clone())),
         }
     }
 
-    fn _infer(&self, env: &Environment, ctx: &mut Context) -> Result<Term, TypeCheckingError> {
+    fn _infer(&self, env: &Environment, ctx: &mut Context) -> Result<Term, KernelError> {
         match self {
             Prop => Ok(Type(BigUint::from(0_u64).into())),
             Type(i) => Ok(Type(i.clone() + BigUint::from(1_u64).into())),
@@ -137,18 +117,18 @@ impl Term {
 
             Const(s) => match env.get_type(s) {
                 Some(ty) => Ok(ty),
-                None => Err(ConstNotFound(s.clone())),
+                None => Err(KernelError::ConstNotFound(s.clone())),
             },
 
             Prod(box t, u) => {
                 let univ_t = t._infer(env, ctx)?;
                 let univ_u = u._infer(env, ctx.clone().bind(t))?;
 
-                univ_t.imax(&univ_u)
+                univ_t.normal_form(env).imax(&univ_u.normal_form(env))
             }
 
             Abs(box t, u) => {
-                let u = u._infer(env, ctx.clone().bind(t))?;
+                let u = u._infer(env, ctx.clone().bind(&t.shift(1, 0)))?;
 
                 Ok(Prod(box t.clone(), box u))
             }
@@ -160,27 +140,29 @@ impl Term {
                     typ_lhs
                         .conversion(&typ_rhs, env, ctx.types.len().into())
                         .then_some(*cls)
-                        .ok_or_else(|| WrongArgumentType(t.clone(), typ_lhs, u.clone(), typ_rhs))
+                        .ok_or_else(|| {
+                            KernelError::WrongArgumentType(t.clone(), typ_lhs, u.clone(), typ_rhs)
+                        })
                 }
 
-                x => Err(NotAFunction(t.clone(), x, u.clone())),
+                x => Err(KernelError::NotAFunction(t.clone(), x, u.clone())),
             },
         }
     }
 
     /// Infers the type of a `Term` in a given context.
-    pub fn infer(&self, env: &Environment) -> Result<Term, TypeCheckingError> {
+    pub fn infer(&self, env: &Environment) -> Result<Term, KernelError> {
         self._infer(env, &mut Context::new())
     }
 
     /// Checks whether a given term is of type `ty` in a given context.
-    pub fn check(&self, ty: &Term, env: &Environment) -> Result<(), TypeCheckingError> {
+    pub fn check(&self, ty: &Term, env: &Environment) -> Result<(), KernelError> {
         let ctx = &mut Context::new();
         let tty = self._infer(env, ctx)?;
 
         tty.conversion(ty, env, ctx.types.len().into())
             .then_some(())
-            .ok_or_else(|| TypeMismatch(ty.clone(), tty))
+            .ok_or_else(|| KernelError::TypeMismatch(tty, ty.clone()))
     }
 }
 
@@ -399,11 +381,10 @@ mod tests {
 
     #[test]
     fn env_test() {
-        let id_prop = Prod(box Prop, box Prod(box Var(1.into()), box Var(1.into())));
+        let id_prop = Prod(box Prop, box Prod(box Var(1.into()), box Var(2.into())));
         let t = Abs(box Prop, box Abs(box Var(1.into()), box Var(1.into())));
-        let env = Environment::new()
-            .insert("foo".into(), id_prop.clone(), Prop)
-            .unwrap();
+        let mut env = Environment::new();
+        env.insert("foo".into(), id_prop.clone(), Prop).unwrap();
 
         assert!(t.check(&Const("foo".into()), &env).is_ok());
         assert!(id_prop.is_def_eq(&Const("foo".into()), &env).is_ok());
@@ -424,11 +405,30 @@ mod tests {
     #[test]
     fn infer_const() {
         let id_prop = Prod(box Prop, box Prod(box Var(1.into()), box Var(1.into())));
-        let env = Environment::new()
-            .insert("foo".into(), id_prop, Prop)
-            .unwrap();
+        let mut env = Environment::new();
+        env.insert("foo".into(), id_prop, Prop).unwrap();
 
         assert!(Const("foo".into()).infer(&env).is_ok());
         assert!(Const("foo".into()).infer(&Environment::new()).is_err());
+    }
+
+    #[test]
+    fn prod_var() {
+        let ty = Prod(box Prop, box Prod(box Var(1.into()), box Var(2.into())));
+        let t = Abs(box Prop, box Abs(box Var(1.into()), box Var(1.into())));
+        assert!(t.check(&ty, &Environment::new()).is_ok())
+    }
+
+    #[test]
+    fn univ_reduc() {
+        let ty = App(
+            box Abs(box Prop, box Type(BigUint::from(0_u64).into())),
+            box Prod(box Prop, box Var(1.into())),
+        );
+        assert!(ty.conversion(
+            &Type(BigUint::from(0_u64).into()),
+            &Environment::new(),
+            0.into()
+        ))
     }
 }

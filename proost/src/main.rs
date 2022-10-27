@@ -1,20 +1,23 @@
 #![feature(box_syntax)]
 
+mod process;
+
 use clap::Parser;
-use parser::parse_commands;
+use kernel::Environment;
+use process::*;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use std::error::Error;
 use std::fs;
 
+// clap configuration
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
-pub struct Args {
+struct Args {
     files: Vec<String>,
-    #[arg(short, long, action)]
-    banner: bool,
 }
 
+// constants fetching
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const NAME: &str = env!("CARGO_PKG_NAME");
 
@@ -24,11 +27,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     if !args.files.is_empty() {
         for path in args.files.iter() {
             match fs::read_to_string(path) {
-                Ok(contents) => {
-                    let _ = parse_commands(&contents);
-                }
+                Ok(_contents) => (),
                 Err(_) => {
-                    println!("Error: No such file or directory: {}", path);
+                    println!("no such file or directory: {}", path);
                 }
             }
         }
@@ -37,25 +38,16 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut rl_err: Option<ReadlineError> = None;
     let mut rl = Editor::<()>::new()?;
-
-    if args.banner {
-        println!("#Insert banner here#\n#  This is a test  #")
-    }
     println!("Welcome to {} {}", NAME, VERSION);
 
+    let mut env = Environment::new();
+
     loop {
-        let readline = rl.readline(">> ");
+        let readline = rl.readline("\u{00BB} ");
         match readline {
             Ok(line) if !line.is_empty() => {
                 rl.add_history_entry(line.as_str());
-                match parse_commands(line.as_str()) {
-                    Ok(commands) => {
-                        for command in commands {
-                            println!("{}", command);
-                        }
-                    }
-                    Err(err) => println!("{}", *err),
-                }
+                print_repl(process_line(line.as_str(), &mut env));
             }
             Ok(_) => (),
             Err(ReadlineError::Interrupted) => {}

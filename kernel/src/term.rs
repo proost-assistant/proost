@@ -18,19 +18,19 @@ pub enum Term {
     #[display(fmt = "{}", _0)]
     Const(String),
 
-    #[display(fmt = "\u{02119}")]
+    #[display(fmt = "Prop")]
     Prop,
 
-    #[display(fmt = "Type({})", _0)]
+    #[display(fmt = "Type {}", _0)]
     Type(UniverseLevel),
 
-    #[display(fmt = "({} {})", _0, _1)]
+    #[display(fmt = "{} {}", _0, _1)]
     App(Box<Term>, Box<Term>),
 
-    #[display(fmt = "\u{003BB}{} \u{02192} {}", _0, _1)]
+    #[display(fmt = "\u{003BB} {} \u{02192} {}", _0, _1)]
     Abs(Box<Term>, Box<Term>),
 
-    #[display(fmt = "\u{02200}{} \u{02192} {}", _0, _1)]
+    #[display(fmt = "\u{03A0} {} \u{02192} {}", _0, _1)]
     Prod(Box<Term>, Box<Term>),
 }
 
@@ -51,7 +51,7 @@ impl Term {
         }
     }
 
-    fn shift(&self, offset: usize, depth: usize) -> Term {
+    pub(crate) fn shift(&self, offset: usize, depth: usize) -> Term {
         match self {
             Var(i) if *i > depth.into() => Var(*i + offset.into()),
             App(box t1, box t2) => App(box t1.shift(offset, depth), box t2.shift(offset, depth)),
@@ -307,9 +307,8 @@ mod tests {
     #[test]
     fn beta_red_const() {
         let id_prop = Prod(box Prop, box Prod(box Var(1.into()), box Var(1.into())));
-        let env = Environment::new()
-            .insert("foo".into(), id_prop.clone(), Prop)
-            .unwrap();
+        let mut env = Environment::new();
+        env.insert("foo".into(), id_prop.clone(), Prop).unwrap();
 
         assert_eq!(Const("foo".into()).beta_reduction(&env), id_prop);
     }
