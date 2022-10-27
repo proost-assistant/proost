@@ -101,8 +101,11 @@ fn build_term_from_expr(pair: Pair<Rule>, known_vars: &mut VecDeque<String>) -> 
                 box Term::Abs(
                     box Term::Prop,
                     box Term::Prod(
-                        box Term::Prod(box Term::Var(2.into()), box Term::Var(2.into())),
-                        box Term::Var(3.into()),
+                        box Term::Prop,
+                        box Term::Prod(
+                            box Term::Var(3.into()),
+                            box Term::Prod(box Term::Var(3.into()), box Term::Var(3.into())),
+                        ),
                     ),
                 ),
             ),
@@ -155,6 +158,11 @@ fn build_command_from_expr(pair: Pair<Rule>) -> Command {
             let t = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new());
             let term = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new());
             Command::Define(s, Some(t), term)
+        }
+        Rule::Eval => {
+            let mut iter = pair.into_inner();
+            let t = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new());
+            Command::Eval(t)
         }
         command => unreachable!("Unexpected command: {:?}", command),
     }

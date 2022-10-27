@@ -2,7 +2,7 @@ WHITESPACE = _{ WHITE_SPACE }
 COMMENT = _{ "#" ~ (!"\n" ~ ANY)* }
 number = @{ ASCII_DIGIT+ }
 string = @{ !keywords ~ ASCII_ALPHA ~ ( "_" | ASCII_ALPHANUMERIC )* }
-keywords = @{ ( "and" | "or" | "false" | "true" | "fun" | "def" | "check" | "Prop" | "Type" ) ~ !ASCII_ALPHANUMERIC }
+keywords = @{ ( "eval" | "and" | "or" | "false" | "true" | "fun" | "def" | "check" | "Prop" | "Type" ) ~ !ASCII_ALPHANUMERIC }
 eoi = _{ !ANY }
 
 Term = _{ Abs | dProd | Prod | App | Var | Prop | Type | Macro | "(" ~ Term ~ ")" }
@@ -31,7 +31,8 @@ False = { "false" }
 And = { "and" }
 Or = { "or" }
 
-Command = _{ Define | CheckType | GetType | DefineCheckType }
+Command = _{ Eval | Define | CheckType | GetType | DefineCheckType }
+Eval = { "eval" ~ Term }
 Define = { "def" ~ string ~ ":=" ~ Term }
 DefineCheckType = { "def" ~ string ~ ":" ~ Term ~ ":=" ~ Term }
 CheckType = { "check" ~ Term ~ ":" ~ Term }

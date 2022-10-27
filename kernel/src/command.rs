@@ -3,10 +3,9 @@ use crate::{Environment, KernelError, Term};
 #[derive(Debug, Eq, PartialEq)]
 pub enum Command {
     Define(String, Option<Term>, Term),
-
     CheckType(Term, Term),
-
     GetType(Term),
+    Eval(Term),
 }
 
 impl Command {
@@ -24,6 +23,8 @@ impl Command {
             Command::CheckType(t1, t2) => t1.check(&t2, env).map(|_| None),
 
             Command::GetType(t) => t.infer(env).map(Some),
+
+            Command::Eval(t) => Ok(Some(t.normal_form(env))),
         }
     }
 }
