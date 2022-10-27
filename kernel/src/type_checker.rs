@@ -418,4 +418,17 @@ mod tests {
         let t = Abs(box Prop, box Abs(box Var(1.into()), box Var(1.into())));
         assert!(t.check(&ty, &Environment::new()).is_ok())
     }
+
+    #[test]
+    fn univ_reduc() {
+        let ty = App(
+            box Abs(box Prop, box Type(BigUint::from(0_u64).into())),
+            box Prod(box Prop, box Var(1.into())),
+        );
+        assert!(ty.conversion(
+            &Type(BigUint::from(0_u64).into()),
+            &Environment::new(),
+            0.into()
+        ))
+    }
 }
