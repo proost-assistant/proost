@@ -2,14 +2,14 @@ WHITESPACE = _{ WHITE_SPACE }
 COMMENT = _{ "#" ~ (!"\n" ~ ANY)* }
 number = @{ ASCII_DIGIT+ }
 string = @{ !keywords ~ ASCII_ALPHA ~ ( "_" | ASCII_ALPHANUMERIC )* }
-keywords = @{ ( "fun" | "def" | "check" | "Prop" | "Type" ) ~ !ASCII_ALPHANUMERIC }
+keywords = @{ ( "and" | "or" | "false" | "true" | "fun" | "def" | "check" | "Prop" | "Type" ) ~ !ASCII_ALPHANUMERIC }
 eoi = _{ !ANY }
 
-Term = _{ Abs | dProd | Prod | App | Var | Prop | Type | "(" ~ Term ~ ")" }
-term_prod = _{ App | Abs | dProd | Var | Prop | Type | "(" ~ term_prod ~ ")" }
-term_app = _{ Abs | Var | Prop | Type | "(" ~ Prod ~ ")" | "(" ~ dProd ~ ")" | "(" ~ term_app ~ ")" } 
-term_dprod = _{ App | Abs | Prod | dProd | Var | Prop | Type | "(" ~ term_dprod ~ ")" }
-term_abs = _{ App | Abs | Prod | dProd | Var | Prop | Type | "(" ~ term_abs ~ ")" }
+Term = _{ Abs | dProd | Prod | App | Var | Prop | Type | Macro | "(" ~ Term ~ ")" }
+term_prod = _{ App | Abs | dProd | Var | Prop | Type | Macro | "(" ~ Prod ~ ")" | "(" ~ term_prod ~ ")" }
+term_app = _{ Abs | Var | Prop | Type | "(" ~ Prod ~ ")" | "(" ~ dProd ~ ")" | Macro | "(" ~ term_app ~ ")" }
+term_dprod = _{ App | Abs | Prod | dProd | Var | Prop | Type | Macro | "(" ~ term_dprod ~ ")" }
+term_abs = _{ App | Abs | Prod | dProd | Var | Prop | Type | Macro | "(" ~ term_abs ~ ")" }
 
 Abs = { ( "fun" ~ ( arg_abs_par ~ ( "," ~ arg_abs_par )* ) ~ "=>" ~ Term ) }
 arg_abs_par = _{ arg_abs | "(" ~ arg_abs_par ~ ")" }
@@ -21,10 +21,15 @@ arg_dprod = { string+ ~ ":" ~ term_dprod }
 
 App = { term_app ~ term_app+ }
 Prod = { term_prod ~ ( "->" ~ term_prod )+ }
-
 Prop = { "Prop" }
 Type = { "Type(" ~ number ~ ")" | "Type" ~ number? }
 Var = { string }
+
+Macro = { True | False | And | Or }
+True = { "true" }
+False = { "false" }
+And = { "and" | "/\\" }
+Or = { "or" | "\\/" }
 
 Command = _{ Define | CheckType | GetType | DefineCheckType }
 Define = { "def" ~ string ~ ":=" ~ Term }

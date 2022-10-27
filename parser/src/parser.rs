@@ -90,6 +90,16 @@ fn build_term_from_expr(pair: Pair<Rule>, known_vars: &mut VecDeque<String>) -> 
                 Term::Prod(box x, box acc)
             })
         }
+        Rule::Macro => match pair.into_inner().next().unwrap().as_rule() {
+            Rule::True => Term::Prod(
+                box Term::Prop,
+                box Term::Prod(box Term::Var(1.into()), box Term::Var(2.into())),
+            ),
+            Rule::False => Term::Prod(box Term::Prop, box Term::Var(1.into())),
+            Rule::And => Term::Prop,
+            Rule::Or => Term::Prop, //TODO
+            term => unreachable!("Unexpected built-in: {:?}", term),
+        },
         term => unreachable!("Unexpected term: {:?}", term),
     }
 }
@@ -142,6 +152,7 @@ fn convert_error(err: Error<Rule>) -> KernelError {
         Rule::App => "application".to_owned(),
         Rule::Prop => "Prop".to_owned(),
         Rule::Type => "Type".to_owned(),
+        Rule::Macro => "built-in".to_owned(),
         _ => "".to_owned(),
     });
 
