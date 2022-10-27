@@ -3,6 +3,7 @@ use kernel::{Command, KernelError, Loc, Term};
 use pest::error::{Error, LineColLocation};
 use pest::iterators::Pair;
 use pest::{Parser, Span};
+use std::cmp::Ordering;
 use std::collections::VecDeque;
 
 #[derive(Parser)]
@@ -130,6 +131,7 @@ fn build_command_from_expr(pair: Pair<Rule>) -> Command {
 
 // convert pest error to kernel error
 fn convert_error(err: Error<Rule>) -> KernelError {
+    // renaming error messages
     let err = err.renamed_rules(|rule| match *rule {
         Rule::string | Rule::Var => "variable".to_owned(),
         Rule::number => "number".to_owned(),
@@ -149,24 +151,27 @@ fn convert_error(err: Error<Rule>) -> KernelError {
     // extracting the location from the pest output
     let loc = match err.line_col {
         LineColLocation::Pos((x, y)) => {
-            let mut right = 0;
+            let mut right = y;
             let mut left = 1;
-            let mut chars = err.line().chars();
-            for i in 0..y {
-                match chars.next() {
-                    Some(c) if char::is_whitespace(c) => {
-                        left = i + 2;
+            let chars = err.line().chars();
+            let mut i = 0;
+            for c in chars {
+                i += 1;
+                if char::is_whitespace(c) {
+                    match i.cmp(&y) {
+                        Ordering::Less => left = i + 1,
+                        Ordering::Equal => left = y,
+                        Ordering::Greater => break,
                     }
-                    _ => (),
+                } else {
+                    right = i
                 }
             }
-            while !match chars.next() {
-                None => true,
-                Some(c) => char::is_whitespace(c),
-            } {
-                right += 1;
+            if i < y {
+                left = y;
+                right = y;
             }
-            Loc::new(x, left, x, y + right)
+            Loc::new(x, left, x, right)
         }
         LineColLocation::Span((x1, y1), (x2, y2)) => Loc::new(x1, y1, x2, y2),
     };
