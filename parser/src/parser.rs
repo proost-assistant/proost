@@ -48,47 +48,37 @@ fn build_term_from_expr(pair: Pair<Rule>, known_vars: &mut VecDeque<String>) -> 
             iter.fold(t, |acc, x| Term::App(box acc, box x))
         }
         Rule::Abs => {
-            let mut iter = pair.into_inner().rev();
-            let pair = iter.next().unwrap();
-            let mut names = Vec::new();
+            let mut iter = pair.into_inner();
+            let pair = iter.next_back().unwrap();
             let mut terms = Vec::new();
             for pair in iter {
                 let mut iter = pair.into_inner().rev();
                 let t = build_term_from_expr(iter.next().unwrap(), known_vars);
                 for pair in iter {
-                    names.push(pair.as_str().to_string());
+                    known_vars.push_front(pair.as_str().to_string());
                     terms.push(t.clone());
                 }
             }
-            names
-                .into_iter()
-                .rev()
-                .for_each(|x| known_vars.push_front(x));
             let t = build_term_from_expr(pair, known_vars);
-            terms.into_iter().fold(t, |acc, x| {
+            terms.into_iter().rev().fold(t, |acc, x| {
                 known_vars.pop_front();
                 Term::Abs(box x, box acc)
             })
         }
         Rule::dProd => {
-            let mut iter = pair.into_inner().rev();
-            let pair = iter.next().unwrap();
-            let mut names = Vec::new();
+            let mut iter = pair.into_inner();
+            let pair = iter.next_back().unwrap();
             let mut terms = Vec::new();
             for pair in iter {
                 let mut iter = pair.into_inner().rev();
                 let t = build_term_from_expr(iter.next().unwrap(), known_vars);
                 for pair in iter {
-                    names.push(pair.as_str().to_string());
+                    known_vars.push_front(pair.as_str().to_string());
                     terms.push(t.clone());
                 }
             }
-            names
-                .into_iter()
-                .rev()
-                .for_each(|x| known_vars.push_front(x));
             let t = build_term_from_expr(pair, known_vars);
-            terms.into_iter().fold(t, |acc, x| {
+            terms.into_iter().rev().fold(t, |acc, x| {
                 known_vars.pop_front();
                 Term::Prod(box x, box acc)
             })
@@ -104,6 +94,8 @@ fn build_command_from_expr(pair: Pair<Rule>) -> Command {
         Rule::GetType => {
             let mut iter = pair.into_inner();
             let t = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new());
+            //T DEBUG
+            println!("{}", t);
             Command::GetType(t)
         }
         Rule::CheckType => {

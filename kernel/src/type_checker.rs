@@ -88,6 +88,8 @@ impl Term {
 
     /// Computes universe the universe in which `(x : A) -> B` lives when `A : u1` and `B : u2`.
     fn imax(&self, rhs: &Term) -> Result<Term, KernelError> {
+        println!("{:?}, {:?}", self, rhs);
+
         match rhs {
             // Because Prop is impredicative, if B : Prop, then (x : A) -> b : Prop
             Prop => Ok(Prop),
@@ -98,10 +100,10 @@ impl Term {
                 // else if u1 = Type(i) and u2 = Type(j), then (x : A) -> B : Type(max(i,j))
                 Type(j) => Ok(Type(max(i.clone(), j.clone()))),
 
-                _ => Err(KernelError::NotUniverse(rhs.clone())),
+                _ => Err(KernelError::NotUniverse(self.clone())),
             },
 
-            _ => Err(KernelError::NotUniverse(self.clone())),
+            _ => Err(KernelError::NotUniverse(rhs.clone())),
         }
     }
 
