@@ -15,11 +15,11 @@ impl Command {
         match self {
             Command::Define(s, None, term) => term
                 .infer(env)
-                .and_then(|t| env.insert(s, t, term).map(|_| None)),
+                .and_then(|t| env.insert(s, term, t).map(|_| None)),
 
             Command::Define(s, Some(t), term) => term
                 .check(&t, env)
-                .and_then(|_| env.insert(s, t, term).map(|_| None)),
+                .and_then(|_| env.insert(s, term, t).map(|_| None)),
 
             Command::CheckType(t1, t2) => t1.check(&t2, env).map(|_| None),
 
