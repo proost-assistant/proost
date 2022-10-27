@@ -63,8 +63,8 @@ mod tests {
             *(simple_env()
                 .insert(
                     "y".to_string(),
-                    Term::Type(BigUint::from(0_u64).into()),
-                    Term::Prop
+                    Term::Prop,
+                    Term::Type(BigUint::from(0_u64).into())
                 )
                 .unwrap())
         );
@@ -98,8 +98,8 @@ mod tests {
             *(simple_env()
                 .insert(
                     "y".to_string(),
-                    Term::Type(BigUint::from(0_u64).into()),
-                    Term::Prop
+                    Term::Prop,
+                    Term::Type(BigUint::from(0_u64).into())
                 )
                 .unwrap())
         );
