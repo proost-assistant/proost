@@ -2,6 +2,7 @@ use derive_more::{Add, Display, From, Into, Sub};
 
 use num_bigint::BigUint;
 
+use crate::error::KernelError;
 use bumpalo::Bump;
 use im_rc::hashmap::HashMap as ImHashMap;
 use std::cell::OnceCell;
@@ -21,11 +22,16 @@ pub struct Arena<'arena> {
 
     hashcons: HashSet<&'arena Node<'arena>>,
     named_terms: HashMap<&'arena str, Term<'arena>>,
+
+    mem_subst: HashMap<(Term<'arena>, Term<'arena>, DeBruijnIndex), Term<'arena>>,
 }
 
-#[derive(Clone, Copy, Eq, Debug)]
+#[derive(Clone, Copy, Display, Eq, Debug)]
+#[display(fmt = "{}", "_0.payload")]
 pub struct Term<'arena>(&'arena Node<'arena>);
 
+// no name storage here: meaning consts are known and can be found, but no pretty printing is
+// possible so far.
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct Node<'arena> {
     payload: Payload<'arena>,
@@ -35,20 +41,31 @@ struct Node<'arena> {
     type_: OnceCell<Term<'arena>>,
 }
 
-// type BinTermHashMap<'arena> = HashMap<(Term<'arena>, Term<'arena>), Term<'arena>>;
+type BinTermHashMap<'arena> = HashMap<(Term<'arena>, Term<'arena>), Term<'arena>>;
 // binary maps are not used so far, because, upon building terms, no particular optimisation is
 // done. On the other hand, if it is decided that only WHNF terms may exist in the arena, there can
 // be an AppMap (only App is relevant, as Abs and Prod preserve WHNF).
 //
 // We also need a substitution hasmap, (body, level_of_substitution, Term_to_incorporate)
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Debug, Display, Eq, PartialEq, Hash)]
 pub enum Payload<'arena> {
+    #[display(fmt = "{}", _0)]
     Var(DeBruijnIndex, Term<'arena>),
+
+    #[display(fmt = "Prop")]
     Prop,
+
+    #[display(fmt = "Type {}", _0)]
     Type(UniverseLevel),
+
+    #[display(fmt = "{} {}", _0, _1)]
     App(Term<'arena>, Term<'arena>),
+
+    #[display(fmt = "\u{003BB} {} \u{02192} {}", _0, _1)]
     Abs(Term<'arena>, Term<'arena>),
+
+    #[display(fmt = "\u{03A0} {} \u{02192} {}", _0, _1)]
     Prod(Term<'arena>, Term<'arena>),
 }
 
@@ -76,8 +93,14 @@ impl<'arena> Hash for Node<'arena> {
     }
 }
 
+impl<'arena> From<Term<'arena>> for Payload<'arena> {
+    fn from(t: Term<'arena>) -> Self {
+        t.0.payload
+    }
+}
+
 type Environment<'arena> = ImHashMap<&'arena str, (DeBruijnIndex, Term<'arena>)>;
-trait ExternTermGenerator<'arena> = FnOnce(DeBruijnIndex, &Environment<'arena>) -> Term<'arena>;
+trait ExternTermGenerator<'arena> = FnMut(DeBruijnIndex, &Environment<'arena>) -> Result<Term<'arena>, KernelError<'arena>>;
 
 impl<'arena> Arena<'arena> {
     /// (TODO DOC.) Allocate a new memory arena.
@@ -87,13 +110,15 @@ impl<'arena> Arena<'arena> {
 
             hashcons: HashSet::new(),
             named_terms: HashMap::new(),
+
+            mem_subst: HashMap::new(),
         }
     }
 
     /// (TODO DOC.) there are concurrent designs here: either hashcons take a Node and functions
     /// which use it immediatly intend to compute the type and/or WHNF of the term, or this is
     /// postponed and computed lazily. This iteration chooses the second approach.
-    fn hashcons(&mut self, n: Payload<'arena>) -> Term<'arena> {
+    fn hashcons(&'arena mut self, n: Payload<'arena>) -> Term<'arena> {
         let nn = Node {
             payload: n,
             head_normal_form: OnceCell::new(),
@@ -109,27 +134,27 @@ impl<'arena> Arena<'arena> {
         }
     }
 
-    pub fn var(&mut self, index: DeBruijnIndex, type_: Term<'arena>) -> Term<'arena> {
+    pub fn var(&'arena mut self, index: DeBruijnIndex, type_: Term<'arena>) -> Term<'arena> {
         self.hashcons(Var(index, type_))
     }
 
-    pub fn prop(&mut self) -> Term<'arena> {
+    pub fn prop(&'arena mut self) -> Term<'arena> {
         self.hashcons(Prop)
     }
 
-    pub fn type_(&mut self, level: UniverseLevel) -> Term<'arena> {
+    pub fn type_(&'arena mut self, level: UniverseLevel) -> Term<'arena> {
         self.hashcons(Type(level))
     }
 
-    pub fn app(&mut self, u1: Term<'arena>, u2: Term<'arena>) -> Term<'arena> {
+    pub fn app(&'arena mut self, u1: Term<'arena>, u2: Term<'arena>) -> Term<'arena> {
         self.hashcons(App(u1, u2))
     }
 
-    pub fn abs(&mut self, arg_type: Term<'arena>, u: Term<'arena>) -> Term<'arena> {
+    pub fn abs(&'arena mut self, arg_type: Term<'arena>, u: Term<'arena>) -> Term<'arena> {
         self.hashcons(Abs(arg_type, u))
     }
 
-    pub fn prod(&mut self, arg_type: Term<'arena>, u: Term<'arena>) -> Term<'arena> {
+    pub fn prod(&'arena mut self, arg_type: Term<'arena>, u: Term<'arena>) -> Term<'arena> {
         self.hashcons(Prod(arg_type, u))
     }
 
@@ -140,19 +165,18 @@ impl<'arena> Arena<'arena> {
     /// parser itself explore the term.
 
     pub fn extern_var<'a>(&'arena mut self, name: &'arena str) -> impl ExternTermGenerator<'arena> {
-        move |depth, env: &Environment<'arena>| match env.get(&name) {
-            Some((bind_depth, term)) => self.var(depth - *bind_depth, *term),
-            None => panic!("change this for a proper error"),
-        }
-        env.get(&name).map(|(bind_depth, term)| Ok(self.var(depth - *bind_depth, *term))).
+        move |depth, env: &Environment<'arena>| env.get(name)
+            .map(|(bind_depth, term)| self.var(depth - *bind_depth, *term))
+            .or_else(|| self.named_terms.get(name).copied())
+            .ok_or(KernelError::ConstNotFound(name))
     }
 
     pub fn extern_prop(&'arena mut self) -> impl ExternTermGenerator<'arena> {
-        |depth, env: &Environment<'arena>| self.prop()
+        |_, _: &Environment<'arena>| Ok(self.prop())
     }
 
     pub fn extern_type(&'arena mut self, level: UniverseLevel) -> impl ExternTermGenerator<'arena> {
-        |depth, env: &Environment<'arena>| self.type_(level)
+        |_, _: &Environment<'arena>| Ok(self.type_(level))
     }
 
     pub fn extern_app<F1: ExternTermGenerator<'arena>, F2: ExternTermGenerator<'arena>>(
@@ -160,7 +184,7 @@ impl<'arena> Arena<'arena> {
         u1: F1,
         u2: F2,
     ) -> impl ExternTermGenerator<'arena> {
-        |depth, env: &Environment<'arena>| self.app(u1(depth, env), u2(depth, env))
+        |depth, env: &Environment<'arena>| Ok(self.app(u1(depth, env)?, u2(depth, env)?))
     }
 
     pub fn extern_abs<F1: ExternTermGenerator<'arena>, F2: ExternTermGenerator<'arena>>(
@@ -170,9 +194,9 @@ impl<'arena> Arena<'arena> {
         body: F2,
     ) -> impl ExternTermGenerator<'arena> {
         move |depth, env: &Environment<'arena>| {
-            let arg_type = arg_type(depth, env);
+            let arg_type = arg_type(depth, env)?;
             let env = env.update(name, (depth + DeBruijnIndex(1), arg_type));
-            self.abs(arg_type, body(depth, &env))
+            Ok(self.abs(arg_type, body(depth, &env)?))
         }
     }
 
@@ -183,96 +207,88 @@ impl<'arena> Arena<'arena> {
         body: F2,
     ) -> impl ExternTermGenerator<'arena> {
         move |depth, env: &Environment<'arena>| {
-            let arg_type = arg_type(depth, env);
+            let arg_type = arg_type(depth, env)?;
             let env = env.update(name, (depth + DeBruijnIndex(1), arg_type));
-            self.prod(arg_type, body(depth, &env))
+            Ok(self.prod(arg_type, body(depth, &env)?))
         }
     }
 
-    pub fn extern_gen<F: ExternTermGenerator<'arena>>(f: F) -> Term<'arena> {
+    pub fn extern_gen<F: ExternTermGenerator<'arena>>(f: F) -> Result<Term<'arena>, KernelError<'arena>> {
         f(DeBruijnIndex(0), &ImHashMap::new())
     }
-}
 
-/*
-}
 
-impl Term {
     /// Apply one step of β-reduction, using leftmost outermost evaluation strategy.
-    pub fn beta_reduction(&self, env: &Environment) -> Term {
-        match self {
-            App(box Abs(_, box t1), box t2) => t1.substitute(t2, 1),
-            App(box t1, box t2) => {
-                let t1_new = t1.beta_reduction(env);
-                if t1.clone() == t1_new {
-                    App(box t1_new, box t2.beta_reduction(env))
-                } else {
-                    App(box t1_new, box t2.clone())
+    pub fn beta_reduction(&'arena mut self, t: Term<'arena>) -> Term<'arena> {
+        match t.into() {
+            App(t1, t2) => match t1.into() {
+                Abs(_, t1) => self.substitute(t1, t2, 1),
+                _ => {
+                    let t1_new = self.beta_reduction(t1);
+                    if t1_new == t1 {
+                        let t2_new = self.beta_reduction(t2);
+                        self.app(t1, t2_new)
+                    } else {
+                        self.app(t1_new, t2)
+                    }
                 }
             }
-            Abs(x, box t) => Abs(x.clone(), box t.beta_reduction(env)),
-            Prod(x, box t) => Prod(x.clone(), box t.beta_reduction(env)),
-            Const(s) => env.get_term(s).unwrap(),
-            _ => self.clone(),
+            Abs(arg_type, body) => self.abs(arg_type, self.beta_reduction(body)),
+            Prod(arg_type, body) => self.prod(arg_type, self.beta_reduction(body)),
+            _ => t,
         }
     }
 
-    pub(crate) fn shift(&self, offset: usize, depth: usize) -> Term {
-        match self {
-            Var(i) if *i > depth.into() => Var(*i + offset.into()),
-            App(box t1, box t2) => App(box t1.shift(offset, depth), box t2.shift(offset, depth)),
-            Abs(t1, box t2) => Abs(box t1.shift(offset, depth), box t2.shift(offset, depth + 1)),
-            Prod(t1, box t2) => Prod(box t1.shift(offset, depth), box t2.shift(offset, depth + 1)),
-            _ => self.clone(),
+    pub(crate) fn shift(&'arena mut self, t: Term<'arena>, offset: usize, depth: usize) -> Term<'arena> {
+        match t.into() {
+            Var(i, type_) if i > depth.into() => self.var(i + offset.into(), type_),
+            App(t1, t2) => self.app(self.shift(t1, offset, depth), self.shift(t2, offset, depth)),
+            Abs(arg_type, body) => self.abs(arg_type, self.shift(body, offset, depth + 1)),
+            Prod(arg_type, body) => self.prod(arg_type, self.shift(body, offset, depth + 1)),
+            _ => t,
         }
     }
 
-    pub(crate) fn substitute(&self, rhs: &Term, depth: usize) -> Term {
-        match self {
-            Var(i) if *i == depth.into() => rhs.shift(depth - 1, 0),
-            Var(i) if *i > depth.into() => Var(*i - 1.into()),
-
-            App(l, r) => App(box l.substitute(rhs, depth), box r.substitute(rhs, depth)),
-            Abs(t, term) => Abs(
-                box t.substitute(rhs, depth),
-                box term.substitute(rhs, depth + 1),
-            ),
-            Prod(t, term) => Prod(
-                box t.substitute(rhs, depth),
-                box term.substitute(rhs, depth + 1),
-            ),
-            _ => self.clone(),
+    pub(crate) fn substitute(&'arena mut self, lhs: Term<'arena>, rhs: Term<'arena>, depth: usize) -> Term<'arena> {
+        match lhs.into() {
+            Var(i, type_) if i == depth.into() => self.shift(rhs, depth - 1, 0),
+            Var(i, type_) if i > depth.into() => self.var(i - 1.into(), type_),
+            App(l, r) => self.app(self.substitute(l, rhs, depth), self.substitute(r, rhs, depth)),
+            Abs(arg_type, body) => self.abs(arg_type /* really? TEST */, self.substitute(body, rhs, depth + 1)),
+            Prod(arg_type, body) => self.prod(arg_type /* really? TEST */, self.substitute(body, rhs, depth + 1)),
+            _ => lhs,
         }
     }
 
     /// Returns the normal form of a term in a given environment.
     ///
     /// This function is computationally expensive and should only be used for Reduce/Eval commands, not when type-checking.
-    pub fn normal_form(self, env: &Environment) -> Term {
-        let mut res = self.beta_reduction(env);
-        let mut temp = self;
+    pub fn normal_form(&'arena mut self, t: Term<'arena>) -> Term<'arena> {
+        let mut temp = t;
+        let mut res = self.beta_reduction(t);
 
         while res != temp {
-            temp = res.clone();
-            res = res.beta_reduction(env)
+            temp = res;
+            res = self.beta_reduction(res);
         }
         res
     }
 
     /// Returns the weak-head normal form of a term in a given environment.
-    // TODO make whnf more lax, it shouldn't reduce applications in which the head is a neutral term. (#34)
-    pub fn whnf(&self, env: &Environment) -> Term {
-        match self {
-            App(box t, t2) => match t.whnf(env) {
-                whnf @ Abs(_, _) => App(box whnf, t2.clone()).beta_reduction(env).whnf(env),
-                _ => self.clone(),
-            },
-            Const(s) => env.get_term(s).unwrap(),
-            _ => self.clone(),
+    pub fn whnf(&'arena mut self, t: Term<'arena>) -> Term<'arena> {
+        match t.into() {
+            App(t1, t2) => {
+                let t1 = self.whnf(t1);
+                match t1.into() {
+                    Abs(_, _) => self.whnf(self.beta_reduction(self.app(t1, t2))),
+                    _ => t
+                }
+            }
+            _ => t,
         }
     }
 }
-
+/*
 #[cfg(test)]
 mod tests {
     // /!\ most of these tests are on ill-typed terms and should not be used for further testings
@@ -481,6 +497,7 @@ mod tests {
         env.insert("foo".into(), id_prop.clone(), Prop).unwrap();
 
         assert_eq!(Const("foo".into()).beta_reduction(&env), id_prop);
+<<<<<<< HEAD
     }
 
     #[test]
@@ -507,5 +524,7 @@ mod tests {
 
         assert_eq!(term.beta_reduction(&Environment::new()), reduced);
     }
+=======
+>>>>>>> f68b955 (feat(terms): finish new term description and generation)
 }
-*/
+    }*/
