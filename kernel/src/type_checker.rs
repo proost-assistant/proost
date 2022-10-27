@@ -75,6 +75,10 @@ impl Term {
                 t1.conversion(&t2, env, lvl) && u1.conversion(&u2, env, lvl)
             }
 
+            (app @ App(box Abs(_, _), box _), u) | (u, app @ App(box Abs(_, _), box _)) => {
+                app.beta_reduction(env).conversion(&u, env, lvl)
+            }
+
             _ => false,
         }
     }
@@ -88,8 +92,6 @@ impl Term {
 
     /// Computes universe the universe in which `(x : A) -> B` lives when `A : u1` and `B : u2`.
     fn imax(&self, rhs: &Term) -> Result<Term, KernelError> {
-        println!("{:?}, {:?}", self, rhs);
-
         match rhs {
             // Because Prop is impredicative, if B : Prop, then (x : A) -> b : Prop
             Prop => Ok(Prop),
@@ -122,11 +124,11 @@ impl Term {
                 let univ_t = t._infer(env, ctx)?;
                 let univ_u = u._infer(env, ctx.clone().bind(t))?;
 
-                univ_t.imax(&univ_u)
+                univ_t.normal_form(env).imax(&univ_u.normal_form(env))
             }
 
             Abs(box t, u) => {
-                let u = u._infer(env, ctx.clone().bind(t))?;
+                let u = u._infer(env, ctx.clone().bind(&t.shift(1, 0)))?;
 
                 Ok(Prod(box t.clone(), box u))
             }
@@ -379,7 +381,7 @@ mod tests {
 
     #[test]
     fn env_test() {
-        let id_prop = Prod(box Prop, box Prod(box Var(1.into()), box Var(1.into())));
+        let id_prop = Prod(box Prop, box Prod(box Var(1.into()), box Var(2.into())));
         let t = Abs(box Prop, box Abs(box Var(1.into()), box Var(1.into())));
         let mut env = Environment::new();
         env.insert("foo".into(), id_prop.clone(), Prop).unwrap();
@@ -408,5 +410,12 @@ mod tests {
 
         assert!(Const("foo".into()).infer(&env).is_ok());
         assert!(Const("foo".into()).infer(&Environment::new()).is_err());
+    }
+
+    #[test]
+    fn prod_var() {
+        let ty = Prod(box Prop, box Prod(box Var(1.into()), box Var(2.into())));
+        let t = Abs(box Prop, box Abs(box Var(1.into()), box Var(1.into())));
+        assert!(t.check(&ty, &Environment::new()).is_ok())
     }
 }

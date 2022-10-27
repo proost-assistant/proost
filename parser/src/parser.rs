@@ -101,8 +101,6 @@ fn build_command_from_expr(pair: Pair<Rule>) -> Command {
         Rule::GetType => {
             let mut iter = pair.into_inner();
             let t = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new());
-            //T DEBUG
-            println!("{}", t);
             Command::GetType(t)
         }
         Rule::CheckType => {

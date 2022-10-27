@@ -51,7 +51,7 @@ impl Term {
         }
     }
 
-    fn shift(&self, offset: usize, depth: usize) -> Term {
+    pub(crate) fn shift(&self, offset: usize, depth: usize) -> Term {
         match self {
             Var(i) if *i > depth.into() => Var(*i + offset.into()),
             App(box t1, box t2) => App(box t1.shift(offset, depth), box t2.shift(offset, depth)),
