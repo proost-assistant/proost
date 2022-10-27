@@ -46,7 +46,7 @@ fn build_term_from_expr(pair: Pair<Rule>, known_vars: &mut VecDeque<String>) -> 
             for pair in iter {
                 let mut iter = pair.into_inner().rev();
                 let t = build_term_from_expr(iter.next().unwrap(), known_vars);
-                for pair in iter {
+                for pair in iter.rev() {
                     known_vars.push_front(pair.as_str().to_string());
                     terms.push(t.clone());
                 }
@@ -64,7 +64,7 @@ fn build_term_from_expr(pair: Pair<Rule>, known_vars: &mut VecDeque<String>) -> 
             for pair in iter {
                 let mut iter = pair.into_inner().rev();
                 let t = build_term_from_expr(iter.next().unwrap(), known_vars);
-                for pair in iter {
+                for pair in iter.rev() {
                     known_vars.push_front(pair.as_str().to_string());
                     terms.push(t.clone());
                 }
