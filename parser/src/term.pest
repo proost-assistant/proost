@@ -28,8 +28,8 @@ Var = { string }
 Macro = { True | False | And | Or }
 True = { "true" }
 False = { "false" }
-And = { "and" | "/\\" }
-Or = { "or" | "\\/" }
+And = { "and" }
+Or = { "or" }
 
 Command = _{ Define | CheckType | GetType | DefineCheckType }
 Define = { "def" ~ string ~ ":=" ~ Term }

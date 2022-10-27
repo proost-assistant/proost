@@ -96,8 +96,32 @@ fn build_term_from_expr(pair: Pair<Rule>, known_vars: &mut VecDeque<String>) -> 
                 box Term::Prod(box Term::Var(1.into()), box Term::Var(2.into())),
             ),
             Rule::False => Term::Prod(box Term::Prop, box Term::Var(1.into())),
-            Rule::And => Term::Prop,
-            Rule::Or => Term::Prop, //TODO
+            Rule::And => Term::Abs(
+                box Term::Prop,
+                box Term::Abs(
+                    box Term::Prop,
+                    box Term::Prod(
+                        box Term::Prod(box Term::Var(2.into()), box Term::Var(2.into())),
+                        box Term::Var(3.into()),
+                    ),
+                ),
+            ),
+            Rule::Or => Term::Abs(
+                box Term::Prop,
+                box Term::Abs(
+                    box Term::Prop,
+                    box Term::Prod(
+                        box Term::Prop,
+                        box Term::Prod(
+                            box Term::Prod(box Term::Var(3.into()), box Term::Var(2.into())),
+                            box Term::Prod(
+                                box Term::Prod(box Term::Var(3.into()), box Term::Var(3.into())),
+                                box Term::Var(3.into()),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
             term => unreachable!("Unexpected built-in: {:?}", term),
         },
         term => unreachable!("Unexpected term: {:?}", term),
