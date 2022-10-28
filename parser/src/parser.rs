@@ -205,21 +205,75 @@ pub fn parse_file(file: &str) -> Result<Vec<Command>, KernelError> {
 #[cfg(test)]
 mod tests {
     use super::Command::*;
-    use super::KernelError::*;
+    //use super::KernelError::*;
     use super::Term::*;
     use super::*;
 
     #[test]
-    fn base_terms() {
+    fn successful_prop() {
+        assert_eq!(parse_line("check Prop"), Ok(GetType(Prop)))
+    }
+    #[test]
+    fn successful_type() {
         assert_eq!(
-            build_term_from_expr(
-                CommandParser::parse(Rule::Term, "Prop")
-                    .unwrap()
-                    .next()
-                    .unwrap(),
-                &mut VecDeque::new()
-            ),
-            Prop
+            parse_line("check Type"),
+            Ok(GetType(Type(BigUint::from(0_u64).into())))
+        );
+        assert_eq!(
+            parse_line("check Type 0"),
+            Ok(GetType(Type(BigUint::from(0_u64).into())))
+        );
+        assert_eq!(
+            parse_line("check Type 1"),
+            Ok(GetType(Type(BigUint::from(1_u64).into())))
         )
+    }
+    #[test]
+    fn successful_app() {
+        assert_eq!(
+            parse_line("check A B C"),
+            Ok(GetType(App(
+                box App(box Const("A".to_string()), box Const("B".to_string())),
+                box Const("C".to_string())
+            )))
+        );
+        assert_eq!(
+            parse_line("check (A B) C"),
+            Ok(GetType(App(
+                box App(box Const("A".to_string()), box Const("B".to_string())),
+                box Const("C".to_string())
+            )))
+        );
+        assert_eq!(
+            parse_line("check A (B C)"),
+            Ok(GetType(App(
+                box Const("A".to_string()),
+                box App(box Const("B".to_string()), box Const("C".to_string()))
+            )))
+        );
+    }
+    #[test]
+    fn successful_prod() {
+        assert_eq!(
+            parse_line("check A -> B -> C"),
+            Ok(GetType(Prod(
+                box Const("A".to_string()),
+                box Prod(box Const("B".to_string()), box Const("C".to_string()))
+            )))
+        );
+        assert_eq!(
+            parse_line("check A -> (B -> C)"),
+            Ok(GetType(Prod(
+                box Const("A".to_string()),
+                box Prod(box Const("B".to_string()), box Const("C".to_string()))
+            )))
+        );
+        assert_eq!(
+            parse_line("check (A -> B) -> C"),
+            Ok(GetType(Prod(
+                box Prod(box Const("A".to_string()), box Const("B".to_string())),
+                box Const("C".to_string())
+            )))
+        );
     }
 }

@@ -6,8 +6,8 @@ keywords = @{ ( "fun" | "def" | "check" | "Prop" | "Type" ) ~ !ASCII_ALPHANUMERI
 eoi = _{ !ANY }
 
 Term = _{ Abs | dProd | Prod | App | Var | Prop | Type | "(" ~ Term ~ ")" }
-term_prod = _{ App | Abs | dProd | Var | Prop | Type | "(" ~ term_prod ~ ")" }
-term_app = _{ Abs | Var | Prop | Type | "(" ~ Prod ~ ")" | "(" ~ dProd ~ ")" | "(" ~ term_app ~ ")" } 
+term_prod = _{ App | Abs | dProd | Var | Prop | Type | "(" ~ Prod ~ ")" | "(" ~ term_prod ~ ")" }
+term_app = _{ Abs | Var | Prop | Type | "(" ~ App ~ ")" | "(" ~ Prod ~ ")" | "(" ~ dProd ~ ")" | "(" ~ term_app ~ ")" } 
 term_dprod = _{ App | Abs | Prod | dProd | Var | Prop | Type | "(" ~ term_dprod ~ ")" }
 term_abs = _{ App | Abs | Prod | dProd | Var | Prop | Type | "(" ~ term_abs ~ ")" }
 
