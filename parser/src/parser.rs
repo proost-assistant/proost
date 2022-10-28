@@ -44,11 +44,11 @@ fn build_term_from_expr(pair: Pair<Rule>, known_vars: &mut VecDeque<String>) -> 
             let pair = iter.next_back().unwrap();
             let mut terms = Vec::new();
             for pair in iter {
-                let mut iter = pair.into_inner().rev();
-                let t = build_term_from_expr(iter.next().unwrap(), known_vars);
-                for pair in iter.rev() {
+                let mut iter = pair.into_inner();
+                let old_pair = iter.next_back().unwrap();
+                for pair in iter {
+                    terms.push(build_term_from_expr(old_pair.clone(), known_vars));
                     known_vars.push_front(pair.as_str().to_string());
-                    terms.push(t.clone());
                 }
             }
             let t = build_term_from_expr(pair, known_vars);
@@ -62,11 +62,11 @@ fn build_term_from_expr(pair: Pair<Rule>, known_vars: &mut VecDeque<String>) -> 
             let pair = iter.next_back().unwrap();
             let mut terms = Vec::new();
             for pair in iter {
-                let mut iter = pair.into_inner().rev();
-                let t = build_term_from_expr(iter.next().unwrap(), known_vars);
-                for pair in iter.rev() {
+                let mut iter = pair.into_inner();
+                let old_pair = iter.next_back().unwrap();
+                for pair in iter {
+                    terms.push(build_term_from_expr(old_pair.clone(), known_vars));
                     known_vars.push_front(pair.as_str().to_string());
-                    terms.push(t.clone());
                 }
             }
             let t = build_term_from_expr(pair, known_vars);
@@ -205,13 +205,21 @@ pub fn parse_file(file: &str) -> Result<Vec<Command>, KernelError> {
 #[cfg(test)]
 mod tests {
     use super::Command::*;
-    //use super::KernelError::*;
+    use super::KernelError::*;
     use super::Term::*;
     use super::*;
 
     #[test]
     fn successful_prop() {
         assert_eq!(parse_line("check Prop"), Ok(GetType(Prop)))
+    }
+    #[test]
+    fn successful_var() {
+        assert_eq!(parse_line("check A"), Ok(GetType(Const("A".to_string()))));
+        assert_eq!(
+            parse_line("check fun A:Prop => A"),
+            Ok(GetType(Abs(box Prop, box Var(1.into()))))
+        )
     }
     #[test]
     fn successful_type() {
@@ -250,7 +258,7 @@ mod tests {
                 box Const("A".to_string()),
                 box App(box Const("B".to_string()), box Const("C".to_string()))
             )))
-        );
+        )
     }
     #[test]
     fn successful_prod() {
@@ -273,6 +281,129 @@ mod tests {
             Ok(GetType(Prod(
                 box Prod(box Const("A".to_string()), box Const("B".to_string())),
                 box Const("C".to_string())
+            )))
+        )
+    }
+    #[test]
+    fn successful_dprod() {
+        assert_eq!(
+            parse_line("check (x:A) -> (y:B) -> x"),
+            Ok(GetType(Prod(
+                box Const("A".to_string()),
+                box Prod(box Const("B".to_string()), box Var(2.into()))
+            )))
+        );
+        assert_eq!(
+            parse_line("check (x:A) -> ((y:B) -> x)"),
+            Ok(GetType(Prod(
+                box Const("A".to_string()),
+                box Prod(box Const("B".to_string()), box Var(2.into()))
+            )))
+        )
+    }
+    #[test]
+    fn successful_abs() {
+        assert_eq!(
+            parse_line("check fun w x : Prop, y z : Prop => x"),
+            Ok(GetType(Abs(
+                box Prop,
+                box Abs(
+                    box Prop,
+                    box Abs(box Prop, box Abs(box Prop, box Var(3.into())))
+                )
+            )))
+        )
+    }
+    #[test]
+    fn failed_dprod() {
+        assert_eq!(
+            parse_line("check (x:A)"),
+            Err(CannotParse(
+                Loc {
+                    line1: 1,
+                    column1: 7,
+                    line2: 1,
+                    column2: 11
+                },
+                "expected variable, abstraction, Prop, or Type".to_string()
+            ))
+        );
+        assert_eq!(
+            parse_line("check (x:A) -> (y:B)"),
+            Err(CannotParse(
+                Loc {
+                    line1: 1,
+                    column1: 16,
+                    line2: 1,
+                    column2: 20
+                },
+                "expected variable, abstraction, Prop, or Type".to_string()
+            ))
+        )
+    }
+    #[test]
+    fn context_for_abs_args() {
+        assert_eq!(
+            parse_line("check fun x : Prop, x : x, x : x => x"),
+            Ok(GetType(Abs(
+                box Prop,
+                box Abs(
+                    box Var(1.into()),
+                    box Abs(box Var(1.into()), box Var(1.into()))
+                )
+            )))
+        );
+        assert_eq!(
+            parse_line("check fun x : Prop, x x : x => x"),
+            Ok(GetType(Abs(
+                box Prop,
+                box Abs(
+                    box Var(1.into()),
+                    box Abs(box Var(1.into()), box Var(1.into()))
+                )
+            )))
+        );
+        assert_eq!(
+            parse_line("check fun x : Prop, y z : x => z"),
+            Ok(GetType(Abs(
+                box Prop,
+                box Abs(
+                    box Var(1.into()),
+                    box Abs(box Var(2.into()), box Var(1.into()))
+                )
+            )))
+        );
+    }
+    #[test]
+    fn context_for_dprod_args() {
+        assert_eq!(
+            parse_line("check (x : Prop, x : x, x : x) -> x"),
+            Ok(GetType(Prod(
+                box Prop,
+                box Prod(
+                    box Var(1.into()),
+                    box Prod(box Var(1.into()), box Var(1.into()))
+                )
+            )))
+        );
+        assert_eq!(
+            parse_line("check (x : Prop, x x : x) -> x"),
+            Ok(GetType(Prod(
+                box Prop,
+                box Prod(
+                    box Var(1.into()),
+                    box Prod(box Var(1.into()), box Var(1.into()))
+                )
+            )))
+        );
+        assert_eq!(
+            parse_line("check (x : Prop, y z : x) -> z"),
+            Ok(GetType(Prod(
+                box Prop,
+                box Prod(
+                    box Var(1.into()),
+                    box Prod(box Var(2.into()), box Var(1.into()))
+                )
             )))
         );
     }
