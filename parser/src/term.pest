@@ -1,5 +1,5 @@
 WHITESPACE = _{ WHITE_SPACE }
-COMMENT = _{ "#" ~ (!"\n" ~ ANY)* }
+COMMENT = _{ "//" ~ (!"\n" ~ ANY)* }
 number = @{ ASCII_DIGIT+ }
 string = @{ !keywords ~ ASCII_ALPHA ~ ( "_" | ASCII_ALPHANUMERIC )* }
 keywords = @{ ( "fun" | "def" | "check" | "Prop" | "Type" ) ~ !ASCII_ALPHANUMERIC }
@@ -33,4 +33,4 @@ CheckType = { "check" ~ Term ~ ":" ~ Term }
 GetType = { "check" ~ Term }
 
 command = _{SOI ~ Command ~ eoi }
-file = _{ SOI ~ NEWLINE* ~ (Command ~ NEWLINE+)* ~ Command? ~ eoi }
+file = _{ SOI ~ Command* ~ eoi }

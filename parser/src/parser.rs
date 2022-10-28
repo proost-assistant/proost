@@ -405,6 +405,72 @@ mod tests {
                     box Prod(box Var(2.into()), box Var(1.into()))
                 )
             )))
+        )
+    }
+    #[test]
+    fn parenthesis_in_abs() {
+        assert_eq!(
+            parse_line("check fun (((w x : Prop))), y z : Prop => x"),
+            Ok(GetType(Abs(
+                box Prop,
+                box Abs(
+                    box Prop,
+                    box Abs(box Prop, box Abs(box Prop, box Var(3.into())))
+                )
+            )))
+        )
+    }
+    #[test]
+    fn parenthesis_in_prod() {
+        assert_eq!(
+            parse_line("check (((A))) -> (((B -> C)))"),
+            Ok(GetType(Prod(
+                box Const("A".to_string()),
+                box Prod(box Const("B".to_string()), box Const("C".to_string()))
+            )))
+        )
+    }
+    #[test]
+    fn parenthesis_in_dprod() {
+        assert_eq!(
+            parse_line("check (((x:A))) -> ((((y:B) -> x)))"),
+            Ok(GetType(Prod(
+                box Const("A".to_string()),
+                box Prod(box Const("B".to_string()), box Var(2.into()))
+            )))
+        )
+    }
+    #[test]
+    fn parenthesis_in_app() {
+        assert_eq!(
+            parse_line("check ((((((A))) (((B C))))))"),
+            Ok(GetType(App(
+                box Const("A".to_string()),
+                box App(box Const("B".to_string()), box Const("C".to_string()))
+            )))
+        )
+    }
+    #[test]
+    fn successful_parsers() {
+        assert_eq!(
+            parse_file(
+                "def x := Prop -> Prop
+
+                 // this is a comment
+                        def y := fun x:Prop => x"
+            )
+            .unwrap()[0],
+            parse_line("def x := Prop -> Prop").unwrap()
         );
+        assert_eq!(
+            parse_file(
+                "def x := Prop -> Prop
+
+                 // this is a comment
+                        def y := fun x:Prop => x"
+            )
+            .unwrap()[1],
+            parse_line("def y := fun x:Prop => x").unwrap()
+        )
     }
 }
