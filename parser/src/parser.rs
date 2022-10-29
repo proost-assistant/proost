@@ -3,7 +3,6 @@ use kernel::{Command, KernelError, Loc, Term};
 use pest::error::{Error, LineColLocation};
 use pest::iterators::Pair;
 use pest::{Parser, Span};
-use std::cmp::Ordering;
 use std::collections::VecDeque;
 
 #[derive(Parser)]
@@ -155,10 +154,10 @@ fn convert_error(err: Error<Rule>) -> KernelError {
             for c in chars {
                 i += 1;
                 if char::is_whitespace(c) {
-                    match i.cmp(&y) {
-                        Ordering::Less => left = i + 1,
-                        Ordering::Equal => left = y,
-                        Ordering::Greater => break,
+                    if i < y {
+                        left = i + 1
+                    } else {
+                        break;
                     }
                 } else {
                     right = i
@@ -170,6 +169,7 @@ fn convert_error(err: Error<Rule>) -> KernelError {
             }
             Loc::new(x, left, x, right)
         }
+        // unreachable in the current pest version but may change in the future
         LineColLocation::Span((x1, y1), (x2, y2)) => Loc::new(x1, y1, x2, y2),
     };
 
