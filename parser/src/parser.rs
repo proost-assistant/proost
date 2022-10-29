@@ -473,4 +473,11 @@ mod tests {
             parse_line("def y := fun x:Prop => x").unwrap()
         )
     }
+    #[test]
+    fn successful_convert_error() {
+        assert_eq!(parse_line("chehk 2x"),
+                   Err(CannotParse(Loc { line1: 1, column1: 1, line2: 1, column2: 5 }, "expected def var := term, def var : term := term, check term : term, or check term".to_string())));
+        assert_eq!(parse_line("check 2x"), Err(CannotParse(Loc { line1: 1, column1: 7, line2: 1, column2: 8 }, "expected variable, abstraction, dependent product, application, product, Prop, or Type".to_string())));
+        assert_eq!(parse_line("check x:"), Err(CannotParse(Loc { line1: 1, column1: 9, line2: 1, column2: 9 }, "expected variable, abstraction, dependent product, application, product, Prop, or Type".to_string())))
+    }
 }
