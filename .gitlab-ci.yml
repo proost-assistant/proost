@@ -1,29 +1,27 @@
-image: vlafeychine/rust
-
 .push-zamok: &push-zamok
   - eval $(ssh-agent -s)
   - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
   - \[ -d ${ZAMOK_SOURCE} \] && 
         rsync -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" -rqz ${ZAMOK_SOURCE}/. v-lafeychine@zamok.crans.org:www/proost/${ZAMOK_TARGET} || true
 
-stages: [check, build, tests, docs]
+default:
+  image: vlafeychine/rust
+  interruptible: true
+  cache:
+    paths:
+      - .cache/cargo/
+      - target/
 
 variables:
   CARGO_HOME: "$CI_PROJECT_DIR/.cache/cargo/"
   RUSTFLAGS: "-D warnings"
 
-cache:
-  key: "$CI_JOB_STAGE-$CI_COMMIT_REF_SLUG"
-  paths:
-    - .cache/cargo/
-    - target/
 
-default:
-  interruptible: true
+stages: [ check, build, tests, docs ]
 
 format:
-  cache: []
   stage: check
+  cache: []
   script:
     - cargo fmt --check
 
@@ -39,7 +37,6 @@ build:
 
 tests:
   stage: tests
-
   variables:
     CARGO_INCREMENTAL: 0
     EXCLUDE_BR_REGEXP: "#\\[|unreachable!|assert(_eq)?!"
@@ -50,34 +47,35 @@ tests:
     ZAMOK_SOURCE: coverage
     ZAMOK_TARGET: coverage/${CI_COMMIT_REF_SLUG}
 
+  cache:
+    paths:
+      - .cache/cargo/
+
   script:
     - cargo test
-    - ${GRCOV} --ignore "*cargo*" -t cobertura -o ./coverage.xml &&
-        xsltproc --novalid --output ./target/coverage.xml ./.gitlab-cov.xsl ./coverage.xml || true
-    - ${GRCOV} --ignore "*cargo*" -t lcov -o ./target/coverage.lcov &&
-        genhtml --branch --no-function-coverage --precision 2 ./target/coverage.lcov -o ./coverage || true
-    - find ./target \( -name "*.gcda" -or -name "*.gcno" \) -delete
+    - ${GRCOV} --ignore "*cargo*" -t cobertura -o ./coverage_raw.xml &&
+        xsltproc --novalid --output ./coverage.xml ./.gitlab-cov.xsl ./coverage_raw.xml || true
+    - ${GRCOV} --ignore "*cargo*" -t lcov -o ./coverage.lcov &&
+        genhtml --branch --no-function-coverage --precision 2 ./coverage.lcov -o ./coverage || true
     - *push-zamok
 
   artifacts:
     reports:
       coverage_report:
         coverage_format: cobertura
-        path: ./target/coverage.xml
+        path: ./coverage.xml
 
   coverage: '/^  branches...: \d+.\d+%/'
 
 
 docs:
   stage: docs
-
   variables:
     ZAMOK_SOURCE: target/doc
     ZAMOK_TARGET: doc
 
   only:
-    refs:
-      - main
+    refs: [ main ]
 
   script:
     - cargo doc --no-deps

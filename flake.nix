@@ -53,7 +53,7 @@
 
             copyToRoot = pkgs.buildEnv {
               name = "proost-dependencies";
-              paths = (with pkgs; [ coreutils findutils gcc gnugrep gnused grcov lcov libxslt openssh rsync rust-ci ])
+              paths = (with pkgs; [ coreutils gcc gnugrep gnused grcov lcov libxslt openssh rsync rust-ci ])
                 ++ (with pkgs.dockerTools; [ binSh caCertificates fakeNss ]);
               pathsToLink = [ "/bin" "/etc" ];
             };
@@ -70,7 +70,7 @@
           commands = [{
             name = "coverage";
             command = let 
-              excl_br_regexp = "#\\[|unreachable!()|assert(_eq)?!";
+              excl_br_regexp = "#\\[|unreachable!|assert(_eq)?!";
               excl_regexp = "//!|///|#\\[|use";
               env = "CARGO_INCREMENTAL=0"
                   + " RUSTFLAGS=\"-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort\""
