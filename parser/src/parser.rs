@@ -457,7 +457,7 @@ mod tests {
                 "def x := Prop -> Prop
 
                  // this is a comment
-                        def y := fun x:Prop => x"
+                        check fun x:Prop => x"
             )
             .unwrap()[0],
             parse_line("def x := Prop -> Prop").unwrap()
@@ -467,17 +467,26 @@ mod tests {
                 "def x := Prop -> Prop
 
                  // this is a comment
-                        def y := fun x:Prop => x"
+                        check fun x:Prop => x"
             )
             .unwrap()[1],
-            parse_line("def y := fun x:Prop => x").unwrap()
+            parse_line("check fun x:Prop => x").unwrap()
         )
     }
     #[test]
     fn successful_convert_error() {
-        assert_eq!(parse_line("chehk 2x"),
-                   Err(CannotParse(Loc { line1: 1, column1: 1, line2: 1, column2: 5 }, "expected def var := term, def var : term := term, check term : term, or check term".to_string())));
+        assert_eq!(parse_line("chehk 2x"), Err(CannotParse(Loc { line1: 1, column1: 1, line2: 1, column2: 5 }, "expected def var := term, def var : term := term, check term : term, or check term".to_string())));
         assert_eq!(parse_line("check 2x"), Err(CannotParse(Loc { line1: 1, column1: 7, line2: 1, column2: 8 }, "expected variable, abstraction, dependent product, application, product, Prop, or Type".to_string())));
         assert_eq!(parse_line("check x:"), Err(CannotParse(Loc { line1: 1, column1: 9, line2: 1, column2: 9 }, "expected variable, abstraction, dependent product, application, product, Prop, or Type".to_string())))
+    }
+    #[test]
+    fn failed_parsers() {
+        assert_eq!(
+            parse_file(
+                "def x : Type := Prop -> Prop
+                 // this is a comment
+                        check .x"
+            ),
+            Err(CannotParse(Loc { line1: 3, column1: 31, line2: 3, column2: 32 }, "expected variable, abstraction, dependent product, application, product, Prop, or Type".to_string())))
     }
 }
