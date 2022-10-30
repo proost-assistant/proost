@@ -1,7 +1,7 @@
 use crate::{term::Term, Location};
 use derive_more::Display;
+use std::error::Error;
 
-// TODO #19
 /// Type representing kernel errors, is used by the toplevel to pretty-print errors.
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
 pub enum KernelError {
@@ -46,3 +46,7 @@ pub enum KernelError {
     #[display(fmt = "expected {}, found {}", _0, _1)]
     TypeMismatch(Term, Term),
 }
+
+impl Error for KernelError {}
+
+pub type Result<T> = std::result::Result<T, KernelError>;

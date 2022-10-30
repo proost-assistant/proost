@@ -1,4 +1,4 @@
-use crate::error::KernelError;
+use crate::error::{KernelError, Result};
 use crate::term::Term;
 use derive_more::From;
 use std::collections::{hash_map, HashMap};
@@ -14,7 +14,7 @@ impl Environment {
     }
 
     /// Creates a new environment binding s with (t1,t2)
-    pub fn insert(&mut self, s: String, t1: Term, t2: Term) -> Result<&Self, KernelError> {
+    pub fn insert(&mut self, s: String, t1: Term, t2: Term) -> Result<&Self> {
         if let hash_map::Entry::Vacant(e) = self.0.entry(s.clone()) {
             e.insert((t1, t2));
             Ok(self)

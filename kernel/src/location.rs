@@ -1,15 +1,21 @@
+// TODO: Waiting for #15
 use derive_more::{Constructor, Display, From};
 
-#[derive(Clone, Constructor, Debug, Default, Display, Eq, PartialEq, From)]
+/// Line and column position.
+#[derive(Clone, Constructor, Debug, Default, Display, Eq, PartialEq, From, Ord, PartialOrd)]
 #[display(fmt = "{}:{}", line, column)]
 pub struct Position {
     pub line: usize,
     pub column: usize,
 }
 
-#[derive(Clone, Constructor, Debug, Default, Display, Eq, PartialEq, From)]
+/// Span of position.
+#[derive(Clone, Constructor, Debug, Default, Display, Eq, PartialEq, From, Ord, PartialOrd)]
 #[display(fmt = "{}-{}", start, end)]
 pub struct Location {
+    #[from(forward)]
     pub start: Position,
+
+    #[from(forward)]
     pub end: Position,
 }

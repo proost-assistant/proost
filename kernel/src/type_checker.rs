@@ -1,5 +1,5 @@
 use crate::environment::Environment;
-use crate::error::KernelError;
+use crate::error::{KernelError, Result};
 use crate::term::{DeBruijnIndex, Term};
 use num_bigint::BigUint;
 use std::cmp::max;
@@ -84,14 +84,14 @@ impl Term {
     }
 
     /// Checks whether two terms are definitionally equal.
-    pub fn is_def_eq(&self, rhs: &Term, env: &Environment) -> Result<(), KernelError> {
+    pub fn is_def_eq(&self, rhs: &Term, env: &Environment) -> Result<()> {
         self.conversion(rhs, env, 1.into())
             .then_some(())
             .ok_or_else(|| KernelError::NotDefEq(self.clone(), rhs.clone()))
     }
 
     /// Computes universe the universe in which `(x : A) -> B` lives when `A : u1` and `B : u2`.
-    fn imax(&self, rhs: &Term) -> Result<Term, KernelError> {
+    fn imax(&self, rhs: &Term) -> Result<Term> {
         match rhs {
             // Because Prop is impredicative, if B : Prop, then (x : A) -> b : Prop
             Prop => Ok(Prop),
@@ -109,7 +109,7 @@ impl Term {
         }
     }
 
-    fn _infer(&self, env: &Environment, ctx: &mut Context) -> Result<Term, KernelError> {
+    fn _infer(&self, env: &Environment, ctx: &mut Context) -> Result<Term> {
         match self {
             Prop => Ok(Type(BigUint::from(0_u64).into())),
             Type(i) => Ok(Type(i.clone() + BigUint::from(1_u64).into())),
@@ -151,12 +151,12 @@ impl Term {
     }
 
     /// Infers the type of a `Term` in a given context.
-    pub fn infer(&self, env: &Environment) -> Result<Term, KernelError> {
+    pub fn infer(&self, env: &Environment) -> Result<Term> {
         self._infer(env, &mut Context::new())
     }
 
     /// Checks whether a given term is of type `ty` in a given context.
-    pub fn check(&self, ty: &Term, env: &Environment) -> Result<(), KernelError> {
+    pub fn check(&self, ty: &Term, env: &Environment) -> Result<()> {
         let ctx = &mut Context::new();
         let tty = self._infer(env, ctx)?;
 
@@ -168,7 +168,7 @@ impl Term {
 
 #[cfg(test)]
 mod tests {
-    use crate::type_checker::*;
+    use super::*;
 
     fn id(l: usize) -> Box<Term> {
         box Abs(box Prop, box Var(l.into()))

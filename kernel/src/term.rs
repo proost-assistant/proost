@@ -106,8 +106,7 @@ impl Term {
 #[cfg(test)]
 mod tests {
     // /!\ most of these tests are on ill-typed terms and should not be used for further testings
-    use super::Term::*;
-    use crate::term::Environment;
+    use super::*;
 
     #[test]
     fn simple_subst() {
