@@ -452,24 +452,19 @@ mod tests {
     }
     #[test]
     fn successful_parsers() {
-        assert_eq!(
-            parse_file(
-                "def x := Prop -> Prop
+        let file = r#"
+            def x := Prop -> Prop
 
-                 // this is a comment
-                        check fun x:Prop => x"
-            )
-            .unwrap()[0],
+            // this is a comment
+            check fun x:Prop => x
+        "#;
+
+        assert_eq!(
+            parse_file(file).unwrap()[0],
             parse_line("def x := Prop -> Prop").unwrap()
         );
         assert_eq!(
-            parse_file(
-                "def x := Prop -> Prop
-
-                 // this is a comment
-                        check fun x:Prop => x"
-            )
-            .unwrap()[1],
+            parse_file(file).unwrap()[1],
             parse_line("check fun x:Prop => x").unwrap()
         )
     }
