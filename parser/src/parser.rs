@@ -1,5 +1,5 @@
 use kernel::num_bigint::BigUint;
-use kernel::{Command, KernelError, Loc, Term};
+use kernel::{Command, KernelError, Location, Term};
 use pest::error::{Error, LineColLocation};
 use pest::iterators::Pair;
 use pest::{Parser, Span};
@@ -10,10 +10,11 @@ use std::collections::VecDeque;
 struct CommandParser;
 
 /// convert pest locations to kernel locations
-fn convert_span(span: Span) -> Loc {
+fn convert_span(span: Span) -> Location {
     let (x1, y1) = span.start_pos().line_col();
     let (x2, y2) = span.end_pos().line_col();
-    Loc::new(x1, y1, x2, y2)
+
+    ((x1, y1), (x2, y2)).into()
 }
 
 /// build terms from errorless pest's output
@@ -169,11 +170,10 @@ fn convert_error(err: Error<Rule>) -> KernelError {
                 left = y;
                 right = y;
             }
-            Loc::new(x, left, x, right)
+            Location::new((x, left).into(), (x, right).into())
         }
-        // unreachable in the current pest version but may change in the future
-        // if this is the case, this line should be used in place of an unreachable macro:
-        LineColLocation::Span((x1, y1), (x2, y2)) => Loc::new(x1, y1, x2, y2),
+
+        LineColLocation::Span(start, end) => Location::new(start.into(), end.into()),
     };
 
     // extracting the message from the pest output

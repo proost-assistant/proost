@@ -6,6 +6,7 @@
 mod command;
 mod environment;
 mod error;
+mod location;
 mod term;
 mod type_checker;
 
@@ -14,5 +15,6 @@ pub use num_bigint;
 
 pub use command::Command;
 pub use environment::Environment;
-pub use error::{KernelError, Loc};
+pub use error::KernelError;
+pub use location::{Location, Position};
 pub use term::Term;

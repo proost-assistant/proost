@@ -1,37 +1,15 @@
-use crate::term::Term;
+use crate::{term::Term, Location};
 use derive_more::Display;
-
-// TODO #19
-#[derive(Clone, Debug, Display, PartialEq, Eq)]
-#[display(fmt = "{}:{}-{}:{}", line1, column1, line2, column2)]
-// Line/column position
-pub struct Loc {
-    pub line1: usize,
-    pub column1: usize,
-    pub line2: usize,
-    pub column2: usize,
-}
-
-impl Loc {
-    pub fn new(x1: usize, y1: usize, x2: usize, y2: usize) -> Loc {
-        Loc {
-            line1: x1,
-            column1: y1,
-            line2: x2,
-            column2: y2,
-        }
-    }
-}
 
 // TODO #19
 /// Type representing kernel errors, is used by the toplevel to pretty-print errors.
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
 pub enum KernelError {
-    // cannot parse command
+    /// cannot parse command
     #[display(fmt = "cannot parse: {}", _1)]
-    CannotParse(Loc, String),
+    CannotParse(Location, String),
 
-    // s is already defined
+    /// s is already defined
     #[display(fmt = "{} is already defined", _0)]
     AlreadyDefined(String),
 

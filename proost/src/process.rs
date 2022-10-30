@@ -17,15 +17,15 @@ pub fn print_repl(res: Result<Option<Term>, KernelError>) {
         Err(err) => {
             let string = match err {
                 KernelError::CannotParse(loc, message) => {
-                    if loc.column1 == loc.column2 {
-                        format!("{:0w1$}^\n{m}", "", w1 = loc.column1 - 1, m = message)
+                    if loc.start.column == loc.end.column {
+                        format!("{:0w1$}^\n{m}", "", w1 = loc.start.column - 1, m = message)
                     } else {
                         format!(
                             "{:0w1$}^{:-<w2$}^\n{m}",
                             "",
                             "",
-                            w1 = loc.column1 - 1,
-                            w2 = loc.column2 - loc.column1 - 1,
+                            w1 = loc.start.column - 1,
+                            w2 = loc.end.column - loc.start.column - 1,
                             m = message
                         )
                     }
