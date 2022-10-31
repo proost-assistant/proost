@@ -27,7 +27,11 @@ pub struct Arena<'arena> {
 }
 
 type Environment<'arena> = ImHashMap<&'arena str, (DeBruijnIndex, Term<'arena>)>;
-pub trait ExternTermGenerator<'arena> = FnOnce(&mut Arena<'arena>, &Environment<'arena>, DeBruijnIndex) -> Result<Term<'arena>, KernelError<'arena>>;
+pub trait ExternTermGenerator<'arena> = FnOnce(
+    &mut Arena<'arena>,
+    &Environment<'arena>,
+    DeBruijnIndex,
+) -> Result<Term<'arena>, KernelError<'arena>>;
 
 #[derive(Clone, Copy, Display, Eq, Debug)]
 #[display(fmt = "{}", "_0.payload")]
@@ -102,13 +106,14 @@ impl<'arena> From<Term<'arena>> for Payload<'arena> {
     }
 }
 
-    pub fn use_arena<F, T>(f: F) -> T
-        where F: for<'arena> FnOnce(Arena<'arena>) -> T {
-        let alloc = Bump::new();
-        let arena = Arena::new(&alloc);
-        f(arena)
-    }
-
+pub fn use_arena<F, T>(f: F) -> T
+where
+    F: for<'arena> FnOnce(Arena<'arena>) -> T,
+{
+    let alloc = Bump::new();
+    let arena = Arena::new(&alloc);
+    f(arena)
+}
 
 impl<'arena> Arena<'arena> {
     /// (TODO DOC.) Allocate a new memory arena.
@@ -166,87 +171,129 @@ impl<'arena> Arena<'arena> {
         self.hashcons(Prod(arg_type, u))
     }
 
-
-    pub(crate) fn extern_gen<F: ExternTermGenerator<'arena>>(&mut self, f: F) -> Result<Term<'arena>, KernelError<'arena>> {
+    pub(crate) fn extern_gen<F: ExternTermGenerator<'arena>>(
+        &mut self,
+        f: F,
+    ) -> Result<Term<'arena>, KernelError<'arena>> {
         f(self, &ImHashMap::new(), DeBruijnIndex(0))
     }
 
+    /// Apply one step of β-reduction, using the leftmost-outermost evaluation strategy.
+    pub fn beta_reduction(&mut self, t: Term<'arena>) -> Term<'arena> {
+        match t.into() {
+            App(t1, t2) => match t1.into() {
+                Abs(_, t1) => self.substitute(t1, t2, 1),
+                _ => {
+                    let t1 = self.beta_reduction(t1);
+                    self.app(t1, t2)
+                }
+            },
+            Abs(arg_type, body) => {
+                let body = self.beta_reduction(body);
+                self.abs(arg_type, body)
+            }
+            _ => t,
+        }
+    }
 
-   /// Apply one step of β-reduction, using leftmost outermost evaluation strategy.
-   pub fn beta_reduction(&mut self, t: Term<'arena>) -> Term<'arena> {
-       match t.into() {
-           App(t1, t2) => match t1.into() {
-               Abs(_, t1) => self.substitute(t1, t2, 1),
-               _ => { let t1 = self.beta_reduction(t1); self.app(t1, t2) }
-           }
-           Abs(arg_type, body) => { let body = self.beta_reduction(body); self.abs(arg_type, body) },
-           _ => t,
-       }
-   }
+    pub(crate) fn shift(&mut self, t: Term<'arena>, offset: usize, depth: usize) -> Term<'arena> {
+        match t.into() {
+            Var(i, type_) if i > depth.into() => self.var(i + offset.into(), type_),
+            App(t1, t2) => {
+                let t1 = self.shift(t1, offset, depth);
+                let t2 = self.shift(t2, offset, depth);
+                self.app(t1, t2)
+            },
+            Abs(arg_type, body) => {
+                let arg_type = self.shift(arg_type, offset, depth);
+                let body = self.shift(body, offset, depth + 1);
+                self.abs(arg_type, body)
+            }
+            Prod(arg_type, body) => {
+                let arg_type = self.shift(arg_type, offset, depth);
+                let body = self.shift(body, offset, depth + 1);
+                self.prod(arg_type, body)
+            }
+            _ => t,
+        }
+    }
 
-   pub(crate) fn shift(&mut self, t: Term<'arena>, offset: usize, depth: usize) -> Term<'arena> {
-       match t.into() {
-           Var(i, type_) if i > depth.into() => self.var(i + offset.into(), type_),
-           App(t1, t2) => self.app(self.shift(t1, offset, depth), self.shift(t2, offset, depth)),
-           Abs(arg_type, body) => self.abs(arg_type, self.shift(body, offset, depth + 1)),
-           Prod(arg_type, body) => self.prod(arg_type, self.shift(body, offset, depth + 1)),
-           _ => t,
-       }
-   }
+    pub(crate) fn substitute(
+        &mut self,
+        lhs: Term<'arena>,
+        rhs: Term<'arena>,
+        depth: usize,
+    ) -> Term<'arena> {
+        match lhs.into() {
+            Var(i, _) if i == depth.into() => self.shift(rhs, depth - 1, 0),
+            Var(i, type_) if i > depth.into() => self.var(i - 1.into(), type_),
+            App(l, r) => {
+                let l = self.substitute(l, rhs, depth);
+                let r = self.substitute(r, rhs, depth);
+                self.app(l, r)
+            },
+            Abs(arg_type, body) => {
+                let arg_type = self.substitute(arg_type, rhs, depth);
+                let body = self.substitute(body, rhs, depth + 1);
+                self.abs(arg_type, body)
+            },
+            Prod(arg_type, body) => {
+                let arg_type = self.substitute(arg_type, rhs, depth);
+                let body = self.substitute(body, rhs, depth + 1);
+                self.prod(arg_type, body)
+            },
+            _ => lhs,
+        }
+    }
 
-   pub(crate) fn substitute(&mut self, lhs: Term<'arena>, rhs: Term<'arena>, depth: usize) -> Term<'arena> {
-       match lhs.into() {
-           Var(i, type_) if i == depth.into() => self.shift(rhs, depth - 1, 0),
-           Var(i, type_) if i > depth.into() => self.var(i - 1.into(), type_),
-           App(l, r) => self.app(self.substitute(l, rhs, depth), self.substitute(r, rhs, depth)),
-           Abs(arg_type, body) => self.abs(arg_type /* really? TEST */, self.substitute(body, rhs, depth + 1)),
-           Prod(arg_type, body) => self.prod(arg_type /* really? TEST */, self.substitute(body, rhs, depth + 1)),
-           _ => lhs,
-       }
-   }
+    /// Returns the normal form of a term in a given environment.
+    ///
+    /// This function is comput aE0581.tionally expensive and should only be used for Reduce/Eval commands, not when type-checking.
+    pub fn normal_form(&mut self, t: Term<'arena>) -> Term<'arena> {
+        let mut temp = t;
+        let mut res = self.beta_reduction(t);
 
-   /// Returns the normal form of a term in a given environment.
-   ///
-   /// This function is computationally expensive and should only be used for Reduce/Eval commands, not when type-checking.
-   pub fn normal_form(&mut self, t: Term<'arena>) -> Term<'arena> {
-       let mut temp = t;
-       let mut res = self.beta_reduction(t);
+        while res != temp {
+            temp = res;
+            res = self.beta_reduction(res);
+        }
+        res
+    }
 
-       while res != temp {
-           temp = res;
-           res = self.beta_reduction(res);
-       }
-       res
-   }
-
-   /// Returns the weak-head normal form of a term in a given environment.
-   pub fn whnf(&mut self, t: Term<'arena>) -> Term<'arena> {
-       match t.into() {
-           App(t1, t2) => {
-               let t1 = self.whnf(t1);
-               match t1.into() {
-                   Abs(_, _) => self.whnf(self.beta_reduction(self.app(t1, t2))),
-                   _ => t
-               }
-           }
-           _ => t,
-       }
-   }
+    /// Returns the weak-head normal form of a term in a given environment.
+    pub fn whnf(&mut self, t: Term<'arena>) -> Term<'arena> {
+        match t.into() {
+            App(t1, t2) => {
+                let t1 = self.whnf(t1);
+                match t1.into() {
+                    Abs(_, _) => {
+                        let t = self.app(t1, t2);
+                        let t = self.beta_reduction(t);
+                        self.whnf(t)
+                    },
+                    _ => t,
+                }
+            }
+            _ => t,
+        }
+    }
 }
 
-    /// These functions are available publicly, to the attention of the parser. They manipulate
-    /// objects with a type morally equal to (Env -> Term), where Env is a working environment used
-    /// in term construction from the parser.
-    /// This is done as a way to elengantly keep the logic encapsulated in the kernel, but let the
-    /// parser itself explore the term.
+/// These functions are available publicly, to the attention of the parser. They manipulate
+/// objects with a type morally equal to (Env -> Term), where Env is a working environment used
+/// in term construction from the parser.
+/// This is done as a way to elengantly keep the logic encapsulated in the kernel, but let the
+/// parser itself explore the term.
 pub mod from_parser {
-use crate::term::*;
+    use crate::term::*;
 
     pub fn var<'arena>(name: &'arena str) -> impl ExternTermGenerator<'arena> {
-        move |context: &mut Arena<'arena>, env: &Environment<'arena>, depth| env.get(name)
-            .map(|(bind_depth, term)| context.var(depth - *bind_depth, *term))
-            .or_else(|| context.named_terms.get(name).copied())
-            .ok_or(KernelError::ConstNotFound(name))
+        move |context: &mut Arena<'arena>, env: &Environment<'arena>, depth| {
+            env.get(name)
+                .map(|(bind_depth, term)| context.var(depth - *bind_depth, *term))
+                .or_else(|| context.named_terms.get(name).copied())
+                .ok_or(KernelError::ConstNotFound(name))
+        }
     }
 
     pub fn prop<'arena>() -> impl ExternTermGenerator<'arena> {
