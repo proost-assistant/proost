@@ -1,4 +1,4 @@
-// TODO: Waiting for #15
+// TODO: Waiting for #15 to handle correctly location inside Terms
 use derive_more::{Constructor, Display, From};
 
 /// Line and column position.

@@ -21,10 +21,6 @@ pub enum KernelError {
     #[display(fmt = "{} is not a universe", _0)]
     NotUniverse(Term),
 
-    /// t is not a type
-    #[display(fmt = "{} is not a type", _0)]
-    NotType(Term),
-
     /// t1 and t2 are not definitionally equal
     #[display(fmt = "{} and {} are not definitionaly equal", _0, _1)]
     NotDefEq(Term, Term),
