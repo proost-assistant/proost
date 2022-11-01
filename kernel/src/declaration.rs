@@ -26,6 +26,7 @@ impl Declaration {
 
     pub fn get_type(&self, vec: &[UniverseLevel]) -> Term {
         if self.univ_vars != vec.len() {
+            //TODO wrap in a Result monad
             panic!(
                 "wrong type of universe arguments, expected {}, found {}",
                 self.univ_vars,
@@ -38,6 +39,7 @@ impl Declaration {
 
     pub fn get_term(&self, vec: &[UniverseLevel]) -> Option<Term> {
         if self.univ_vars != vec.len() {
+            //TODO wrap in a Result monad
             panic!(
                 "wrong type of universe arguments, expected {}, found {}",
                 self.univ_vars,
