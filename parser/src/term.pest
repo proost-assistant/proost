@@ -1,13 +1,13 @@
 WHITESPACE = _{ WHITE_SPACE }
-COMMENT = _{ "#" ~ (!"\n" ~ ANY)* }
+COMMENT = _{ "//" ~ (!"\n" ~ ANY)* }
 number = @{ ASCII_DIGIT+ }
 string = @{ !keywords ~ ASCII_ALPHA ~ ( "_" | ASCII_ALPHANUMERIC )* }
 keywords = @{ ( "fun" | "def" | "check" | "Prop" | "Type" ) ~ !ASCII_ALPHANUMERIC }
 eoi = _{ !ANY }
 
 Term = _{ Abs | dProd | Prod | App | Var | Prop | Type | "(" ~ Term ~ ")" }
-term_prod = _{ App | Abs | dProd | Var | Prop | Type | "(" ~ term_prod ~ ")" }
-term_app = _{ Abs | Var | Prop | Type | "(" ~ Prod ~ ")" | "(" ~ dProd ~ ")" | "(" ~ term_app ~ ")" } 
+term_prod = _{ App | Abs | dProd | Var | Prop | Type | "(" ~ Prod ~ ")" | "(" ~ term_prod ~ ")" }
+term_app = _{ Abs | Var | Prop | Type | "(" ~ App ~ ")" | "(" ~ Prod ~ ")" | "(" ~ dProd ~ ")" | "(" ~ term_app ~ ")" } 
 term_dprod = _{ App | Abs | Prod | dProd | Var | Prop | Type | "(" ~ term_dprod ~ ")" }
 term_abs = _{ App | Abs | Prod | dProd | Var | Prop | Type | "(" ~ term_abs ~ ")" }
 
@@ -33,4 +33,4 @@ CheckType = { "check" ~ Term ~ ":" ~ Term }
 GetType = { "check" ~ Term }
 
 command = _{SOI ~ Command ~ eoi }
-file = _{ SOI ~ NEWLINE* ~ (Command ~ NEWLINE+)* ~ Command? ~ eoi }
+file = _{ SOI ~ Command* ~ eoi }
