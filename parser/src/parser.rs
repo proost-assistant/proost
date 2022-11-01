@@ -9,13 +9,14 @@ use std::collections::VecDeque;
 #[grammar = "term.pest"]
 struct CommandParser;
 
-// convert pest location to kernel location
+/// convert pest locations to kernel locations
 fn convert_span(span: Span) -> Loc {
     let (x1, y1) = span.start_pos().line_col();
     let (x2, y2) = span.end_pos().line_col();
     Loc::new(x1, y1, x2, y2)
 }
 
+/// build terms from errorless pest's output
 fn build_term_from_expr(pair: Pair<Rule>, known_vars: &mut VecDeque<String>) -> Term {
     // location to be used in a future version
     let _loc = convert_span(pair.as_span());
@@ -93,6 +94,7 @@ fn build_term_from_expr(pair: Pair<Rule>, known_vars: &mut VecDeque<String>) -> 
     }
 }
 
+/// build commands from errorless pest's output
 fn build_command_from_expr(pair: Pair<Rule>) -> Command {
     // location to be used in a future version
     let _loc = convert_span(pair.as_span());
@@ -125,12 +127,12 @@ fn build_command_from_expr(pair: Pair<Rule>) -> Command {
     }
 }
 
-// convert pest error to kernel error
+/// convert pest error to kernel error
 fn convert_error(err: Error<Rule>) -> KernelError {
     // renaming error messages
     let err = err.renamed_rules(|rule| match *rule {
         Rule::string | Rule::Var => "variable".to_owned(),
-        Rule::number => "number".to_owned(),
+        Rule::number => "universe level".to_owned(),
         Rule::Define => "def var := term".to_owned(),
         Rule::CheckType => "check term : term".to_owned(),
         Rule::GetType => "check term".to_owned(),
@@ -141,7 +143,7 @@ fn convert_error(err: Error<Rule>) -> KernelError {
         Rule::App => "application".to_owned(),
         Rule::Prop => "Prop".to_owned(),
         Rule::Type => "Type".to_owned(),
-        _ => "".to_owned(),
+        _ => unreachable!("low level rules cannot appear in erro messages"),
     });
 
     // extracting the location from the pest output
@@ -170,6 +172,7 @@ fn convert_error(err: Error<Rule>) -> KernelError {
             Loc::new(x, left, x, right)
         }
         // unreachable in the current pest version but may change in the future
+        // if this is the case, this line should be used in place of an unreachable macro:
         LineColLocation::Span((x1, y1), (x2, y2)) => Loc::new(x1, y1, x2, y2),
     };
 
@@ -209,10 +212,30 @@ mod tests {
     use super::Term::*;
     use super::*;
 
+    /// Error messages
+    const COMMAND_ERR: &str =
+        "expected def var := term, def var : term := term, check term : term, or check term";
+    const TERM_ERR: &str =
+        "expected variable, abstraction, dependent product, application, product, Prop, or Type";
+    const SIMPLE_TERM_ERR: &str = "expected variable, abstraction, Prop, or Type";
+    const UNIVERSE_ERR: &str = "expected universe level, variable, abstraction, Prop, or Type";
+
+    #[test]
+    fn failure_universe_level() {
+        assert_eq!(
+            parse_line("check fun x : Prop -> Type"),
+            Err(CannotParse(
+                Loc::new(1, 27, 1, 27),
+                UNIVERSE_ERR.to_string()
+            ))
+        )
+    }
+
     #[test]
     fn successful_prop() {
         assert_eq!(parse_line("check Prop"), Ok(GetType(Prop)))
     }
+
     #[test]
     fn successful_var() {
         assert_eq!(parse_line("check A"), Ok(GetType(Const("A".to_string()))));
@@ -221,6 +244,7 @@ mod tests {
             Ok(GetType(Abs(box Prop, box Var(1.into()))))
         )
     }
+
     #[test]
     fn successful_type() {
         assert_eq!(
@@ -236,6 +260,7 @@ mod tests {
             Ok(GetType(Type(BigUint::from(1_u64).into())))
         )
     }
+
     #[test]
     fn successful_app() {
         assert_eq!(
@@ -260,6 +285,7 @@ mod tests {
             )))
         )
     }
+
     #[test]
     fn successful_prod() {
         assert_eq!(
@@ -284,6 +310,7 @@ mod tests {
             )))
         )
     }
+
     #[test]
     fn successful_dprod() {
         assert_eq!(
@@ -301,6 +328,7 @@ mod tests {
             )))
         )
     }
+
     #[test]
     fn successful_abs() {
         assert_eq!(
@@ -314,33 +342,25 @@ mod tests {
             )))
         )
     }
+
     #[test]
     fn failed_dprod() {
         assert_eq!(
             parse_line("check (x:A)"),
             Err(CannotParse(
-                Loc {
-                    line1: 1,
-                    column1: 7,
-                    line2: 1,
-                    column2: 11
-                },
-                "expected variable, abstraction, Prop, or Type".to_string()
+                Loc::new(1, 7, 1, 11),
+                SIMPLE_TERM_ERR.to_string()
             ))
         );
         assert_eq!(
             parse_line("check (x:A) -> (y:B)"),
             Err(CannotParse(
-                Loc {
-                    line1: 1,
-                    column1: 16,
-                    line2: 1,
-                    column2: 20
-                },
-                "expected variable, abstraction, Prop, or Type".to_string()
+                Loc::new(1, 16, 1, 20),
+                SIMPLE_TERM_ERR.to_string()
             ))
         )
     }
+
     #[test]
     fn context_for_abs_args() {
         assert_eq!(
@@ -374,6 +394,7 @@ mod tests {
             )))
         );
     }
+
     #[test]
     fn context_for_dprod_args() {
         assert_eq!(
@@ -407,6 +428,7 @@ mod tests {
             )))
         )
     }
+
     #[test]
     fn parenthesis_in_abs() {
         assert_eq!(
@@ -420,6 +442,7 @@ mod tests {
             )))
         )
     }
+
     #[test]
     fn parenthesis_in_prod() {
         assert_eq!(
@@ -430,6 +453,7 @@ mod tests {
             )))
         )
     }
+
     #[test]
     fn parenthesis_in_dprod() {
         assert_eq!(
@@ -440,6 +464,7 @@ mod tests {
             )))
         )
     }
+
     #[test]
     fn parenthesis_in_app() {
         assert_eq!(
@@ -450,6 +475,7 @@ mod tests {
             )))
         )
     }
+
     #[test]
     fn successful_parsers() {
         let file = r#"
@@ -468,12 +494,23 @@ mod tests {
             parse_line("check fun x:Prop => x").unwrap()
         )
     }
+
     #[test]
     fn successful_convert_error() {
-        assert_eq!(parse_line("chehk 2x"), Err(CannotParse(Loc { line1: 1, column1: 1, line2: 1, column2: 5 }, "expected def var := term, def var : term := term, check term : term, or check term".to_string())));
-        assert_eq!(parse_line("check 2x"), Err(CannotParse(Loc { line1: 1, column1: 7, line2: 1, column2: 8 }, "expected variable, abstraction, dependent product, application, product, Prop, or Type".to_string())));
-        assert_eq!(parse_line("check x:"), Err(CannotParse(Loc { line1: 1, column1: 9, line2: 1, column2: 9 }, "expected variable, abstraction, dependent product, application, product, Prop, or Type".to_string())))
+        assert_eq!(
+            parse_line("chehk 2x"),
+            Err(CannotParse(Loc::new(1, 1, 1, 5), COMMAND_ERR.to_string()))
+        );
+        assert_eq!(
+            parse_line("check 2x"),
+            Err(CannotParse(Loc::new(1, 7, 1, 8), TERM_ERR.to_string()))
+        );
+        assert_eq!(
+            parse_line("check x:"),
+            Err(CannotParse(Loc::new(1, 9, 1, 9), TERM_ERR.to_string()))
+        )
     }
+
     #[test]
     fn failed_parsers() {
         assert_eq!(
@@ -482,6 +519,7 @@ mod tests {
                  // this is a comment
                         check .x"
             ),
-            Err(CannotParse(Loc { line1: 3, column1: 31, line2: 3, column2: 32 }, "expected variable, abstraction, dependent product, application, product, Prop, or Type".to_string())))
+            Err(CannotParse(Loc::new(3, 31, 3, 32), TERM_ERR.to_string()))
+        )
     }
 }
