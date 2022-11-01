@@ -8,7 +8,7 @@ use crate::universe::UniverseLevel;
 /// Additionally, ty and term *should* in theory always have the same number of universe variables, and as such, only a single method is needed.
 /// However, additional checks to ensure this invariant will have to be put in place. For now, when constructing declarations, only the number of
 /// universes in ty are counted.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Declaration {
     ty: Term,
     term: Option<Term>,

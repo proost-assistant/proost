@@ -30,15 +30,11 @@ impl Command {
 
 #[cfg(test)]
 mod tests {
-    use crate::{num_bigint::BigUint, Command, Environment, Term};
+    use crate::{Command, Environment, Term};
 
     fn simple_env() -> Environment {
         Environment::new()
-            .insert(
-                "x".to_string(),
-                Term::Type(BigUint::from(0_u64).into()),
-                Term::Prop,
-            )
+            .insert("x".to_string(), Term::Type(0.into()), Term::Prop)
             .unwrap()
             .clone()
     }
@@ -61,22 +57,14 @@ mod tests {
         assert_eq!(
             env,
             *(simple_env()
-                .insert(
-                    "y".to_string(),
-                    Term::Prop,
-                    Term::Type(BigUint::from(0_u64).into())
-                )
+                .insert("y".to_string(), Term::Prop, Term::Type(0.into()))
                 .unwrap())
         );
     }
 
     #[test]
     fn failed_typed_define() {
-        let cmd = Command::Define(
-            "y".to_string(),
-            Some(Term::Type(BigUint::from(1_u64).into())),
-            Term::Prop,
-        );
+        let cmd = Command::Define("y".to_string(), Some(Term::Type(1.into())), Term::Prop);
         let mut env = simple_env();
 
         assert!(cmd.process(&mut env).is_err());
@@ -85,22 +73,14 @@ mod tests {
 
     #[test]
     fn successful_typed_define() {
-        let cmd = Command::Define(
-            "y".to_string(),
-            Some(Term::Type(BigUint::from(0_u64).into())),
-            Term::Prop,
-        );
+        let cmd = Command::Define("y".to_string(), Some(Term::Type(0.into())), Term::Prop);
         let mut env = simple_env();
 
         assert!(cmd.process(&mut env).is_ok());
         assert_eq!(
             env,
             *(simple_env()
-                .insert(
-                    "y".to_string(),
-                    Term::Prop,
-                    Term::Type(BigUint::from(0_u64).into())
-                )
+                .insert("y".to_string(), Term::Prop, Term::Type(0.into()))
                 .unwrap())
         );
     }
@@ -116,7 +96,7 @@ mod tests {
 
     #[test]
     fn successful_checktype() {
-        let cmd = Command::CheckType(Term::Prop, Term::Type(BigUint::from(0_u64).into()));
+        let cmd = Command::CheckType(Term::Prop, Term::Type(0.into()));
         let mut env = simple_env();
 
         assert!(cmd.process(&mut env).is_ok());
@@ -125,7 +105,7 @@ mod tests {
 
     #[test]
     fn failed_gettype() {
-        let cmd = Command::GetType(Term::Const("y".to_string()));
+        let cmd = Command::GetType(Term::Const("y".to_string(), Vec::new()));
         let mut env = simple_env();
 
         assert!(cmd.process(&mut env).is_err());

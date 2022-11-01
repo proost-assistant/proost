@@ -376,12 +376,12 @@ mod tests {
     fn env_test() {
         let id_prop = Prod(box Prop, box Prod(box Var(1.into()), box Var(2.into())));
         let t = Abs(box Prop, box Abs(box Var(1.into()), box Var(1.into())));
-        let mut env = Environment::new();
-        env.insert("foo".into(), id_prop.clone(), Prop).unwrap();
+        let mut binding = Environment::new();
+        let env = binding.insert("foo".into(), id_prop.clone(), Prop).unwrap();
 
-        assert!(t.check(&Const("foo".into(), Vec::new()), &env).is_ok());
+        assert!(t.check(&Const("foo".into(), Vec::new()), env).is_ok());
         assert!(id_prop
-            .is_def_eq(&Const("foo".into(), Vec::new()), &env)
+            .is_def_eq(&Const("foo".into(), Vec::new()), env)
             .is_ok());
     }
 
@@ -400,10 +400,10 @@ mod tests {
     #[test]
     fn infer_const() {
         let id_prop = Prod(box Prop, box Prod(box Var(1.into()), box Var(1.into())));
-        let mut env = Environment::new();
-        env.insert("foo".into(), id_prop, Prop).unwrap();
+        let mut binding = Environment::new();
+        let env = binding.insert("foo".into(), id_prop, Prop).unwrap();
 
-        assert!(Const("foo".into(), Vec::new()).infer(&env).is_ok());
+        assert!(Const("foo".into(), Vec::new()).infer(env).is_ok());
         assert!(Const("foo".into(), Vec::new())
             .infer(&Environment::new())
             .is_err());
@@ -419,13 +419,9 @@ mod tests {
     #[test]
     fn univ_reduc() {
         let ty = App(
-            box Abs(box Prop, box Type(BigUint::from(0_u64).into())),
+            box Abs(box Prop, box Type(0.into())),
             box Prod(box Prop, box Var(1.into())),
         );
-        assert!(ty.conversion(
-            &Type(BigUint::from(0_u64).into()),
-            &Environment::new(),
-            0.into()
-        ))
+        assert!(ty.conversion(&Type(0.into()), &Environment::new(), 0.into()))
     }
 }

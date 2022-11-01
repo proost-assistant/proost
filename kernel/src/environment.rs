@@ -7,7 +7,7 @@ use derive_more::From;
 use std::collections::{hash_map, HashMap};
 
 /// Global Environment, contains the term and type of every definitions, denoted by their strings.
-#[derive(Clone, Default, Debug, From)]
+#[derive(Clone, Default, Debug, From, PartialEq, Eq)]
 pub struct Environment(HashMap<String, Declaration>);
 
 impl Environment {
@@ -19,7 +19,7 @@ impl Environment {
     /// Creates a new environment binding s with (t1,t2)
     pub fn insert(&mut self, s: String, t1: Term, t2: Term) -> Result<&Self, KernelError> {
         if let hash_map::Entry::Vacant(e) = self.0.entry(s.clone()) {
-            e.insert(Declaration::make(t1, t2));
+            e.insert(Declaration::make(Some(t1), t2));
             Ok(self)
         } else {
             Err(KernelError::AlreadyDefined(s))

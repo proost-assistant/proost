@@ -1,4 +1,3 @@
-use kernel::num_bigint::BigUint;
 use kernel::{Command, KernelError, Loc, Term};
 use pest::error::{Error, LineColLocation};
 use pest::iterators::Pair;
@@ -15,16 +14,6 @@ fn convert_span(span: Span) -> Loc {
     let (x2, y2) = span.end_pos().line_col();
     Loc::new(x1, y1, x2, y2)
 }
-fn build_term_from_expr(
-    pair: Pair<Rule>,
-    known_vars: &mut VecDeque<String>,
-    //defined_vars: issue #18 TODO use a hash map of known variables
-) -> Result<Term, Box<Error<Rule>>> {
-    match pair.as_rule() {
-        Rule::Prop => Ok(Term::Prop),
-        Rule::Type => Ok(Term::Type(
-            pair.into_inner().as_str().parse::<usize>().unwrap().into(),
-        )),
 
 /// build terms from errorless pest's output
 fn build_term_from_expr(pair: Pair<Rule>, known_vars: &mut VecDeque<String>) -> Term {
@@ -32,14 +21,15 @@ fn build_term_from_expr(pair: Pair<Rule>, known_vars: &mut VecDeque<String>) -> 
     let _loc = convert_span(pair.as_span());
     match pair.as_rule() {
         Rule::Prop => Term::Prop,
-        Rule::Type => Term::Type(pair.into_inner().fold(BigUint::from(0_u64).into(), |_, x| {
-            x.as_str().parse::<BigUint>().unwrap().into()
-        })),
+        Rule::Type => Term::Type(
+            pair.into_inner()
+                .fold(0.into(), |_, x| x.as_str().parse::<usize>().unwrap().into()),
+        ),
         Rule::Var => {
             let name = pair.into_inner().as_str().to_string();
             match known_vars.iter().position(|x| *x == name) {
                 Some(i) => Term::Var((i + 1).into()),
-                None => Term::Const(name),
+                None => Term::Const(name, Vec::new()),
             }
         }
         Rule::App => {
