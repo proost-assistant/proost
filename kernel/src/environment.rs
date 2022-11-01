@@ -1,10 +1,10 @@
-use crate::error::{KernelError, Result};
+use crate::error::{KernelError::*, Result};
 use crate::term::Term;
-use derive_more::From;
+use derive_more::{Deref, DerefMut, From};
 use std::collections::{hash_map, HashMap};
 
 /// Global Environment, contains the term and type of every definitions, denoted by their strings.
-#[derive(Clone, Default, Debug, Eq, PartialEq, From)]
+#[derive(Clone, Default, Debug, Deref, DerefMut, Eq, PartialEq, From)]
 pub struct Environment(HashMap<String, (Term, Term)>);
 
 impl Environment {
@@ -15,21 +15,21 @@ impl Environment {
 
     /// Creates a new environment binding s with (t1,t2)
     pub fn insert(&mut self, s: String, t1: Term, t2: Term) -> Result<&Self> {
-        if let hash_map::Entry::Vacant(e) = self.0.entry(s.clone()) {
+        if let hash_map::Entry::Vacant(e) = self.entry(s.clone()) {
             e.insert((t1, t2));
             Ok(self)
         } else {
-            Err(KernelError::AlreadyDefined(s))
+            Err(AlreadyDefined(s))
         }
     }
 
     /// Returns the term linked to a definition in a given environment.
     pub fn get_term(&self, s: &String) -> Option<Term> {
-        self.0.get(s).map(|(t, _)| t.clone())
+        self.get(s).map(|(t, _)| t.clone())
     }
 
     /// Returns the type linked to a definition in a given environment.
     pub fn get_type(&self, s: &String) -> Option<Term> {
-        self.0.get(s).map(|(_, t)| t.clone())
+        self.get(s).map(|(_, t)| t.clone())
     }
 }
