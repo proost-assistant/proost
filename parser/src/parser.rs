@@ -14,16 +14,6 @@ fn convert_span(span: Span) -> Loc {
     let (x2, y2) = span.end_pos().line_col();
     Loc::new(x1, y1, x2, y2)
 }
-fn build_term_from_expr(
-    pair: Pair<Rule>,
-    known_vars: &mut VecDeque<String>,
-    //defined_vars: issue #18 TODO use a hash map of known variables
-) -> Result<Term, Box<Error<Rule>>> {
-    match pair.as_rule() {
-        Rule::Prop => Ok(Term::Prop),
-        Rule::Type => Ok(Term::Type(
-            pair.into_inner().as_str().parse::<usize>().unwrap().into(),
-        )),
 
 /// build terms from errorless pest's output
 fn build_term_from_expr(pair: Pair<Rule>, known_vars: &mut VecDeque<String>) -> Term {

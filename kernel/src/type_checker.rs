@@ -438,10 +438,6 @@ mod tests {
             box Abs(box Prop, box Type(BigUint::from(0_u64).into())),
             box Prod(box Prop, box Var(1.into())),
         );
-        assert!(ty.conversion(
-            &Type(BigUint::from(0_u64).into()),
-            &Environment::new(),
-            0.into()
-        ))
+        assert!(ty.conversion(&Type(0.into()), &Environment::new(), 0.into()))
     }
 }
