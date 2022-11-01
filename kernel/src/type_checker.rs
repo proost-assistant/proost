@@ -114,7 +114,7 @@ impl Term {
             Type(i) => Ok(Type(i.clone() + 1)),
             Var(i) => Ok(ctx.types[ctx.lvl - *i].clone()),
 
-            Const(s) => match env.get_type(s) {
+            Const(s, vec) => match env.get_type(s, vec) {
                 Some(ty) => Ok(ty),
                 None => Err(KernelError::ConstNotFound(s.clone())),
             },
@@ -342,7 +342,7 @@ mod tests {
         assert!(t.infer(&Environment::new()).is_err());
 
         let wf_prod = Prod(box Prop, box Prop);
-        println!("{:?}",wf_prod.infer(&Environment::new()));
+        println!("{:?}", wf_prod.infer(&Environment::new()));
         assert!(wf_prod.check(&Type(0.into()), &Environment::new()).is_ok());
 
         let wf_prod = Prod(box Prop, box Var(1.into()));
@@ -379,8 +379,10 @@ mod tests {
         let mut env = Environment::new();
         env.insert("foo".into(), id_prop.clone(), Prop).unwrap();
 
-        assert!(t.check(&Const("foo".into()), &env).is_ok());
-        assert!(id_prop.is_def_eq(&Const("foo".into()), &env).is_ok());
+        assert!(t.check(&Const("foo".into(), Vec::new()), &env).is_ok());
+        assert!(id_prop
+            .is_def_eq(&Const("foo".into(), Vec::new()), &env)
+            .is_ok());
     }
 
     #[test]
@@ -401,8 +403,10 @@ mod tests {
         let mut env = Environment::new();
         env.insert("foo".into(), id_prop, Prop).unwrap();
 
-        assert!(Const("foo".into()).infer(&env).is_ok());
-        assert!(Const("foo".into()).infer(&Environment::new()).is_err());
+        assert!(Const("foo".into(), Vec::new()).infer(&env).is_ok());
+        assert!(Const("foo".into(), Vec::new())
+            .infer(&Environment::new())
+            .is_err());
     }
 
     #[test]

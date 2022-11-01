@@ -1,11 +1,13 @@
 use crate::error::KernelError;
 use crate::term::Term;
 use crate::declaration::Declaration;
+use crate::term::Term;
+use crate::universe::UniverseLevel;
 use derive_more::From;
 use std::collections::{hash_map, HashMap};
 
 /// Global Environment, contains the term and type of every definitions, denoted by their strings.
-#[derive(Clone, Default, From)]
+#[derive(Clone, Default, Debug, From)]
 pub struct Environment(HashMap<String, Declaration>);
 
 impl Environment {
@@ -25,12 +27,12 @@ impl Environment {
     }
 
     /// Returns the term linked to a definition in a given environment.
-    pub fn get_term(&self, s: &String) -> Option<Term> {
-        self.0.get(s).map(|(t, _)| t.clone())
+    pub fn get_term(&self, s: &String, vec: &[UniverseLevel]) -> Option<Term> {
+        self.0.get(s).and_then(|decl| decl.get_term(vec))
     }
 
     /// Returns the type linked to a definition in a given environment.
-    pub fn get_type(&self, s: &String) -> Option<Term> {
-        self.0.get(s).map(|(_, t)| t.clone())
+    pub fn get_type(&self, s: &String, vec: &[UniverseLevel]) -> Option<Term> {
+        self.0.get(s).map(|decl| decl.get_type(vec))
     }
 }

@@ -4,12 +4,12 @@
 #![feature(box_syntax)]
 
 mod command;
+mod declaration;
 mod environment;
 mod error;
 mod term;
 mod type_checker;
 mod universe;
-mod declaration;
 
 pub use derive_more;
 pub use num_bigint;

@@ -12,8 +12,11 @@ pub enum Term {
     #[display(fmt = "{}", _0)]
     Var(DeBruijnIndex),
 
+    /// Constants can be universe polymorphic. As such, it is important to know what universes
+    /// they're assigned to. The vector serves to represent the universes by which the variables
+    /// present in the constant need to be substituted for.
     #[display(fmt = "{}", _0)]
-    Const(String),
+    Const(String, Vec<UniverseLevel>),
 
     #[display(fmt = "Prop")]
     Prop,
@@ -40,9 +43,9 @@ impl Term {
             App(box Abs(_, box t1), box t2) => t1.substitute(t2, 1),
             App(box t1, box t2) => App(box t1.beta_reduction(env), box t2.clone()),
             Abs(x, box t) => Abs(x.clone(), box t.beta_reduction(env)),
-            Const(s) => match env.get_term(s) {
+            Const(s, vec) => match env.get_term(s, vec) {
                 Some(t) => t,
-                None => unreachable!(),
+                None => self.clone(),
             },
             _ => self.clone(),
         }
@@ -91,11 +94,33 @@ impl Term {
                 whnf @ Abs(_, _) => App(box whnf, t2.clone()).beta_reduction(env).whnf(env),
                 _ => self.clone(),
             },
-            Const(s) => match env.get_term(s) {
+            Const(s, vec) => match env.get_term(s, vec) {
                 Some(t) => t,
-                None => unreachable!(),
+                None => self.clone(),
             },
             _ => self.clone(),
+        }
+    }
+
+    pub fn univ_vars(&self) -> usize {
+        match self {
+            Var(_) => 0,
+            Const(..) => 0,
+            Prop => 0,
+            Type(u) => u.clone().univ_vars(),
+            App(t1, t2) | Abs(t1, t2) | Prod(t1, t2) => t1.univ_vars().max(t2.univ_vars()),
+        }
+    }
+
+    pub fn substitute_univs(&self, vec: &[UniverseLevel]) -> Term {
+        match self {
+            Var(_) => self.clone(),
+            Const(..) => self.clone(),
+            Prop => self.clone(),
+            Type(u) => Type(u.clone().substitute(vec)),
+            App(t1, t2) => App(box t1.substitute_univs(vec), box t2.substitute_univs(vec)),
+            Abs(t1, t2) => Abs(box t1.substitute_univs(vec), box t2.substitute_univs(vec)),
+            Prod(t1, t2) => Prod(box t1.substitute_univs(vec), box t2.substitute_univs(vec)),
         }
     }
 }

@@ -41,16 +41,23 @@ impl From<usize> for UniverseLevel {
 use UniverseLevel::*;
 
 impl UniverseLevel {
-    /*fn substitute(self, u: &UniverseLevel, lvl : usize) -> Self {
+    pub fn univ_vars(self) -> usize {
         match self {
-            UnivZero => UnivZero,
-            UnivSucc(v) => UnivSucc(box v.substitute(u),lvl),
-            UnivMax(u1, u2) => UnivMax(box u1.substitute(u,lvl), box u2.substitute(u,lvl)),
-            UnivVar(var) if var == lvl => u.clone(),
-            UnivVar(var) if var>lvl => UnivVar(var - 1),
-            _ => self
+            Zero => 0,
+            Succ(n) => n.univ_vars(),
+            Max(n, m) => n.univ_vars().max(m.univ_vars()),
+            Var(n) => n + 1,
         }
-    }*/
+    }
+
+    pub fn substitute(self, univs: &[UniverseLevel]) -> Self {
+        match self {
+            Zero => Zero,
+            Succ(v) => Succ(box v.substitute(univs)),
+            Max(u1, u2) => Max(box u1.substitute(univs), box u2.substitute(univs)),
+            Var(var) => univs[var].clone(),
+        }
+    }
 
     fn geq(&self, u2: &UniverseLevel, n: i64) -> bool {
         match (self, u2) {
@@ -60,7 +67,7 @@ impl UniverseLevel {
             (_, Succ(box l)) if self.geq(l, n + 1) => true,
             (_, Max(box l1, box l2)) if self.geq(l1, n) || self.geq(l2, n) => true,
             (Max(box l1, box l2), _) if l1.geq(u2, n) && l2.geq(u2, n) => true,
-            _ => false
+            _ => false,
         }
     }
 
@@ -75,7 +82,7 @@ mod tests {
 
     #[test]
     fn univ_eq() {
-        assert!(format!("{}",Max(box Zero, box Zero)) == "max (Zero) (Zero)");
+        assert!(format!("{}", Max(box Zero, box Zero)) == "max (Zero) (Zero)");
         assert!(&Zero.is_eq(&Default::default()));
         assert!(!&Zero.is_eq(&Succ(box Zero)));
         assert!(!&Succ(box Zero).is_eq(&Zero));
@@ -83,6 +90,7 @@ mod tests {
         assert!(&Max(box Zero, box Var(0)).is_eq(&Var(0)));
         assert!(&Max(box Var(1), box Var(0)).is_eq(&Max(box Var(0), box Var(1))));
         assert!(!&Max(box Var(1), box Var(1)).is_eq(&Max(box Var(0), box Var(1))));
-        assert!(&Succ(box Max(box Var(1), box Var(0))).is_eq(&Max(box Succ(box Var(0)), box Succ(box Var(1)))));
+        assert!(&Succ(box Max(box Var(1), box Var(0)))
+            .is_eq(&Max(box Succ(box Var(0)), box Succ(box Var(1)))));
     }
 }
