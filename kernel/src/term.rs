@@ -349,4 +349,17 @@ mod tests {
             .is_def_eq(&id_zero, env)
             .is_ok())
     }
+
+
+    #[test]
+    fn poly_univ_id(){
+        let id_ty = Prod(box Type(UniverseLevel::Var(0)),box Prod(box Var(1.into()),box Var(2.into())));
+        let id_te = Abs(box Type(UniverseLevel::Var(0)),box Abs(box Var(1.into()),box Var(1.into())));
+        let id_zero = Abs(box Type(0.into()),box Abs(box Var(1.into()),box Var(1.into())));
+        assert!(id_te.check(&id_ty, &Environment::new()).is_ok());
+        let env = Environment::new()
+            .insert("id".into(), id_te.clone().into(), id_ty.clone())
+            .unwrap();
+        assert!(Const("id".into(),vec![0.into()]).is_def_eq(&id_zero, &env).is_ok())
+    }
 }
