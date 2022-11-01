@@ -23,11 +23,7 @@ fn build_term_from_expr(
     match pair.as_rule() {
         Rule::Prop => Ok(Term::Prop),
         Rule::Type => Ok(Term::Type(
-            pair.into_inner()
-                .as_str()
-                .parse::<usize>()
-                .unwrap()
-                .into(),
+            pair.into_inner().as_str().parse::<usize>().unwrap().into(),
         )),
 
 /// build terms from errorless pest's output
