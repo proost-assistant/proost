@@ -1,6 +1,5 @@
-use crate::error::KernelError;
-use crate::term::Term;
 use crate::declaration::Declaration;
+use crate::error::KernelError;
 use crate::term::Term;
 use crate::universe::UniverseLevel;
 use derive_more::From;

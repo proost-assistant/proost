@@ -235,11 +235,7 @@ mod tests {
     fn successful_definechecktype() {
         assert_eq!(
             parse_line("def x : Type := Prop"),
-            Ok(Define(
-                "x".to_string(),
-                Some(Type(BigUint::from(0_u64).into())),
-                Prop
-            ))
+            Ok(Define("x".to_string(), Some(Type(0.into())), Prop))
         )
     }
 
@@ -255,7 +251,7 @@ mod tests {
     fn successful_checktype() {
         assert_eq!(
             parse_line("check Prop : Type"),
-            Ok(CheckType(Prop, Type(BigUint::from(0_u64).into())))
+            Ok(CheckType(Prop, Type(0.into())))
         )
     }
 
@@ -266,7 +262,10 @@ mod tests {
 
     #[test]
     fn successful_var() {
-        assert_eq!(parse_line("check A"), Ok(GetType(Const("A".to_string(),Vec::new()))));
+        assert_eq!(
+            parse_line("check A"),
+            Ok(GetType(Const("A".to_string(), Vec::new())))
+        );
         assert_eq!(
             parse_line("check fun A:Prop => A"),
             Ok(GetType(Abs(box Prop, box Var(1.into()))))
@@ -275,18 +274,9 @@ mod tests {
 
     #[test]
     fn successful_type() {
-        assert_eq!(
-            parse_line("check Type"),
-            Ok(GetType(Type(BigUint::from(0_u64).into())))
-        );
-        assert_eq!(
-            parse_line("check Type 0"),
-            Ok(GetType(Type(BigUint::from(0_u64).into())))
-        );
-        assert_eq!(
-            parse_line("check Type 1"),
-            Ok(GetType(Type(BigUint::from(1_u64).into())))
-        )
+        assert_eq!(parse_line("check Type"), Ok(GetType(Type(0.into()))));
+        assert_eq!(parse_line("check Type 0"), Ok(GetType(Type(0.into()))));
+        assert_eq!(parse_line("check Type 1"), Ok(GetType(Type(1.into()))))
     }
 
     #[test]
@@ -294,22 +284,31 @@ mod tests {
         assert_eq!(
             parse_line("check A B C"),
             Ok(GetType(App(
-                box App(box Const("A".to_string(),Vec::new()), box Const("B".to_string(),Vec::new())),
-                box Const("C".to_string(),Vec::new())
+                box App(
+                    box Const("A".to_string(), Vec::new()),
+                    box Const("B".to_string(), Vec::new())
+                ),
+                box Const("C".to_string(), Vec::new())
             )))
         );
         assert_eq!(
             parse_line("check (A B) C"),
             Ok(GetType(App(
-                box App(box Const("A".to_string(),Vec::new()), box Const("B".to_string(),Vec::new())),
-                box Const("C".to_string(),Vec::new())
+                box App(
+                    box Const("A".to_string(), Vec::new()),
+                    box Const("B".to_string(), Vec::new())
+                ),
+                box Const("C".to_string(), Vec::new())
             )))
         );
         assert_eq!(
             parse_line("check A (B C)"),
             Ok(GetType(App(
-                box Const("A".to_string(),Vec::new()),
-                box App(box Const("B".to_string(),Vec::new()), box Const("C".to_string(),Vec::new()))
+                box Const("A".to_string(), Vec::new()),
+                box App(
+                    box Const("B".to_string(), Vec::new()),
+                    box Const("C".to_string(), Vec::new())
+                )
             )))
         )
     }
@@ -319,22 +318,31 @@ mod tests {
         assert_eq!(
             parse_line("check A -> B -> C"),
             Ok(GetType(Prod(
-                box Const("A".to_string(),Vec::new()),
-                box Prod(box Const("B".to_string(),Vec::new()), box Const("C".to_string(),Vec::new()))
+                box Const("A".to_string(), Vec::new()),
+                box Prod(
+                    box Const("B".to_string(), Vec::new()),
+                    box Const("C".to_string(), Vec::new())
+                )
             )))
         );
         assert_eq!(
             parse_line("check A -> (B -> C)"),
             Ok(GetType(Prod(
-                box Const("A".to_string(),Vec::new()),
-                box Prod(box Const("B".to_string(),Vec::new()), box Const("C".to_string(),Vec::new()))
+                box Const("A".to_string(), Vec::new()),
+                box Prod(
+                    box Const("B".to_string(), Vec::new()),
+                    box Const("C".to_string(), Vec::new())
+                )
             )))
         );
         assert_eq!(
             parse_line("check (A -> B) -> C"),
             Ok(GetType(Prod(
-                box Prod(box Const("A".to_string(),Vec::new()), box Const("B".to_string(),Vec::new())),
-                box Const("C".to_string(),Vec::new())
+                box Prod(
+                    box Const("A".to_string(), Vec::new()),
+                    box Const("B".to_string(), Vec::new())
+                ),
+                box Const("C".to_string(), Vec::new())
             )))
         )
     }
@@ -344,15 +352,15 @@ mod tests {
         assert_eq!(
             parse_line("check (x:A) -> (y:B) -> x"),
             Ok(GetType(Prod(
-                box Const("A".to_string(),Vec::new()),
-                box Prod(box Const("B".to_string(),Vec::new()), box Var(2.into()))
+                box Const("A".to_string(), Vec::new()),
+                box Prod(box Const("B".to_string(), Vec::new()), box Var(2.into()))
             )))
         );
         assert_eq!(
             parse_line("check (x:A) -> ((y:B) -> x)"),
             Ok(GetType(Prod(
-                box Const("A".to_string(),Vec::new()),
-                box Prod(box Const("B".to_string(),Vec::new()), box Var(2.into()))
+                box Const("A".to_string(), Vec::new()),
+                box Prod(box Const("B".to_string(), Vec::new()), box Var(2.into()))
             )))
         )
     }
@@ -476,8 +484,11 @@ mod tests {
         assert_eq!(
             parse_line("check (((A))) -> (((B -> C)))"),
             Ok(GetType(Prod(
-                box Const("A".to_string(),Vec::new()),
-                box Prod(box Const("B".to_string(),Vec::new()), box Const("C".to_string(),Vec::new()))
+                box Const("A".to_string(), Vec::new()),
+                box Prod(
+                    box Const("B".to_string(), Vec::new()),
+                    box Const("C".to_string(), Vec::new())
+                )
             )))
         )
     }
@@ -487,8 +498,8 @@ mod tests {
         assert_eq!(
             parse_line("check (((x:A))) -> ((((y:B) -> x)))"),
             Ok(GetType(Prod(
-                box Const("A".to_string(),Vec::new()),
-                box Prod(box Const("B".to_string(),Vec::new()), box Var(2.into()))
+                box Const("A".to_string(), Vec::new()),
+                box Prod(box Const("B".to_string(), Vec::new()), box Var(2.into()))
             )))
         )
     }
@@ -498,8 +509,11 @@ mod tests {
         assert_eq!(
             parse_line("check ((((((A))) (((B C))))))"),
             Ok(GetType(App(
-                box Const("A".to_string(),Vec::new()),
-                box App(box Const("B".to_string(),Vec::new()), box Const("C".to_string(),Vec::new()))
+                box Const("A".to_string(), Vec::new()),
+                box App(
+                    box Const("B".to_string(), Vec::new()),
+                    box Const("C".to_string(), Vec::new())
+                )
             )))
         )
     }

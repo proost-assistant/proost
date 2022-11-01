@@ -333,15 +333,26 @@ mod tests {
         let mut env = Environment::new();
         env.insert("foo".into(), id_prop.clone(), Prop).unwrap();
 
-        assert_eq!(Const("foo".into()).beta_reduction(&env), id_prop);
+        assert_eq!(
+            Const("foo".into(), Vec::new()).beta_reduction(&env),
+            id_prop
+        );
     }
 
-
     #[test]
-    fn poly_univ_id(){
-        let id_ty = Prod(box Type(UniverseLevel::Var(0)),box Prod(box Var(1.into()),box Var(2.into())));
-        let id_te = Abs(box Type(UniverseLevel::Var(0)),box Abs(box Var(1.into()),box Var(1.into())));
-        let id_zero = Abs(box Type(0.into()),box Abs(box Var(1.into()),box Var(1.into())));
+    fn poly_univ_id() {
+        let id_ty = Prod(
+            box Type(UniverseLevel::Var(0)),
+            box Prod(box Var(1.into()), box Var(2.into())),
+        );
+        let id_te = Abs(
+            box Type(UniverseLevel::Var(0)),
+            box Abs(box Var(1.into()), box Var(1.into())),
+        );
+        let id_zero = Abs(
+            box Type(0.into()),
+            box Abs(box Var(1.into()), box Var(1.into())),
+        );
         assert!(id_te.check(&id_ty, &Environment::new()).is_ok());
         let mut binding = Environment::new();
         let env = binding.insert("id".into(), id_te, id_ty).unwrap();
@@ -349,5 +360,4 @@ mod tests {
             .is_def_eq(&id_zero, env)
             .is_ok())
     }
-
 }

@@ -424,5 +424,4 @@ mod tests {
         );
         assert!(ty.conversion(&Type(0.into()), &Environment::new(), 0.into()))
     }
-
 }
