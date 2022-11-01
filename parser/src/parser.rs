@@ -143,7 +143,7 @@ fn convert_error(err: Error<Rule>) -> KernelError {
         Rule::App => "application".to_owned(),
         Rule::Prop => "Prop".to_owned(),
         Rule::Type => "Type".to_owned(),
-        _ => unreachable!("low level rules cannot appear in erro messages"),
+        _ => unreachable!("low level rules cannot appear in error messages"),
     });
 
     // extracting the location from the pest output
