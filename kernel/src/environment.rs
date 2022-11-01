@@ -1,11 +1,12 @@
 use crate::error::KernelError;
 use crate::term::Term;
+use crate::declaration::Declaration;
 use derive_more::From;
 use std::collections::{hash_map, HashMap};
 
 /// Global Environment, contains the term and type of every definitions, denoted by their strings.
-#[derive(Clone, Default, Debug, Eq, PartialEq, From)]
-pub struct Environment(HashMap<String, (Term, Term)>);
+#[derive(Clone, Default, From)]
+pub struct Environment(HashMap<String, Declaration>);
 
 impl Environment {
     /// Creates an empty environment.
@@ -16,7 +17,7 @@ impl Environment {
     /// Creates a new environment binding s with (t1,t2)
     pub fn insert(&mut self, s: String, t1: Term, t2: Term) -> Result<&Self, KernelError> {
         if let hash_map::Entry::Vacant(e) = self.0.entry(s.clone()) {
-            e.insert((t1, t2));
+            e.insert(Declaration::make(t1, t2));
             Ok(self)
         } else {
             Err(KernelError::AlreadyDefined(s))

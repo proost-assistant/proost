@@ -1,8 +1,7 @@
 use crate::environment::Environment;
 use crate::error::KernelError;
 use crate::term::{DeBruijnIndex, Term};
-use num_bigint::BigUint;
-use std::cmp::max;
+use crate::universe::UniverseLevel;
 use std::ops::Index;
 use Term::*;
 
@@ -47,7 +46,7 @@ impl Term {
     /// The conversion is untyped, meaning that it should **only** be called during type-checking when the two `Term`s are already known to be of the same type and in the same context.
     fn conversion(&self, rhs: &Term, env: &Environment, lvl: DeBruijnIndex) -> bool {
         match (self.whnf(env), rhs.whnf(env)) {
-            (Type(i), Type(j)) => i == j,
+            (Type(i), Type(j)) => i.is_eq(&j),
 
             (Prop, Prop) => true,
 
@@ -100,7 +99,7 @@ impl Term {
                 Prop => Ok(Type(i.clone())),
 
                 // else if u1 = Type(i) and u2 = Type(j), then (x : A) -> B : Type(max(i,j))
-                Type(j) => Ok(Type(max(i.clone(), j.clone()))),
+                Type(j) => Ok(Type(UniverseLevel::Max(box i.clone(), box j.clone()))),
 
                 _ => Err(KernelError::NotUniverse(self.clone())),
             },
@@ -111,8 +110,8 @@ impl Term {
 
     fn _infer(&self, env: &Environment, ctx: &mut Context) -> Result<Term, KernelError> {
         match self {
-            Prop => Ok(Type(BigUint::from(0_u64).into())),
-            Type(i) => Ok(Type(i.clone() + BigUint::from(1_u64).into())),
+            Prop => Ok(Type(UniverseLevel::Zero)),
+            Type(i) => Ok(Type(i.clone() + 1)),
             Var(i) => Ok(ctx.types[ctx.lvl - *i].clone()),
 
             Const(s) => match env.get_type(s) {
@@ -199,16 +198,13 @@ mod tests {
 
     #[test]
     fn simple() {
-        let t1 = App(
-            box Abs(box Type(BigUint::from(0_u64).into()), box Var(1.into())),
-            box Prop,
-        );
+        let t1 = App(box Abs(box Type(0.into()), box Var(1.into())), box Prop);
 
         let t2 = Prop;
         assert!(t1.conversion(&t2, &Environment::new(), 0.into()));
 
         let ty = t1.infer(&Environment::new());
-        assert_eq!(ty, Ok(Type(BigUint::from(0_u64).into())));
+        assert_eq!(ty, Ok(Type(0.into())));
     }
 
     #[test]
@@ -317,7 +313,7 @@ mod tests {
     #[test]
     fn polymorphism() {
         let id = Abs(
-            box Type(BigUint::from(0_u64).into()),
+            box Type(0.into()),
             box Abs(box Var(1.into()), box Var(1.into())),
         );
 
@@ -326,8 +322,8 @@ mod tests {
 
     #[test]
     fn type_type() {
-        assert!(Type(BigUint::from(0_u64).into())
-            .check(&Type(BigUint::from(1_u64).into()), &Environment::new())
+        assert!(Type(0.into())
+            .check(&Type(1.into()), &Environment::new())
             .is_ok());
     }
 
@@ -346,18 +342,15 @@ mod tests {
         assert!(t.infer(&Environment::new()).is_err());
 
         let wf_prod = Prod(box Prop, box Prop);
-        assert!(wf_prod
-            .check(&Type(BigUint::from(0_u64).into()), &Environment::new())
-            .is_ok());
+        println!("{:?}",wf_prod.infer(&Environment::new()));
+        assert!(wf_prod.check(&Type(0.into()), &Environment::new()).is_ok());
 
         let wf_prod = Prod(box Prop, box Var(1.into()));
         assert!(wf_prod.check(&Prop, &Environment::new()).is_ok());
 
         // Type0 -> (A : Prop) ->
         let wf_prod = Prod(box Prop, box Prop);
-        assert!(wf_prod
-            .check(&Type(BigUint::from(0_u64).into()), &Environment::new())
-            .is_ok());
+        assert!(wf_prod.check(&Type(0.into()), &Environment::new()).is_ok());
     }
 
     #[test]
@@ -398,7 +391,7 @@ mod tests {
     #[test]
     fn not_def_eq() {
         assert!(Prop
-            .is_def_eq(&Type(BigUint::from(0_u64).into()), &Environment::new())
+            .is_def_eq(&Type(0.into()), &Environment::new())
             .is_err());
     }
 

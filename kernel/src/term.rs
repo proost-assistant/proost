@@ -1,14 +1,11 @@
 use crate::environment::Environment;
+use crate::universe::UniverseLevel;
 use derive_more::{Add, Display, From, Into, Sub};
-use num_bigint::BigUint;
 
 #[derive(
     Add, Copy, Clone, Debug, Default, Display, Eq, PartialEq, From, Into, Sub, PartialOrd, Ord,
 )]
 pub struct DeBruijnIndex(usize);
-
-#[derive(Add, Clone, Debug, Default, Display, Eq, From, Sub, PartialEq, PartialOrd, Ord)]
-pub struct UniverseLevel(BigUint);
 
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum Term {
