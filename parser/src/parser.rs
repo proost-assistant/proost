@@ -232,7 +232,35 @@ mod tests {
     }
 
     #[test]
-    fn successful_prop() {
+    fn successful_definechecktype() {
+        assert_eq!(
+            parse_line("def x : Type := Prop"),
+            Ok(Define(
+                "x".to_string(),
+                Some(Type(BigUint::from(0_u64).into())),
+                Prop
+            ))
+        )
+    }
+
+    #[test]
+    fn successful_define() {
+        assert_eq!(
+            parse_line("def x := Prop"),
+            Ok(Define("x".to_string(), None, Prop))
+        )
+    }
+
+    #[test]
+    fn successful_checktype() {
+        assert_eq!(
+            parse_line("check Prop : Type"),
+            Ok(CheckType(Prop, Type(BigUint::from(0_u64).into())))
+        )
+    }
+
+    #[test]
+    fn successful_gettype_prop() {
         assert_eq!(parse_line("check Prop"), Ok(GetType(Prop)))
     }
 
