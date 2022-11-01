@@ -93,4 +93,16 @@ mod tests {
         assert!(&Succ(box Max(box Var(1), box Var(0)))
             .is_eq(&Max(box Succ(box Var(0)), box Succ(box Var(1)))));
     }
+
+    #[test]
+    fn univ_vars_count() {
+        assert_eq!(Max(box Succ(box Zero), box Max(box Var(0), box Var(1))).univ_vars(), 2)
+    }
+
+    #[test]
+    fn subst() {
+        let lvl = Max(box Succ(box Zero), box Max(box Var(0), box Var(1)));
+        let subst = vec![Succ(box Zero), Zero];
+        assert_eq!(lvl.substitute(&subst), Max(box Succ(box Zero), box Max(box Succ(box Zero), box Zero)))
+    }
 }
