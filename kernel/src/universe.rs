@@ -88,7 +88,7 @@ mod tests {
 
     #[test]
     fn univ_eq() {
-        assert!(format!("{}", Max(box Zero, box Zero)) == "max (Zero) (Zero)");
+        assert!(format!("{}", Max(box Zero, box Zero)) == "max (0) (0)");
         assert!(&Zero.is_eq(&Default::default()));
         assert!(!&Zero.is_eq(&Succ(box Zero)));
         assert!(!&Succ(box Zero).is_eq(&Zero));
