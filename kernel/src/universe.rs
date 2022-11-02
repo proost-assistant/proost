@@ -1,20 +1,16 @@
+use std::fmt::Display;
+use std::fmt::Formatter;
 use std::ops::Add;
 
-use derive_more::Display;
-
-#[derive(Clone, Debug, Default, Display, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum UniverseLevel {
     #[default]
-    #[display(fmt = "0")]
     Zero,
 
-    #[display(fmt = "({}) + 1", _0)]
     Succ(Box<UniverseLevel>),
 
-    #[display(fmt = "max ({}) ({})", _0, _1)]
     Max(Box<UniverseLevel>, Box<UniverseLevel>),
 
-    #[display(fmt = "u{}", _0)]
     Var(usize),
 }
 
@@ -44,9 +40,53 @@ impl From<usize> for UniverseLevel {
     }
 }
 
+impl Display for UniverseLevel {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.pretty_print())
+    }
+}
+
 use UniverseLevel::*;
 
 impl UniverseLevel {
+    /// Helper function for pretty printing, if universe doesn't contain any variable then it gets printed as a decimal number.
+    fn to_numeral(&self) -> Option<usize> {
+        match self {
+            Zero => Some(0),
+            Succ(box u) => u.to_numeral().map(|n| n + 1),
+            Max(box n, box m) => n
+                .to_numeral()
+                .and_then(|n| m.to_numeral().map(|m| n.max(m))),
+            _ => None,
+        }
+    }
+
+    /// Helper function for pretty printing, if universe is of the form Succ(Succ(...(Succ(u))...)) then it gets printed as u+n.
+    fn plus(&self) -> (UniverseLevel, usize) {
+        match self {
+            Succ(box u) => {
+                let (u, n) = u.plus();
+                (u, n + 1)
+            }
+            _ => (self.clone(), 0),
+        }
+    }
+    /// Pretty prints universe levels, used to impl Display for UniverseLevel.
+    fn pretty_print(&self) -> String {
+        match self.to_numeral() {
+            Some(n) => n.to_string(),
+            None => match self {
+                Zero => unreachable!("Zero is a numeral"),
+                Succ(_) => match self.plus() {
+                    (u, 0) => format!("{}", u.pretty_print()),
+                    (u, n) => format!("{} + {}", u.pretty_print(), n),
+                },
+                Max(box n, box m) => format!("max ({}) ({})", n.pretty_print(), m.pretty_print()),
+                Var(n) => format!("u{}", n),
+            },
+        }
+    }
+
     pub fn univ_vars(self) -> usize {
         match self {
             Zero => 0,
@@ -88,7 +128,6 @@ mod tests {
 
     #[test]
     fn univ_eq() {
-        assert!(format!("{}", Max(box Zero, box Zero)) == "max (0) (0)");
         assert!(&Zero.is_eq(&Default::default()));
         assert!(!&Zero.is_eq(&Succ(box Zero)));
         assert!(!&Succ(box Zero).is_eq(&Zero));
