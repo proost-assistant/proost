@@ -167,10 +167,8 @@ impl Term {
                 Ok(Prod(box t.clone(), box u))
             }
 
-            // TODO: Do a test with _infer failing (#32)
             App(box t, box u) => match t._infer(env, ctx)? {
                 Prod(box typ_lhs, cls) => {
-                    // TODO: Do a test with _infer failing (#32)
                     let typ_rhs = u._infer(env, ctx)?;
 
                     typ_lhs
@@ -200,10 +198,8 @@ impl Term {
     /// Checks whether a given term is of type `ty` in a given context.
     pub fn check(&self, ty: &Term, env: &Environment) -> Result<()> {
         let ctx = &mut Context::new();
-        // TODO: Do a test with _infer failing (#32)
         let tty = self._infer(env, ctx)?;
 
-        // TODO: Do a test with conversion failing (#32)
         tty.conversion(ty, env, ctx.types.len().into())
             .then_some(())
             .ok_or_else(|| Error {
@@ -367,7 +363,7 @@ mod tests {
 
     #[test]
     fn typed_reduction_universe() {
-        let term = App(let term2 = App(box Prop, box Prop)
+        let term = App(
             box Abs(box Prop, box Type(BigUint::from(0_u64).into())),
             box Prod(box Prop, box Var(1.into())),
         );
@@ -559,6 +555,9 @@ mod tests {
         fn no_infer_app() {
             let ill_typed = App(box Prop, box Prop);
             let term1 = App(box ill_typed.clone(), box Prop);
+            let term2 = App(box Abs(box Prop, box Prop), box ill_typed);
+            assert!(term1.infer(&Environment::new()).is_err());
+            assert!(term2.infer(&Environment::new()).is_err());
         }
 
         #[test]
@@ -627,7 +626,12 @@ mod tests {
                 })
             );
         }
+
+        #[test]
+        fn check_fail() {
+            let ill_typed = App(box Prop, box Prop);
+            assert!(ill_typed.check(&Prop, &Environment::new()).is_err());
+            assert!(Prop.check(&Prop, &Environment::new()).is_err());
+        }
     }
-
-
 }
