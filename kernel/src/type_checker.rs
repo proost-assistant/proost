@@ -83,13 +83,11 @@ impl Term {
 
             (Var(i), Var(j)) => i == j,
 
-            (Prod(_t1, u1), Prod(box _t2, u2)) => {
+            (Prod(t1, u1), Prod(box t2, u2)) => {
                 let u1 = u1.substitute(&Var(lvl), lvl.into());
                 let u2 = u2.substitute(&Var(lvl), lvl.into());
 
-                // TODO: Unused code (#32)
-                // t1.conversion(&t2, env, lvl) &&
-                u1.conversion(&u2, env, lvl + 1.into())
+                t1.conversion(&t2, env, lvl) && u1.conversion(&u2, env, lvl + 1.into())
             }
 
             // Since we assume that both vals already have the same type,
@@ -103,12 +101,9 @@ impl Term {
                 t.conversion(&u, env, lvl + 1.into())
             }
 
-            (App(box _t1, box u1), App(box _t2, box u2)) => {
-                // TODO: Unused code (#32)
-                // t1.conversion(&t2, env, lvl) &&
-                u1.conversion(&u2, env, lvl)
+            (App(box t1, box u1), App(box t2, box u2)) => {
+                t1.conversion(&t2, env, lvl) && u1.conversion(&u2, env, lvl)
             }
-
             // TODO: Unused code (#32)
             // (app @ App(box Abs(_, _), box _), u) | (u, app @ App(box Abs(_, _), box _)) => {
             //     app.beta_reduction(env).conversion(&u, env, lvl)
@@ -133,8 +128,7 @@ impl Term {
             Prop => Ok(Prop),
 
             Type(ref i) => match self {
-                // TODO: Unused code (#32)
-                // Prop => Ok(Type(i.clone())),
+                Prop => Ok(Type(i.clone())),
 
                 // else if u1 = Type(i) and u2 = Type(j), then (x : A) -> B : Type(max(i,j))
                 Type(j) => Ok(Type(max(i.clone(), j.clone()))),
@@ -161,11 +155,9 @@ impl Term {
             }),
 
             Prod(box t, u) => {
-                // TODO: Do a test with _infer failing (#32)
                 let univ_t = t._infer(env, ctx)?;
-                // TODO: Do a test with _infer failing (#32)
                 let univ_u = u._infer(env, ctx.clone().bind(t))?;
-
+                // TODO: lax normalization to whnf once it itself is laxed
                 univ_t.normal_form(env).imax(&univ_u.normal_form(env))
             }
 
@@ -253,6 +245,32 @@ mod tests {
         );
 
         assert!(term.is_def_eq(&term, &Environment::new()).is_ok());
+    }
+
+    #[test]
+    fn prod_fail_binder_conversion() {
+        let term1 = &Prod(box Prop, box Prop);
+        let term2 = &Prod(box Type(BigUint::from(0_u64).into()), box Prop);
+        assert!(term1.is_def_eq(term2, &Environment::new()).is_err())
+    }
+
+    #[test]
+    fn app_fail_head_conversion() {
+        let term1 = &Abs(
+            box Type(BigUint::from(0_u64).into()),
+            box Abs(
+                box Type(BigUint::from(0_u64).into()),
+                box App(box Var(1.into()), box Prop),
+            ),
+        );
+        let term2 = &Abs(
+            box Type(BigUint::from(0_u64).into()),
+            box Abs(
+                box Type(BigUint::from(0_u64).into()),
+                box App(box Var(2.into()), box Prop),
+            ),
+        );
+        assert!(term1.is_def_eq(term2, &Environment::new()).is_err())
     }
 
     #[test]
@@ -349,7 +367,7 @@ mod tests {
 
     #[test]
     fn typed_reduction_universe() {
-        let term = App(
+        let term = App(let term2 = App(box Prop, box Prop)
             box Abs(box Prop, box Type(BigUint::from(0_u64).into())),
             box Prod(box Prop, box Var(1.into())),
         );
@@ -360,6 +378,15 @@ mod tests {
         let term_type = term.infer(&Environment::new()).unwrap();
         assert_eq!(term_type, Type(BigUint::from(1_u64).into()));
         assert!(term.check(&term_type, &Environment::new()).is_ok());
+
+        let escape_from_prop = &Abs(
+            box Prop,
+            box Prod(box Var(1.into()), box Type(BigUint::from(0_u64).into())),
+        );
+        let type_escape_from_prop = &Prod(box Prop, box Type(BigUint::from(1_u64).into()));
+        assert!(escape_from_prop
+            .check(type_escape_from_prop, &Environment::new())
+            .is_ok());
     }
 
     #[test]
@@ -519,6 +546,20 @@ mod tests {
                 })
             );
         }
+        #[test]
+        fn no_infer_prod() {
+            let ill_typed = App(box Prop, box Prop);
+            let term1 = &Prod(box Prop, box ill_typed.clone());
+            let term2 = &Prod(box ill_typed, box Prop);
+            assert!(term1.infer(&Environment::new()).is_err());
+            assert!(term2.infer(&Environment::new()).is_err());
+        }
+
+        #[test]
+        fn no_infer_app() {
+            let ill_typed = App(box Prop, box Prop);
+            let term1 = App(box ill_typed.clone(), box Prop);
+        }
 
         #[test]
         fn wrong_argument_type() {
@@ -587,4 +628,6 @@ mod tests {
             );
         }
     }
+
+
 }

@@ -67,8 +67,14 @@ impl Term {
             Var(i) if *i > depth.into() => Var(*i - 1.into()),
 
             App(l, r) => App(box l.substitute(rhs, depth), box r.substitute(rhs, depth)),
-            Abs(t, term) => Abs(t.clone(), box term.substitute(rhs, depth + 1)),
-            Prod(t, term) => Prod(t.clone(), box term.substitute(rhs, depth + 1)),
+            Abs(t, term) => Abs(
+                box t.substitute(rhs, depth),
+                box term.substitute(rhs, depth + 1),
+            ),
+            Prod(t, term) => Prod(
+                box t.substitute(rhs, depth),
+                box term.substitute(rhs, depth + 1),
+            ),
             _ => self.clone(),
         }
     }
@@ -88,6 +94,7 @@ impl Term {
     }
 
     /// Returns the weak-head normal form of a term in a given environment.
+    /// TODO make whnf more lax, it shouldn't reduce applications in which the head is a neutral term.
     pub fn whnf(&self, env: &Environment) -> Term {
         match self {
             App(box t, t2) => match t.whnf(env) {
@@ -297,7 +304,7 @@ mod tests {
 
     #[test]
     fn shift_prod() {
-        let t1 = Prod(box Var(1.into()), box Var(1.into()));
+        let t1 = Prod(box Prop, box Var(1.into()));
         let t2 = App(box Abs(box Prop, box t1.clone()), box Prop);
 
         assert_eq!(t2.beta_reduction(&Environment::new()), t1)
