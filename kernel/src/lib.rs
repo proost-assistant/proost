@@ -18,3 +18,4 @@ pub use command::Command;
 pub use environment::Environment;
 pub use error::{KernelError, Loc};
 pub use term::Term;
+pub use universe::UniverseLevel;

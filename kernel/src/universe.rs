@@ -5,10 +5,16 @@ use derive_more::Display;
 #[derive(Clone, Debug, Default, Display, PartialEq, Eq)]
 pub enum UniverseLevel {
     #[default]
+    #[display(fmt = "0")]
     Zero,
+
+    #[display(fmt = "({}) + 1", _0)]
     Succ(Box<UniverseLevel>),
+
     #[display(fmt = "max ({}) ({})", _0, _1)]
     Max(Box<UniverseLevel>, Box<UniverseLevel>),
+
+    #[display(fmt = "u{}", _0)]
     Var(usize),
 }
 

@@ -1,4 +1,4 @@
-use kernel::{Command, KernelError, Loc, Term};
+use kernel::{Command, KernelError, Loc, Term, UniverseLevel};
 use pest::error::{Error, LineColLocation};
 use pest::iterators::Pair;
 use pest::{Parser, Span};
@@ -7,6 +7,38 @@ use std::collections::VecDeque;
 #[derive(Parser)]
 #[grammar = "term.pest"]
 struct CommandParser;
+
+/// build universe level from errorless pest's output
+fn build_universe_level_from_expr(pair: Pair<Rule>) -> UniverseLevel {
+    match pair.as_rule() {
+        //TODO after term refactor (new ways to deal with variables)
+        Rule::Var => UniverseLevel::Var(0),
+        Rule::Num => {
+            let n = pair.into_inner().as_str().parse().unwrap();
+            let mut univ = UniverseLevel::Zero;
+            for _ in 0..n {
+                univ = UniverseLevel::Succ(box univ);
+            }
+            univ
+        }
+        Rule::Max => {
+            let mut iter = pair.into_inner();
+            let univ1 = build_universe_level_from_expr(iter.next().unwrap());
+            let univ2 = build_universe_level_from_expr(iter.next().unwrap());
+            UniverseLevel::Max(box univ1, box univ2)
+        }
+        Rule::Plus => {
+            let mut iter = pair.into_inner();
+            let mut univ = build_universe_level_from_expr(iter.next().unwrap());
+            let n = iter.map(|x| x.as_str().parse::<u64>().unwrap()).sum();
+            for _ in 0..n {
+                univ = UniverseLevel::Succ(box univ);
+            }
+            univ
+        }
+        univ => unreachable!("Unexpected universe level: {:?}", univ),
+    }
+}
 
 /// convert pest locations to kernel locations
 fn convert_span(span: Span) -> Loc {
@@ -21,10 +53,10 @@ fn build_term_from_expr(pair: Pair<Rule>, known_vars: &mut VecDeque<String>) -> 
     let _loc = convert_span(pair.as_span());
     match pair.as_rule() {
         Rule::Prop => Term::Prop,
-        Rule::Type => Term::Type(
-            pair.into_inner()
-                .fold(0.into(), |_, x| x.as_str().parse::<usize>().unwrap().into()),
-        ),
+        Rule::Type => match pair.into_inner().next() {
+            Some(pair) => Term::Type(build_universe_level_from_expr(pair)),
+            None => Term::Type(UniverseLevel::Zero),
+        },
         Rule::Var => {
             let name = pair.into_inner().as_str().to_string();
             match known_vars.iter().position(|x| *x == name) {
@@ -123,6 +155,12 @@ fn build_command_from_expr(pair: Pair<Rule>) -> Command {
             let term = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new());
             Command::Define(s, Some(t), term)
         }
+        Rule::Eval => {
+            let mut iter = pair.into_inner();
+            let t = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new());
+            Command::Eval(t)
+        }
+
         command => unreachable!("Unexpected command: {:?}", command),
     }
 }
@@ -132,7 +170,7 @@ fn convert_error(err: Error<Rule>) -> KernelError {
     // renaming error messages
     let err = err.renamed_rules(|rule| match *rule {
         Rule::string | Rule::Var => "variable".to_owned(),
-        Rule::number => "universe level".to_owned(),
+        Rule::number => "number".to_owned(),
         Rule::Define => "def var := term".to_owned(),
         Rule::CheckType => "check term : term".to_owned(),
         Rule::GetType => "check term".to_owned(),

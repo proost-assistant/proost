@@ -27,10 +27,10 @@ pub enum Term {
     #[display(fmt = "{} {}", _0, _1)]
     App(Box<Term>, Box<Term>),
 
-    #[display(fmt = "\u{003BB} {} \u{02192} {}", _0, _1)]
+    #[display(fmt = "\u{003BB} ({}) \u{02192} {}", _0, _1)]
     Abs(Box<Term>, Box<Term>),
 
-    #[display(fmt = "\u{03A0} {} \u{02192} {}", _0, _1)]
+    #[display(fmt = "\u{03A0} ({}) \u{02192} {}", _0, _1)]
     Prod(Box<Term>, Box<Term>),
 }
 

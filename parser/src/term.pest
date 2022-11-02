@@ -1,9 +1,9 @@
 WHITESPACE = _{ WHITE_SPACE }
 COMMENT = _{ "//" ~ (!"\n" ~ ANY)* }
+eoi = _{ !ANY }
+keywords = @{ ( "fun" | "def" | "check" | "Prop" | "Type" ) ~ !ASCII_ALPHANUMERIC }
 number = @{ ASCII_DIGIT+ }
 string = @{ !keywords ~ ASCII_ALPHA ~ ( "_" | ASCII_ALPHANUMERIC )* }
-keywords = @{ ( "fun" | "def" | "check" | "Prop" | "Type" ) ~ !ASCII_ALPHANUMERIC }
-eoi = _{ !ANY }
 
 Term = _{ Abs | dProd | Prod | App | Var | Prop | Type | "(" ~ Term ~ ")" }
 term_prod = _{ App | Abs | dProd | Var | Prop | Type | "(" ~ Prod ~ ")" | "(" ~ term_prod ~ ")" }
@@ -21,12 +21,18 @@ arg_dprod = { string+ ~ ":" ~ term_dprod }
 
 App = { term_app ~ term_app+ }
 Prod = { term_prod ~ ( "->" ~ term_prod )+ }
-
 Prop = { "Prop" }
-Type = { "Type(" ~ number ~ ")" | "Type" ~ number? }
+
+Type = { "Type" ~ univ? }
+univ = _{ Plus | Max | Var | Num | "(" ~ univ ~ ")" }
+univ_plus = _{ Max | Var | Num | "(" ~ univ ~ ")" }
+Num = { number }
+Plus = { univ_plus ~ ( "+" ~ number )+ }
+Max = { ( "max" ~ "(" ~ univ ~ "," ~ univ ~ ")" ) | ( "max" ~ univ ~ univ ) }
 Var = { string }
 
-Command = _{ Define | CheckType | GetType | DefineCheckType }
+Command = _{ Eval | Define | CheckType | GetType | DefineCheckType }
+Eval = { "eval" ~ Term }
 Define = { "def" ~ string ~ ":=" ~ Term }
 DefineCheckType = { "def" ~ string ~ ":" ~ Term ~ ":=" ~ Term }
 CheckType = { "check" ~ Term ~ ":" ~ Term }
