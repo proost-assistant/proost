@@ -184,7 +184,7 @@ fn convert_error(err: pest::error::Error<Rule>) -> Error {
         chars.next();
     }
     Error {
-        kind: ErrorKind::CannotParse(chars.as_str().to_string()).into(),
+        kind: ErrorKind::CannotParse(chars.as_str().to_string()),
         location: loc,
     }
 }
@@ -193,20 +193,18 @@ fn convert_error(err: pest::error::Error<Rule>) -> Error {
 ///
 /// If unsuccessful, a box containing the first error that was encountered is returned.
 pub fn parse_line(line: &str) -> Result<Command> {
-    match CommandParser::parse(Rule::command, line) {
-        Ok(mut pairs) => Ok(build_command_from_expr(pairs.next().unwrap())),
-        Err(err) => Err(convert_error(err)),
-    }
+    CommandParser::parse(Rule::command, line)
+        .map(|mut pairs| build_command_from_expr(pairs.next().unwrap()))
+        .map_err(convert_error)
 }
 
 /// Parse a text input and try to convert it into a vector of commands.
 ///
 /// If unsuccessful, a box containing the first error that was encountered is returned.
 pub fn parse_file(file: &str) -> Result<Vec<Command>> {
-    match CommandParser::parse(Rule::file, file) {
-        Ok(pairs) => Ok(pairs.into_iter().map(build_command_from_expr).collect()),
-        Err(err) => Err(convert_error(err)),
-    }
+    CommandParser::parse(Rule::file, file)
+        .map(|pairs| pairs.into_iter().map(build_command_from_expr).collect())
+        .map_err(convert_error)
 }
 
 #[cfg(test)]
@@ -228,7 +226,7 @@ mod tests {
         assert_eq!(
             parse_line("check fun x : Prop -> Type"),
             Err(Error {
-                kind: ErrorKind::CannotParse(UNIVERSE_ERR.to_string()).into(),
+                kind: ErrorKind::CannotParse(UNIVERSE_ERR.to_string()),
                 location: Location::new((1, 27).into(), (1, 27).into()),
             })
         );
@@ -379,14 +377,14 @@ mod tests {
         assert_eq!(
             parse_line("check (x:A)"),
             Err(Error {
-                kind: ErrorKind::CannotParse(SIMPLE_TERM_ERR.to_string()).into(),
+                kind: ErrorKind::CannotParse(SIMPLE_TERM_ERR.to_string()),
                 location: Location::new((1, 7).into(), (1, 11).into()),
             })
         );
         assert_eq!(
             parse_line("check (x:A) -> (y:B)"),
             Err(Error {
-                kind: ErrorKind::CannotParse(SIMPLE_TERM_ERR.to_string()).into(),
+                kind: ErrorKind::CannotParse(SIMPLE_TERM_ERR.to_string()),
                 location: Location::new((1, 16).into(), (1, 20).into()),
             })
         );
@@ -531,21 +529,21 @@ mod tests {
         assert_eq!(
             parse_line("chehk 2x"),
             Err(Error {
-                kind: ErrorKind::CannotParse(COMMAND_ERR.to_string()).into(),
+                kind: ErrorKind::CannotParse(COMMAND_ERR.to_string()),
                 location: Location::new((1, 1).into(), (1, 5).into()),
             })
         );
         assert_eq!(
             parse_line("check 2x"),
             Err(Error {
-                kind: ErrorKind::CannotParse(TERM_ERR.to_string()).into(),
+                kind: ErrorKind::CannotParse(TERM_ERR.to_string()),
                 location: Location::new((1, 7).into(), (1, 8).into()),
             })
         );
         assert_eq!(
             parse_line("check x:"),
             Err(Error {
-                kind: ErrorKind::CannotParse(TERM_ERR.to_string()).into(),
+                kind: ErrorKind::CannotParse(TERM_ERR.to_string()),
                 location: Location::new((1, 9).into(), (1, 9).into()),
             })
         );
@@ -560,7 +558,7 @@ mod tests {
                         check .x"
             ),
             Err(Error {
-                kind: ErrorKind::CannotParse(TERM_ERR.to_string()).into(),
+                kind: ErrorKind::CannotParse(TERM_ERR.to_string()),
                 location: Location::new((3, 31).into(), (3, 32).into()),
             })
         );
