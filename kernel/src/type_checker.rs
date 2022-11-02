@@ -737,6 +737,8 @@ mod tests {
                 box Abs(box Var(1.into()), box Var(1.into())),
             ),
         );
-        assert!(term.infer(&Environment::new()).is_err())
+        assert!(term.infer(&Environment::new()).is_err());
+        let term2 = Abs(box App(box Prop, box Prop), box Prop);
+        assert!(term2.infer(&Environment::new()).is_err());
     }
 }
