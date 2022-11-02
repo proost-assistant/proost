@@ -162,6 +162,10 @@ impl Term {
             }
 
             Abs(box t, u) => {
+                let univ_binder = t._infer(env, ctx)?.normal_form(env);
+                if !matches!(univ_binder, Type(_) | Prop) {
+                    return Err(KernelError::NotUniverse(univ_binder));
+                }
                 let u = u._infer(env, ctx.clone().bind(&t.shift(1, 0)))?;
 
                 Ok(Prod(box t.clone(), box u))
@@ -722,5 +726,17 @@ mod tests {
                 })
             );
         }
+    }
+
+    #[test]
+    fn univ_in_binder() {
+        let term = Abs(
+            box Prop,
+            box Abs(
+                box Var(1.into()),
+                box Abs(box Var(1.into()), box Var(1.into())),
+            ),
+        );
+        assert!(term.infer(&Environment::new()).is_err())
     }
 }
