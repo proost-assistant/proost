@@ -1,10 +1,40 @@
-use crate::environment::Environment;
-use crate::error::{KernelError::*, Result};
+use crate::environment::{Environment, EnvironmentError};
+use crate::error::{Error, Result};
 use crate::term::{DeBruijnIndex, Term};
+use derive_more::Display;
 use num_bigint::BigUint;
 use std::cmp::max;
 use std::ops::Index;
 use Term::*;
+
+#[derive(Clone, Debug, Display, Eq, PartialEq)]
+#[display(fmt = "{} : {}", _0, _1)]
+pub struct TypedTerm(Term, Term);
+
+/// Errors that can occur, at runtime, during type checking.
+#[non_exhaustive]
+#[derive(Clone, Debug, Display, Eq, PartialEq)]
+pub enum TypeCheckerError {
+    /// t is not a universe
+    #[display(fmt = "{} is not a universe", _0)]
+    NotUniverse(Term),
+
+    /// t1 and t2 are not definitionally equal
+    #[display(fmt = "{} and {} are not definitionaly equal", _0, _1)]
+    NotDefEq(Term, Term),
+
+    /// f of type t1 cannot be applied to x of type t2
+    #[display(fmt = "{} cannot be applied to {}", _0, _1)]
+    WrongArgumentType(TypedTerm, TypedTerm),
+
+    /// t1 of type ty is not a function so cannot be applied to t2
+    #[display(fmt = "{} is not a function so cannot be applied to {}", _0, _1)]
+    NotAFunction(TypedTerm, Term),
+
+    /// Expected ty1, found ty2
+    #[display(fmt = "expected {}, got {}", _0, _1)]
+    TypeMismatch(Term, Term),
+}
 
 impl Index<DeBruijnIndex> for Vec<Term> {
     type Output = Term;
@@ -91,7 +121,9 @@ impl Term {
     pub fn is_def_eq(&self, rhs: &Term, env: &Environment) -> Result<()> {
         self.conversion(rhs, env, 1.into())
             .then_some(())
-            .ok_or_else(|| NotDefEq(self.clone(), rhs.clone()))
+            .ok_or_else(|| Error {
+                kind: TypeCheckerError::NotDefEq(self.clone(), rhs.clone()).into(),
+            })
     }
 
     /// Computes universe the universe in which `(x : A) -> B` lives when `A : u1` and `B : u2`.
@@ -107,10 +139,14 @@ impl Term {
                 // else if u1 = Type(i) and u2 = Type(j), then (x : A) -> B : Type(max(i,j))
                 Type(j) => Ok(Type(max(i.clone(), j.clone()))),
 
-                _ => Err(NotUniverse(self.clone())),
+                _ => Err(Error {
+                    kind: TypeCheckerError::NotUniverse(self.clone()).into(),
+                }),
             },
 
-            _ => Err(NotUniverse(rhs.clone())),
+            _ => Err(Error {
+                kind: TypeCheckerError::NotUniverse(rhs.clone()).into(),
+            }),
         }
     }
 
@@ -120,10 +156,9 @@ impl Term {
             Type(i) => Ok(Type(i.clone() + BigUint::from(1_u64).into())),
             Var(i) => Ok(ctx.types[ctx.lvl - *i].clone()),
 
-            Const(s) => match env.get_type(s) {
-                Some(ty) => Ok(ty),
-                None => Err(ConstNotFound(s.clone())),
-            },
+            Const(s) => env.get_type(s).ok_or(Error {
+                kind: EnvironmentError::VariableNotFound(s.clone()).into(),
+            }),
 
             Prod(box t, u) => {
                 // TODO: Do a test with _infer failing (#32)
@@ -149,10 +184,18 @@ impl Term {
                     typ_lhs
                         .conversion(&typ_rhs, env, ctx.types.len().into())
                         .then_some(*cls)
-                        .ok_or_else(|| WrongArgumentType(t.clone(), typ_lhs, u.clone(), typ_rhs))
+                        .ok_or_else(|| Error {
+                            kind: TypeCheckerError::WrongArgumentType(
+                                TypedTerm(t.clone(), typ_lhs),
+                                TypedTerm(u.clone(), typ_rhs),
+                            )
+                            .into(),
+                        })
                 }
 
-                x => Err(NotAFunction(t.clone(), x, u.clone())),
+                x => Err(Error {
+                    kind: TypeCheckerError::NotAFunction(TypedTerm(t.clone(), x), u.clone()).into(),
+                }),
             },
         }
     }
@@ -168,9 +211,12 @@ impl Term {
         // TODO: Do a test with _infer failing (#32)
         let tty = self._infer(env, ctx)?;
 
+        // TODO: Do a test with conversion failing (#32)
         tty.conversion(ty, env, ctx.types.len().into())
             .then_some(())
-            .ok_or_else(|| TypeMismatch(tty, ty.clone()))
+            .ok_or_else(|| Error {
+                kind: TypeCheckerError::TypeMismatch(tty, ty.clone()).into(),
+            })
     }
 }
 
@@ -433,7 +479,9 @@ mod tests {
     fn failed_def_equal() {
         assert_eq!(
             Prop.is_def_eq(&Type(BigUint::from(0_u64).into()), &Environment::new()),
-            Err(NotDefEq(Prop, Type(BigUint::from(0_u64).into())))
+            Err(Error {
+                kind: TypeCheckerError::NotDefEq(Prop, Type(BigUint::from(0_u64).into())).into()
+            })
         );
     }
 
@@ -462,7 +510,13 @@ mod tests {
 
             assert_eq!(
                 term.infer(&Environment::new()),
-                Err(NotAFunction(Prop, Type(BigUint::from(0_u64).into()), Prop))
+                Err(Error {
+                    kind: TypeCheckerError::NotAFunction(
+                        TypedTerm(Prop, Type(BigUint::from(0_u64).into())),
+                        Prop
+                    )
+                    .into()
+                })
             );
         }
 
@@ -480,12 +534,16 @@ mod tests {
 
             assert_eq!(
                 term.infer(&Environment::new()),
-                Err(WrongArgumentType(
-                    Abs(box Prop, box App(box Var(2.into()), box Var(1.into()))),
-                    Prop,
-                    Var(1.into()),
-                    Prod(box Prop, box Prop)
-                ))
+                Err(Error {
+                    kind: TypeCheckerError::WrongArgumentType(
+                        TypedTerm(
+                            Abs(box Prop, box App(box Var(2.into()), box Var(1.into()))),
+                            Prop
+                        ),
+                        TypedTerm(Var(1.into()), Prod(box Prop, box Prop))
+                    )
+                    .into()
+                })
             );
         }
 
@@ -495,7 +553,9 @@ mod tests {
 
             assert_eq!(
                 term.infer(&Environment::new()),
-                Err(NotUniverse(Prod(box Prop, box Prop)))
+                Err(Error {
+                    kind: TypeCheckerError::NotUniverse(Prod(box Prop, box Prop)).into()
+                })
             );
         }
 
@@ -505,10 +565,13 @@ mod tests {
 
             assert_eq!(
                 term.infer(&Environment::new()),
-                Err(NotUniverse(Prod(
-                    box Prop,
-                    box Type(BigUint::from(0_u64).into())
-                )))
+                Err(Error {
+                    kind: TypeCheckerError::NotUniverse(Prod(
+                        box Prop,
+                        box Type(BigUint::from(0_u64).into())
+                    ))
+                    .into()
+                })
             );
         }
 
@@ -518,7 +581,9 @@ mod tests {
 
             assert_eq!(
                 term.infer(&Environment::new()),
-                Err(ConstNotFound("foo".to_string()))
+                Err(Error {
+                    kind: EnvironmentError::VariableNotFound("foo".to_string()).into()
+                })
             );
         }
     }

@@ -1,11 +1,22 @@
-use crate::error::{KernelError::*, Result};
+use crate::error::{Error, Result};
 use crate::term::Term;
-use derive_more::{Deref, DerefMut, From};
+use derive_more::{Deref, DerefMut, Display};
 use std::collections::{hash_map, HashMap};
 
 /// Global Environment, contains the term and type of every definitions, denoted by their strings.
-#[derive(Clone, Default, Debug, Deref, DerefMut, Eq, PartialEq, From)]
+#[derive(Clone, Default, Debug, Deref, DerefMut, Eq, PartialEq)]
 pub struct Environment(HashMap<String, (Term, Term)>);
+
+/// Errors that can occur, at runtime, during environment manipulation.
+#[non_exhaustive]
+#[derive(Clone, Debug, Display, Eq, PartialEq)]
+pub enum EnvironmentError {
+    #[display(fmt = "{} is already defined", _0)]
+    AlreadyDefined(String),
+
+    #[display(fmt = "variable {} is not found", _0)]
+    VariableNotFound(String),
+}
 
 impl Environment {
     /// Creates an empty environment.
@@ -19,7 +30,9 @@ impl Environment {
             e.insert((t1, t2));
             Ok(self)
         } else {
-            Err(AlreadyDefined(s))
+            Err(Error {
+                kind: EnvironmentError::AlreadyDefined(s).into(),
+            })
         }
     }
 

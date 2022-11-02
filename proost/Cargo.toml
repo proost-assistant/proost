@@ -9,6 +9,7 @@ description = "A simple proof assistant written in Rust"
 parser = { path = "../parser" }
 kernel = { path = "../kernel" }
 
+anyhow = "1.0"
 clap = { version = "4.0.10", features = ["derive"]}
 rustyline = "10.0.0"
 colored = "2"

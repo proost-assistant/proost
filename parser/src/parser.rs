@@ -1,6 +1,7 @@
+use crate::error::{Error, ErrorKind, Result};
 use kernel::num_bigint::BigUint;
-use kernel::{Command, KernelError, Location, Term};
-use pest::error::{Error, LineColLocation};
+use kernel::{Command, Location, Term};
+use pest::error::LineColLocation;
 use pest::iterators::Pair;
 use pest::{Parser, Span};
 use std::collections::VecDeque;
@@ -129,7 +130,7 @@ fn build_command_from_expr(pair: Pair<Rule>) -> Command {
 }
 
 /// convert pest error to kernel error
-fn convert_error(err: Error<Rule>) -> KernelError {
+fn convert_error(err: pest::error::Error<Rule>) -> Error {
     // renaming error messages
     let err = err.renamed_rules(|rule| match *rule {
         Rule::string | Rule::Var => "variable".to_owned(),
@@ -182,13 +183,16 @@ fn convert_error(err: Error<Rule>) -> KernelError {
     for _ in 0..4 {
         chars.next();
     }
-    KernelError::CannotParse(loc, chars.as_str().to_string())
+    Error {
+        kind: ErrorKind::CannotParse(chars.as_str().to_string()).into(),
+        location: loc,
+    }
 }
 
 /// Parse a text input and try to convert it into a command.
 ///
 /// If unsuccessful, a box containing the first error that was encountered is returned.
-pub fn parse_line(line: &str) -> Result<Command, KernelError> {
+pub fn parse_line(line: &str) -> Result<Command> {
     match CommandParser::parse(Rule::command, line) {
         Ok(mut pairs) => Ok(build_command_from_expr(pairs.next().unwrap())),
         Err(err) => Err(convert_error(err)),
@@ -198,7 +202,7 @@ pub fn parse_line(line: &str) -> Result<Command, KernelError> {
 /// Parse a text input and try to convert it into a vector of commands.
 ///
 /// If unsuccessful, a box containing the first error that was encountered is returned.
-pub fn parse_file(file: &str) -> Result<Vec<Command>, KernelError> {
+pub fn parse_file(file: &str) -> Result<Vec<Command>> {
     match CommandParser::parse(Rule::file, file) {
         Ok(pairs) => Ok(pairs.into_iter().map(build_command_from_expr).collect()),
         Err(err) => Err(convert_error(err)),
@@ -208,7 +212,6 @@ pub fn parse_file(file: &str) -> Result<Vec<Command>, KernelError> {
 #[cfg(test)]
 mod tests {
     use super::Command::*;
-    use super::KernelError::*;
     use super::Term::*;
     use super::*;
 
@@ -224,11 +227,11 @@ mod tests {
     fn failure_universe_level() {
         assert_eq!(
             parse_line("check fun x : Prop -> Type"),
-            Err(CannotParse(
-                Loc::new(1, 27, 1, 27),
-                UNIVERSE_ERR.to_string()
-            ))
-        )
+            Err(Error {
+                kind: ErrorKind::CannotParse(UNIVERSE_ERR.to_string()).into(),
+                location: Location::new((1, 27).into(), (1, 27).into()),
+            })
+        );
     }
 
     #[test]
@@ -240,7 +243,7 @@ mod tests {
                 Some(Type(BigUint::from(0_u64).into())),
                 Prop
             ))
-        )
+        );
     }
 
     #[test]
@@ -248,7 +251,7 @@ mod tests {
         assert_eq!(
             parse_line("def x := Prop"),
             Ok(Define("x".to_string(), None, Prop))
-        )
+        );
     }
 
     #[test]
@@ -256,12 +259,12 @@ mod tests {
         assert_eq!(
             parse_line("check Prop : Type"),
             Ok(CheckType(Prop, Type(BigUint::from(0_u64).into())))
-        )
+        );
     }
 
     #[test]
     fn successful_gettype_prop() {
-        assert_eq!(parse_line("check Prop"), Ok(GetType(Prop)))
+        assert_eq!(parse_line("check Prop"), Ok(GetType(Prop)));
     }
 
     #[test]
@@ -270,7 +273,7 @@ mod tests {
         assert_eq!(
             parse_line("check fun A:Prop => A"),
             Ok(GetType(Abs(box Prop, box Var(1.into()))))
-        )
+        );
     }
 
     #[test]
@@ -286,7 +289,7 @@ mod tests {
         assert_eq!(
             parse_line("check Type 1"),
             Ok(GetType(Type(BigUint::from(1_u64).into())))
-        )
+        );
     }
 
     #[test]
@@ -311,7 +314,7 @@ mod tests {
                 box Const("A".to_string()),
                 box App(box Const("B".to_string()), box Const("C".to_string()))
             )))
-        )
+        );
     }
 
     #[test]
@@ -336,7 +339,7 @@ mod tests {
                 box Prod(box Const("A".to_string()), box Const("B".to_string())),
                 box Const("C".to_string())
             )))
-        )
+        );
     }
 
     #[test]
@@ -354,7 +357,7 @@ mod tests {
                 box Const("A".to_string()),
                 box Prod(box Const("B".to_string()), box Var(2.into()))
             )))
-        )
+        );
     }
 
     #[test]
@@ -368,25 +371,25 @@ mod tests {
                     box Abs(box Prop, box Abs(box Prop, box Var(3.into())))
                 )
             )))
-        )
+        );
     }
 
     #[test]
     fn failed_dprod() {
         assert_eq!(
             parse_line("check (x:A)"),
-            Err(CannotParse(
-                Loc::new(1, 7, 1, 11),
-                SIMPLE_TERM_ERR.to_string()
-            ))
+            Err(Error {
+                kind: ErrorKind::CannotParse(SIMPLE_TERM_ERR.to_string()).into(),
+                location: Location::new((1, 7).into(), (1, 11).into()),
+            })
         );
         assert_eq!(
             parse_line("check (x:A) -> (y:B)"),
-            Err(CannotParse(
-                Loc::new(1, 16, 1, 20),
-                SIMPLE_TERM_ERR.to_string()
-            ))
-        )
+            Err(Error {
+                kind: ErrorKind::CannotParse(SIMPLE_TERM_ERR.to_string()).into(),
+                location: Location::new((1, 16).into(), (1, 20).into()),
+            })
+        );
     }
 
     #[test]
@@ -454,7 +457,7 @@ mod tests {
                     box Prod(box Var(2.into()), box Var(1.into()))
                 )
             )))
-        )
+        );
     }
 
     #[test]
@@ -468,7 +471,7 @@ mod tests {
                     box Abs(box Prop, box Abs(box Prop, box Var(3.into())))
                 )
             )))
-        )
+        );
     }
 
     #[test]
@@ -479,7 +482,7 @@ mod tests {
                 box Const("A".to_string()),
                 box Prod(box Const("B".to_string()), box Const("C".to_string()))
             )))
-        )
+        );
     }
 
     #[test]
@@ -490,7 +493,7 @@ mod tests {
                 box Const("A".to_string()),
                 box Prod(box Const("B".to_string()), box Var(2.into()))
             )))
-        )
+        );
     }
 
     #[test]
@@ -501,7 +504,7 @@ mod tests {
                 box Const("A".to_string()),
                 box App(box Const("B".to_string()), box Const("C".to_string()))
             )))
-        )
+        );
     }
 
     #[test]
@@ -520,23 +523,32 @@ mod tests {
         assert_eq!(
             parse_file(file).unwrap()[1],
             parse_line("check fun x:Prop => x").unwrap()
-        )
+        );
     }
 
     #[test]
     fn successful_convert_error() {
         assert_eq!(
             parse_line("chehk 2x"),
-            Err(CannotParse(Loc::new(1, 1, 1, 5), COMMAND_ERR.to_string()))
+            Err(Error {
+                kind: ErrorKind::CannotParse(COMMAND_ERR.to_string()).into(),
+                location: Location::new((1, 1).into(), (1, 5).into()),
+            })
         );
         assert_eq!(
             parse_line("check 2x"),
-            Err(CannotParse(Loc::new(1, 7, 1, 8), TERM_ERR.to_string()))
+            Err(Error {
+                kind: ErrorKind::CannotParse(TERM_ERR.to_string()).into(),
+                location: Location::new((1, 7).into(), (1, 8).into()),
+            })
         );
         assert_eq!(
             parse_line("check x:"),
-            Err(CannotParse(Loc::new(1, 9, 1, 9), TERM_ERR.to_string()))
-        )
+            Err(Error {
+                kind: ErrorKind::CannotParse(TERM_ERR.to_string()).into(),
+                location: Location::new((1, 9).into(), (1, 9).into()),
+            })
+        );
     }
 
     #[test]
@@ -547,7 +559,10 @@ mod tests {
                  // this is a comment
                         check .x"
             ),
-            Err(CannotParse(Loc::new(3, 31, 3, 32), TERM_ERR.to_string()))
-        )
+            Err(Error {
+                kind: ErrorKind::CannotParse(TERM_ERR.to_string()).into(),
+                location: Location::new((3, 31).into(), (3, 32).into()),
+            })
+        );
     }
 }

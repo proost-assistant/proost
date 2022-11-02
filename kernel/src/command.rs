@@ -12,7 +12,6 @@ pub enum Command {
 }
 
 impl Command {
-    // TODO (#19)
     pub fn process(self, env: &mut Environment) -> Result<Option<Term>> {
         match self {
             Command::Define(s, None, term) => term

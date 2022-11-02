@@ -1,12 +1,12 @@
-use colored::*;
-use kernel::{Environment, KernelError, Term};
-use parser::*;
+use colored::Colorize;
+use kernel::{Environment, Term};
+use parser::parse_line;
 
-pub fn process_line(line: &str, env: &mut Environment) -> Result<Option<Term>, KernelError> {
-    parse_line(line)?.process(env)
+pub fn process_line(line: &str, env: &mut Environment) -> anyhow::Result<Option<Term>> {
+    Ok(parse_line(line)?.process(env)?)
 }
 
-pub fn print_repl(res: Result<Option<Term>, KernelError>) {
+pub fn print_repl(res: anyhow::Result<Option<Term>>) {
     match res {
         Ok(None) => println!("{}", "\u{2713}".green()),
         Ok(Some(t)) => {
@@ -15,8 +15,11 @@ pub fn print_repl(res: Result<Option<Term>, KernelError>) {
             }
         }
         Err(err) => {
-            let string = match err {
-                KernelError::CannotParse(loc, message) => {
+            let string = match err.downcast_ref::<parser::Error>() {
+                Some(parser::Error {
+                    kind: parser::ErrorKind::CannotParse(message),
+                    location: loc,
+                }) => {
                     if loc.start.column == loc.end.column {
                         format!("{:0w1$}^\n{m}", "", w1 = loc.start.column - 1, m = message)
                     } else {
@@ -30,8 +33,10 @@ pub fn print_repl(res: Result<Option<Term>, KernelError>) {
                         )
                     }
                 }
+
                 _ => err.to_string(),
             };
+
             for line in string.lines() {
                 println!("{} {}", "\u{2717}".red(), line)
             }
