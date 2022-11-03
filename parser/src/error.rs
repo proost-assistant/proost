@@ -1,4 +1,4 @@
-use kernel::derive_more::Display;
+use derive_more::Display;
 use kernel::Location;
 
 /// Type representing parser errors.

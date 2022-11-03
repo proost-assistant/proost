@@ -1,11 +1,15 @@
 [package]
 name = "parser"
-version = "0.1.0"
 edition = "2021"
-license = "GPL-3.0-or-later"
+version = "0.1.0"
+authors.workspace = true
+license.workspace = true
 
 [dependencies]
-kernel = { path = "../kernel" }
+kernel.path = "../kernel"
+
+derive_more.workspace = true
+num-bigint.workspace = true
 
 pest = "2.4"
 pest_derive = "2.4"

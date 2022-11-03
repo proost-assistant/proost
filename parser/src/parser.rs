@@ -1,6 +1,6 @@
 use crate::error::{Error, ErrorKind, Result};
-use kernel::num_bigint::BigUint;
 use kernel::{Command, Location, Term};
+use num_bigint::BigUint;
 use pest::error::LineColLocation;
 use pest::iterators::Pair;
 use pest::{Parser, Span};

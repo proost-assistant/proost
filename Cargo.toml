@@ -1,7 +1,21 @@
 [workspace]
-
 members = [
     "kernel",
     "parser",
     "proost",
 ]
+
+[workspace.dependencies]
+anyhow = "1.0"
+clap = { version = "4.0.10", features = ["derive"]}
+derive_more = "0.99.17"
+num-bigint = "0.4"
+
+[workspace.package]
+authors = [
+    "Arthur Adjedj",
+    "Augustin Albert",
+    "Lucas Tabary-Maujean",
+    "Vincent Lafeychine"
+]
+license = "GPL-3.0-or-later"

@@ -10,9 +10,6 @@ mod location;
 mod term;
 mod type_checker;
 
-pub use derive_more;
-pub use num_bigint;
-
 pub use self::command::Command;
 pub use self::environment::Environment;
 pub use self::location::{Location, Position};

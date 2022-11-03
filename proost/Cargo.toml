@@ -1,15 +1,17 @@
 [package]
 name = "proost"
-version = "0.1.0"
-edition = "2021"
-license = "GPL-3.0-or-later"
 description = "A simple proof assistant written in Rust"
+edition = "2021"
+version = "0.1.0"
+authors.workspace = true
+license.workspace = true
 
 [dependencies]
-parser = { path = "../parser" }
-kernel = { path = "../kernel" }
+kernel.path = "../kernel"
+parser.path = "../parser"
 
-anyhow = "1.0"
-clap = { version = "4.0.10", features = ["derive"]}
-rustyline = "10.0.0"
+anyhow.workspace = true
+clap.workspace = true
+
 colored = "2"
+rustyline = "10.0.0"
