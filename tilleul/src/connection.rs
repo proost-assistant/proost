@@ -1,5 +1,4 @@
 use crate::message::Message;
-use clap::Subcommand;
 use crossbeam_channel::{bounded, Receiver, Sender};
 use log::{error, info};
 use std::{io, thread};
@@ -9,20 +8,14 @@ pub struct Connection {
     pub receiver: Receiver<Message>,
 }
 
-#[derive(Clone, Debug, Subcommand)]
-pub enum ConnectionMode {
-    Stdio,
-    Pipe { file: String },
-    Socket { port: u16 },
-}
-
 pub struct Threads {
-    reader: thread::JoinHandle<io::Result<()>>,
-    writer: thread::JoinHandle<io::Result<()>>,
+    reader: thread::JoinHandle<()>,
+    writer: thread::JoinHandle<()>,
 }
 
 impl Connection {
-    pub fn new(_mode: Option<ConnectionMode>) -> (Connection, Threads) {
+    /// Create a new connection from a mode.
+    pub fn new() -> (Connection, Threads) {
         let (reader_sender, receiver) = bounded::<Message>(0);
         let (sender, writer_receiver) = bounded::<Message>(0);
 
@@ -32,36 +25,36 @@ impl Connection {
         (Connection { sender, receiver }, Threads { reader, writer })
     }
 
-    fn reader_thread(sender: Sender<Message>) -> io::Result<()> {
+    fn reader_thread(sender: Sender<Message>) {
         let mut stdin = io::stdin().lock();
 
+        info!("Reader thread started");
+
         loop {
-            let msg = match Message::read(&mut stdin) {
-                Ok(msg) => msg,
-                Err(err) => {
-                    error!("{:?}", err);
-                    continue;
-                }
+            match Message::read(&mut stdin) {
+                Ok(Message::Notification(msg)) if msg.is_exit() => break,
+                Ok(msg) => sender.send(msg).unwrap(),
+                Err(err) => error!("{:?}", err),
             };
-
-            info!("Got: {:?}", msg);
-
-            sender.send(msg).unwrap();
         }
+
+        info!("Reader thread exited");
     }
 
-    fn writer_thread(receiver: Receiver<Message>) -> io::Result<()> {
+    fn writer_thread(receiver: Receiver<Message>) {
         let mut stdout = io::stdout().lock();
 
-        receiver
-            .into_iter()
-            .try_for_each(|it| it.write(&mut stdout))
+        info!("Writer thread started");
+
+        receiver.into_iter().for_each(|msg| msg.write(&mut stdout));
+
+        info!("Writer thread exited");
     }
 }
 
 impl Threads {
-    pub fn join(self) -> io::Result<()> {
-        self.reader.join().unwrap()?;
-        self.writer.join().unwrap()
+    pub fn join(self) {
+        self.reader.join().unwrap();
+        self.writer.join().unwrap();
     }
 }

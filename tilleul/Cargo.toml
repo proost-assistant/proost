@@ -6,11 +6,13 @@ license = "GPL-3.0-or-later"
 description = "A LSP server for the simple proof assistant Proost"
 
 [dependencies]
-parser = { path = "../parser" }
-kernel = { path = "../kernel" }
+parser.path = "../parser"
+kernel.path = "../kernel"
 
+anyhow = "1.0.66"
 crossbeam-channel = "0.5.6"
-clap = { version = "4.0.10", features = ["derive"]}
+clap = { version = "4.0.10", features = ["derive"] }
+derive_more = "0.99.17"
 env_logger = "0.9.1"
 log = "0.4.17"
 serde = "1.0.147"

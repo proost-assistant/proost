@@ -1,39 +1,42 @@
 mod connection;
 mod message;
 
-use clap::Parser;
-use connection::{Connection, ConnectionMode};
+use connection::Connection;
 use log::info;
+use message::Message;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const NAME: &str = env!("CARGO_PKG_NAME");
 
-#[derive(Parser)]
-#[command(author, version, about, long_about = None)]
-struct Args {
-    #[clap(subcommand)]
-    connection_mode: Option<ConnectionMode>,
-}
-
-fn main() -> std::io::Result<()> {
+fn main() {
     std::env::set_var("RUST_LOG", "info");
     env_logger::init();
 
-    let args = Args::parse();
-
     info!("Starting {} {}", NAME, VERSION);
 
-    let (connection, threads) = Connection::new(args.connection_mode);
+    let (connection, threads) = Connection::new();
 
     main_loop(connection);
 
-    threads.join()?;
+    threads.join();
 
-    Ok(())
+    info!("Exiting {}", NAME);
 }
 
-fn main_loop(_connection: Connection) {
-    loop {
-        std::thread::sleep(std::time::Duration::from_secs(1));
+fn main_loop(connection: Connection) {
+    for msg in connection.receiver {
+        match msg {
+            Message::Request(request) => {
+                info!("Received request: {:?}", request.method);
+            }
+
+            Message::Response(response) => {
+                info!("Received response: {:?}", response);
+            }
+
+            Message::Notification(notification) => {
+                info!("Received notification: {:?}", notification);
+            }
+        }
     }
 }
