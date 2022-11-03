@@ -8,3 +8,11 @@ description = "A LSP server for the simple proof assistant Proost"
 [dependencies]
 parser = { path = "../parser" }
 kernel = { path = "../kernel" }
+
+crossbeam-channel = "0.5.6"
+clap = { version = "4.0.10", features = ["derive"]}
+env_logger = "0.9.1"
+log = "0.4.17"
+serde = "1.0.147"
+serde_json = "1.0.87"
+lsp-types = "0.93.2"
