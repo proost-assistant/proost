@@ -52,8 +52,8 @@ impl Term {
         match self {
             Var(i) if *i > depth.into() => Var(*i + offset.into()),
             App(box t1, box t2) => App(box t1.shift(offset, depth), box t2.shift(offset, depth)),
-            Abs(t1, box t2) => Abs(t1.clone(), box t2.shift(offset, depth + 1)),
-            Prod(t1, box t2) => Prod(t1.clone(), box t2.shift(offset, depth + 1)),
+            Abs(t1, box t2) => Abs(box t1.shift(offset, depth), box t2.shift(offset, depth + 1)),
+            Prod(t1, box t2) => Prod(box t1.shift(offset, depth), box t2.shift(offset, depth + 1)),
             _ => self.clone(),
         }
     }

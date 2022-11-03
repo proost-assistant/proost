@@ -164,7 +164,8 @@ impl Term {
             Abs(box t, u) => {
                 let univ_binder = t._infer(env, ctx)?.normal_form(env);
                 if !matches!(univ_binder, Type(_) | Prop) {
-                    return Err(KernelError::NotUniverse(univ_binder));
+                    return Err(Error {
+                        kind : TypeCheckerError::NotUniverse(univ_binder).into() });
                 }
                 let u = u._infer(env, ctx.clone().bind(&t.shift(1, 0)))?;
 
@@ -740,5 +741,62 @@ mod tests {
         assert!(term.infer(&Environment::new()).is_err());
         let term2 = Abs(box App(box Prop, box Prop), box Prop);
         assert!(term2.infer(&Environment::new()).is_err());
+    }
+
+    #[test]
+    fn and() {
+        let env = &mut Environment::new();
+
+        let and = Abs(
+            box Prop,
+            box Abs(
+                box Prop,
+                box Prod(
+                    box Prop,
+                    box Prod(
+                        //A -> B -> C
+                        box Prod(
+                            box Var(3.into()),
+                            box Prod(box Var(3.into()), box Var(3.into())),
+                        ),
+                        box Var(2.into()),
+                    ),
+                ),
+            ),
+        );
+        assert!(and.infer(env).is_ok());
+        env.insert("and".into(), and.clone(), and.infer(env).unwrap())
+            .unwrap();
+        let r#false = &Prod(box Prop, box Var(1.into()));
+        env.insert("False".into(), r#false.clone(), r#false.infer(env).unwrap())
+            .unwrap();
+        let r#true = &Prod(box Const("False".into()), box Const("False".into()));
+        assert!(r#false.infer(env).is_ok());
+        assert!(r#true.infer(env).is_ok());
+        let triv = &Abs(box Const("False".into()).clone(), box Var(1.into()));
+        assert!(triv.check(r#true, env).is_ok());
+        env.insert("True".into(), r#true.clone(), r#true.infer(env).unwrap())
+            .unwrap();
+        env.insert("triv".into(), triv.clone(), r#true.clone())
+            .unwrap();
+        let and_true_true = &App(
+            box App(box Const("and".into()), box Const("True".into())),
+            box Const("True".into()),
+        );
+        assert!(and_true_true.infer(env).is_ok());
+        let proof = Abs(
+            box Prop,
+            box Abs(
+                box Prod(
+                    box Const("True".into()),
+                    box Prod(box Const("True".into()), box Var(3.into())),
+                ),
+                box App(
+                    box App(box Var(1.into()), box Const("triv".into())),
+                    box Const("triv".into()),
+                ),
+            ),
+        );
+        assert!(proof.check(and_true_true, env).is_ok());
     }
 }
