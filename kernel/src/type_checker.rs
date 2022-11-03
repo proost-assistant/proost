@@ -65,6 +65,7 @@ impl Context {
 
     /// Extends the actual context with a bound variable of type `ty`.
     fn bind(&mut self, ty: &Term) -> &mut Self {
+        self.types = self.types.iter().map(|t| t.shift(1, 0)).collect();
         self.types.push(ty.clone());
         self.lvl = self.lvl + 1.into();
         self
@@ -798,5 +799,60 @@ mod tests {
             ),
         );
         assert!(proof.check(and_true_true, env).is_ok());
+        let and_intro_ty = &Prod(
+            // A : Prop
+            box Prop,
+            box Prod(
+                // B : Prop
+                box Prop,
+                box Prod(
+                    // a : A
+                    box Var(2.into()),
+                    box Prod(
+                        // b : B
+                        box Var(2.into()),
+                        box App(
+                            box App(box Const("and".into()), box Var(4.into())),
+                            box Var(3.into()),
+                        ),
+                    ),
+                ),
+            ),
+        );
+        assert!(and_intro_ty.infer(env).is_ok());
+        let and_intro = &Abs(
+            // A : Prop
+            box Prop,
+            box Abs(
+                // B : Prop
+                box Prop,
+                box Abs(
+                    // a : A
+                    box Var(2.into()),
+                    box Abs(
+                        // b : B
+                        box Var(2.into()),
+                        box Abs(
+                            // C : Prop
+                            box Prop,
+                            box Abs(
+                                // p : A -> B -> C
+                                box Prod(
+                                    box Var(5.into()),
+                                    box Prod(box Var(5.into()), box Var(3.into())),
+                                ),
+                                // p a b
+                                box App(
+                                    box App(box Var(1.into()), box Var(4.into())),
+                                    box Var(3.into()),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        );
+        println!("{:?}", and_intro.infer(env));
+        assert!(and_intro.check(and_intro_ty, env).is_ok());
     }
 }
