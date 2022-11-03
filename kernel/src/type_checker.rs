@@ -1,21 +1,51 @@
-use crate::environment::Environment;
-use crate::error::KernelError;
+use crate::environment::{Environment, EnvironmentError};
+use crate::error::{Error, Result};
 use crate::term::{DeBruijnIndex, Term};
+use derive_more::Display;
 use num_bigint::BigUint;
 use std::cmp::max;
 use std::ops::Index;
 use Term::*;
 
-impl Index<DeBruijnIndex> for Vec<Term> {
+#[derive(Clone, Debug, Display, Eq, PartialEq)]
+#[display(fmt = "{} : {}", _0, _1)]
+pub struct TypedTerm(Term, Term);
+
+/// Errors that can occur, at runtime, during type checking.
+#[non_exhaustive]
+#[derive(Clone, Debug, Display, Eq, PartialEq)]
+pub enum TypeCheckerError {
+    /// t is not a universe
+    #[display(fmt = "{} is not a universe", _0)]
+    NotUniverse(Term),
+
+    /// t1 and t2 are not definitionally equal
+    #[display(fmt = "{} and {} are not definitionaly equal", _0, _1)]
+    NotDefEq(Term, Term),
+
+    /// f of type t1 cannot be applied to x of type t2
+    #[display(fmt = "{} cannot be applied to {}", _0, _1)]
+    WrongArgumentType(TypedTerm, TypedTerm),
+
+    /// t1 of type ty is not a function so cannot be applied to t2
+    #[display(fmt = "{} is not a function so cannot be applied to {}", _0, _1)]
+    NotAFunction(TypedTerm, Term),
+
+    /// Expected ty1, found ty2
+    #[display(fmt = "expected {}, got {}", _0, _1)]
+    TypeMismatch(Term, Term),
+}
+
+/// Type of lists of tuples representing the respective types of each variables
+type Types = Vec<Term>;
+
+impl Index<DeBruijnIndex> for Types {
     type Output = Term;
 
     fn index(&self, idx: DeBruijnIndex) -> &Self::Output {
         &self[usize::from(idx)]
     }
 }
-
-/// Type of lists of tuples representing the respective types of each variables
-type Types = Vec<Term>;
 
 /// Structure containing a context used for typechecking.
 ///
@@ -47,9 +77,9 @@ impl Term {
     /// The conversion is untyped, meaning that it should **only** be called during type-checking when the two `Term`s are already known to be of the same type and in the same context.
     fn conversion(&self, rhs: &Term, env: &Environment, lvl: DeBruijnIndex) -> bool {
         match (self.whnf(env), rhs.whnf(env)) {
-            (Type(i), Type(j)) => i == j,
-
             (Prop, Prop) => true,
+
+            (Type(i), Type(j)) => i == j,
 
             (Var(i), Var(j)) => i == j,
 
@@ -74,24 +104,25 @@ impl Term {
             (App(box t1, box u1), App(box t2, box u2)) => {
                 t1.conversion(&t2, env, lvl) && u1.conversion(&u2, env, lvl)
             }
-
-            (app @ App(box Abs(_, _), box _), u) | (u, app @ App(box Abs(_, _), box _)) => {
-                app.beta_reduction(env).conversion(&u, env, lvl)
-            }
-
+            // TODO: Unused code (#34)
+            // (app @ App(box Abs(_, _), box _), u) | (u, app @ App(box Abs(_, _), box _)) => {
+            //     app.beta_reduction(env).conversion(&u, env, lvl)
+            // }
             _ => false,
         }
     }
 
     /// Checks whether two terms are definitionally equal.
-    pub fn is_def_eq(&self, rhs: &Term, env: &Environment) -> Result<(), KernelError> {
+    pub fn is_def_eq(&self, rhs: &Term, env: &Environment) -> Result<()> {
         self.conversion(rhs, env, 1.into())
             .then_some(())
-            .ok_or_else(|| KernelError::NotDefEq(self.clone(), rhs.clone()))
+            .ok_or(Error {
+                kind: TypeCheckerError::NotDefEq(self.clone(), rhs.clone()).into(),
+            })
     }
 
     /// Computes universe the universe in which `(x : A) -> B` lives when `A : u1` and `B : u2`.
-    fn imax(&self, rhs: &Term) -> Result<Term, KernelError> {
+    fn imax(&self, rhs: &Term) -> Result<Term> {
         match rhs {
             // Because Prop is impredicative, if B : Prop, then (x : A) -> b : Prop
             Prop => Ok(Prop),
@@ -102,28 +133,31 @@ impl Term {
                 // else if u1 = Type(i) and u2 = Type(j), then (x : A) -> B : Type(max(i,j))
                 Type(j) => Ok(Type(max(i.clone(), j.clone()))),
 
-                _ => Err(KernelError::NotUniverse(self.clone())),
+                _ => Err(Error {
+                    kind: TypeCheckerError::NotUniverse(self.clone()).into(),
+                }),
             },
 
-            _ => Err(KernelError::NotUniverse(rhs.clone())),
+            _ => Err(Error {
+                kind: TypeCheckerError::NotUniverse(rhs.clone()).into(),
+            }),
         }
     }
 
-    fn _infer(&self, env: &Environment, ctx: &mut Context) -> Result<Term, KernelError> {
+    fn _infer(&self, env: &Environment, ctx: &mut Context) -> Result<Term> {
         match self {
             Prop => Ok(Type(BigUint::from(0_u64).into())),
             Type(i) => Ok(Type(i.clone() + BigUint::from(1_u64).into())),
             Var(i) => Ok(ctx.types[ctx.lvl - *i].clone()),
 
-            Const(s) => match env.get_type(s) {
-                Some(ty) => Ok(ty),
-                None => Err(KernelError::ConstNotFound(s.clone())),
-            },
+            Const(s) => env.get_type(s).ok_or(Error {
+                kind: EnvironmentError::VariableNotFound(s.clone()).into(),
+            }),
 
             Prod(box t, u) => {
                 let univ_t = t._infer(env, ctx)?;
                 let univ_u = u._infer(env, ctx.clone().bind(t))?;
-
+                // TODO: lax normalization to whnf once it itself is laxed (#34)
                 univ_t.normal_form(env).imax(&univ_u.normal_form(env))
             }
 
@@ -140,97 +174,144 @@ impl Term {
                     typ_lhs
                         .conversion(&typ_rhs, env, ctx.types.len().into())
                         .then_some(*cls)
-                        .ok_or_else(|| {
-                            KernelError::WrongArgumentType(t.clone(), typ_lhs, u.clone(), typ_rhs)
+                        .ok_or(Error {
+                            kind: TypeCheckerError::WrongArgumentType(
+                                TypedTerm(t.clone(), typ_lhs),
+                                TypedTerm(u.clone(), typ_rhs),
+                            )
+                            .into(),
                         })
                 }
 
-                x => Err(KernelError::NotAFunction(t.clone(), x, u.clone())),
+                x => Err(Error {
+                    kind: TypeCheckerError::NotAFunction(TypedTerm(t.clone(), x), u.clone()).into(),
+                }),
             },
         }
     }
 
     /// Infers the type of a `Term` in a given context.
-    pub fn infer(&self, env: &Environment) -> Result<Term, KernelError> {
+    pub fn infer(&self, env: &Environment) -> Result<Term> {
         self._infer(env, &mut Context::new())
     }
 
     /// Checks whether a given term is of type `ty` in a given context.
-    pub fn check(&self, ty: &Term, env: &Environment) -> Result<(), KernelError> {
+    pub fn check(&self, ty: &Term, env: &Environment) -> Result<()> {
         let ctx = &mut Context::new();
         let tty = self._infer(env, ctx)?;
 
         tty.conversion(ty, env, ctx.types.len().into())
             .then_some(())
-            .ok_or_else(|| KernelError::TypeMismatch(tty, ty.clone()))
+            .ok_or(Error {
+                kind: TypeCheckerError::TypeMismatch(tty, ty.clone()).into(),
+            })
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::type_checker::*;
+    use super::*;
 
-    fn id(l: usize) -> Box<Term> {
-        box Abs(box Prop, box Var(l.into()))
+    fn proj(idx: usize) -> Box<Term> {
+        box Abs(box Prop, box Var(idx.into()))
     }
 
     #[test]
-    fn var_subst_1() {
-        // (λ P. λP. 1) (λP.1)
-        let t = App(
-            box Abs(box Prop, box Abs(box Prop, box Var(1.into()))),
-            id(1),
+    fn def_eq_1() {
+        let term = App(box Abs(box Prop, proj(1)), proj(1));
+        let normal_form = Abs(box Prop, box Var(1.into()));
+
+        assert!(term.is_def_eq(&normal_form, &Environment::new()).is_ok());
+    }
+
+    #[test]
+    fn def_eq_2() {
+        let term = App(box Abs(box Prop, proj(2)), proj(1));
+        let normal_form = Abs(box Prop, proj(1));
+
+        assert!(term.is_def_eq(&normal_form, &Environment::new()).is_ok());
+    }
+
+    #[test]
+    fn def_eq_self() {
+        // λa.a (λx.x) (λx.x)
+        let term = Abs(
+            box Prop,
+            box App(box App(box Var(2.into()), proj(1)), proj(1)),
         );
 
-        let nf = Abs(box Prop, box Var(1.into()));
-        assert_eq!(t.normal_form(&Environment::new()), nf)
+        assert!(term.is_def_eq(&term, &Environment::new()).is_ok());
     }
 
     #[test]
-    fn var_subst_2() {
-        let t = App(
-            box Abs(box Prop, box Abs(box Prop, box Var(2.into()))),
-            id(1),
+    fn failed_def_equal() {
+        let term_lhs = Prop;
+        let term_rhs = Type(BigUint::from(0_u64).into());
+
+        assert_eq!(
+            term_lhs.is_def_eq(&term_rhs, &Environment::new()),
+            Err(Error {
+                kind: TypeCheckerError::NotDefEq(term_lhs, term_rhs).into()
+            })
+        );
+    }
+
+    #[test]
+    fn failed_prod_binder_conversion() {
+        let term_lhs = Prod(box Prop, box Prop);
+        let term_rhs = Prod(box Type(BigUint::from(0_u64).into()), box Prop);
+
+        assert_eq!(
+            term_lhs.is_def_eq(&term_rhs, &Environment::new()),
+            Err(Error {
+                kind: TypeCheckerError::NotDefEq(term_lhs, term_rhs).into()
+            })
+        );
+    }
+
+    #[test]
+    fn failed_app_head_conversion() {
+        let term_lhs = Abs(
+            box Type(BigUint::from(0_u64).into()),
+            box Abs(
+                box Type(BigUint::from(0_u64).into()),
+                box App(box Var(1.into()), box Prop),
+            ),
         );
 
-        let nf = Abs(box Prop, id(1));
-        assert_eq!(t.normal_form(&Environment::new()), nf)
+        let term_rhs = Abs(
+            box Type(BigUint::from(0_u64).into()),
+            box Abs(
+                box Type(BigUint::from(0_u64).into()),
+                box App(box Var(2.into()), box Prop),
+            ),
+        );
+
+        assert_eq!(
+            term_lhs.is_def_eq(&term_rhs, &Environment::new()),
+            Err(Error {
+                kind: TypeCheckerError::NotDefEq(term_lhs, term_rhs).into()
+            })
+        );
     }
 
     #[test]
-    fn simple() {
-        let t1 = App(
+    fn typed_reduction_app_1() {
+        let term = App(
             box Abs(box Type(BigUint::from(0_u64).into()), box Var(1.into())),
             box Prop,
         );
 
-        let t2 = Prop;
-        assert!(t1.conversion(&t2, &Environment::new(), 0.into()));
-
-        let ty = t1.infer(&Environment::new());
-        assert_eq!(ty, Ok(Type(BigUint::from(0_u64).into())));
-    }
-
-    #[test]
-    fn simple_substitute() {
-        // λ (x : P -> P).(λ (y :P).x y) x
-        //λ P -> P.(λ P.2 1) 1
-        let term = Abs(
-            box Prod(box Prop, box Prop),
-            box App(
-                box Abs(box Prop, box App(box Var(2.into()), box Var(1.into()))),
-                box Var(1.into()),
-            ),
-        );
-
-        // λx.x x
-        let reduced = Abs(box Prop, box App(box Var(1.into()), box Var(1.into())));
+        let reduced = Prop;
         assert!(term.is_def_eq(&reduced, &Environment::new()).is_ok());
-        assert!(term.infer(&Environment::new()).is_err());
+
+        let term_type = term.infer(&Environment::new()).unwrap();
+        assert_eq!(term_type, Type(BigUint::from(0_u64).into()));
+        assert!(term.check(&term_type, &Environment::new()).is_ok());
     }
 
     #[test]
-    fn complex_conv() {
+    fn typed_reduction_app_2() {
         // (λa.λb.λc.a (λd.λe.e (d b)) (λ_.c) (λd.d)) (λa.λb.a b)
         let term = App(
             box Abs(
@@ -275,22 +356,22 @@ mod tests {
                                     ),
                                 ),
                                 // _ : P
-                                box Abs(box Prop, box Var(2.into())),
+                                proj(2),
                             ),
-                            //d : P
-                            box Abs(box Prop, box Var(1.into())),
+                            // d : P
+                            proj(1),
                         ),
                     ),
                 ),
             ),
             box Abs(
-                //a : (P -> P) -> (P -> P) -> P
+                // a : (P -> P) -> (P -> P) -> P
                 box Prod(
                     box Prod(box Prop, box Prop),
                     box Prod(box Prod(box Prop, box Prop), box Prop),
                 ),
                 box Abs(
-                    //b : P -> P
+                    // b : P -> P
                     box Prod(box Prop, box Prop),
                     box App(box Var(2.into()), box Var(1.into())),
                 ),
@@ -298,71 +379,112 @@ mod tests {
         );
 
         // λa : P.λb : P .b
-        let reduced = Abs(box Prop, box Abs(box Prop, box Var(1.into())));
+        let reduced = Abs(box Prop, proj(1));
         assert!(term.is_def_eq(&reduced, &Environment::new()).is_ok());
-        assert!(term.infer(&Environment::new()).is_ok())
-    }
 
-    //(λ ℙ → λ ℙ → λ ℙ → (0 (λ ℙ → λ ℙ → ((4 1) 3) λ ℙ → 3)) (λ ℙ → λ ℙ → (0 1) (λ ℙ → 0 λ ℙ → 0)))
-    #[test]
-    fn nf_test() {
-        //λa.a (λx.x) (λx.x)
-        let reduced = Abs(box Prop, box App(box App(box Var(2.into()), id(1)), id(1)));
-
-        let nff = reduced.clone().normal_form(&Environment::new());
-        assert_eq!(reduced, nff);
-        assert!(reduced.is_def_eq(&nff, &Environment::new()).is_ok());
+        let term_type = term.infer(&Environment::new()).unwrap();
+        assert_eq!(term_type, Prod(box Prop, box Prod(box Prop, box Prop)));
+        assert!(term.check(&term_type, &Environment::new()).is_ok());
     }
 
     #[test]
-    fn polymorphism() {
-        let id = Abs(
+    fn typed_reduction_universe() {
+        let term = App(
+            box Abs(box Prop, box Type(BigUint::from(0_u64).into())),
+            box Prod(box Prop, box Var(1.into())),
+        );
+
+        let reduced = Type(BigUint::from(0_u64).into());
+        assert!(term.is_def_eq(&reduced, &Environment::new()).is_ok());
+
+        let term_type = term.infer(&Environment::new()).unwrap();
+        assert_eq!(term_type, Type(BigUint::from(1_u64).into()));
+        assert!(term.check(&term_type, &Environment::new()).is_ok());
+    }
+
+    #[test]
+    fn escape_from_prop() {
+        let term = Abs(
+            box Prop,
+            box Prod(box Var(1.into()), box Type(BigUint::from(0_u64).into())),
+        );
+
+        let term_type = term.infer(&Environment::new()).unwrap();
+        assert_eq!(
+            term_type,
+            Prod(box Prop, box Type(BigUint::from(1_u64).into()))
+        );
+        assert!(term.check(&term_type, &Environment::new()).is_ok());
+    }
+
+    #[test]
+    fn illtyped_reduction() {
+        // λ (x : P -> P).(λ (y :P).x y) x
+        // λ P -> P.(λ P.2 1) 1
+        let term = Abs(
+            box Prod(box Prop, box Prop),
+            box App(
+                box Abs(box Prop, box App(box Var(2.into()), box Var(1.into()))),
+                box Var(1.into()),
+            ),
+        );
+
+        // λx.x x
+        let reduced = Abs(box Prop, box App(box Var(1.into()), box Var(1.into())));
+        assert!(term.is_def_eq(&reduced, &Environment::new()).is_ok());
+    }
+
+    #[test]
+    fn typed_prod_1() {
+        let term = Prod(box Prop, box Prop);
+        let term_type = term.infer(&Environment::new()).unwrap();
+
+        assert_eq!(term_type, Type(BigUint::from(0_u64).into()));
+        assert!(term.check(&term_type, &Environment::new()).is_ok());
+    }
+
+    #[test]
+    fn typed_prod_2() {
+        let term = Prod(box Prop, box Var(1.into()));
+        let term_type = term.infer(&Environment::new()).unwrap();
+
+        assert_eq!(term_type, Prop);
+        assert!(term.check(&term_type, &Environment::new()).is_ok());
+    }
+
+    #[test]
+    fn typed_prod_3() {
+        let term = Abs(box Prop, box Abs(box Var(1.into()), box Var(1.into())));
+        let term_type = term.infer(&Environment::new()).unwrap();
+
+        assert_eq!(
+            term_type,
+            Prod(box Prop, box Prod(box Var(1.into()), box Var(2.into())))
+        );
+        assert!(term.check(&term_type, &Environment::new()).is_ok());
+    }
+
+    #[test]
+    fn typed_polymorphism() {
+        let identity = Abs(
             box Type(BigUint::from(0_u64).into()),
             box Abs(box Var(1.into()), box Var(1.into())),
         );
+        let identity_type = identity.infer(&Environment::new()).unwrap();
 
-        assert!(id.infer(&Environment::new()).is_ok());
+        assert_eq!(
+            identity_type,
+            Prod(
+                box Type(BigUint::from(0_u64).into()),
+                box Prod(box Var(1.into()), box Var(2.into()))
+            )
+        );
+        assert!(identity.check(&identity_type, &Environment::new()).is_ok());
     }
 
     #[test]
-    fn type_type() {
-        assert!(Type(BigUint::from(0_u64).into())
-            .check(&Type(BigUint::from(1_u64).into()), &Environment::new())
-            .is_ok());
-    }
-
-    #[test]
-    fn not_function() {
-        let t = App(box Prop, box Prop);
-        assert!(t.infer(&Environment::new()).is_err())
-    }
-
-    #[test]
-    fn not_type_prod() {
-        let t = Prod(box Abs(box Prop, box Var(1.into())), box Prop);
-        assert!(t.infer(&Environment::new()).is_err());
-
-        let t = Prod(box Prop, box Abs(box Prop, box Prop));
-        assert!(t.infer(&Environment::new()).is_err());
-
-        let wf_prod = Prod(box Prop, box Prop);
-        assert!(wf_prod
-            .check(&Type(BigUint::from(0_u64).into()), &Environment::new())
-            .is_ok());
-
-        let wf_prod = Prod(box Prop, box Var(1.into()));
-        assert!(wf_prod.check(&Prop, &Environment::new()).is_ok());
-
-        // Type0 -> (A : Prop) ->
-        let wf_prod = Prod(box Prop, box Prop);
-        assert!(wf_prod
-            .check(&Type(BigUint::from(0_u64).into()), &Environment::new())
-            .is_ok());
-    }
-
-    #[test]
-    fn poly_test2() {
-        let t = Abs(
+    fn typed_polymorphism_2() {
+        let term = Abs(
             box Prop,
             box Abs(
                 box Prop,
@@ -375,60 +497,230 @@ mod tests {
                 ),
             ),
         );
+        let term_type = term.infer(&Environment::new()).unwrap();
 
-        assert!(t.infer(&Environment::new()).is_ok());
-    }
-
-    #[test]
-    fn env_test() {
-        let id_prop = Prod(box Prop, box Prod(box Var(1.into()), box Var(2.into())));
-        let t = Abs(box Prop, box Abs(box Var(1.into()), box Var(1.into())));
-        let mut env = Environment::new();
-        env.insert("foo".into(), id_prop.clone(), Prop).unwrap();
-
-        assert!(t.check(&Const("foo".into()), &env).is_ok());
-        assert!(id_prop.is_def_eq(&Const("foo".into()), &env).is_ok());
-    }
-
-    #[test]
-    fn check_bad() {
-        assert!(Prop.check(&Prop, &Environment::new()).is_err());
-    }
-
-    #[test]
-    fn not_def_eq() {
-        assert!(Prop
-            .is_def_eq(&Type(BigUint::from(0_u64).into()), &Environment::new())
-            .is_err());
-    }
-
-    #[test]
-    fn infer_const() {
-        let id_prop = Prod(box Prop, box Prod(box Var(1.into()), box Var(1.into())));
-        let mut env = Environment::new();
-        env.insert("foo".into(), id_prop, Prop).unwrap();
-
-        assert!(Const("foo".into()).infer(&env).is_ok());
-        assert!(Const("foo".into()).infer(&Environment::new()).is_err());
-    }
-
-    #[test]
-    fn prod_var() {
-        let ty = Prod(box Prop, box Prod(box Var(1.into()), box Var(2.into())));
-        let t = Abs(box Prop, box Abs(box Var(1.into()), box Var(1.into())));
-        assert!(t.check(&ty, &Environment::new()).is_ok())
-    }
-
-    #[test]
-    fn univ_reduc() {
-        let ty = App(
-            box Abs(box Prop, box Type(BigUint::from(0_u64).into())),
-            box Prod(box Prop, box Var(1.into())),
+        assert_eq!(
+            term_type,
+            Prod(
+                box Prop,
+                box Prod(
+                    box Prop,
+                    box Prod(box Prod(box Prop, box Prod(box Prop, box Prop)), box Prop)
+                )
+            )
         );
-        assert!(ty.conversion(
-            &Type(BigUint::from(0_u64).into()),
-            &Environment::new(),
-            0.into()
-        ))
+        assert!(term.check(&term_type, &Environment::new()).is_ok());
+    }
+
+    #[test]
+    fn type_hierarchy_prop() {
+        let term = Prop;
+        let term_type = term.infer(&Environment::new()).unwrap();
+
+        assert_eq!(term_type, Type(BigUint::from(0_u64).into()));
+        assert!(term.check(&term_type, &Environment::new()).is_ok());
+    }
+
+    #[test]
+    fn type_hierarchy_type() {
+        let term = Type(BigUint::from(0_u64).into());
+        let term_type = term.infer(&Environment::new()).unwrap();
+
+        assert_eq!(term_type, Type(BigUint::from(1_u64).into()));
+        assert!(term.check(&term_type, &Environment::new()).is_ok());
+    }
+
+    #[test]
+    fn environment() {
+        let term = Abs(box Prop, box Abs(box Var(1.into()), box Var(1.into())));
+        let term_type = term.infer(&Environment::new()).unwrap();
+
+        let context = Prod(box Prop, box Prod(box Var(1.into()), box Var(2.into())));
+        let mut env = Environment::new();
+        env.insert("foo".into(), context, Prop).unwrap();
+
+        assert_eq!(
+            term_type,
+            Prod(box Prop, box Prod(box Var(1.into()), box Var(2.into())))
+        );
+        assert!(term.check(&Const("foo".into()), &env).is_ok());
+    }
+
+    mod failed_type_inference {
+        use super::*;
+
+        #[test]
+        fn not_function() {
+            let term = App(box Prop, box Prop);
+
+            assert_eq!(
+                term.infer(&Environment::new()),
+                Err(Error {
+                    kind: TypeCheckerError::NotAFunction(
+                        TypedTerm(Prop, Type(BigUint::from(0_u64).into())),
+                        Prop
+                    )
+                    .into()
+                })
+            );
+        }
+
+        #[test]
+        fn not_function_prod_1() {
+            let term = Prod(box Prop, box App(box Prop, box Prop));
+
+            assert_eq!(
+                term.infer(&Environment::new()),
+                Err(Error {
+                    kind: TypeCheckerError::NotAFunction(
+                        TypedTerm(Prop, Type(BigUint::from(0_u64).into())),
+                        Prop
+                    )
+                    .into()
+                })
+            );
+        }
+
+        #[test]
+        fn not_function_prod_2() {
+            let term = Prod(box App(box Prop, box Prop), box Prop);
+
+            assert_eq!(
+                term.infer(&Environment::new()),
+                Err(Error {
+                    kind: TypeCheckerError::NotAFunction(
+                        TypedTerm(Prop, Type(BigUint::from(0_u64).into())),
+                        Prop
+                    )
+                    .into()
+                })
+            );
+        }
+
+        #[test]
+        fn not_function_app_1() {
+            let term = App(box Abs(box Prop, box Prop), box App(box Prop, box Prop));
+
+            assert_eq!(
+                term.infer(&Environment::new()),
+                Err(Error {
+                    kind: TypeCheckerError::NotAFunction(
+                        TypedTerm(Prop, Type(BigUint::from(0_u64).into())),
+                        Prop
+                    )
+                    .into()
+                })
+            );
+        }
+
+        #[test]
+        fn not_function_app_2() {
+            let term = App(box App(box Prop, box Prop), box Prop);
+
+            assert_eq!(
+                term.infer(&Environment::new()),
+                Err(Error {
+                    kind: TypeCheckerError::NotAFunction(
+                        TypedTerm(Prop, Type(BigUint::from(0_u64).into())),
+                        Prop
+                    )
+                    .into()
+                })
+            );
+        }
+
+        #[test]
+        fn wrong_argument_type() {
+            // λ (x : P -> P).(λ (y :P).x y) x
+            // λ P -> P.(λ P.2 1) 1
+            let term = Abs(
+                box Prod(box Prop, box Prop),
+                box App(
+                    box Abs(box Prop, box App(box Var(2.into()), box Var(1.into()))),
+                    box Var(1.into()),
+                ),
+            );
+
+            assert_eq!(
+                term.infer(&Environment::new()),
+                Err(Error {
+                    kind: TypeCheckerError::WrongArgumentType(
+                        TypedTerm(
+                            Abs(box Prop, box App(box Var(2.into()), box Var(1.into()))),
+                            Prop
+                        ),
+                        TypedTerm(Var(1.into()), Prod(box Prop, box Prop))
+                    )
+                    .into()
+                })
+            );
+        }
+
+        #[test]
+        fn not_universe_1() {
+            let term = Prod(proj(1), box Prop);
+
+            assert_eq!(
+                term.infer(&Environment::new()),
+                Err(Error {
+                    kind: TypeCheckerError::NotUniverse(Prod(box Prop, box Prop)).into()
+                })
+            );
+        }
+
+        #[test]
+        fn not_universe_2() {
+            let term = Prod(box Prop, box Abs(box Prop, box Prop));
+
+            assert_eq!(
+                term.infer(&Environment::new()),
+                Err(Error {
+                    kind: TypeCheckerError::NotUniverse(Prod(
+                        box Prop,
+                        box Type(BigUint::from(0_u64).into())
+                    ))
+                    .into()
+                })
+            );
+        }
+
+        #[test]
+        fn const_not_found() {
+            let term = Const("foo".to_string());
+
+            assert_eq!(
+                term.infer(&Environment::new()),
+                Err(Error {
+                    kind: EnvironmentError::VariableNotFound("foo".to_string()).into()
+                })
+            );
+        }
+
+        #[test]
+        fn check_fail_1() {
+            let term = App(box Prop, box Prop);
+
+            assert_eq!(
+                term.check(&Prop, &Environment::new()),
+                Err(Error {
+                    kind: TypeCheckerError::NotAFunction(
+                        TypedTerm(Prop, Type(BigUint::from(0_u64).into())),
+                        Prop,
+                    )
+                    .into(),
+                })
+            );
+        }
+
+        #[test]
+        fn check_fail_2() {
+            assert_eq!(
+                Prop.check(&Prop, &Environment::new()),
+                Err(Error {
+                    kind: TypeCheckerError::TypeMismatch(Type(BigUint::from(0_u64).into()), Prop)
+                        .into(),
+                })
+            );
+        }
     }
 }

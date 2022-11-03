@@ -70,15 +70,18 @@
           commands = [{
             name = "coverage";
             command = let 
-              excl_br_regexp = "#\\[|unreachable!|assert(_eq)?!";
-              excl_regexp = "//!|///|#\\[|use";
+              excl_line = "//!|///|#\\[|use|unreachable!";
+              excl_br_line = "#\\[|unreachable!|assert(_eq)?!|^(pub |pub(crate) )?(enum|struct)|^[[:space:]]*\\}(,)?$";
+              excl_br_start = "^(pub |pub(crate) )?(enum|struct) [[:alpha:]]+ \\{";
+              excl_br_stop = "^\\}";
               env = "CARGO_INCREMENTAL=0"
                   + " RUSTFLAGS=\"-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort\""
                   + " RUSTDOCFLAGS=\"-Cpanic=abort\"";
             in ''
               ${env} cargo test
               grcov . -s . -b ./target/debug/ --branch --ignore '*cargo*' --ignore-not-existing \
-                  --excl-line "${excl_regexp}" --excl-br-line "${excl_br_regexp}" -o ./target/coverage.lcov --log /dev/null || true
+                  --excl-line "${excl_line}" --excl-br-line "${excl_br_line}" --excl-br-start "${excl_br_start}" --excl-br-stop "${excl_br_stop}" \
+                  -o ./target/coverage.lcov --log /dev/null || true
               find target \( -name "*.gcda" -or -name "*.gcno" \) -delete
               genhtml --branch --no-function-coverage --precision 2 target/coverage.lcov -o coverage
             '';

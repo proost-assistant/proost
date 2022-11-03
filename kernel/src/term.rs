@@ -43,10 +43,7 @@ impl Term {
             App(box Abs(_, box t1), box t2) => t1.substitute(t2, 1),
             App(box t1, box t2) => App(box t1.beta_reduction(env), box t2.clone()),
             Abs(x, box t) => Abs(x.clone(), box t.beta_reduction(env)),
-            Const(s) => match env.get_term(s) {
-                Some(t) => t,
-                None => unreachable!(),
-            },
+            Const(s) => env.get_term(s).unwrap(),
             _ => self.clone(),
         }
     }
@@ -67,8 +64,14 @@ impl Term {
             Var(i) if *i > depth.into() => Var(*i - 1.into()),
 
             App(l, r) => App(box l.substitute(rhs, depth), box r.substitute(rhs, depth)),
-            Abs(t, term) => Abs(t.clone(), box term.substitute(rhs, depth + 1)),
-            Prod(t, term) => Prod(t.clone(), box term.substitute(rhs, depth + 1)),
+            Abs(t, term) => Abs(
+                box t.substitute(rhs, depth),
+                box term.substitute(rhs, depth + 1),
+            ),
+            Prod(t, term) => Prod(
+                box t.substitute(rhs, depth),
+                box term.substitute(rhs, depth + 1),
+            ),
             _ => self.clone(),
         }
     }
@@ -88,16 +91,14 @@ impl Term {
     }
 
     /// Returns the weak-head normal form of a term in a given environment.
+    // TODO make whnf more lax, it shouldn't reduce applications in which the head is a neutral term. (#34)
     pub fn whnf(&self, env: &Environment) -> Term {
         match self {
             App(box t, t2) => match t.whnf(env) {
                 whnf @ Abs(_, _) => App(box whnf, t2.clone()).beta_reduction(env).whnf(env),
                 _ => self.clone(),
             },
-            Const(s) => match env.get_term(s) {
-                Some(t) => t,
-                None => unreachable!(),
-            },
+            Const(s) => env.get_term(s).unwrap(),
             _ => self.clone(),
         }
     }
@@ -106,8 +107,7 @@ impl Term {
 #[cfg(test)]
 mod tests {
     // /!\ most of these tests are on ill-typed terms and should not be used for further testings
-    use super::Term::*;
-    use crate::term::Environment;
+    use super::*;
 
     #[test]
     fn simple_subst() {
@@ -298,15 +298,16 @@ mod tests {
 
     #[test]
     fn shift_prod() {
-        let t1 = Prod(box Var(1.into()), box Var(1.into()));
-        let t2 = App(box Abs(box Prop, box t1.clone()), box Prop);
+        let reduced = Prod(box Prop, box Var(1.into()));
+        let term = App(box Abs(box Prop, box reduced.clone()), box Prop);
 
-        assert_eq!(t2.beta_reduction(&Environment::new()), t1)
+        assert_eq!(term.beta_reduction(&Environment::new()), reduced)
     }
 
     #[test]
-    fn beta_red_const() {
+    fn const_subst() {
         let id_prop = Prod(box Prop, box Prod(box Var(1.into()), box Var(1.into())));
+
         let mut env = Environment::new();
         env.insert("foo".into(), id_prop.clone(), Prop).unwrap();
 

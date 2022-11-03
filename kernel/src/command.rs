@@ -1,4 +1,6 @@
-use crate::{Environment, KernelError, Term};
+use crate::environment::Environment;
+use crate::error::Result;
+use crate::term::Term;
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Command {
@@ -10,8 +12,7 @@ pub enum Command {
 }
 
 impl Command {
-    // TODO (#19)
-    pub fn process(self, env: &mut Environment) -> Result<Option<Term>, KernelError> {
+    pub fn process(self, env: &mut Environment) -> Result<Option<Term>> {
         match self {
             Command::Define(s, None, term) => term
                 .infer(env)
@@ -30,7 +31,8 @@ impl Command {
 
 #[cfg(test)]
 mod tests {
-    use crate::{num_bigint::BigUint, Command, Environment, Term};
+    use super::*;
+    use num_bigint::BigUint;
 
     fn simple_env() -> Environment {
         Environment::new()
