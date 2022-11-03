@@ -70,10 +70,10 @@
           commands = [{
             name = "coverage";
             command = let 
+              excl_line = "//!|///|#\\[|use|unreachable!";
               excl_br_line = "#\\[|unreachable!|assert(_eq)?!|^(pub |pub(crate) )?(enum|struct)|^[[:space:]]*\\}(,)?$";
               excl_br_start = "^(pub |pub(crate) )?(enum|struct) [[:alpha:]]+ \\{";
               excl_br_stop = "^\\}";
-              excl_line = "//!|///|#\\[|use";
               env = "CARGO_INCREMENTAL=0"
                   + " RUSTFLAGS=\"-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort\""
                   + " RUSTDOCFLAGS=\"-Cpanic=abort\"";
@@ -82,6 +82,7 @@
               grcov . -s . -b ./target/debug/ --branch --ignore '*cargo*' --ignore-not-existing \
                   --excl-line "${excl_line}" --excl-br-line "${excl_br_line}" --excl-br-start "${excl_br_start}" --excl-br-stop "${excl_br_stop}" \
                   -o ./target/coverage.lcov --log /dev/null || true
+              find target \( -name "*.gcda" -or -name "*.gcno" \) -delete
               genhtml --branch --no-function-coverage --precision 2 target/coverage.lcov -o coverage
             '';
             help = "Launch tests and generate HTML coverage website";

@@ -39,7 +39,7 @@ tests:
   stage: tests
   variables:
     CARGO_INCREMENTAL: 0
-    EXCL_LINE: "//!|///|#\\[|use"
+    EXCL_LINE: "//!|///|#\\[|use|unreachable!"
     EXCL_BR_LINE: "#\\[|unreachable!|assert(_eq)?!|^(pub |pub(crate) )?(enum|struct)|^[[:space:]]*\\}(,)?$"
     EXCL_BR_START: "^(pub |pub(crate) )?(enum|struct) [[:alpha:]]+ \\{"
     EXCL_BR_STOP: "^\\}"
