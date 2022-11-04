@@ -2,7 +2,7 @@
 
 mod connection;
 mod lsp_server;
-mod message;
+mod payload;
 
 use connection::Connection;
 use log::info;

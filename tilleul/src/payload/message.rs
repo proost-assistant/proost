@@ -42,7 +42,7 @@ impl Message {
         Ok(serde_json::from_str(&buffer)?)
     }
 
-    pub fn write(self, _writer: &mut dyn Write) -> () {
+    pub fn write(self, _writer: &mut dyn Write) {
         info!("Write: {:?}", self);
     }
 }

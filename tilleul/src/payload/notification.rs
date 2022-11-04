@@ -25,6 +25,6 @@ impl Notification {
     pub fn is_exit(&self) -> bool {
         use notification::Notification;
 
-        self.method == notification::Exit::METHOD.to_string()
+        self.method == *notification::Exit::METHOD
     }
 }

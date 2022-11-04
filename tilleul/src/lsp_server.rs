@@ -1,4 +1,10 @@
+mod closing;
+mod initializing;
+mod instantiated;
+mod serving;
+
 use crate::connection::Connection;
+use derive_more::Deref;
 
 /// Sealed prevent others from implementing the trait `Phase`.
 mod private {
@@ -22,39 +28,21 @@ macro_rules! phase {
     };
 }
 
-phase!(Instantiated(Instantiate));
+type Unit = ();
+
+phase!(Instantiated(Unit));
+phase!(Initializing(Initialize));
 phase!(Serving(Serve));
 phase!(Closing(Serve));
 
 /// LSP server.
-pub struct LspServer<P: Phase>(pub(crate) P::State);
+#[derive(Deref)]
+pub struct LspServer<P: Phase>(pub P::State);
 
-pub struct Instantiate {
+pub struct Initialize {
     pub connection: Connection,
 }
 
 pub struct Serve {
     pub connection: Connection,
-}
-
-impl LspServer<Instantiated> {
-    pub fn new(connection: Connection) -> Self {
-        LspServer(Instantiate { connection })
-    }
-
-    pub fn initialize(self) -> LspServer<Serving> {
-        LspServer(Serve {
-            connection: self.0.connection,
-        })
-    }
-}
-
-impl LspServer<Serving> {
-    pub fn serving(self) -> LspServer<Closing> {
-        LspServer(self.0)
-    }
-}
-
-impl LspServer<Closing> {
-    pub fn closing(self) {}
 }

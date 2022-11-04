@@ -1,4 +1,4 @@
-use crate::message::Message;
+use crate::payload::Message;
 use crossbeam_channel::{bounded, Receiver, Sender};
 use log::{error, info};
 use std::{io, thread};
