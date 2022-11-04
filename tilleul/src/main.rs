@@ -1,9 +1,12 @@
+#![feature(type_changing_struct_update)]
+
 mod connection;
+mod lsp_server;
 mod message;
 
 use connection::Connection;
 use log::info;
-use message::Message;
+use lsp_server::LspServer;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const NAME: &str = env!("CARGO_PKG_NAME");
@@ -14,29 +17,10 @@ fn main() {
 
     info!("Starting {} {}", NAME, VERSION);
 
-    let (connection, threads) = Connection::new();
-
-    main_loop(connection);
-
-    threads.join();
+    LspServer::new(Connection::new())
+        .initialize()
+        .serving()
+        .closing();
 
     info!("Exiting {}", NAME);
-}
-
-fn main_loop(connection: Connection) {
-    for msg in connection.receiver {
-        match msg {
-            Message::Request(request) => {
-                info!("Received request: {:?}", request.method);
-            }
-
-            Message::Response(response) => {
-                info!("Received response: {:?}", response);
-            }
-
-            Message::Notification(notification) => {
-                info!("Received notification: {:?}", notification);
-            }
-        }
-    }
 }

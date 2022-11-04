@@ -33,7 +33,7 @@ impl Message {
 
         let mut buffer = buffer.into_bytes();
 
-        buffer.resize(size + 1, 0);
+        buffer.resize(size + 2, 0);
 
         reader.read_exact(&mut buffer)?;
 

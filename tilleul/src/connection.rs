@@ -6,23 +6,29 @@ use std::{io, thread};
 pub struct Connection {
     pub sender: Sender<Message>,
     pub receiver: Receiver<Message>,
+
+    _threads: Threads,
 }
 
-pub struct Threads {
-    reader: thread::JoinHandle<()>,
-    writer: thread::JoinHandle<()>,
+struct Threads {
+    reader: Option<thread::JoinHandle<()>>,
+    writer: Option<thread::JoinHandle<()>>,
 }
 
 impl Connection {
     /// Create a new connection from a mode.
-    pub fn new() -> (Connection, Threads) {
+    pub fn new() -> Self {
         let (reader_sender, receiver) = bounded::<Message>(0);
         let (sender, writer_receiver) = bounded::<Message>(0);
 
-        let reader = thread::spawn(|| Connection::reader_thread(reader_sender));
-        let writer = thread::spawn(|| Connection::writer_thread(writer_receiver));
+        let reader = Some(thread::spawn(|| Connection::reader_thread(reader_sender)));
+        let writer = Some(thread::spawn(|| Connection::writer_thread(writer_receiver)));
 
-        (Connection { sender, receiver }, Threads { reader, writer })
+        Connection {
+            sender,
+            receiver,
+            _threads: Threads { reader, writer },
+        }
     }
 
     fn reader_thread(sender: Sender<Message>) {
@@ -52,9 +58,14 @@ impl Connection {
     }
 }
 
-impl Threads {
-    pub fn join(self) {
-        self.reader.join().unwrap();
-        self.writer.join().unwrap();
+impl Drop for Threads {
+    fn drop(&mut self) {
+        if let Some(thread) = self.reader.take() {
+            thread.join().unwrap();
+        }
+
+        if let Some(thread) = self.writer.take() {
+            thread.join().unwrap();
+        }
     }
 }
