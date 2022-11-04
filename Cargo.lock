@@ -878,11 +878,11 @@ name = "tilleul"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap",
  "crossbeam-channel",
  "derive_more",
  "env_logger",
  "kernel",
+ "lazy_static",
  "log",
  "lsp-types",
  "parser",
