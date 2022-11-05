@@ -11,5 +11,5 @@ num-bigint.workspace = true
 
 [dev-dependencies]
 lazy_static = "1.4.0"
-bumpalo.workspace = true;
-im-rc.workspace = true;
+bumpalo.workspace = true
+im-rc.workspace = true

@@ -1,11 +1,10 @@
 use crate::environment::{Environment, EnvironmentError};
 use crate::error::{Error, Result};
-use crate::term::{DeBruijnIndex, Term};
+use crate::term::{Arena, Payload, Term};
 use derive_more::Display;
 use num_bigint::BigUint;
 use std::cmp::max;
-use std::ops::Index;
-use Term::*;
+use Payload::*;
 
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 #[display(fmt = "{} : {}", _0, _1)]
@@ -36,72 +35,19 @@ pub enum TypeCheckerError {
     TypeMismatch(Term, Term),
 }
 
-/// Type of lists of tuples representing the respective types of each variables
-type Types = Vec<Term>;
-
-impl Index<DeBruijnIndex> for Types {
-    type Output = Term;
-
-    fn index(&self, idx: DeBruijnIndex) -> &Self::Output {
-        &self[usize::from(idx)]
-    }
-}
-
-/// Structure containing a context used for typechecking.
-///
-/// It serves to store the types of variables in the following way:
-/// In a given context {types, lvl}, the type of `Var(i)` is in `types[lvl - i]`.
-#[derive(Clone, Debug, Default)]
-struct Context {
-    types: Types,
-    lvl: DeBruijnIndex,
-}
-
-impl Context {
-    /// Creates a new empty `Context`.
-    fn new() -> Self {
-        Self::default()
-    }
-
-    /// Extends the actual context with a bound variable of type `ty`.
-    fn bind(&mut self, ty: &Term) -> &mut Self {
-        // if x : Var(i), and x appears in a redex, then i needs to be shifted in the context, it would lead to incoherences otherwise.
-        self.types = self.types.iter().map(|t| t.shift(1, 0)).collect();
-        self.types.push(ty.shift(1, 0));
-        self.lvl = self.lvl + 1.into();
-        self
-    }
-}
-
-impl Term {
+impl<'arena> Arena<'arena> {
     /// Conversion function, checks whether two terms are definitionally equal.
     ///
     /// The conversion is untyped, meaning that it should **only** be called during type-checking when the two `Term`s are already known to be of the same type and in the same context.
-    fn conversion(&self, rhs: &Term, env: &Environment) -> bool {
-        match (self.whnf(env), rhs.whnf(env)) {
-            (Prop, Prop) => true,
+    fn conversion(&mut self, lhs: Term<'arena>, rhs: Term<'arena>) -> bool {
+        let lhs = self.whnf(lhs);
+        let rhs = self.whnf(rhs);
+        lhs == rhs
 
-            (Type(i), Type(j)) => i == j,
-
-            (Var(i), Var(j)) => i == j,
-
-            (Prod(t1, u1), Prod(box t2, u2)) => t1.conversion(&t2, env) && u1.conversion(&u2, env),
-
-            // Since we assume that both vals already have the same type,
-            // checking conversion over the argument type is useless.
-            // However, this doesn't mean we can simply remove the arg type
-            // from the type constructor in the enum, it is needed to quote back to terms.
-            (Abs(_, t), Abs(_, u)) => t.conversion(&u, env),
-
-            (App(box t1, box u1), App(box t2, box u2)) => {
-                t1.conversion(&t2, env) && u1.conversion(&u2, env)
-            }
-            // TODO: Unused code (#34)
-            // (app @ App(box Abs(_, _), box _), u) | (u, app @ App(box Abs(_, _), box _)) => {
-            //     app.beta_reduction(env).conversion(&u, env)
-            // }
-            _ => false,
-        }
+        // TODO: Unused code (#34)
+        // (app @ App(box Abs(_, _), box _), u) | (u, app @ App(box Abs(_, _), box _)) => {
+        //     app.beta_reduction(env).conversion(&u, env)
+        // }
     }
 
     /// Checks whether two terms are definitionally equal.
