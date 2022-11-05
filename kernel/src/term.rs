@@ -8,6 +8,8 @@ use im_rc::hashmap::HashMap as ImHashMap;
 use std::cell::OnceCell;
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
+use std::marker::PhantomData;
+use std::ops::Deref;
 
 #[derive(
     Add, Copy, Clone, Debug, Default, Display, Eq, PartialEq, From, Into, Sub, PartialOrd, Ord, Hash,
@@ -19,6 +21,7 @@ pub struct UniverseLevel(BigUint);
 
 pub struct Arena<'arena> {
     alloc: &'arena Bump,
+    _phantom: PhantomData<*mut &'arena ()>,
 
     hashcons: HashSet<&'arena Node<'arena>>,
     named_terms: HashMap<&'arena str, Term<'arena>>,
@@ -26,16 +29,10 @@ pub struct Arena<'arena> {
     mem_subst: HashMap<(Term<'arena>, Term<'arena>, DeBruijnIndex), Term<'arena>>,
 }
 
-type Environment<'arena> = ImHashMap<&'arena str, (DeBruijnIndex, Term<'arena>)>;
-pub trait ExternTermGenerator<'arena> = FnOnce(
-    &mut Arena<'arena>,
-    &Environment<'arena>,
-    DeBruijnIndex,
-) -> Result<Term<'arena>, KernelError<'arena>>;
-
 #[derive(Clone, Copy, Display, Eq, Debug)]
 #[display(fmt = "{}", "_0.payload")]
-pub struct Term<'arena>(&'arena Node<'arena>);
+// PhantomData is a marker to ensure invariance over the 'arena lifetime.
+pub struct Term<'arena>(&'arena Node<'arena>, PhantomData<*mut &'arena ()>);
 
 // no name storage here: meaning consts are known and can be found, but no pretty printing is
 // possible so far.
@@ -55,7 +52,7 @@ type BinTermHashMap<'arena> = HashMap<(Term<'arena>, Term<'arena>), Term<'arena>
 //
 // We also need a substitution hasmap, (body, level_of_substitution, Term_to_incorporate)
 
-#[derive(Clone, Copy, Debug, Display, Eq, PartialEq, Hash)]
+#[derive(Clone, Debug, Display, Eq, PartialEq, Hash)]
 pub enum Payload<'arena> {
     #[display(fmt = "{}", _0)]
     Var(DeBruijnIndex, Term<'arena>),
@@ -64,7 +61,7 @@ pub enum Payload<'arena> {
     Prop,
 
     #[display(fmt = "Type {}", _0)]
-    Type(&'arena UniverseLevel),
+    Type(UniverseLevel),
 
     #[display(fmt = "{} {}", _0, _1)]
     App(Term<'arena>, Term<'arena>),
@@ -100,12 +97,6 @@ impl<'arena> Hash for Node<'arena> {
     }
 }
 
-impl<'arena> From<Term<'arena>> for Payload<'arena> {
-    fn from(t: Term<'arena>) -> Self {
-        t.0.payload
-    }
-}
-
 pub fn use_arena<F, T>(f: F) -> T
 where
     F: for<'arena> FnOnce(Arena<'arena>) -> T,
@@ -115,16 +106,21 @@ where
     f(arena)
 }
 
+use intern_build::Generator;
+use extern_build::Generator as ExternGenerator;
+
 impl<'arena> Arena<'arena> {
     /// (TODO DOC.) Allocate a new memory arena.
     fn new(alloc: &'arena Bump) -> Self {
         Arena {
             alloc,
+            _phantom: PhantomData,
 
             hashcons: HashSet::new(),
             named_terms: HashMap::new(),
 
             mem_subst: HashMap::new(),
+
         }
     }
 
@@ -138,11 +134,11 @@ impl<'arena> Arena<'arena> {
             type_: OnceCell::new(),
         };
         match self.hashcons.get(&nn) {
-            Some(addr) => Term(addr),
+            Some(addr) => Term(addr, PhantomData),
             None => {
                 let addr = self.alloc.alloc(nn);
                 self.hashcons.insert(addr);
-                Term(addr)
+                Term(addr, PhantomData)
             }
         }
     }
@@ -155,7 +151,7 @@ impl<'arena> Arena<'arena> {
         self.hashcons(Prop)
     }
 
-    pub(crate) fn type_(&mut self, level: &'arena UniverseLevel) -> Term<'arena> {
+    pub(crate) fn type_(&mut self, level: UniverseLevel) -> Term<'arena> {
         self.hashcons(Type(level))
     }
 
@@ -171,7 +167,11 @@ impl<'arena> Arena<'arena> {
         self.hashcons(Prod(arg_type, u))
     }
 
-    pub(crate) fn extern_gen<F: ExternTermGenerator<'arena>>(
+    pub(crate) fn build<F: Generator<'arena>>(&mut self, f: F) -> Term<'arena> {
+        f(self)
+    }
+
+    pub fn build_from_extern<F: ExternGenerator<'arena>>(
         &mut self,
         f: F,
     ) -> Result<Term<'arena>, KernelError<'arena>> {
@@ -180,8 +180,8 @@ impl<'arena> Arena<'arena> {
 
     /// Apply one step of β-reduction, using the leftmost-outermost evaluation strategy.
     pub fn beta_reduction(&mut self, t: Term<'arena>) -> Term<'arena> {
-        match t.into() {
-            App(t1, t2) => match t1.into() {
+        match *t {
+            App(t1, t2) => match *t1 {
                 Abs(_, t1) => self.substitute(t1, t2, 1),
                 _ => {
                     let t1 = self.beta_reduction(t1);
@@ -197,7 +197,7 @@ impl<'arena> Arena<'arena> {
     }
 
     pub(crate) fn shift(&mut self, t: Term<'arena>, offset: usize, depth: usize) -> Term<'arena> {
-        match t.into() {
+        match *t {
             Var(i, type_) if i > depth.into() => self.var(i + offset.into(), type_),
             App(t1, t2) => {
                 let t1 = self.shift(t1, offset, depth);
@@ -224,7 +224,7 @@ impl<'arena> Arena<'arena> {
         rhs: Term<'arena>,
         depth: usize,
     ) -> Term<'arena> {
-        match lhs.into() {
+        match *lhs {
             Var(i, _) if i == depth.into() => self.shift(rhs, depth - 1, 0),
             Var(i, type_) if i > depth.into() => self.var(i - 1.into(), type_),
             App(l, r) => {
@@ -262,10 +262,10 @@ impl<'arena> Arena<'arena> {
 
     /// Returns the weak-head normal form of a term in a given environment.
     pub fn whnf(&mut self, t: Term<'arena>) -> Term<'arena> {
-        match t.into() {
+        match *t {
             App(t1, t2) => {
                 let t1 = self.whnf(t1);
-                match t1.into() {
+                match *t1 {
                     Abs(_, _) => {
                         let t = self.app(t1, t2);
                         let t = self.beta_reduction(t);
@@ -279,15 +279,93 @@ impl<'arena> Arena<'arena> {
     }
 }
 
+impl<'arena> Term<'arena> {
+    pub(crate) fn into(self) -> impl Generator<'arena>
+        { move |_: &mut Arena<'arena>| self }
+
+    pub fn is_redex(self) -> bool {
+        match *self {
+            App(t, _) => match *t {
+                Abs(_, _) => true,
+                _ => false
+            }
+            _ => false
+        }
+    }
+}
+
+impl<'arena> Deref for Term<'arena> {
+    type Target = Payload<'arena>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0.payload
+    }
+}
+
+pub(crate) mod intern_build {
+    use super::*;
+
+    pub(crate) trait Generator<'arena> = FnOnce(&mut Arena<'arena>) -> Term<'arena>;
+
+    pub fn prop<'arena>() -> impl Generator<'arena> {
+        |env: &mut Arena<'arena>| env.prop()
+    }
+
+    pub fn type_<'arena>(level: UniverseLevel) -> impl Generator<'arena> {
+        move |env: &mut Arena<'arena>| env.type_(level)
+    }
+
+    pub fn app<'arena, F1: Generator<'arena>, F2: Generator<'arena>>(
+        u1: F1,
+        u2: F2,
+    ) -> impl Generator<'arena> {
+        |env: &mut Arena<'arena>| {
+            let u1 = u1(env);
+            let u2 = u2(env);
+            env.app(u1, u2)
+        }
+    }
+
+    pub fn abs<'arena, F1: Generator<'arena>, F2: Generator<'arena>>(
+        u1: F1,
+        u2: F2,
+    ) -> impl Generator<'arena> {
+        |env: &mut Arena<'arena>| {
+            let u1 = u1(env);
+            let u2 = u2(env);
+            env.abs(u1, u2)
+        }
+    }
+
+    pub fn prod<'arena, F1: Generator<'arena>, F2: Generator<'arena>>(
+        u1: F1,
+        u2: F2,
+    ) -> impl Generator<'arena> {
+        |env: &mut Arena<'arena>| {
+            let u1 = u1(env);
+            let u2 = u2(env);
+            env.prod(u1, u2)
+        }
+    }
+}
+
 /// These functions are available publicly, to the attention of the parser. They manipulate
 /// objects with a type morally equal to (Env -> Term), where Env is a working environment used
 /// in term construction from the parser.
 /// This is done as a way to elengantly keep the logic encapsulated in the kernel, but let the
 /// parser itself explore the term.
-pub mod from_parser {
-    use crate::term::*;
+pub mod extern_build {
+    use super::*;
 
-    pub fn var<'arena>(name: &'arena str) -> impl ExternTermGenerator<'arena> {
+    pub type Environment<'arena> = ImHashMap<&'arena str, (DeBruijnIndex, Term<'arena>)>;
+pub trait Generator<'arena> = FnOnce(
+    &mut Arena<'arena>,
+    &Environment<'arena>,
+    DeBruijnIndex,
+) -> Result<Term<'arena>, KernelError<'arena>>;
+
+
+    pub fn var<'arena>(name: &'arena str) -> impl Generator<'arena> {
         move |context: &mut Arena<'arena>, env: &Environment<'arena>, depth| {
             env.get(name)
                 .map(|(bind_depth, term)| context.var(depth - *bind_depth, *term))
@@ -296,18 +374,18 @@ pub mod from_parser {
         }
     }
 
-    pub fn prop<'arena>() -> impl ExternTermGenerator<'arena> {
+    pub fn prop<'arena>() -> impl Generator<'arena> {
         |context: &mut Arena<'arena>, _: &Environment<'arena>, _| Ok(context.prop())
     }
 
-    pub fn type_<'arena>(level: &'arena UniverseLevel) -> impl ExternTermGenerator<'arena> {
+    pub fn type_<'arena>(level: UniverseLevel) -> impl Generator<'arena> {
         move |context: &mut Arena<'arena>, _: &Environment<'arena>, _| Ok(context.type_(level))
     }
 
-    pub fn app<'arena, F1: ExternTermGenerator<'arena>, F2: ExternTermGenerator<'arena>>(
+    pub fn app<'arena, F1: Generator<'arena>, F2: Generator<'arena>>(
         u1: F1,
         u2: F2,
-    ) -> impl ExternTermGenerator<'arena> {
+    ) -> impl Generator<'arena> {
         |context: &mut Arena<'arena>, env: &Environment<'arena>, depth| {
             let u1 = u1(context, env, depth)?;
             let u2 = u2(context, env, depth)?;
@@ -315,11 +393,11 @@ pub mod from_parser {
         }
     }
 
-    pub fn abs<'arena, F1: ExternTermGenerator<'arena>, F2: ExternTermGenerator<'arena>>(
+    pub fn abs<'arena, F1: Generator<'arena>, F2: Generator<'arena>>(
         name: &'arena str,
         arg_type: F1,
         body: F2,
-    ) -> impl ExternTermGenerator<'arena> {
+    ) -> impl Generator<'arena> {
         move |context: &mut Arena<'arena>, env: &Environment<'arena>, depth| {
             let arg_type = arg_type(context, env, depth)?;
             let env = env.update(name, (depth + DeBruijnIndex(1), arg_type));
@@ -328,11 +406,11 @@ pub mod from_parser {
         }
     }
 
-    pub fn prod<'arena, F1: ExternTermGenerator<'arena>, F2: ExternTermGenerator<'arena>>(
+    pub fn prod<'arena, F1: Generator<'arena>, F2: Generator<'arena>>(
         name: &'arena str,
         arg_type: F1,
         body: F2,
-    ) -> impl ExternTermGenerator<'arena> {
+    ) -> impl Generator<'arena> {
         move |context: &mut Arena<'arena>, env: &Environment<'arena>, depth| {
             let arg_type = arg_type(context, env, depth)?;
             let env = env.update(name, (depth + DeBruijnIndex(1), arg_type));
