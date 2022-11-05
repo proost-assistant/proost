@@ -1,10 +1,12 @@
 mod closing;
+mod dispatcher;
 mod initializing;
 mod instantiated;
 mod serving;
 
-use crate::connection::Connection;
 use derive_more::Deref;
+
+use crate::connection::Connection;
 
 /// Sealed prevent others from implementing the trait `Phase`.
 mod private {

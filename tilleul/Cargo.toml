@@ -10,9 +10,9 @@ license.workspace = true
 parser.path = "../parser"
 kernel.path = "../kernel"
 
-anyhow.workspace = true
 derive_more.workspace = true
 
+anyhow = "1.0.66"
 crossbeam-channel = "0.5.6"
 env_logger = "0.9.1"
 lazy_static = "1.4.0"

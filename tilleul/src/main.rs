@@ -1,5 +1,3 @@
-#![feature(type_changing_struct_update)]
-
 mod connection;
 mod lsp_server;
 mod payload;
@@ -17,10 +15,7 @@ fn main() {
 
     info!("Starting {} {}", NAME, VERSION);
 
-    LspServer::new(Connection::new())
-        .initialize()
-        .serving()
-        .closing();
+    LspServer::new(Connection::new()).initialize().serving().closing();
 
     info!("Exiting {}", NAME);
 }

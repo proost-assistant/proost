@@ -1,27 +1,9 @@
-use crate::lsp_server::{Initializing, LspServer, Serve, Serving};
-use crate::payload::Message;
-use lazy_static::lazy_static;
 use log::info;
-use lsp_types::{InitializeParams, InitializeResult};
-use serde_json::Value;
-use std::collections::HashMap;
-use sugars::hmap;
+use lsp_types::*;
 
-type LspServerHandler = fn(&LspServer<Initializing>, Value) -> Value;
-
-macro_rules! register {
-    ($name:ident) => {
-        LspServer::<Initializing>::$name as LspServerHandler
-    };
-}
-
-lazy_static! {
-    static ref METHOD_REQUEST: HashMap<&'static str, LspServerHandler> = {
-        hmap! {
-            "initialize" => register!(handler_initialize),
-        }
-    };
-}
+use crate::lsp_server::dispatcher::RequestDispatcher;
+use crate::lsp_server::{Initializing, LspServer, Serve, Serving};
+use crate::payload::{Message, Request};
 
 impl LspServer<Initializing> {
     pub fn initialize(self) -> LspServer<Serving> {
@@ -29,13 +11,9 @@ impl LspServer<Initializing> {
             info!("Received: {:?}", message);
 
             match message {
-                Message::Request(request) => {
-                    if let Some(handler) = METHOD_REQUEST.get(request.method.as_str()) {
-                        handler(&self, request.params);
-                    }
-                }
-                Message::Response(_) => {}
-                Message::Notification(_) => {}
+                Message::Request(request) => self.dispatch_request(request),
+                Message::Response(_) => {},
+                Message::Notification(_) => {},
             }
         });
 
@@ -44,11 +22,16 @@ impl LspServer<Initializing> {
         })
     }
 
-    fn handler_initialize(&self, params: Value) -> Value {
-        let params = serde_json::from_value::<InitializeParams>(params).unwrap();
+    fn dispatch_request(&self, request: Request) {
+        use lsp_types::request::*;
 
-        info!("{:?}", params);
+        RequestDispatcher::new(Some(request)) // TODO: Better constructor
+            .handle::<_, Initialize>(self, Self::handler_initialize)
+            .handle_fallthrough();
+    }
 
-        serde_json::to_value::<InitializeResult>(InitializeResult::default()).unwrap()
+    fn handler_initialize(&self, _params: InitializeParams) -> InitializeResult {
+        // TODO: Handle `initialize` request
+        InitializeResult::default()
     }
 }

@@ -1,11 +1,13 @@
-use super::notification::Notification;
-use super::request::Request;
-use super::response::Response;
+use std::io::{BufRead, Write};
+
 use anyhow::{bail, Result};
 use log::info;
 use lsp_types::notification;
 use serde::{Deserialize, Serialize};
-use std::io::{BufRead, Write};
+
+use super::notification::Notification;
+use super::request::Request;
+use super::response::Response;
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
@@ -20,9 +22,7 @@ impl Message {
         let mut buffer = String::new();
 
         if reader.read_line(&mut buffer)? == 0 {
-            return Ok(Message::Notification(
-                Notification::new::<notification::Exit>(()),
-            ));
+            return Ok(Message::Notification(Notification::new::<notification::Exit>(())));
         };
 
         if !(buffer.starts_with("Content-Length: ") && buffer.ends_with("\r\n")) {
