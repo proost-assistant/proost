@@ -114,7 +114,7 @@
 \section{General purpose and functions}
 This project aims at providing a small tool for typechecking expressions written in
 the language of the Calculus of Construction (CoC). This tool shall be
-terminal-based and provide both compiler- and toplevel-like capacities and
+both terminal and editor based through a LSP and provide both compiler- and toplevel-like capacities and
 options.
 
 \subsection{Toplevel}
@@ -122,10 +122,11 @@ The \texttt{proost} command, when provided with no argument, is expected to beha
 a toplevel, akin to \texttt{ocaml} or \texttt{coqtop}. There, user is greeted with a
 prompt and may enter commands of different kinds, for instance:
 \begin{itemize}
-  \item ¤define a := t¤ defines an alias ¤a¤ that can be used in any following
-    command;
-  \item ¤check u : t¤ verifies ¤a¤ has type ¤t¤;
-  \item ¤type u¤ provides the type of ¤u¤.
+  \item ¤def a := t¤ defines an alias ¤a¤ that can be used in any following command;
+  \item ¤def a : ty := t¤ defines an alias ¤a¤ that is checked to be of type ¤ty¤.
+  \item ¤check u : t¤ verifies ¤u¤ has type ¤t¤;
+  \item ¤check u¤ provides the type of ¤u¤;
+  \item ¤eval u¤ provides the definition of ¤u¤.
 \end{itemize}
 
 Where terms are the ones permitted by the kernel expressivity.
@@ -158,6 +159,7 @@ expected to store and manage them with a relative level of efficiency.
 The type theory used to build the terms will be successively extended with:
 \begin{itemize}
   \item abstractions, \(\Pi\)-types, predicative universes with \(\mathsf{Prop}\);
+  \item \(*\) universe polymorphism;
   \item \(*\) \(\Sigma\)-types, equality types, natural numbers;
   \item \(**\) extraction;
   \item \(**\) lists, records, accessibility predicate.
@@ -178,7 +180,7 @@ burden.
 \subsection{Parsing \hfill\scriptsize AuA VL}
 The parsing approach is straightforward and relies on external libraries. The
 parser is expected to keep adapting to changes made in the term definitions and
-unification capability.
+unification capability. The parser is thoroughly tested to ease this continuous transition.
 
 
 \subsection{Language design \hfill\scriptsize all members}
@@ -190,27 +192,32 @@ the following examples:
 Without any unification and only elementary type theory:
 \begin{proost}
 # Construction of natural numbers
-define Nat := \/ A: U ->
+def Nat := \/ A: U ->
   \/ _: (\/ _: A -> A) -> \/ _: A -> A
 
-define z := /\ A: U ->
+def z := /\ A: U ->
   /\ f: (\/ _: A -> A) -> /\ x: A -> x
 check z: Nat
 
-define succ := /\ n: Nat -> /\ A: U ->
+def succ := /\ n: Nat -> /\ A: U ->
   /\ f: (\/ _: A -> A) -> /\ x: A ->
   f (n f x)
 check succ: \/ _: Nat -> Nat
+\end{proost}
+
+With universe polymorphism:
+\begin{proost}
+def foo.{i,j} : Type (max i j) + 1 := Type i -> Type j
 \end{proost}
 
 Further changes, with equality types, natural numbers and adequate axioms may
 look like:
 \begin{proost}
 # with unification
-define comm := \/ x -> \/ y -> x + y = y + x
+def comm := \/ x -> \/ y -> x + y = y + x
 
 # Existential types
-define t := E n, n * n - n + 4 = 0
+def t := E n, n * n - n + 4 = 0
 \end{proost}
 
 
