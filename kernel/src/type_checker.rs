@@ -76,7 +76,7 @@ impl Term {
     /// Conversion function, checks whether two terms are definitionally equal.
     ///
     /// The conversion is untyped, meaning that it should **only** be called during type-checking when the two `Term`s are already known to be of the same type and in the same context.
-    fn conversion(&self, rhs: &Term, env: &Environment, lvl: DeBruijnIndex) -> bool {
+    fn conversion(&self, rhs: &Term, env: &Environment) -> bool {
         match (self.whnf(env), rhs.whnf(env)) {
             (Prop, Prop) => true,
 
@@ -84,26 +84,16 @@ impl Term {
 
             (Var(i), Var(j)) => i == j,
 
-            (Prod(t1, u1), Prod(box t2, u2)) => {
-                let u1 = u1.substitute(&Var(lvl), lvl.into());
-                let u2 = u2.substitute(&Var(lvl), lvl.into());
-
-                t1.conversion(&t2, env, lvl) && u1.conversion(&u2, env, lvl + 1.into())
-            }
+            (Prod(t1, u1), Prod(box t2, u2)) => t1.conversion(&t2, env) && u1.conversion(&u2, env),
 
             // Since we assume that both vals already have the same type,
             // checking conversion over the argument type is useless.
             // However, this doesn't mean we can simply remove the arg type
             // from the type constructor in the enum, it is needed to quote back to terms.
-            (Abs(_, t), Abs(_, u)) => {
-                let t = t.substitute(&Var(lvl), lvl.into());
-                let u = u.substitute(&Var(lvl), lvl.into());
-
-                t.conversion(&u, env, lvl + 1.into())
-            }
+            (Abs(_, t), Abs(_, u)) => t.conversion(&u, env),
 
             (App(box t1, box u1), App(box t2, box u2)) => {
-                t1.conversion(&t2, env, lvl) && u1.conversion(&u2, env, lvl)
+                t1.conversion(&t2, env) && u1.conversion(&u2, env)
             }
             // TODO: Unused code (#34)
             // (app @ App(box Abs(_, _), box _), u) | (u, app @ App(box Abs(_, _), box _)) => {
@@ -115,7 +105,7 @@ impl Term {
 
     /// Checks whether two terms are definitionally equal.
     pub fn is_def_eq(&self, rhs: &Term, env: &Environment) -> Result<()> {
-        self.conversion(rhs, env, 1.into())
+        self.conversion(rhs, env)
             .then_some(())
             .ok_or(Error {
                 kind: TypeCheckerError::NotDefEq(self.clone(), rhs.clone()).into(),
@@ -178,7 +168,7 @@ impl Term {
                     let typ_rhs = u._infer(env, ctx)?;
 
                     typ_lhs
-                        .conversion(&typ_rhs, env, ctx.types.len().into())
+                        .conversion(&typ_rhs, env)
                         .then_some(*cls)
                         .ok_or(Error {
                             kind: TypeCheckerError::WrongArgumentType(
@@ -206,7 +196,7 @@ impl Term {
         let ctx = &mut Context::new();
         let tty = self._infer(env, ctx)?;
 
-        tty.conversion(ty, env, ctx.types.len().into())
+        tty.conversion(ty, env)
             .then_some(())
             .ok_or(Error {
                 kind: TypeCheckerError::TypeMismatch(tty, ty.clone()).into(),
@@ -308,7 +298,27 @@ mod tests {
             box Prop,
         );
 
-        let reduced = Prop;
+        let t2 = Prop;
+        assert!(term.conversion(&t2, &Environment::new()));
+
+        let ty = term.infer(&Environment::new());
+        assert_eq!(ty, Ok(Type(BigUint::from(0_u64).into())));
+    }
+
+    #[test]
+    fn simple_substitute() {
+        // λ (x : P -> P).(λ (y :P).x y) x
+        //λ P -> P.(λ P.2 1) 1
+        let term = Abs(
+            box Prod(box Prop, box Prop),
+            box App(
+                box Abs(box Prop, box App(box Var(2.into()), box Var(1.into()))),
+                box Var(1.into()),
+            ),
+        );
+
+        // λx.x x
+        let reduced = Abs(box Prop, box App(box Var(1.into()), box Var(1.into())));
         assert!(term.is_def_eq(&reduced, &Environment::new()).is_ok());
 
         let term_type = term.infer(&Environment::new()).unwrap();
