@@ -65,8 +65,9 @@ impl Context {
 
     /// Extends the actual context with a bound variable of type `ty`.
     fn bind(&mut self, ty: &Term) -> &mut Self {
+        // if x : Var(i), and x appears in a redex, then i needs to be shifted in the context, it would lead to incoherences otherwise.
         self.types = self.types.iter().map(|t| t.shift(1, 0)).collect();
-        self.types.push(ty.clone());
+        self.types.push(ty.shift(1, 0));
         self.lvl = self.lvl + 1.into();
         self
     }
@@ -158,7 +159,7 @@ impl Term {
                     return Err(Error {
                         kind : TypeCheckerError::NotUniverse(univ_binder).into() });
                 }
-                let u = u._infer(env, ctx.clone().bind(&t.shift(1, 0)))?;
+                let u = u._infer(env, ctx.clone().bind(t))?;
 
                 Ok(Prod(box t.clone(), box u))
             }
