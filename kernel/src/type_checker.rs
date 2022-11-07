@@ -164,7 +164,7 @@ impl Term {
                 Ok(Prod(box t.clone(), box u))
             }
 
-            App(box t, box u) => match t._infer(env, ctx)? {
+            App(box t, box u) => match t._infer(env, ctx)?.whnf(env) {
                 Prod(box typ_lhs, cls) => {
                     let typ_rhs = u._infer(env, ctx)?;
 
@@ -863,7 +863,97 @@ mod tests {
                 ),
             ),
         );
-        println!("{:?}", and_intro.infer(env));
         assert!(and_intro.check(and_intro_ty, env).is_ok());
+
+        let and_elim1_ty = &Prod(
+            // A : Prop
+            box Prop,
+            box Prod(
+                // B : Prop
+                box Prop,
+                box Prod(
+                    box App(
+                        box App(box Const("and".into()), box Var(2.into())),
+                        box Var(1.into()),
+                    ),
+                    box Var(3.into()),
+                ),
+            ),
+        );
+        assert!(and_elim1_ty.infer(env).is_ok());
+        let and_elim1 = Abs(
+            // A : Prop
+            box Prop,
+            box Abs(
+                // B : Prop
+                box Prop,
+                box Abs(
+                    // p : and A B
+                    box App(
+                        box App(box Const("and".into()), box Var(2.into())),
+                        box Var(1.into()),
+                    ),
+                    box App(
+                        box App(box Var(1.into()), box Var(3.into())),
+                        box Abs(
+                            // a : A
+                            box Var(3.into()),
+                            box Abs(
+                                // b : B
+                                box Var(3.into()),
+                                box Var(2.into()),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        );
+        assert!(and_elim1.check(and_elim1_ty, env).is_ok());
+
+        let and_elim2_ty = &Prod(
+            // A : Prop
+            box Prop,
+            box Prod(
+                // B : Prop
+                box Prop,
+                box Prod(
+                    // p : and A B
+                    box App(
+                        box App(box Const("and".into()), box Var(2.into())),
+                        box Var(1.into()),
+                    ),
+                    box Var(2.into()),
+                ),
+            ),
+        );
+        assert!(and_elim2_ty.infer(env).is_ok());
+        let and_elim2 = Abs(
+            // A : Prop
+            box Prop,
+            box Abs(
+                // B : Prop
+                box Prop,
+                box Abs(
+                    // p : and A B
+                    box App(
+                        box App(box Const("and".into()), box Var(2.into())),
+                        box Var(1.into()),
+                    ),
+                    box App(
+                        box App(box Var(1.into()), box Var(2.into())),
+                        box Abs(
+                            // a : A
+                            box Var(3.into()),
+                            box Abs(
+                                // b : B
+                                box Var(3.into()),
+                                box Var(1.into()),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        );
+        assert!(and_elim2.check(and_elim2_ty, env).is_ok());
     }
 }
