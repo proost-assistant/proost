@@ -35,11 +35,9 @@
     basicstyle=\ttfamily,
     numbers=left,
     numbersep=5pt,
-    leftmargin=1.5em,
+    xleftmargin=1.5em,
+    framexleftmargin=1em,
     numberstyle=\footnotesize\ttfamily\color{paleblue},
-    morestring=[d]{"},
-    morestring=[d]{'},
-    stringstyle={\color{red!50!brown}},
     keywordstyle={\bfseries\itshape\color{dark}},
     commentstyle=\color{gray},
     texcl, % Back to TeX styling within *inline* comments
@@ -51,13 +49,13 @@
 \lstdefinestyle{proost}{
     style=default,
     numberstyle=\scriptsize\ttfamily\color{paleblue},
-    comment=[l]{#},
+    comment=[l]{\#},
     alsoletter={.,:,=},
     keywords={fun, if},
     keywordstyle=\color{forestgreen},
-    keywords={P, T, U},
+    keywords={Prop, Type},
     keywordstyle=\color{darkred},
-    keywords=[3]{define, check, type, :=, .},
+    keywords=[3]{def, check, eval, :=, .},
     keywordstyle=[3]\color{darkred},
 }
 \lstnewenvironment{proost}[1][]{\lstset{style=proost, #1}}{}
@@ -98,6 +96,8 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Divers %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \setlength{\columnsep}{20pt} % 10 pt par défaut
+
+\newcommand{\members}[1]{\texorpdfstring{\hfill\scriptsize #1}{}}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{document}
@@ -117,6 +117,7 @@ the language of the Calculus of Construction (CoC). This tool shall be
 both terminal and editor based through a LSP and provide both compiler- and toplevel-like capacities and
 options.
 
+
 \subsection{Toplevel}
 The \texttt{proost} command, when provided with no argument, is expected to behave like
 a toplevel, akin to \texttt{ocaml} or \texttt{coqtop}. There, user is greeted with a
@@ -132,6 +133,7 @@ prompt and may enter commands of different kinds, for instance:
 Where terms are the ones permitted by the kernel expressivity.
 More shorthands may be provided later for user convenience.
 
+
 \subsection{Checker}
 When provided with existing file paths, ¤proost¤ intends to typecheck them in
 order, that is, reading them as successive inputs in the toplevel. Further
@@ -140,6 +142,7 @@ may refer to one another and provide scopes.
 
 The file extension is \texttt{.mdln}, which is short for \emph{madelaine}.
 Madelaine also denotes the language manipulated by users in these files.
+
 
 \section{Project structure}
 Each category of the project is assigned some or all members of the group,
@@ -153,7 +156,7 @@ due in December)
 or extra requirements that will be considered only if there is enough time.
 
 
-\subsection{Kernel  \hfill\scriptsize all members}
+\subsection{Kernel \members{all members}}
 The kernel manipulates \(\lambda\)-terms in the Calculus of Construction and is
 expected to store and manage them with a relative level of efficiency.
 The type theory used to build the terms will be successively extended with:
@@ -165,25 +168,26 @@ The type theory used to build the terms will be successively extended with:
   \item \(**\) lists, records, accessibility predicate.
 \end{itemize}
 
-\subsubsection{Optimisation \hfill\scriptsize VL LTM}
+
+\subsubsection{Optimisation \members{VL LTM}}
 Extra care must be put into designing an efficient memory management model for
 the kernel, along with satisfactory typing and reduction algorithms.
 
 
-\subsection{Unification \hfill\scriptsize ArA LTM}
+\subsection{Unification \members{ArA LTM}}
 Early versions of the tool may require the user to explicit every type at play.
 Successive versions may gradually include unification tools (meta-variables)
 of better quality to assist the user and alleviate some of their typing-annotation
 burden.
 
 
-\subsection{Parsing \hfill\scriptsize AuA VL}
+\subsection{Parsing \members{AuA VL}}
 The parsing approach is straightforward and relies on external libraries. The
 parser is expected to keep adapting to changes made in the term definitions and
 unification capability. The parser is thoroughly tested to ease this continuous transition.
 
 
-\subsection{Language design \hfill\scriptsize all members}
+\subsection{Language design \members{all members}}
 The \texttt{proost} tool is a simple proof assistant and does not provide any
 tactics. As new features arrive from extensions of the kernel type theory, the
 \emph{madelaine} language must provide convenient shorthands and notations. See
@@ -221,7 +225,7 @@ def t := E n, n * n - n + 4 = 0
 \end{proost}
 
 
-\subsection{\(*\) LSP \hfill\scriptsize VL}
+\subsection{\texorpdfstring{\(*\)}{*} LSP \members{VL}}
 The tool may provide an implementation of the Language Server Protocol in
 order to provide linting and feedback during an editing session.
 
