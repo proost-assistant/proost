@@ -97,20 +97,18 @@ impl Term {
                 t1.conversion(&t2, env) && u1.conversion(&u2, env)
             }
             // TODO: Unused code (#34)
-            // (app @ App(box Abs(_, _), box _), u) | (u, app @ App(box Abs(_, _), box _)) => {
-            //     app.beta_reduction(env).conversion(&u, env, lvl)
-            // }
+            (app @ App(box Abs(_, _), box _), u) | (u, app @ App(box Abs(_, _), box _)) => {
+                app.beta_reduction(env).conversion(&u, env)
+            }
             _ => false,
         }
     }
 
     /// Checks whether two terms are definitionally equal.
     pub fn is_def_eq(&self, rhs: &Term, env: &Environment) -> Result<()> {
-        self.conversion(rhs, env)
-            .then_some(())
-            .ok_or(Error {
-                kind: TypeCheckerError::NotDefEq(self.clone(), rhs.clone()).into(),
-            })
+        self.conversion(rhs, env).then_some(()).ok_or(Error {
+            kind: TypeCheckerError::NotDefEq(self.clone(), rhs.clone()).into(),
+        })
     }
 
     /// Computes universe the universe in which `(x : A) -> B` lives when `A : u1` and `B : u2`.
@@ -157,7 +155,8 @@ impl Term {
                 let univ_binder = t._infer(env, ctx)?.normal_form(env);
                 if !matches!(univ_binder, Type(_) | Prop) {
                     return Err(Error {
-                        kind : TypeCheckerError::NotUniverse(univ_binder).into() });
+                        kind: TypeCheckerError::NotUniverse(univ_binder).into(),
+                    });
                 }
                 let u = u._infer(env, ctx.clone().bind(t))?;
 
@@ -170,7 +169,7 @@ impl Term {
 
                     typ_lhs
                         .conversion(&typ_rhs, env)
-                        .then_some(*cls)
+                        .then_some(cls.substitute(u, 1))
                         .ok_or(Error {
                             kind: TypeCheckerError::WrongArgumentType(
                                 TypedTerm(t.clone(), typ_lhs),
@@ -197,11 +196,9 @@ impl Term {
         let ctx = &mut Context::new();
         let tty = self._infer(env, ctx)?;
 
-        tty.conversion(ty, env)
-            .then_some(())
-            .ok_or(Error {
-                kind: TypeCheckerError::TypeMismatch(tty, ty.clone()).into(),
-            })
+        tty.conversion(ty, env).then_some(()).ok_or(Error {
+            kind: TypeCheckerError::TypeMismatch(tty, ty.clone()).into(),
+        })
     }
 }
 
@@ -304,27 +301,6 @@ mod tests {
 
         let ty = term.infer(&Environment::new());
         assert_eq!(ty, Ok(Type(BigUint::from(0_u64).into())));
-    }
-
-    #[test]
-    fn simple_substitute() {
-        // λ (x : P -> P).(λ (y :P).x y) x
-        //λ P -> P.(λ P.2 1) 1
-        let term = Abs(
-            box Prod(box Prop, box Prop),
-            box App(
-                box Abs(box Prop, box App(box Var(2.into()), box Var(1.into()))),
-                box Var(1.into()),
-            ),
-        );
-
-        // λx.x x
-        let reduced = Abs(box Prop, box App(box Var(1.into()), box Var(1.into())));
-        assert!(term.is_def_eq(&reduced, &Environment::new()).is_ok());
-
-        let term_type = term.infer(&Environment::new()).unwrap();
-        assert_eq!(term_type, Type(BigUint::from(0_u64).into()));
-        assert!(term.check(&term_type, &Environment::new()).is_ok());
     }
 
     #[test]
