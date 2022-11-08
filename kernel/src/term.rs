@@ -2,7 +2,7 @@ use derive_more::{Add, Display, From, Into, Sub};
 
 use num_bigint::BigUint;
 
-use crate::error::KernelError;
+use crate::error::{Error, Result, ResultTerm};
 use bumpalo::Bump;
 use im_rc::hashmap::HashMap as ImHashMap;
 use std::cell::OnceCell;
@@ -18,6 +18,13 @@ pub struct DeBruijnIndex(usize);
 
 #[derive(Add, Clone, Debug, Default, Display, Eq, From, Sub, PartialEq, PartialOrd, Ord, Hash)]
 pub struct UniverseLevel(BigUint);
+
+#[non_exhaustive]
+#[derive(Clone, Debug, Display, Eq, PartialEq)]
+pub enum DefinitionError<'arena> {
+    #[display(fmt = "unknown constant {}", _0)]
+    ConstNotFound(&'arena str),
+}
 
 pub struct Arena<'arena> {
     alloc: &'arena Bump,
@@ -174,7 +181,7 @@ impl<'arena> Arena<'arena> {
     pub fn build_from_extern<F: ExternGenerator<'arena>>(
         &mut self,
         f: F,
-    ) -> Result<Term<'arena>, KernelError<'arena>> {
+    ) -> Result<Term<'arena>> {
         f(self, &ImHashMap::new(), DeBruijnIndex(0))
     }
 
@@ -292,6 +299,11 @@ impl<'arena> Term<'arena> {
             _ => false
         }
     }
+
+    pub fn get_type_or_try_init<F>(self, f: F) -> ResultTerm<'arena>
+        where F: FnOnce() -> ResultTerm<'arena> {
+        self.0.type_.get_or_try_init(f).copied()
+    }
 }
 
 impl<'arena> Deref for Term<'arena> {
@@ -362,26 +374,29 @@ pub trait Generator<'arena> = FnOnce(
     &mut Arena<'arena>,
     &Environment<'arena>,
     DeBruijnIndex,
-) -> Result<Term<'arena>, KernelError<'arena>>;
+) -> ResultTerm<'arena>;
 
-
+    #[inline]
     pub fn var<'arena>(name: &'arena str) -> impl Generator<'arena> {
         move |context: &mut Arena<'arena>, env: &Environment<'arena>, depth| {
             env.get(name)
                 .map(|(bind_depth, term)| context.var(depth - *bind_depth, *term))
                 .or_else(|| context.named_terms.get(name).copied())
-                .ok_or(KernelError::ConstNotFound(name))
+                .ok_or(Error { kind: DefinitionError::ConstNotFound(name).into() })
         }
     }
 
+    #[inline]
     pub fn prop<'arena>() -> impl Generator<'arena> {
         |context: &mut Arena<'arena>, _: &Environment<'arena>, _| Ok(context.prop())
     }
 
+    #[inline]
     pub fn type_<'arena>(level: UniverseLevel) -> impl Generator<'arena> {
         move |context: &mut Arena<'arena>, _: &Environment<'arena>, _| Ok(context.type_(level))
     }
 
+    #[inline]
     pub fn app<'arena, F1: Generator<'arena>, F2: Generator<'arena>>(
         u1: F1,
         u2: F2,
@@ -393,6 +408,7 @@ pub trait Generator<'arena> = FnOnce(
         }
     }
 
+    #[inline]
     pub fn abs<'arena, F1: Generator<'arena>, F2: Generator<'arena>>(
         name: &'arena str,
         arg_type: F1,
@@ -406,6 +422,7 @@ pub trait Generator<'arena> = FnOnce(
         }
     }
 
+    #[inline]
     pub fn prod<'arena, F1: Generator<'arena>, F2: Generator<'arena>>(
         name: &'arena str,
         arg_type: F1,
