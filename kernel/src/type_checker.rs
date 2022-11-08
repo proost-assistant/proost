@@ -97,9 +97,9 @@ impl Term {
                 t1.conversion(&t2, env) && u1.conversion(&u2, env)
             }
             // TODO: Unused code (#34)
-            (app @ App(box Abs(_, _), box _), u) | (u, app @ App(box Abs(_, _), box _)) => {
-                app.beta_reduction(env).conversion(&u, env)
-            }
+            // (app @ App(box Abs(_, _), box _), u) | (u, app @ App(box Abs(_, _), box _)) => {
+            //     app.beta_reduction(env).conversion(&u, env)
+            // }
             _ => false,
         }
     }
