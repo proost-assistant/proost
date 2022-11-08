@@ -1,4 +1,3 @@
-use crate::environment::{Environment, EnvironmentError};
 use crate::error::{Error, Result};
 use crate::term::{Arena, Payload, Term};
 use derive_more::Display;
@@ -7,32 +6,32 @@ use std::cmp::max;
 use Payload::*;
 
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
-#[display(fmt = "{} : {}", _0, _1)]
-pub struct TypedTerm(Term, Term);
+#[display(fmt = "{}: {}", _0, _1)]
+pub struct TypedTerm<'arena>(Term<'arena>, Term<'arena>);
 
 /// Errors that can occur, at runtime, during type checking.
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
-pub enum TypeCheckerError {
+pub enum TypeCheckerError<'arena> {
     /// t is not a universe
     #[display(fmt = "{} is not a universe", _0)]
-    NotUniverse(Term),
+    NotUniverse(Term<'arena>),
 
     /// t1 and t2 are not definitionally equal
     #[display(fmt = "{} and {} are not definitionaly equal", _0, _1)]
-    NotDefEq(Term, Term),
+    NotDefEq(Term<'arena>, Term<'arena>),
 
     /// f of type t1 cannot be applied to x of type t2
     #[display(fmt = "{} cannot be applied to {}", _0, _1)]
-    WrongArgumentType(TypedTerm, TypedTerm),
+    WrongArgumentType(TypedTerm<'arena>, TypedTerm<'arena>),
 
     /// t1 of type ty is not a function so cannot be applied to t2
-    #[display(fmt = "{} is not a function so cannot be applied to {}", _0, _1)]
-    NotAFunction(TypedTerm, Term),
+    #[display(fmt = "{} is not a function, it cannot be applied to {}", _0, _1)]
+    NotAFunction(TypedTerm<'arena>, Term<'arena>),
 
     /// Expected ty1, found ty2
     #[display(fmt = "expected {}, got {}", _0, _1)]
-    TypeMismatch(Term, Term),
+    TypeMismatch(Term<'arena>, Term<'arena>),
 }
 
 impl<'arena> Arena<'arena> {
@@ -51,100 +50,103 @@ impl<'arena> Arena<'arena> {
     }
 
     /// Checks whether two terms are definitionally equal.
-    pub fn is_def_eq(&self, rhs: &Term, env: &Environment) -> Result<()> {
-        self.conversion(rhs, env).then_some(()).ok_or(Error {
-            kind: TypeCheckerError::NotDefEq(self.clone(), rhs.clone()).into(),
-        })
+    pub fn is_def_eq(&mut self, lhs: Term<'arena>, rhs: Term<'arena>) -> Result<()> {
+        self.conversion(lhs, rhs)
+            .then_some(())
+            .ok_or(Error {
+                kind: TypeCheckerError::NotDefEq(lhs, rhs).into(),
+            })
     }
 
     /// Computes universe the universe in which `(x : A) -> B` lives when `A : u1` and `B : u2`.
-    fn imax(&self, rhs: &Term) -> Result<Term> {
-        match rhs {
-            // Because Prop is impredicative, if B : Prop, then (x : A) -> b : Prop
-            Prop => Ok(Prop),
+    fn imax(&mut self, lhs: Term<'arena>, rhs: Term<'arena>) -> Result<Term<'arena>> {
+        match *rhs {
+            // Because Prop is impredicative, if B : Prop, then (x : A) -> B : Prop
+            Prop => Ok(self.prop()),
 
-            Type(ref i) => match self {
-                Prop => Ok(Type(i.clone())),
+            Type(i) => match *lhs {
+                Prop => Ok(self.type_(i.clone())),
 
                 // else if u1 = Type(i) and u2 = Type(j), then (x : A) -> B : Type(max(i,j))
-                Type(j) => Ok(Type(max(i.clone(), j.clone()))),
+                Type(j) => Ok(self.type_(max(i, j).clone())),
 
                 _ => Err(Error {
-                    kind: TypeCheckerError::NotUniverse(self.clone()).into(),
+                    kind: TypeCheckerError::NotUniverse(lhs).into(),
                 }),
             },
 
             _ => Err(Error {
-                kind: TypeCheckerError::NotUniverse(rhs.clone()).into(),
+                kind: TypeCheckerError::NotUniverse(rhs).into(),
             }),
-        }
-    }
-
-    fn _infer(&self, env: &Environment, ctx: &mut Context) -> Result<Term> {
-        match self {
-            Prop => Ok(Type(BigUint::from(0_u64).into())),
-            Type(i) => Ok(Type(i.clone() + BigUint::from(1_u64).into())),
-            Var(i) => Ok(ctx.types[ctx.lvl - *i].clone()),
-
-            Const(s) => env.get_type(s).ok_or(Error {
-                kind: EnvironmentError::VariableNotFound(s.clone()).into(),
-            }),
-
-            Prod(box t, u) => {
-                let univ_t = t._infer(env, ctx)?;
-                let univ_u = u._infer(env, ctx.clone().bind(t))?;
-                // TODO: lax normalization to whnf once it itself is laxed (#34)
-                univ_t.normal_form(env).imax(&univ_u.normal_form(env))
-            }
-
-            Abs(box t, u) => {
-                let univ_binder = t._infer(env, ctx)?.normal_form(env);
-                if !matches!(univ_binder, Type(_) | Prop) {
-                    return Err(Error {
-                        kind: TypeCheckerError::NotUniverse(univ_binder).into(),
-                    });
-                }
-                let u = u._infer(env, ctx.clone().bind(t))?;
-
-                Ok(Prod(box t.clone(), box u))
-            }
-
-            App(box t, box u) => match t._infer(env, ctx)?.whnf(env) {
-                Prod(box typ_lhs, cls) => {
-                    let typ_rhs = u._infer(env, ctx)?;
-
-                    typ_lhs
-                        .conversion(&typ_rhs, env)
-                        .then_some(cls.substitute(u, 1))
-                        .ok_or(Error {
-                            kind: TypeCheckerError::WrongArgumentType(
-                                TypedTerm(t.clone(), typ_lhs),
-                                TypedTerm(u.clone(), typ_rhs),
-                            )
-                            .into(),
-                        })
-                }
-
-                x => Err(Error {
-                    kind: TypeCheckerError::NotAFunction(TypedTerm(t.clone(), x), u.clone()).into(),
-                }),
-            },
         }
     }
 
     /// Infers the type of a `Term` in a given context.
-    pub fn infer(&self, env: &Environment) -> Result<Term> {
-        self._infer(env, &mut Context::new())
-    }
+    pub fn infer(&mut self, t: Term<'arena>) -> Result<Term<'arena>> {
+        t.get_type_or_try_init(|| {
+        match *t {
+            Prop => Ok(self.type_(BigUint::from(0_u64).into())),
+            Type(i) => Ok(self.type_(i.clone() + BigUint::from(1_u64).into())),
+            Var(_, type_) => Ok(type_),
+
+            Prod(t, u) => {
+                let univ_t = self.infer(t)?;
+                let univ_u = self.infer(u)?;
+
+                // TODO: lax normalization to whnf once it is itself laxed (#34)
+                let univ_u = self.normal_form(univ_u);
+                let univ_t = self.normal_form(univ_t);
+                self.imax(univ_u, univ_t)
+            }
+
+            Abs(t, u) => {
+                let type_t = self.infer(t)?;
+                if !matches!(*type_t, Type(_) | Prop) {
+                    return Err(Error {
+                        kind: TypeCheckerError::NotUniverse(univ_binder).into(),
+                    });
+                }
+                let type_u = self.infer(u)?;
+                Ok(self.prod(t, type_u))
+            }
+
+            App(t, u) => {
+                let type_t = self.infer(t)?;
+                match *type_t {
+                Prod(arg_type, cls) => {
+                    let type_u = self.infer(u)?;
+
+                    if self.conversion(type_u, arg_type) {
+                        Ok(self.substitute(cls, u, 1))
+                    } else {
+                        Err(Error {
+                            kind: TypeCheckerError::WrongArgumentType(
+                                TypedTerm(t, type_t),
+                                TypedTerm(u, type_u),
+                            )
+                            .into(),
+                        })
+                    }
+                }
+
+                _ => Err(Error {
+                    kind: TypeCheckerError::NotAFunction(TypedTerm(t, type_t), u).into(),
+                }),
+                }},
+        }
+        })
+        }
+
 
     /// Checks whether a given term is of type `ty` in a given context.
-    pub fn check(&self, ty: &Term, env: &Environment) -> Result<()> {
-        let ctx = &mut Context::new();
-        let tty = self._infer(env, ctx)?;
+    pub fn check(&mut self, t: Term<'arena>, ty: Term<'arena>) -> Result<()> {
+        let tty = self.infer(t)?;
 
-        tty.conversion(ty, env).then_some(()).ok_or(Error {
-            kind: TypeCheckerError::TypeMismatch(tty, ty.clone()).into(),
-        })
+        self.conversion(tty, ty)
+            .then_some(())
+            .ok_or(Error {
+                kind: TypeCheckerError::TypeMismatch(tty, ty).into(),
+            })
     }
 }
 
