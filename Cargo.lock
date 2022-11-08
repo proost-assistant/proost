@@ -275,6 +275,7 @@ name = "kernel"
 version = "0.1.0"
 dependencies = [
  "derive_more",
+ "lazy_static",
  "num-bigint",
 ]
 

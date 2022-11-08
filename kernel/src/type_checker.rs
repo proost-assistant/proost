@@ -296,11 +296,12 @@ mod tests {
             box Prop,
         );
 
-        let t2 = Prop;
-        assert!(term.conversion(&t2, &Environment::new()));
+        let reduced = Prop;
+        assert!(term.is_def_eq(&reduced, &Environment::new()).is_ok());
 
-        let ty = term.infer(&Environment::new());
-        assert_eq!(ty, Ok(Type(BigUint::from(0_u64).into())));
+        let term_type = term.infer(&Environment::new()).unwrap();
+        assert_eq!(term_type, Type(BigUint::from(0_u64).into()));
+        assert!(term.check(&term_type, &Environment::new()).is_ok())
     }
 
     #[test]
@@ -543,8 +544,8 @@ mod tests {
         use super::*;
 
         #[test]
-        fn not_function() {
-            let term = App(box Prop, box Prop);
+        fn not_function_abs() {
+            let term = Abs(box App(box Prop, box Prop), box Prop);
 
             assert_eq!(
                 term.infer(&Environment::new()),
@@ -592,7 +593,7 @@ mod tests {
 
         #[test]
         fn not_function_app_1() {
-            let term = App(box Abs(box Prop, box Prop), box App(box Prop, box Prop));
+            let term = App(box Prop, box Prop);
 
             assert_eq!(
                 term.infer(&Environment::new()),
@@ -609,6 +610,22 @@ mod tests {
         #[test]
         fn not_function_app_2() {
             let term = App(box App(box Prop, box Prop), box Prop);
+
+            assert_eq!(
+                term.infer(&Environment::new()),
+                Err(Error {
+                    kind: TypeCheckerError::NotAFunction(
+                        TypedTerm(Prop, Type(BigUint::from(0_u64).into())),
+                        Prop
+                    )
+                    .into()
+                })
+            );
+        }
+
+        #[test]
+        fn not_function_app_3() {
+            let term = App(box Abs(box Prop, box Prop), box App(box Prop, box Prop));
 
             assert_eq!(
                 term.infer(&Environment::new()),
@@ -650,7 +667,25 @@ mod tests {
         }
 
         #[test]
-        fn not_universe_1() {
+        fn not_universe_abs() {
+            let term = Abs(
+                box Prop,
+                box Abs(
+                    box Var(1.into()),
+                    box Abs(box Var(1.into()), box Var(1.into())),
+                ),
+            );
+
+            assert_eq!(
+                term.infer(&Environment::new()),
+                Err(Error {
+                    kind: TypeCheckerError::NotUniverse(Var(2.into())).into()
+                })
+            );
+        }
+
+        #[test]
+        fn not_universe_prod_1() {
             let term = Prod(proj(1), box Prop);
 
             assert_eq!(
@@ -662,7 +697,7 @@ mod tests {
         }
 
         #[test]
-        fn not_universe_2() {
+        fn not_universe_prod_2() {
             let term = Prod(box Prop, box Abs(box Prop, box Prop));
 
             assert_eq!(
@@ -715,221 +750,5 @@ mod tests {
                 })
             );
         }
-    }
-
-    #[test]
-    fn univ_in_binder() {
-        let term = Abs(
-            box Prop,
-            box Abs(
-                box Var(1.into()),
-                box Abs(box Var(1.into()), box Var(1.into())),
-            ),
-        );
-        assert!(term.infer(&Environment::new()).is_err());
-        let term2 = Abs(box App(box Prop, box Prop), box Prop);
-        assert!(term2.infer(&Environment::new()).is_err());
-    }
-
-    #[test]
-    fn and() {
-        let env = &mut Environment::new();
-
-        let and = Abs(
-            box Prop,
-            box Abs(
-                box Prop,
-                box Prod(
-                    box Prop,
-                    box Prod(
-                        //A -> B -> C
-                        box Prod(
-                            box Var(3.into()),
-                            box Prod(box Var(3.into()), box Var(3.into())),
-                        ),
-                        box Var(2.into()),
-                    ),
-                ),
-            ),
-        );
-        assert!(and.infer(env).is_ok());
-        env.insert("and".into(), and.clone(), and.infer(env).unwrap())
-            .unwrap();
-        let r#false = &Prod(box Prop, box Var(1.into()));
-        env.insert("False".into(), r#false.clone(), r#false.infer(env).unwrap())
-            .unwrap();
-        let r#true = &Prod(box Const("False".into()), box Const("False".into()));
-        assert!(r#false.infer(env).is_ok());
-        assert!(r#true.infer(env).is_ok());
-        let triv = &Abs(box Const("False".into()).clone(), box Var(1.into()));
-        assert!(triv.check(r#true, env).is_ok());
-        env.insert("True".into(), r#true.clone(), r#true.infer(env).unwrap())
-            .unwrap();
-        env.insert("triv".into(), triv.clone(), r#true.clone())
-            .unwrap();
-        let and_true_true = &App(
-            box App(box Const("and".into()), box Const("True".into())),
-            box Const("True".into()),
-        );
-        assert!(and_true_true.infer(env).is_ok());
-        let proof = Abs(
-            box Prop,
-            box Abs(
-                box Prod(
-                    box Const("True".into()),
-                    box Prod(box Const("True".into()), box Var(3.into())),
-                ),
-                box App(
-                    box App(box Var(1.into()), box Const("triv".into())),
-                    box Const("triv".into()),
-                ),
-            ),
-        );
-        assert!(proof.check(and_true_true, env).is_ok());
-        let and_intro_ty = &Prod(
-            // A : Prop
-            box Prop,
-            box Prod(
-                // B : Prop
-                box Prop,
-                box Prod(
-                    // a : A
-                    box Var(2.into()),
-                    box Prod(
-                        // b : B
-                        box Var(2.into()),
-                        box App(
-                            box App(box Const("and".into()), box Var(4.into())),
-                            box Var(3.into()),
-                        ),
-                    ),
-                ),
-            ),
-        );
-        assert!(and_intro_ty.infer(env).is_ok());
-        let and_intro = &Abs(
-            // A : Prop
-            box Prop,
-            box Abs(
-                // B : Prop
-                box Prop,
-                box Abs(
-                    // a : A
-                    box Var(2.into()),
-                    box Abs(
-                        // b : B
-                        box Var(2.into()),
-                        box Abs(
-                            // C : Prop
-                            box Prop,
-                            box Abs(
-                                // p : A -> B -> C
-                                box Prod(
-                                    box Var(5.into()),
-                                    box Prod(box Var(5.into()), box Var(3.into())),
-                                ),
-                                // p a b
-                                box App(
-                                    box App(box Var(1.into()), box Var(4.into())),
-                                    box Var(3.into()),
-                                ),
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        );
-        assert!(and_intro.check(and_intro_ty, env).is_ok());
-
-        let and_elim1_ty = &Prod(
-            // A : Prop
-            box Prop,
-            box Prod(
-                // B : Prop
-                box Prop,
-                box Prod(
-                    box App(
-                        box App(box Const("and".into()), box Var(2.into())),
-                        box Var(1.into()),
-                    ),
-                    box Var(3.into()),
-                ),
-            ),
-        );
-        assert!(and_elim1_ty.infer(env).is_ok());
-        let and_elim1 = Abs(
-            // A : Prop
-            box Prop,
-            box Abs(
-                // B : Prop
-                box Prop,
-                box Abs(
-                    // p : and A B
-                    box App(
-                        box App(box Const("and".into()), box Var(2.into())),
-                        box Var(1.into()),
-                    ),
-                    box App(
-                        box App(box Var(1.into()), box Var(3.into())),
-                        box Abs(
-                            // a : A
-                            box Var(3.into()),
-                            box Abs(
-                                // b : B
-                                box Var(3.into()),
-                                box Var(2.into()),
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        );
-        assert!(and_elim1.check(and_elim1_ty, env).is_ok());
-
-        let and_elim2_ty = &Prod(
-            // A : Prop
-            box Prop,
-            box Prod(
-                // B : Prop
-                box Prop,
-                box Prod(
-                    // p : and A B
-                    box App(
-                        box App(box Const("and".into()), box Var(2.into())),
-                        box Var(1.into()),
-                    ),
-                    box Var(2.into()),
-                ),
-            ),
-        );
-        assert!(and_elim2_ty.infer(env).is_ok());
-        let and_elim2 = Abs(
-            // A : Prop
-            box Prop,
-            box Abs(
-                // B : Prop
-                box Prop,
-                box Abs(
-                    // p : and A B
-                    box App(
-                        box App(box Const("and".into()), box Var(2.into())),
-                        box Var(1.into()),
-                    ),
-                    box App(
-                        box App(box Var(1.into()), box Var(2.into())),
-                        box Abs(
-                            // a : A
-                            box Var(3.into()),
-                            box Abs(
-                                // b : B
-                                box Var(3.into()),
-                                box Var(1.into()),
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        );
-        assert!(and_elim2.check(and_elim2_ty, env).is_ok());
     }
 }

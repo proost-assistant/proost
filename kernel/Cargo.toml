@@ -8,3 +8,6 @@ license.workspace = true
 [dependencies]
 derive_more.workspace = true
 num-bigint.workspace = true
+
+[dev-dependencies]
+lazy_static = "1.4.0"
