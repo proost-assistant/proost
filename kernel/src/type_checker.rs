@@ -65,7 +65,9 @@ impl Context {
 
     /// Extends the actual context with a bound variable of type `ty`.
     fn bind(&mut self, ty: &Term) -> &mut Self {
-        self.types.push(ty.clone());
+        // if x : Var(i), and x appears in a redex, then i needs to be shifted in the context, it would lead to incoherences otherwise.
+        self.types = self.types.iter().map(|t| t.shift(1, 0)).collect();
+        self.types.push(ty.shift(1, 0));
         self.lvl = self.lvl + 1.into();
         self
     }
@@ -75,7 +77,7 @@ impl Term {
     /// Conversion function, checks whether two terms are definitionally equal.
     ///
     /// The conversion is untyped, meaning that it should **only** be called during type-checking when the two `Term`s are already known to be of the same type and in the same context.
-    fn conversion(&self, rhs: &Term, env: &Environment, lvl: DeBruijnIndex) -> bool {
+    fn conversion(&self, rhs: &Term, env: &Environment) -> bool {
         match (self.whnf(env), rhs.whnf(env)) {
             (Prop, Prop) => true,
 
@@ -83,30 +85,20 @@ impl Term {
 
             (Var(i), Var(j)) => i == j,
 
-            (Prod(t1, u1), Prod(box t2, u2)) => {
-                let u1 = u1.substitute(&Var(lvl), lvl.into());
-                let u2 = u2.substitute(&Var(lvl), lvl.into());
-
-                t1.conversion(&t2, env, lvl) && u1.conversion(&u2, env, lvl + 1.into())
-            }
+            (Prod(t1, u1), Prod(box t2, u2)) => t1.conversion(&t2, env) && u1.conversion(&u2, env),
 
             // Since we assume that both vals already have the same type,
             // checking conversion over the argument type is useless.
             // However, this doesn't mean we can simply remove the arg type
             // from the type constructor in the enum, it is needed to quote back to terms.
-            (Abs(_, t), Abs(_, u)) => {
-                let t = t.substitute(&Var(lvl), lvl.into());
-                let u = u.substitute(&Var(lvl), lvl.into());
-
-                t.conversion(&u, env, lvl + 1.into())
-            }
+            (Abs(_, t), Abs(_, u)) => t.conversion(&u, env),
 
             (App(box t1, box u1), App(box t2, box u2)) => {
-                t1.conversion(&t2, env, lvl) && u1.conversion(&u2, env, lvl)
+                t1.conversion(&t2, env) && u1.conversion(&u2, env)
             }
             // TODO: Unused code (#34)
             // (app @ App(box Abs(_, _), box _), u) | (u, app @ App(box Abs(_, _), box _)) => {
-            //     app.beta_reduction(env).conversion(&u, env, lvl)
+            //     app.beta_reduction(env).conversion(&u, env)
             // }
             _ => false,
         }
@@ -114,11 +106,9 @@ impl Term {
 
     /// Checks whether two terms are definitionally equal.
     pub fn is_def_eq(&self, rhs: &Term, env: &Environment) -> Result<()> {
-        self.conversion(rhs, env, 1.into())
-            .then_some(())
-            .ok_or(Error {
-                kind: TypeCheckerError::NotDefEq(self.clone(), rhs.clone()).into(),
-            })
+        self.conversion(rhs, env).then_some(()).ok_or(Error {
+            kind: TypeCheckerError::NotDefEq(self.clone(), rhs.clone()).into(),
+        })
     }
 
     /// Computes universe the universe in which `(x : A) -> B` lives when `A : u1` and `B : u2`.
@@ -162,18 +152,24 @@ impl Term {
             }
 
             Abs(box t, u) => {
-                let u = u._infer(env, ctx.clone().bind(&t.shift(1, 0)))?;
+                let univ_binder = t._infer(env, ctx)?.normal_form(env);
+                if !matches!(univ_binder, Type(_) | Prop) {
+                    return Err(Error {
+                        kind: TypeCheckerError::NotUniverse(univ_binder).into(),
+                    });
+                }
+                let u = u._infer(env, ctx.clone().bind(t))?;
 
                 Ok(Prod(box t.clone(), box u))
             }
 
-            App(box t, box u) => match t._infer(env, ctx)? {
+            App(box t, box u) => match t._infer(env, ctx)?.whnf(env) {
                 Prod(box typ_lhs, cls) => {
                     let typ_rhs = u._infer(env, ctx)?;
 
                     typ_lhs
-                        .conversion(&typ_rhs, env, ctx.types.len().into())
-                        .then_some(*cls)
+                        .conversion(&typ_rhs, env)
+                        .then_some(cls.substitute(u, 1))
                         .ok_or(Error {
                             kind: TypeCheckerError::WrongArgumentType(
                                 TypedTerm(t.clone(), typ_lhs),
@@ -200,11 +196,9 @@ impl Term {
         let ctx = &mut Context::new();
         let tty = self._infer(env, ctx)?;
 
-        tty.conversion(ty, env, ctx.types.len().into())
-            .then_some(())
-            .ok_or(Error {
-                kind: TypeCheckerError::TypeMismatch(tty, ty.clone()).into(),
-            })
+        tty.conversion(ty, env).then_some(()).ok_or(Error {
+            kind: TypeCheckerError::TypeMismatch(tty, ty.clone()).into(),
+        })
     }
 }
 
@@ -307,7 +301,7 @@ mod tests {
 
         let term_type = term.infer(&Environment::new()).unwrap();
         assert_eq!(term_type, Type(BigUint::from(0_u64).into()));
-        assert!(term.check(&term_type, &Environment::new()).is_ok());
+        assert!(term.check(&term_type, &Environment::new()).is_ok())
     }
 
     #[test]
@@ -550,8 +544,8 @@ mod tests {
         use super::*;
 
         #[test]
-        fn not_function() {
-            let term = App(box Prop, box Prop);
+        fn not_function_abs() {
+            let term = Abs(box App(box Prop, box Prop), box Prop);
 
             assert_eq!(
                 term.infer(&Environment::new()),
@@ -599,7 +593,7 @@ mod tests {
 
         #[test]
         fn not_function_app_1() {
-            let term = App(box Abs(box Prop, box Prop), box App(box Prop, box Prop));
+            let term = App(box Prop, box Prop);
 
             assert_eq!(
                 term.infer(&Environment::new()),
@@ -616,6 +610,22 @@ mod tests {
         #[test]
         fn not_function_app_2() {
             let term = App(box App(box Prop, box Prop), box Prop);
+
+            assert_eq!(
+                term.infer(&Environment::new()),
+                Err(Error {
+                    kind: TypeCheckerError::NotAFunction(
+                        TypedTerm(Prop, Type(BigUint::from(0_u64).into())),
+                        Prop
+                    )
+                    .into()
+                })
+            );
+        }
+
+        #[test]
+        fn not_function_app_3() {
+            let term = App(box Abs(box Prop, box Prop), box App(box Prop, box Prop));
 
             assert_eq!(
                 term.infer(&Environment::new()),
@@ -657,7 +667,25 @@ mod tests {
         }
 
         #[test]
-        fn not_universe_1() {
+        fn not_universe_abs() {
+            let term = Abs(
+                box Prop,
+                box Abs(
+                    box Var(1.into()),
+                    box Abs(box Var(1.into()), box Var(1.into())),
+                ),
+            );
+
+            assert_eq!(
+                term.infer(&Environment::new()),
+                Err(Error {
+                    kind: TypeCheckerError::NotUniverse(Var(2.into())).into()
+                })
+            );
+        }
+
+        #[test]
+        fn not_universe_prod_1() {
             let term = Prod(proj(1), box Prop);
 
             assert_eq!(
@@ -669,7 +697,7 @@ mod tests {
         }
 
         #[test]
-        fn not_universe_2() {
+        fn not_universe_prod_2() {
             let term = Prod(box Prop, box Abs(box Prop, box Prop));
 
             assert_eq!(

@@ -41,8 +41,16 @@ impl Term {
     pub fn beta_reduction(&self, env: &Environment) -> Term {
         match self {
             App(box Abs(_, box t1), box t2) => t1.substitute(t2, 1),
-            App(box t1, box t2) => App(box t1.beta_reduction(env), box t2.clone()),
+            App(box t1, box t2) => {
+                let t1_new = t1.beta_reduction(env);
+                if t1.clone() == t1_new {
+                    App(box t1_new, box t2.beta_reduction(env))
+                } else {
+                    App(box t1_new, box t2.clone())
+                }
+            }
             Abs(x, box t) => Abs(x.clone(), box t.beta_reduction(env)),
+            Prod(x, box t) => Prod(x.clone(), box t.beta_reduction(env)),
             Const(s) => env.get_term(s).unwrap(),
             _ => self.clone(),
         }
@@ -52,8 +60,8 @@ impl Term {
         match self {
             Var(i) if *i > depth.into() => Var(*i + offset.into()),
             App(box t1, box t2) => App(box t1.shift(offset, depth), box t2.shift(offset, depth)),
-            Abs(t1, box t2) => Abs(t1.clone(), box t2.shift(offset, depth + 1)),
-            Prod(t1, box t2) => Prod(t1.clone(), box t2.shift(offset, depth + 1)),
+            Abs(t1, box t2) => Abs(box t1.shift(offset, depth), box t2.shift(offset, depth + 1)),
+            Prod(t1, box t2) => Prod(box t1.shift(offset, depth), box t2.shift(offset, depth + 1)),
             _ => self.clone(),
         }
     }
@@ -312,5 +320,30 @@ mod tests {
         env.insert("foo".into(), id_prop.clone(), Prop).unwrap();
 
         assert_eq!(Const("foo".into()).beta_reduction(&env), id_prop);
+    }
+
+    #[test]
+    fn prod_beta_red() {
+        let term = Prod(
+            box Prop,
+            box App(box Abs(box Prop, box Var(1.into())), box Var(1.into())),
+        );
+        let reduced = Prod(box Prop, box Var(1.into()));
+
+        assert_eq!(term.beta_reduction(&Environment::new()), reduced);
+    }
+
+    #[test]
+    fn app_red_rhs() {
+        let term = Abs(
+            box Prop,
+            box App(
+                box Var(1.into()),
+                box App(box Abs(box Prop, box Var(1.into())), box Var(1.into())),
+            ),
+        );
+        let reduced = Abs(box Prop, box App(box Var(1.into()), box Var(1.into())));
+
+        assert_eq!(term.beta_reduction(&Environment::new()), reduced);
     }
 }
