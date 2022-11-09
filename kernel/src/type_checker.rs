@@ -1,4 +1,4 @@
-use crate::error::{Error, Result};
+use crate::error::{Error, Result, ResultTerm};
 use crate::term::{Arena, Payload, Term};
 use derive_more::Display;
 use num_bigint::BigUint;
@@ -44,22 +44,20 @@ impl<'arena> Arena<'arena> {
         lhs == rhs
 
         // TODO: Unused code (#34)
-        // (app @ App(box Abs(_, _), box _), u) | (u, app @ App(box Abs(_, _), box _)) => {
+        // (app @ App(Abs(_, _), _), u) | (u, app @ App(Abs(_, _), _)) => {
         //     app.beta_reduction(env).conversion(&u, env)
         // }
     }
 
     /// Checks whether two terms are definitionally equal.
     pub fn is_def_eq(&mut self, lhs: Term<'arena>, rhs: Term<'arena>) -> Result<()> {
-        self.conversion(lhs, rhs)
-            .then_some(())
-            .ok_or(Error {
-                kind: TypeCheckerError::NotDefEq(lhs, rhs).into(),
-            })
+        self.conversion(lhs, rhs).then_some(()).ok_or(Error {
+            kind: TypeCheckerError::NotDefEq(lhs, rhs).into(),
+        })
     }
 
     /// Computes universe the universe in which `(x : A) -> B` lives when `A : u1` and `B : u2`.
-    fn imax(&mut self, lhs: Term<'arena>, rhs: Term<'arena>) -> Result<Term<'arena>> {
+    fn imax(&mut self, lhs: Term<'arena>, rhs: Term<'arena>) -> ResultTerm<'arena> {
         match *rhs {
             // Because Prop is impredicative, if B : Prop, then (x : A) -> B : Prop
             Prop => Ok(self.prop()),
@@ -82,410 +80,462 @@ impl<'arena> Arena<'arena> {
     }
 
     /// Infers the type of a `Term` in a given context.
-    pub fn infer(&mut self, t: Term<'arena>) -> Result<Term<'arena>> {
+    pub fn infer(&mut self, t: Term<'arena>) -> ResultTerm<'arena> {
         t.get_type_or_try_init(|| {
-        match *t {
-            Prop => Ok(self.type_(BigUint::from(0_u64).into())),
-            Type(i) => Ok(self.type_(i.clone() + BigUint::from(1_u64).into())),
-            Var(_, type_) => Ok(type_),
+            match *t {
+                Prop => Ok(self.type_(BigUint::from(0_u64).into())),
+                Type(i) => Ok(self.type_(i.clone() + BigUint::from(1_u64).into())),
+                Var(_, type_) => Ok(type_),
 
-            Prod(t, u) => {
-                let univ_t = self.infer(t)?;
-                let univ_u = self.infer(u)?;
+                Prod(t, u) => {
+                    let univ_t = self.infer(t)?;
+                    let univ_u = self.infer(u)?;
 
-                // TODO: lax normalization to whnf once it is itself laxed (#34)
-                let univ_u = self.normal_form(univ_u);
-                let univ_t = self.normal_form(univ_t);
-                self.imax(univ_u, univ_t)
-            }
-
-            Abs(t, u) => {
-                let type_t = self.infer(t)?;
-                if !matches!(*type_t, Type(_) | Prop) {
-                    return Err(Error {
-                        kind: TypeCheckerError::NotUniverse(univ_binder).into(),
-                    });
+                    // TODO: lax normalization to whnf once it is itself laxed (#34)
+                    let univ_u = self.normal_form(univ_u);
+                    let univ_t = self.normal_form(univ_t);
+                    self.imax(univ_u, univ_t)
                 }
-                let type_u = self.infer(u)?;
-                Ok(self.prod(t, type_u))
-            }
 
-            App(t, u) => {
-                let type_t = self.infer(t)?;
-                match *type_t {
-                Prod(arg_type, cls) => {
+                Abs(t, u) => {
+                    let type_t = self.infer(t)?;
+                    if !matches!(*type_t, Type(_) | Prop) {
+                        return Err(Error {
+                            kind: TypeCheckerError::NotUniverse(type_t).into(),
+                        });
+                    }
                     let type_u = self.infer(u)?;
+                    Ok(self.prod(t, type_u))
+                }
 
-                    if self.conversion(type_u, arg_type) {
-                        Ok(self.substitute(cls, u, 1))
-                    } else {
-                        Err(Error {
-                            kind: TypeCheckerError::WrongArgumentType(
-                                TypedTerm(t, type_t),
-                                TypedTerm(u, type_u),
-                            )
-                            .into(),
-                        })
+                App(t, u) => {
+                    let type_t = self.infer(t)?;
+                    match *type_t {
+                        Prod(arg_type, cls) => {
+                            let type_u = self.infer(u)?;
+
+                            if self.conversion(type_u, arg_type) {
+                                Ok(self.substitute(cls, u, 1))
+                            } else {
+                                Err(Error {
+                                    kind: TypeCheckerError::WrongArgumentType(
+                                        TypedTerm(t, type_t),
+                                        TypedTerm(u, type_u),
+                                    )
+                                    .into(),
+                                })
+                            }
+                        }
+
+                        _ => Err(Error {
+                            kind: TypeCheckerError::NotAFunction(TypedTerm(t, type_t), u).into(),
+                        }),
                     }
                 }
-
-                _ => Err(Error {
-                    kind: TypeCheckerError::NotAFunction(TypedTerm(t, type_t), u).into(),
-                }),
-                }},
-        }
+            }
         })
-        }
-
+    }
 
     /// Checks whether a given term is of type `ty` in a given context.
     pub fn check(&mut self, t: Term<'arena>, ty: Term<'arena>) -> Result<()> {
         let tty = self.infer(t)?;
 
-        self.conversion(tty, ty)
-            .then_some(())
-            .ok_or(Error {
-                kind: TypeCheckerError::TypeMismatch(tty, ty).into(),
-            })
+        self.conversion(tty, ty).then_some(()).ok_or(Error {
+            kind: TypeCheckerError::TypeMismatch(tty, ty).into(),
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::term::intern_build::*;
+    use crate::term::use_arena;
 
-    fn proj(idx: usize) -> Box<Term> {
-        box Abs(box Prop, box Var(idx.into()))
+    fn id<'arena>() -> impl Generator<'arena> {
+        abs(prop(), var(1.into(), prop()))
     }
 
     #[test]
     fn def_eq_1() {
-        let term = App(box Abs(box Prop, proj(1)), proj(1));
-        let normal_form = Abs(box Prop, box Var(1.into()));
+        use_arena(|arena| {
+            let id = arena.build(id());
+            let term = arena.build(app(abs(prop(), id.into()), id.into()));
+            let normal_form = arena.build(abs(prop(), var(1.into(), prop())));
 
-        assert!(term.is_def_eq(&normal_form, &Environment::new()).is_ok());
+            assert!(arena.is_def_eq(term, normal_form).is_ok())
+        })
     }
 
     #[test]
     fn def_eq_2() {
-        let term = App(box Abs(box Prop, proj(2)), proj(1));
-        let normal_form = Abs(box Prop, proj(1));
+        use_arena(|arena| {
+            let id = arena.build(id());
+            let term = arena.build(app(
+                abs(prop(), abs(prop(), var(2.into(), prop()))),
+                id.into(),
+            ));
+            let normal_form = arena.build(abs(prop(), id.into()));
 
-        assert!(term.is_def_eq(&normal_form, &Environment::new()).is_ok());
+            assert!(arena.is_def_eq(term, normal_form).is_ok())
+        })
     }
 
     #[test]
     fn def_eq_self() {
-        // λa.a (λx.x) (λx.x)
-        let term = Abs(
-            box Prop,
-            box App(box App(box Var(2.into()), proj(1)), proj(1)),
-        );
+        use_arena(|arena| {
+            let id = arena.build(id());
+            // λa.a (λx.x) (λx.x)
+            let term = arena.build(abs(
+                prop(),
+                app(app(var(2.into(), prop()), id.into()), id.into()),
+            ));
 
-        assert!(term.is_def_eq(&term, &Environment::new()).is_ok());
+            assert!(arena.is_def_eq(term, term).is_ok());
+        })
     }
 
     #[test]
     fn failed_def_equal() {
-        let term_lhs = Prop;
-        let term_rhs = Type(BigUint::from(0_u64).into());
+        use_arena(|arena| {
+            let term_lhs = arena.build(prop());
+            let term_rhs = arena.build(type_(BigUint::from(0_u64).into()));
 
-        assert_eq!(
-            term_lhs.is_def_eq(&term_rhs, &Environment::new()),
-            Err(Error {
-                kind: TypeCheckerError::NotDefEq(term_lhs, term_rhs).into()
-            })
-        );
+            assert_eq!(
+                arena.is_def_eq(term_lhs, term_rhs),
+                Err(Error {
+                    kind: TypeCheckerError::NotDefEq(term_lhs, term_rhs).into()
+                })
+            );
+        })
     }
 
     #[test]
     fn failed_prod_binder_conversion() {
-        let term_lhs = Prod(box Prop, box Prop);
-        let term_rhs = Prod(box Type(BigUint::from(0_u64).into()), box Prop);
+        use_arena(|arena| {
+            let type_0 = arena.build(type_(BigUint::from(0_u64).into()));
 
-        assert_eq!(
-            term_lhs.is_def_eq(&term_rhs, &Environment::new()),
-            Err(Error {
-                kind: TypeCheckerError::NotDefEq(term_lhs, term_rhs).into()
-            })
-        );
+            let term_lhs = arena.build(prod(prop(), prop()));
+            let term_rhs = arena.build(prod(type_0.into(), prop()));
+
+            assert_eq!(
+                arena.is_def_eq(term_lhs, term_rhs),
+                Err(Error {
+                    kind: TypeCheckerError::NotDefEq(term_lhs, term_rhs).into()
+                })
+            );
+        })
     }
 
     #[test]
     fn failed_app_head_conversion() {
-        let term_lhs = Abs(
-            box Type(BigUint::from(0_u64).into()),
-            box Abs(
-                box Type(BigUint::from(0_u64).into()),
-                box App(box Var(1.into()), box Prop),
-            ),
-        );
+        use_arena(|arena| {
+            let type_0 = arena.build(type_(BigUint::from(0_u64).into()));
+            let term_lhs = arena.build(abs(
+                type_0.into(),
+                abs(type_0.into(), app(var(1.into(), prop()), prop())),
+            ));
 
-        let term_rhs = Abs(
-            box Type(BigUint::from(0_u64).into()),
-            box Abs(
-                box Type(BigUint::from(0_u64).into()),
-                box App(box Var(2.into()), box Prop),
-            ),
-        );
+            let term_rhs = arena.build(abs(
+                type_0.into(),
+                abs(type_0.into(), app(var(2.into(), prop()), prop())),
+            ));
 
-        assert_eq!(
-            term_lhs.is_def_eq(&term_rhs, &Environment::new()),
-            Err(Error {
-                kind: TypeCheckerError::NotDefEq(term_lhs, term_rhs).into()
-            })
-        );
+            assert_eq!(
+                arena.is_def_eq(term_lhs, term_rhs),
+                Err(Error {
+                    kind: TypeCheckerError::NotDefEq(term_lhs, term_rhs).into()
+                })
+            );
+        })
     }
 
     #[test]
     fn typed_reduction_app_1() {
-        let term = App(
-            box Abs(box Type(BigUint::from(0_u64).into()), box Var(1.into())),
-            box Prop,
-        );
+        use_arena(|arena| {
+            let type_0 = arena.build(type_(BigUint::from(0_u64).into()));
+            let term = arena.build(app(
+                abs(type_0.into(), var(1.into(), type_0.into())),
+                prop(),
+            ));
 
-        let reduced = Prop;
-        assert!(term.is_def_eq(&reduced, &Environment::new()).is_ok());
+            let reduced = arena.build(prop());
+            assert!(arena.is_def_eq(term, reduced).is_ok());
 
-        let term_type = term.infer(&Environment::new()).unwrap();
-        assert_eq!(term_type, Type(BigUint::from(0_u64).into()));
-        assert!(term.check(&term_type, &Environment::new()).is_ok())
+            let term_type = arena.infer(term).unwrap();
+            assert_eq!(term_type, type_0);
+            assert!(arena.check(term, term_type).is_ok())
+        })
     }
 
     #[test]
     fn typed_reduction_app_2() {
-        // (λa.λb.λc.a (λd.λe.e (d b)) (λ_.c) (λd.d)) (λa.λb.a b)
-        let term = App(
-            box Abs(
-                // a : ((P → P) → (P → P) → P) → ((P → P) → ((P → P) → P))
-                box Prod(
-                    // (P → P) → ((P → P) → P)
-                    box Prod(
-                        // P -> P
-                        box Prod(box Prop, box Prop),
-                        // (P -> P) -> P
-                        box Prod(box Prod(box Prop, box Prop), box Prop),
-                    ),
-                    // (P → P) → ((P → P) → P)
-                    box Prod(
-                        // P -> P
-                        box Prod(box Prop, box Prop),
-                        // (P -> P) -> P
-                        box Prod(box Prod(box Prop, box Prop), box Prop),
-                    ),
+        use_arena(|arena| {
+            let id = arena.build(id());
+
+            // a: ((P → P) → (P → P) → P) → ((P → P) → ((P → P) → P))
+            let type_a = arena.build(prod(
+                // (P → P) → ((P → P) → P)
+                prod(
+                    // P -> P
+                    prod(prop(), prop()),
+                    // (P -> P) -> P
+                    prod(prod(prop(), prop()), prop()),
                 ),
-                box Abs(
-                    // b : P
-                    box Prop,
-                    box Abs(
-                        // c : P
-                        box Prop,
-                        box App(
-                            box App(
-                                box App(
-                                    box Var(3.into()),
-                                    box Abs(
-                                        // d : P -> P
-                                        box Prod(box Prop, box Prop),
-                                        box Abs(
-                                            // e : P -> P
-                                            box Prod(box Prop, box Prop),
-                                            box App(
-                                                box Var(1.into()),
-                                                box App(box Var(2.into()), box Var(4.into())),
+                // (P → P) → ((P → P) → P)
+                prod(
+                    // P -> P
+                    prod(prop(), prop()),
+                    // (P -> P) -> P
+                    prod(prod(prop(), prop()), prop()),
+                ),
+            ));
+
+            // f: (P -> P) -> (P -> P) -> P
+            let type_f = arena.build(prod(
+                prod(prop(), prop()),
+                prod(prod(prop(), prop()), prop()),
+            ));
+
+            // (λa.λb.λc.a (λd.λe.e (d b)) (λ_.c) (λd.d)) (λf.λg.f g)
+            let term = arena.build(app(
+                abs(
+                    type_a.into(),
+                    abs(
+                        // b : P
+                        prop(),
+                        abs(
+                            // c : P
+                            prop(),
+                            app(
+                                app(
+                                    app(
+                                        var(3.into(), type_a.into()),
+                                        abs(
+                                            // d : P -> P
+                                            prod(prop(), prop()),
+                                            abs(
+                                                // e : P -> P
+                                                prod(prop(), prop()),
+                                                app(
+                                                    var(1.into(), prod(prop(), prop())),
+                                                    app(
+                                                        var(2.into(), prod(prop(), prop())),
+                                                        var(4.into(), prop()),
+                                                    ),
+                                                ),
                                             ),
                                         ),
                                     ),
+                                    // _ : P
+                                    abs(prop(), var(2.into(), prop())),
                                 ),
-                                // _ : P
-                                proj(2),
+                                // d : P
+                                id.into(),
                             ),
-                            // d : P
-                            proj(1),
                         ),
                     ),
                 ),
-            ),
-            box Abs(
-                // a : (P -> P) -> (P -> P) -> P
-                box Prod(
-                    box Prod(box Prop, box Prop),
-                    box Prod(box Prod(box Prop, box Prop), box Prop),
+                abs(
+                    type_f.into(),
+                    abs(
+                        // g: P -> P
+                        prod(prop(), prop()),
+                        app(
+                            var(2.into(), type_f.into()),
+                            var(1.into(), prod(prop(), prop())),
+                        ),
+                    ),
                 ),
-                box Abs(
-                    // b : P -> P
-                    box Prod(box Prop, box Prop),
-                    box App(box Var(2.into()), box Var(1.into())),
-                ),
-            ),
-        );
+            ));
 
-        // λa : P.λb : P .b
-        let reduced = Abs(box Prop, proj(1));
-        assert!(term.is_def_eq(&reduced, &Environment::new()).is_ok());
+            // λa: P. λb: P. b
+            let reduced = arena.build(abs(prop(), id.into()));
+            assert!(arena.is_def_eq(term, reduced).is_ok());
 
-        let term_type = term.infer(&Environment::new()).unwrap();
-        assert_eq!(term_type, Prod(box Prop, box Prod(box Prop, box Prop)));
-        assert!(term.check(&term_type, &Environment::new()).is_ok());
+            let term_type = arena.infer(term).unwrap();
+            let expected_type = arena.build(prod(prop(), prop()));
+            assert_eq!(term_type, expected_type);
+            assert!(arena.check(term, term_type).is_ok())
+        })
     }
 
     #[test]
     fn typed_reduction_universe() {
-        let term = App(
-            box Abs(box Prop, box Type(BigUint::from(0_u64).into())),
-            box Prod(box Prop, box Var(1.into())),
-        );
+        use_arena(|arena| {
+            let type_0 = arena.build(type_(BigUint::from(0_u64).into()));
+            let type_1 = arena.build(type_(BigUint::from(1_u64).into()));
 
-        let reduced = Type(BigUint::from(0_u64).into());
-        assert!(term.is_def_eq(&reduced, &Environment::new()).is_ok());
+            let term = arena.build(app(
+                abs(prop(), type_0.into()),
+                prod(prop(), var(1.into(), type_0.into())),
+            ));
 
-        let term_type = term.infer(&Environment::new()).unwrap();
-        assert_eq!(term_type, Type(BigUint::from(1_u64).into()));
-        assert!(term.check(&term_type, &Environment::new()).is_ok());
+            assert!(arena.is_def_eq(term, type_0).is_ok());
+
+            let term_type = arena.infer(term).unwrap();
+            assert_eq!(term_type, type_1);
+            assert!(arena.check(term, term_type).is_ok())
+        })
     }
 
     #[test]
     fn escape_from_prop() {
-        let term = Abs(
-            box Prop,
-            box Prod(box Var(1.into()), box Type(BigUint::from(0_u64).into())),
-        );
+        use_arena(|arena| {
+            let type_0 = arena.build(type_(BigUint::from(0_u64).into()));
+            let term = arena.build(abs(prop(), prod(var(1.into(), prop()), type_0.into())));
 
-        let term_type = term.infer(&Environment::new()).unwrap();
-        assert_eq!(
-            term_type,
-            Prod(box Prop, box Type(BigUint::from(1_u64).into()))
-        );
-        assert!(term.check(&term_type, &Environment::new()).is_ok());
+            let term_type = arena.infer(term).unwrap();
+            let expected_type = arena.build(prod(prop(), type_(BigUint::from(1_u64).into())));
+            assert_eq!(term_type, expected_type);
+            assert!(arena.check(term, term_type).is_ok())
+        })
     }
 
     #[test]
     fn illtyped_reduction() {
-        // λ (x : P -> P).(λ (y :P).x y) x
-        // λ P -> P.(λ P.2 1) 1
-        let term = Abs(
-            box Prod(box Prop, box Prop),
-            box App(
-                box Abs(box Prop, box App(box Var(2.into()), box Var(1.into()))),
-                box Var(1.into()),
-            ),
-        );
+        use_arena(|arena| {
+            // λ (x : P -> P).(λ (y :P).x y) x
+            // λ P -> P.(λ P.2 1) 1
+            let term = arena.build(abs(
+                prod(prop(), prop()),
+                app(
+                    abs(
+                        prop(),
+                        app(var(2.into(), prod(prop(), prop())), var(1.into(), prop())),
+                    ),
+                    var(1.into(), prop()),
+                ),
+            ));
 
-        // λx.x x
-        let reduced = Abs(box Prop, box App(box Var(1.into()), box Var(1.into())));
-        assert!(term.is_def_eq(&reduced, &Environment::new()).is_ok());
+            // λx.x x
+            let reduced = arena.build(abs(
+                prop(),
+                app(var(1.into(), prop()), var(1.into(), prop())),
+            ));
+            assert!(arena.is_def_eq(term, reduced).is_ok())
+        })
     }
 
     #[test]
     fn typed_prod_1() {
-        let term = Prod(box Prop, box Prop);
-        let term_type = term.infer(&Environment::new()).unwrap();
+        use_arena(|arena| {
+            let type_0 = arena.build(type_(BigUint::from(0_u64).into()));
+            let term = arena.build(prod(prop(), prop()));
+            let term_type = arena.infer(term).unwrap();
 
-        assert_eq!(term_type, Type(BigUint::from(0_u64).into()));
-        assert!(term.check(&term_type, &Environment::new()).is_ok());
+            assert_eq!(term_type, type_0);
+            assert!(arena.check(term, term_type).is_ok())
+        })
     }
 
     #[test]
     fn typed_prod_2() {
-        let term = Prod(box Prop, box Var(1.into()));
-        let term_type = term.infer(&Environment::new()).unwrap();
+        use_arena(|arena| {
+            let term = arena.build(prod(prop(), var(1.into(), prop())));
+            let term_type = arena.infer(term).unwrap();
 
-        assert_eq!(term_type, Prop);
-        assert!(term.check(&term_type, &Environment::new()).is_ok());
+            assert_eq!(term_type, arena.prop());
+            assert!(arena.check(term, term_type).is_ok());
+        })
     }
 
     #[test]
     fn typed_prod_3() {
-        let term = Abs(box Prop, box Abs(box Var(1.into()), box Var(1.into())));
-        let term_type = term.infer(&Environment::new()).unwrap();
+        use_arena(|arena| {
+            let term = arena.build(abs(
+                prop(),
+                abs(var(1.into(), prop()), var(1.into(), var(2.into(), prop()))),
+            ));
+            let term_type = arena.infer(term).unwrap();
+            let expected_type = arena.build(prod(
+                prop(),
+                prod(var(1.into(), prop()), var(2.into(), var(1.into(), prop()))),
+            ));
 
-        assert_eq!(
-            term_type,
-            Prod(box Prop, box Prod(box Var(1.into()), box Var(2.into())))
-        );
-        assert!(term.check(&term_type, &Environment::new()).is_ok());
+            assert_eq!(term_type, expected_type);
+            assert!(arena.check(term, term_type).is_ok());
+        })
     }
 
     #[test]
     fn typed_polymorphism() {
-        let identity = Abs(
-            box Type(BigUint::from(0_u64).into()),
-            box Abs(box Var(1.into()), box Var(1.into())),
-        );
-        let identity_type = identity.infer(&Environment::new()).unwrap();
+        use_arena(|arena| {
+            let type_0 = arena.build(type_(BigUint::from(0_u64).into()));
 
-        assert_eq!(
-            identity_type,
-            Prod(
-                box Type(BigUint::from(0_u64).into()),
-                box Prod(box Var(1.into()), box Var(2.into()))
-            )
-        );
-        assert!(identity.check(&identity_type, &Environment::new()).is_ok());
+            let identity = arena.build(abs(
+                type_0.into(),
+                abs(
+                    var(1.into(), type_0.into()),
+                    var(1.into(), var(2.into(), type_0.into())),
+                ),
+            ));
+            let expected_type = arena.build(prod(
+                type_0.into(),
+                abs(
+                    var(1.into(), type_0.into()),
+                    var(1.into(), var(2.into(), type_0.into())),
+                ),
+            ));
+            let identity_type = arena.infer(identity).unwrap();
+
+            assert_eq!(identity_type, expected_type);
+            assert!(arena.check(identity, identity_type).is_ok());
+        })
     }
 
     #[test]
     fn typed_polymorphism_2() {
-        let term = Abs(
-            box Prop,
-            box Abs(
-                box Prop,
-                box Abs(
-                    box Prod(box Prop, box Prod(box Prop, box Prop)),
-                    box App(
-                        box App(box Var(1.into()), box Var(3.into())),
-                        box Var(2.into()),
+        use_arena(|arena| {
+            let term = arena.build(abs(
+                prop(),
+                abs(
+                    prop(),
+                    abs(
+                        prod(prop(), prod(prop(), prop())),
+                        app(
+                            app(
+                                var(1.into(), prod(prop(), prod(prop(), prop()))),
+                                var(3.into(), prop()),
+                            ),
+                            var(2.into(), prop()),
+                        ),
                     ),
                 ),
-            ),
-        );
-        let term_type = term.infer(&Environment::new()).unwrap();
+            ));
+            let term_type = arena.infer(term).unwrap();
 
-        assert_eq!(
-            term_type,
-            Prod(
-                box Prop,
-                box Prod(
-                    box Prop,
-                    box Prod(box Prod(box Prop, box Prod(box Prop, box Prop)), box Prop)
-                )
-            )
-        );
-        assert!(term.check(&term_type, &Environment::new()).is_ok());
+            assert_eq!(
+                term_type,
+                arena.build(prod(
+                    prop(),
+                    prod(prop(), prod(prod(prop(), prod(prop(), prop())), prop()))
+                ))
+            );
+            assert!(arena.check(term, term_type).is_ok());
+        })
     }
 
     #[test]
     fn type_hierarchy_prop() {
-        let term = Prop;
-        let term_type = term.infer(&Environment::new()).unwrap();
+        use_arena(|arena| {
+            let term = arena.prop();
+            let term_type = arena.infer(term).unwrap();
 
-        assert_eq!(term_type, Type(BigUint::from(0_u64).into()));
-        assert!(term.check(&term_type, &Environment::new()).is_ok());
+            assert_eq!(term_type, arena.type_usize(0));
+            assert!(arena.check(term, term_type).is_ok());
+        })
     }
 
     #[test]
     fn type_hierarchy_type() {
-        let term = Type(BigUint::from(0_u64).into());
-        let term_type = term.infer(&Environment::new()).unwrap();
+        use_arena(|arena| {
+            let term = arena.type_usize(0);
+            let term_type = arena.infer(term).unwrap();
 
-        assert_eq!(term_type, Type(BigUint::from(1_u64).into()));
-        assert!(term.check(&term_type, &Environment::new()).is_ok());
-    }
-
-    #[test]
-    fn environment() {
-        let term = Abs(box Prop, box Abs(box Var(1.into()), box Var(1.into())));
-        let term_type = term.infer(&Environment::new()).unwrap();
-
-        let context = Prod(box Prop, box Prod(box Var(1.into()), box Var(2.into())));
-        let mut env = Environment::new();
-        env.insert("foo".into(), context, Prop).unwrap();
-
-        assert_eq!(
-            term_type,
-            Prod(box Prop, box Prod(box Var(1.into()), box Var(2.into())))
-        );
-        assert!(term.check(&Const("foo".into()), &env).is_ok());
+            assert_eq!(term_type, arena.type_usize(1));
+            assert!(arena.check(term, term_type).is_ok());
+        })
     }
 
     mod failed_type_inference {
@@ -493,210 +543,233 @@ mod tests {
 
         #[test]
         fn not_function_abs() {
-            let term = Abs(box App(box Prop, box Prop), box Prop);
+            use_arena(|arena| {
+                let term = arena.build(abs(app(prop(), prop()), prop()));
 
-            assert_eq!(
-                term.infer(&Environment::new()),
-                Err(Error {
-                    kind: TypeCheckerError::NotAFunction(
-                        TypedTerm(Prop, Type(BigUint::from(0_u64).into())),
-                        Prop
-                    )
-                    .into()
-                })
-            );
+                assert_eq!(
+                    arena.infer(term),
+                    Err(Error {
+                        kind: TypeCheckerError::NotAFunction(
+                            TypedTerm(arena.prop(), arena.type_usize(0)),
+                            arena.prop()
+                        )
+                        .into()
+                    })
+                );
+            })
         }
 
         #[test]
         fn not_function_prod_1() {
-            let term = Prod(box Prop, box App(box Prop, box Prop));
+            use_arena(|arena| {
+                let term = arena.build(prod(prop(), app(prop(), prop())));
 
-            assert_eq!(
-                term.infer(&Environment::new()),
-                Err(Error {
-                    kind: TypeCheckerError::NotAFunction(
-                        TypedTerm(Prop, Type(BigUint::from(0_u64).into())),
-                        Prop
-                    )
-                    .into()
-                })
-            );
+                assert_eq!(
+                    arena.infer(term),
+                    Err(Error {
+                        kind: TypeCheckerError::NotAFunction(
+                            TypedTerm(arena.prop(), arena.type_usize(0)),
+                            arena.prop()
+                        )
+                        .into()
+                    })
+                );
+            })
         }
 
         #[test]
         fn not_function_prod_2() {
-            let term = Prod(box App(box Prop, box Prop), box Prop);
+            use_arena(|arena| {
+                let term = arena.build(prod(app(prop(), prop()), prop()));
 
-            assert_eq!(
-                term.infer(&Environment::new()),
-                Err(Error {
-                    kind: TypeCheckerError::NotAFunction(
-                        TypedTerm(Prop, Type(BigUint::from(0_u64).into())),
-                        Prop
-                    )
-                    .into()
-                })
-            );
+                assert_eq!(
+                    arena.infer(term),
+                    Err(Error {
+                        kind: TypeCheckerError::NotAFunction(
+                            TypedTerm(arena.prop(), arena.type_usize(0)),
+                            arena.prop()
+                        )
+                        .into()
+                    })
+                );
+            })
         }
 
         #[test]
         fn not_function_app_1() {
-            let term = App(box Prop, box Prop);
+            use_arena(|arena| {
+                let term = arena.build(app(prop(), prop()));
 
-            assert_eq!(
-                term.infer(&Environment::new()),
-                Err(Error {
-                    kind: TypeCheckerError::NotAFunction(
-                        TypedTerm(Prop, Type(BigUint::from(0_u64).into())),
-                        Prop
-                    )
-                    .into()
-                })
-            );
+                assert_eq!(
+                    arena.infer(term),
+                    Err(Error {
+                        kind: TypeCheckerError::NotAFunction(
+                            TypedTerm(arena.prop(), arena.type_usize(0)),
+                            arena.prop()
+                        )
+                        .into()
+                    })
+                );
+            })
         }
 
         #[test]
         fn not_function_app_2() {
-            let term = App(box App(box Prop, box Prop), box Prop);
+            use_arena(|arena| {
+                let term = arena.build(app(app(prop(), prop()), prop()));
 
-            assert_eq!(
-                term.infer(&Environment::new()),
-                Err(Error {
-                    kind: TypeCheckerError::NotAFunction(
-                        TypedTerm(Prop, Type(BigUint::from(0_u64).into())),
-                        Prop
-                    )
-                    .into()
-                })
-            );
+                assert_eq!(
+                    arena.infer(term),
+                    Err(Error {
+                        kind: TypeCheckerError::NotAFunction(
+                            TypedTerm(arena.prop(), arena.type_usize(0)),
+                            arena.prop()
+                        )
+                        .into()
+                    })
+                );
+            })
         }
 
         #[test]
         fn not_function_app_3() {
-            let term = App(box Abs(box Prop, box Prop), box App(box Prop, box Prop));
+            use_arena(|arena| {
+                let term = arena.build(app(abs(prop(), prop()), app(prop(), prop())));
 
-            assert_eq!(
-                term.infer(&Environment::new()),
-                Err(Error {
-                    kind: TypeCheckerError::NotAFunction(
-                        TypedTerm(Prop, Type(BigUint::from(0_u64).into())),
-                        Prop
-                    )
-                    .into()
-                })
-            );
+                assert_eq!(
+                    arena.infer(term),
+                    Err(Error {
+                        kind: TypeCheckerError::NotAFunction(
+                            TypedTerm(arena.prop(), arena.type_usize(0)),
+                            arena.prop()
+                        )
+                        .into()
+                    })
+                );
+            })
         }
 
         #[test]
         fn wrong_argument_type() {
-            // λ (x : P -> P).(λ (y :P).x y) x
-            // λ P -> P.(λ P.2 1) 1
-            let term = Abs(
-                box Prod(box Prop, box Prop),
-                box App(
-                    box Abs(box Prop, box App(box Var(2.into()), box Var(1.into()))),
-                    box Var(1.into()),
-                ),
-            );
-
-            assert_eq!(
-                term.infer(&Environment::new()),
-                Err(Error {
-                    kind: TypeCheckerError::WrongArgumentType(
-                        TypedTerm(
-                            Abs(box Prop, box App(box Var(2.into()), box Var(1.into()))),
-                            Prop
+            use_arena(|arena| {
+                // λ (x : P -> P).(λ (y :P).x y) x
+                // λ P -> P.(λ P.2 1) 1
+                let term = arena.build(abs(
+                    prod(prop(), prop()),
+                    app(
+                        abs(
+                            prop(),
+                            app(var(2.into(), prod(prop(), prop())), var(1.into(), prop())),
                         ),
-                        TypedTerm(Var(1.into()), Prod(box Prop, box Prop))
-                    )
-                    .into()
-                })
-            );
+                        var(1.into(), prop()),
+                    ),
+                ));
+
+                assert_eq!(
+                    arena.infer(term),
+                    Err(Error {
+                        kind: TypeCheckerError::WrongArgumentType(
+                            TypedTerm(
+                                arena.build(abs(
+                                    prop(),
+                                    app(var(2.into(), prod(prop(), prop())), var(1.into(), prop()))
+                                )),
+                                arena.prop()
+                            ),
+                            TypedTerm(
+                                arena.build(var(1.into(), prop())),
+                                arena.build(prod(prop(), prop()))
+                            )
+                        )
+                        .into()
+                    })
+                );
+            })
         }
 
         #[test]
         fn not_universe_abs() {
-            let term = Abs(
-                box Prop,
-                box Abs(
-                    box Var(1.into()),
-                    box Abs(box Var(1.into()), box Var(1.into())),
-                ),
-            );
+            use_arena(|arena| {
+                let term = arena.build(abs(
+                    prop(),
+                    abs(
+                        var(1.into(), prop()),
+                        abs(var(1.into(), prop()), var(1.into(), var(2.into(), prop()))),
+                    ),
+                ));
 
-            assert_eq!(
-                term.infer(&Environment::new()),
-                Err(Error {
-                    kind: TypeCheckerError::NotUniverse(Var(2.into())).into()
-                })
-            );
+                assert_eq!(
+                    arena.infer(term),
+                    Err(Error {
+                        kind: TypeCheckerError::NotUniverse(arena.build(var(2.into(), prop())))
+                            .into()
+                    })
+                );
+            })
         }
 
         #[test]
         fn not_universe_prod_1() {
-            let term = Prod(proj(1), box Prop);
+            use_arena(|arena| {
+                let term = arena.build(prod(id(), prop()));
 
-            assert_eq!(
-                term.infer(&Environment::new()),
-                Err(Error {
-                    kind: TypeCheckerError::NotUniverse(Prod(box Prop, box Prop)).into()
-                })
-            );
+                assert_eq!(
+                    arena.infer(term),
+                    Err(Error {
+                        kind: TypeCheckerError::NotUniverse(arena.build(prod(prop(), prop())))
+                            .into()
+                    })
+                );
+            })
         }
 
         #[test]
         fn not_universe_prod_2() {
-            let term = Prod(box Prop, box Abs(box Prop, box Prop));
+            use_arena(|arena| {
+                let term = arena.build(prod(prop(), abs(prop(), prop())));
 
-            assert_eq!(
-                term.infer(&Environment::new()),
-                Err(Error {
-                    kind: TypeCheckerError::NotUniverse(Prod(
-                        box Prop,
-                        box Type(BigUint::from(0_u64).into())
-                    ))
-                    .into()
-                })
-            );
-        }
-
-        #[test]
-        fn const_not_found() {
-            let term = Const("foo".to_string());
-
-            assert_eq!(
-                term.infer(&Environment::new()),
-                Err(Error {
-                    kind: EnvironmentError::VariableNotFound("foo".to_string()).into()
-                })
-            );
+                assert_eq!(
+                    arena.infer(term),
+                    Err(Error {
+                        kind: TypeCheckerError::NotUniverse(
+                            arena.build(prod(prop(), type_(BigUint::from(0_u64).into())))
+                        )
+                        .into()
+                    })
+                );
+            })
         }
 
         #[test]
         fn check_fail_1() {
-            let term = App(box Prop, box Prop);
+            use_arena(|arena| {
+                let term = arena.build(app(prop(), prop()));
+                let expected_type = arena.prop();
 
-            assert_eq!(
-                term.check(&Prop, &Environment::new()),
-                Err(Error {
-                    kind: TypeCheckerError::NotAFunction(
-                        TypedTerm(Prop, Type(BigUint::from(0_u64).into())),
-                        Prop,
-                    )
-                    .into(),
-                })
-            );
+                assert_eq!(
+                    arena.check(term, expected_type),
+                    Err(Error {
+                        kind: TypeCheckerError::NotAFunction(
+                            TypedTerm(arena.prop(), arena.type_usize(0)),
+                            arena.prop(),
+                        )
+                        .into(),
+                    })
+                );
+            })
         }
 
         #[test]
         fn check_fail_2() {
-            assert_eq!(
-                Prop.check(&Prop, &Environment::new()),
-                Err(Error {
-                    kind: TypeCheckerError::TypeMismatch(Type(BigUint::from(0_u64).into()), Prop)
-                        .into(),
-                })
-            );
+            use_arena(|arena| {
+                let prop = arena.prop();
+                assert_eq!(
+                    arena.check(prop, prop),
+                    Err(Error {
+                        kind: TypeCheckerError::TypeMismatch(arena.type_usize(0), prop).into(),
+                    })
+                );
+            })
         }
     }
 }

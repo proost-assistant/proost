@@ -1,5 +1,5 @@
-use crate::type_checker::TypeCheckerError;
 use crate::term::{DefinitionError, Term};
+use crate::type_checker::TypeCheckerError;
 use derive_more::{Display, From};
 
 /// Type representing kernel errors.
