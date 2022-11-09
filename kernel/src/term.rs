@@ -18,11 +18,8 @@ pub enum Term {
     #[display(fmt = "{}", _0)]
     Const(String, Vec<UniverseLevel>),
 
-    #[display(fmt = "Prop")]
-    Prop,
-
-    #[display(fmt = "Type {}", _0)]
-    Type(UniverseLevel),
+    #[display(fmt = "Sort {}", _0)]
+    Sort(UniverseLevel),
 
     #[display(fmt = "{} {}", _0, _1)]
     App(Box<Term>, Box<Term>),
@@ -37,8 +34,17 @@ pub enum Term {
 use Term::*;
 
 impl Term {
+    pub const PROP: Term = Sort(UniverseLevel::Zero);
+
+    pub fn r#type(u: UniverseLevel) -> Term {
+        Sort(u + 1)
+    }
+
     /// Apply one step of β-reduction, using leftmost outermost evaluation strategy.
     pub fn beta_reduction(&self, env: &Environment) -> Term {
+        //if self.is_eliminator() {
+        //    return self.compute()
+        //}
         match self {
             App(box Abs(_, box t1), box t2) => t1.substitute(t2, 1),
             App(box t1, box t2) => App(box t1.beta_reduction(env), box t2.clone()),
@@ -75,7 +81,7 @@ impl Term {
 
     /// Returns the normal form of a term in a given environment.
     ///
-    /// This function is computationally expensive and should only be used for Reduce/Eval commands, not when type-checking.
+    /// This function is computationally expensive and should only be used for Reduce/Eval commands, not when Sort-checking.
     pub fn normal_form(self, env: &Environment) -> Term {
         let mut res = self.beta_reduction(env);
         let mut temp = self;
@@ -106,8 +112,7 @@ impl Term {
         match self {
             Var(_) => 0,
             Const(..) => 0,
-            Prop => 0,
-            Type(u) => u.clone().univ_vars(),
+            Sort(u) => u.clone().univ_vars(),
             App(t1, t2) | Abs(t1, t2) | Prod(t1, t2) => t1.univ_vars().max(t2.univ_vars()),
         }
     }
@@ -116,18 +121,35 @@ impl Term {
         match self {
             Var(_) => self.clone(),
             Const(..) => self.clone(),
-            Prop => self.clone(),
-            Type(u) => Type(u.clone().substitute(vec)),
+            Sort(u) => Sort(u.clone().substitute(vec)),
             App(t1, t2) => App(box t1.substitute_univs(vec), box t2.substitute_univs(vec)),
             Abs(t1, t2) => Abs(box t1.substitute_univs(vec), box t2.substitute_univs(vec)),
             Prod(t1, t2) => Prod(box t1.substitute_univs(vec), box t2.substitute_univs(vec)),
         }
     }
+
+    /*fn is_eliminator(&self) -> bool {
+        match self {
+                App(
+                    box App(
+                        box App(
+                            box App(
+                                box Const(rec,_var),
+                                _motive
+                            ),
+                            _p_zero
+                        ),
+                        _p_succ
+                    ),
+                _n) if rec == "Nat_rec" => true,
+            _ => false
+        }
+    }*/
 }
 
 #[cfg(test)]
 mod tests {
-    // /!\ most of these tests are on ill-typed terms and should not be used for further testings
+    // /!\ most of these tests are on ill-Sortd terms and should not be used for further testings
     use super::Term::*;
     use crate::term::Environment;
     use crate::universe::UniverseLevel;
@@ -136,15 +158,21 @@ mod tests {
     fn simple_subst() {
         // λx.(λy.x y) x
         let term = Abs(
-            box Prop,
+            box Sort(0.into()),
             box App(
-                box Abs(box Prop, box App(box Var(2.into()), box Var(1.into()))),
+                box Abs(
+                    box Sort(0.into()),
+                    box App(box Var(2.into()), box Var(1.into())),
+                ),
                 box Var(1.into()),
             ),
         );
 
         // λx.x x
-        let reduced = Abs(box Prop, box App(box Var(1.into()), box Var(1.into())));
+        let reduced = Abs(
+            box Sort(0.into()),
+            box App(box Var(1.into()), box Var(1.into())),
+        );
 
         assert_eq!(term.beta_reduction(&Environment::new()), reduced);
     }
@@ -154,19 +182,19 @@ mod tests {
         // (λa.λb.λc.a (λd.λe.e (d b)) (λ_.c) (λd.d)) (λa.λb.a b)
         let term = App(
             box Abs(
-                box Prop,
+                box Sort(0.into()),
                 box Abs(
-                    box Prop,
+                    box Sort(0.into()),
                     box Abs(
-                        box Prop,
+                        box Sort(0.into()),
                         box App(
                             box App(
                                 box App(
                                     box Var(3.into()),
                                     box Abs(
-                                        box Prop,
+                                        box Sort(0.into()),
                                         box Abs(
-                                            box Prop,
+                                            box Sort(0.into()),
                                             box App(
                                                 box Var(1.into()),
                                                 box App(box Var(2.into()), box Var(4.into())),
@@ -174,34 +202,40 @@ mod tests {
                                         ),
                                     ),
                                 ),
-                                box Abs(box Prop, box Var(2.into())),
+                                box Abs(box Sort(0.into()), box Var(2.into())),
                             ),
-                            box Abs(box Prop, box Var(1.into())),
+                            box Abs(box Sort(0.into()), box Var(1.into())),
                         ),
                     ),
                 ),
             ),
             box Abs(
-                box Prop,
-                box Abs(box Prop, box App(box Var(2.into()), box Var(1.into()))),
+                box Sort(0.into()),
+                box Abs(
+                    box Sort(0.into()),
+                    box App(box Var(2.into()), box Var(1.into())),
+                ),
             ),
         );
 
         let term_step_1 = Abs(
-            box Prop,
+            box Sort(0.into()),
             box Abs(
-                box Prop,
+                box Sort(0.into()),
                 box App(
                     box App(
                         box App(
                             box Abs(
-                                box Prop,
-                                box Abs(box Prop, box App(box Var(2.into()), box Var(1.into()))),
+                                box Sort(0.into()),
+                                box Abs(
+                                    box Sort(0.into()),
+                                    box App(box Var(2.into()), box Var(1.into())),
+                                ),
                             ),
                             box Abs(
-                                box Prop,
+                                box Sort(0.into()),
                                 box Abs(
-                                    box Prop,
+                                    box Sort(0.into()),
                                     box App(
                                         box Var(1.into()),
                                         box App(box Var(2.into()), box Var(4.into())),
@@ -209,26 +243,26 @@ mod tests {
                                 ),
                             ),
                         ),
-                        box Abs(box Prop, box Var(2.into())),
+                        box Abs(box Sort(0.into()), box Var(2.into())),
                     ),
-                    box Abs(box Prop, box Var(1.into())),
+                    box Abs(box Sort(0.into()), box Var(1.into())),
                 ),
             ),
         );
 
         let term_step_2 = Abs(
-            box Prop,
+            box Sort(0.into()),
             box Abs(
-                box Prop,
+                box Sort(0.into()),
                 box App(
                     box App(
                         box Abs(
-                            box Prop,
+                            box Sort(0.into()),
                             box App(
                                 box Abs(
-                                    box Prop,
+                                    box Sort(0.into()),
                                     box Abs(
-                                        box Prop,
+                                        box Sort(0.into()),
                                         box App(
                                             box Var(1.into()),
                                             box App(box Var(2.into()), box Var(5.into())),
@@ -238,74 +272,86 @@ mod tests {
                                 box Var(1.into()),
                             ),
                         ),
-                        box Abs(box Prop, box Var(2.into())),
+                        box Abs(box Sort(0.into()), box Var(2.into())),
                     ),
-                    box Abs(box Prop, box Var(1.into())),
+                    box Abs(box Sort(0.into()), box Var(1.into())),
                 ),
             ),
         );
 
         let term_step_3 = Abs(
-            box Prop,
+            box Sort(0.into()),
             box Abs(
-                box Prop,
+                box Sort(0.into()),
                 box App(
                     box App(
                         box Abs(
-                            box Prop,
+                            box Sort(0.into()),
                             box Abs(
-                                box Prop,
+                                box Sort(0.into()),
                                 box App(
                                     box Var(1.into()),
                                     box App(box Var(2.into()), box Var(4.into())),
                                 ),
                             ),
                         ),
-                        box Abs(box Prop, box Var(2.into())),
+                        box Abs(box Sort(0.into()), box Var(2.into())),
                     ),
-                    box Abs(box Prop, box Var(1.into())),
+                    box Abs(box Sort(0.into()), box Var(1.into())),
                 ),
             ),
         );
 
         let term_step_4 = Abs(
-            box Prop,
+            box Sort(0.into()),
             box Abs(
-                box Prop,
+                box Sort(0.into()),
                 box App(
                     box Abs(
-                        box Prop,
+                        box Sort(0.into()),
                         box App(
                             box Var(1.into()),
-                            box App(box Abs(box Prop, box Var(3.into())), box Var(3.into())),
+                            box App(
+                                box Abs(box Sort(0.into()), box Var(3.into())),
+                                box Var(3.into()),
+                            ),
                         ),
                     ),
-                    box Abs(box Prop, box Var(1.into())),
+                    box Abs(box Sort(0.into()), box Var(1.into())),
                 ),
             ),
         );
 
         let term_step_5 = Abs(
-            box Prop,
+            box Sort(0.into()),
             box Abs(
-                box Prop,
+                box Sort(0.into()),
                 box App(
-                    box Abs(box Prop, box Var(1.into())),
-                    box App(box Abs(box Prop, box Var(2.into())), box Var(2.into())),
+                    box Abs(box Sort(0.into()), box Var(1.into())),
+                    box App(
+                        box Abs(box Sort(0.into()), box Var(2.into())),
+                        box Var(2.into()),
+                    ),
                 ),
             ),
         );
 
         let term_step_6 = Abs(
-            box Prop,
+            box Sort(0.into()),
             box Abs(
-                box Prop,
-                box App(box Abs(box Prop, box Var(2.into())), box Var(2.into())),
+                box Sort(0.into()),
+                box App(
+                    box Abs(box Sort(0.into()), box Var(2.into())),
+                    box Var(2.into()),
+                ),
             ),
         );
 
         // λa.λb.b
-        let term_step_7 = Abs(box Prop, box Abs(box Prop, box Var(1.into())));
+        let term_step_7 = Abs(
+            box Sort(0.into()),
+            box Abs(box Sort(0.into()), box Var(1.into())),
+        );
 
         let env = Environment::new();
 
@@ -322,16 +368,23 @@ mod tests {
     #[test]
     fn shift_prod() {
         let t1 = Prod(box Var(1.into()), box Var(1.into()));
-        let t2 = App(box Abs(box Prop, box t1.clone()), box Prop);
+        let t2 = App(
+            box Abs(box Sort(0.into()), box t1.clone()),
+            box Sort(0.into()),
+        );
 
         assert_eq!(t2.beta_reduction(&Environment::new()), t1)
     }
 
     #[test]
     fn beta_red_const() {
-        let id_prop = Prod(box Prop, box Prod(box Var(1.into()), box Var(1.into())));
+        let id_prop = Prod(
+            box Sort(0.into()),
+            box Prod(box Var(1.into()), box Var(1.into())),
+        );
         let mut env = Environment::new();
-        env.insert("foo".into(), id_prop.clone(), Prop).unwrap();
+        env.insert("foo".into(), id_prop.clone(), Sort(0.into()))
+            .unwrap();
 
         assert_eq!(
             Const("foo".into(), Vec::new()).beta_reduction(&env),
@@ -342,15 +395,15 @@ mod tests {
     #[test]
     fn poly_univ_id() {
         let id_ty = Prod(
-            box Type(UniverseLevel::Var(0)),
+            box Sort(UniverseLevel::Var(0)),
             box Prod(box Var(1.into()), box Var(2.into())),
         );
         let id_te = Abs(
-            box Type(UniverseLevel::Var(0)),
+            box Sort(UniverseLevel::Var(0)),
             box Abs(box Var(1.into()), box Var(1.into())),
         );
         let id_zero = Abs(
-            box Type(0.into()),
+            box Sort(0.into()),
             box Abs(box Var(1.into()), box Var(1.into())),
         );
         assert!(id_te.check(&id_ty, &Environment::new()).is_ok());

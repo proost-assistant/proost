@@ -11,6 +11,8 @@ pub enum UniverseLevel {
 
     Max(Box<UniverseLevel>, Box<UniverseLevel>),
 
+    IMax(Box<UniverseLevel>, Box<UniverseLevel>),
+
     Var(usize),
 }
 
@@ -57,6 +59,13 @@ impl UniverseLevel {
             Max(box n, box m) => n
                 .to_numeral()
                 .and_then(|n| m.to_numeral().map(|m| n.max(m))),
+            IMax(box n, box m) => m.to_numeral().and_then(|m| {
+                if m == 0 {
+                    0.into()
+                } else {
+                    n.to_numeral().map(|n| m.max(n))
+                }
+            }),
             _ => None,
         }
     }
@@ -78,10 +87,11 @@ impl UniverseLevel {
             None => match self {
                 Zero => unreachable!("Zero is a numeral"),
                 Succ(_) => match self.plus() {
-                    (u, 0) => format!("{}", u.pretty_print()),
+                    (u, 0) => u.pretty_print(),
                     (u, n) => format!("{} + {}", u.pretty_print(), n),
                 },
                 Max(box n, box m) => format!("max ({}) ({})", n.pretty_print(), m.pretty_print()),
+                IMax(box n, box m) => format!("imax ({}) ({})", n.pretty_print(), m.pretty_print()),
                 Var(n) => format!("u{}", n),
             },
         }
@@ -92,6 +102,7 @@ impl UniverseLevel {
             Zero => 0,
             Succ(n) => n.univ_vars(),
             Max(n, m) => n.univ_vars().max(m.univ_vars()),
+            IMax(n, m) => n.univ_vars().max(m.univ_vars()),
             Var(n) => n + 1,
         }
     }
@@ -101,6 +112,7 @@ impl UniverseLevel {
             Zero => Zero,
             Succ(v) => Succ(box v.substitute(univs)),
             Max(u1, u2) => Max(box u1.substitute(univs), box u2.substitute(univs)),
+            IMax(u1, u2) => IMax(box u1.substitute(univs), box u2.substitute(univs)),
             Var(var) => univs[var].clone(),
         }
     }
@@ -113,6 +125,49 @@ impl UniverseLevel {
             (_, Succ(box l)) if self.geq(l, n + 1) => true,
             (_, Max(box l1, box l2)) if self.geq(l1, n) || self.geq(l2, n) => true,
             (Max(box l1, box l2), _) if l1.geq(u2, n) && l2.geq(u2, n) => true,
+            (IMax(_, box Zero), l) if Zero.geq(l, n) => true,
+            (IMax(l1, box Succ(l2)), l) if Max(l1.clone(), box Succ(l2.clone())).geq(l, n) => true,
+            (l, IMax(l1, box Succ(l2))) if l.geq(&Max(l1.clone(), box Succ(l2.clone())), n) => true,
+            (Max(l1, box IMax(l2, l3)), l)
+                if Max(
+                    box IMax(l1.clone(), l3.clone()),
+                    box IMax(l2.clone(), l3.clone()),
+                )
+                .geq(l, n) =>
+            {
+                true
+            }
+            (l, IMax(l1, box IMax(l2, l3)))
+                if l.geq(
+                    &Max(
+                        box IMax(l1.clone(), l3.clone()),
+                        box IMax(l2.clone(), l3.clone()),
+                    ),
+                    n,
+                ) =>
+            {
+                true
+            }
+            (IMax(l1, box Max(l2, l3)), l)
+                if Max(
+                    box IMax(l1.clone(), l2.clone()),
+                    box IMax(l1.clone(), l3.clone()),
+                )
+                .geq(l, n) =>
+            {
+                true
+            }
+            (l, IMax(l1, box Max(l2, l3)))
+                if l.geq(
+                    &Max(
+                        box IMax(l1.clone(), l2.clone()),
+                        box IMax(l1.clone(), l3.clone()),
+                    ),
+                    n,
+                ) =>
+            {
+                true
+            }
             _ => false,
         }
     }

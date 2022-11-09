@@ -38,14 +38,14 @@ mod tests {
 
     fn simple_env() -> Environment {
         Environment::new()
-            .insert("x".to_string(), Term::Type(0.into()), Term::Prop)
+            .insert("x".to_string(), Term::r#type(0.into()), Term::PROP)
             .unwrap()
             .clone()
     }
 
     #[test]
     fn failed_untyped_define() {
-        let cmd = Command::Define("x".to_string(), None, Term::Prop);
+        let cmd = Command::Define("x".to_string(), None, Term::PROP);
         let mut env = simple_env();
 
         assert!(cmd.process(&mut env).is_err());
@@ -54,21 +54,21 @@ mod tests {
 
     #[test]
     fn successful_untyped_define() {
-        let cmd = Command::Define("y".to_string(), None, Term::Prop);
+        let cmd = Command::Define("y".to_string(), None, Term::PROP);
         let mut env = simple_env();
 
         assert!(cmd.process(&mut env).is_ok());
         assert_eq!(
             env,
             *(simple_env()
-                .insert("y".to_string(), Term::Prop, Term::Type(0.into()))
+                .insert("y".to_string(), Term::PROP, Term::r#type(0.into()))
                 .unwrap())
         );
     }
 
     #[test]
     fn failed_typed_define() {
-        let cmd = Command::Define("y".to_string(), Some(Term::Type(1.into())), Term::Prop);
+        let cmd = Command::Define("y".to_string(), Some(Term::r#type(1.into())), Term::PROP);
         let mut env = simple_env();
 
         assert!(cmd.process(&mut env).is_err());
@@ -77,21 +77,21 @@ mod tests {
 
     #[test]
     fn successful_typed_define() {
-        let cmd = Command::Define("y".to_string(), Some(Term::Type(0.into())), Term::Prop);
+        let cmd = Command::Define("y".to_string(), Some(Term::r#type(0.into())), Term::PROP);
         let mut env = simple_env();
 
         assert!(cmd.process(&mut env).is_ok());
         assert_eq!(
             env,
             *(simple_env()
-                .insert("y".to_string(), Term::Prop, Term::Type(0.into()))
+                .insert("y".to_string(), Term::PROP, Term::r#type(0.into()))
                 .unwrap())
         );
     }
 
     #[test]
     fn failed_checktype() {
-        let cmd = Command::CheckType(Term::Prop, Term::Prop);
+        let cmd = Command::CheckType(Term::PROP, Term::PROP);
         let mut env = simple_env();
 
         assert!(cmd.process(&mut env).is_err());
@@ -100,7 +100,7 @@ mod tests {
 
     #[test]
     fn successful_checktype() {
-        let cmd = Command::CheckType(Term::Prop, Term::Type(0.into()));
+        let cmd = Command::CheckType(Term::PROP, Term::r#type(0.into()));
         let mut env = simple_env();
 
         assert!(cmd.process(&mut env).is_ok());
@@ -118,7 +118,7 @@ mod tests {
 
     #[test]
     fn successful_gettype() {
-        let cmd = Command::GetType(Term::Prop);
+        let cmd = Command::GetType(Term::PROP);
         let mut env = simple_env();
 
         assert!(cmd.process(&mut env).is_ok());

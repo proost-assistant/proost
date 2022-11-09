@@ -2,17 +2,18 @@ use kernel::{Command, KernelError, Loc, Term, UniverseLevel};
 use pest::error::{Error, LineColLocation};
 use pest::iterators::Pair;
 use pest::{Parser, Span};
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 
 #[derive(Parser)]
 #[grammar = "term.pest"]
 struct CommandParser;
 
 /// build universe level from errorless pest's output
-fn build_universe_level_from_expr(pair: Pair<Rule>) -> UniverseLevel {
+fn build_universe_level_from_expr(
+    pair: Pair<Rule>,
+    univ_var_map: &HashMap<String, usize>,
+) -> UniverseLevel {
     match pair.as_rule() {
-        //TODO after term refactor (new ways to deal with variables)
-        Rule::Var => UniverseLevel::Var(0),
         Rule::Num => {
             let n = pair.into_inner().as_str().parse().unwrap();
             let mut univ = UniverseLevel::Zero;
@@ -23,18 +24,25 @@ fn build_universe_level_from_expr(pair: Pair<Rule>) -> UniverseLevel {
         }
         Rule::Max => {
             let mut iter = pair.into_inner();
-            let univ1 = build_universe_level_from_expr(iter.next().unwrap());
-            let univ2 = build_universe_level_from_expr(iter.next().unwrap());
+            let univ1 = build_universe_level_from_expr(iter.next().unwrap(), univ_var_map);
+            let univ2 = build_universe_level_from_expr(iter.next().unwrap(), univ_var_map);
             UniverseLevel::Max(box univ1, box univ2)
         }
         Rule::Plus => {
             let mut iter = pair.into_inner();
-            let mut univ = build_universe_level_from_expr(iter.next().unwrap());
+            let mut univ = build_universe_level_from_expr(iter.next().unwrap(), univ_var_map);
             let n = iter.map(|x| x.as_str().parse::<u64>().unwrap()).sum();
             for _ in 0..n {
                 univ = UniverseLevel::Succ(box univ);
             }
             univ
+        }
+        Rule::string => {
+            let name = pair.as_str().to_string();
+            match univ_var_map.get(&name) {
+                Some(n) => UniverseLevel::Var(*n),
+                None => panic!("Universe level {:?} is unbound", name),
+            }
         }
         univ => unreachable!("Unexpected universe level: {:?}", univ),
     }
@@ -47,27 +55,65 @@ fn convert_span(span: Span) -> Loc {
     Loc::new(x1, y1, x2, y2)
 }
 
+fn build_univ_map_from_expr(pair: Pair<Rule>) -> HashMap<String, usize> {
+    let iter = pair.into_inner();
+    let mut map = HashMap::new();
+    for (i,pair) in iter.enumerate() {
+        let str = pair.as_str();
+        if map.insert(str.to_string(), i).is_some() {
+            panic!("Duplicate universe variable {}", str);
+        }
+    }
+    map
+}
+
+fn build_univ_bindings_from_expr(
+    pair: Pair<Rule>,
+    univ_var_map: &HashMap<String, usize>,
+) -> Vec<UniverseLevel> {
+    let iter = pair.into_inner();
+    let mut vec = Vec::new();
+    for pair in iter {
+        vec.push(build_universe_level_from_expr(pair, univ_var_map));
+    }
+    vec
+}
+
 /// build terms from errorless pest's output
-fn build_term_from_expr(pair: Pair<Rule>, known_vars: &mut VecDeque<String>) -> Term {
+fn build_term_from_expr(
+    pair: Pair<Rule>,
+    known_vars: &mut VecDeque<String>,
+    univ_var_map: &HashMap<String, usize>,
+) -> Term {
     // location to be used in a future version
     let _loc = convert_span(pair.as_span());
     match pair.as_rule() {
-        Rule::Prop => Term::Prop,
+        Rule::Prop => Term::Sort(0.into()),
         Rule::Type => match pair.into_inner().next() {
-            Some(pair) => Term::Type(build_universe_level_from_expr(pair)),
-            None => Term::Type(UniverseLevel::Zero),
+            Some(pair) => Term::Sort(build_universe_level_from_expr(pair, univ_var_map) + 1),
+            None => Term::Sort(UniverseLevel::Zero + 1),
+        },
+        Rule::Sort => match pair.into_inner().next() {
+            Some(pair) => Term::Sort(build_universe_level_from_expr(pair, univ_var_map)),
+            None => Term::Sort(UniverseLevel::Zero),
         },
         Rule::Var => {
-            let name = pair.into_inner().as_str().to_string();
+            let mut iter = pair.into_inner();
+            let name = iter.next().unwrap().as_str().to_string();
             match known_vars.iter().position(|x| *x == name) {
                 Some(i) => Term::Var((i + 1).into()),
-                None => Term::Const(name, Vec::new()),
+                None => Term::Const(
+                    name,
+                    iter.next()
+                        .map(|x| build_univ_bindings_from_expr(x, univ_var_map))
+                        .unwrap_or_default(),
+                ),
             }
         }
         Rule::App => {
             let mut iter = pair
                 .into_inner()
-                .map(|x| build_term_from_expr(x, known_vars));
+                .map(|x| build_term_from_expr(x, known_vars, univ_var_map));
             let t = iter.next().unwrap();
             iter.fold(t, |acc, x| Term::App(box acc, box x))
         }
@@ -79,11 +125,15 @@ fn build_term_from_expr(pair: Pair<Rule>, known_vars: &mut VecDeque<String>) -> 
                 let mut iter = pair.into_inner();
                 let old_pair = iter.next_back().unwrap();
                 for pair in iter {
-                    terms.push(build_term_from_expr(old_pair.clone(), known_vars));
+                    terms.push(build_term_from_expr(
+                        old_pair.clone(),
+                        known_vars,
+                        univ_var_map,
+                    ));
                     known_vars.push_front(pair.as_str().to_string());
                 }
             }
-            let t = build_term_from_expr(pair, known_vars);
+            let t = build_term_from_expr(pair, known_vars, univ_var_map);
             terms.into_iter().rev().fold(t, |acc, x| {
                 known_vars.pop_front();
                 Term::Abs(box x, box acc)
@@ -97,11 +147,15 @@ fn build_term_from_expr(pair: Pair<Rule>, known_vars: &mut VecDeque<String>) -> 
                 let mut iter = pair.into_inner();
                 let old_pair = iter.next_back().unwrap();
                 for pair in iter {
-                    terms.push(build_term_from_expr(old_pair.clone(), known_vars));
+                    terms.push(build_term_from_expr(
+                        old_pair.clone(),
+                        known_vars,
+                        univ_var_map,
+                    ));
                     known_vars.push_front(pair.as_str().to_string());
                 }
             }
-            let t = build_term_from_expr(pair, known_vars);
+            let t = build_term_from_expr(pair, known_vars, univ_var_map);
             terms.into_iter().rev().fold(t, |acc, x| {
                 known_vars.pop_front();
                 Term::Prod(box x, box acc)
@@ -112,11 +166,11 @@ fn build_term_from_expr(pair: Pair<Rule>, known_vars: &mut VecDeque<String>) -> 
             let pair = iter.next_back().unwrap();
             let mut terms = Vec::new();
             for pair in iter {
-                let t = build_term_from_expr(pair, known_vars);
+                let t = build_term_from_expr(pair, known_vars, univ_var_map);
                 known_vars.push_front("_".to_string());
                 terms.push(t);
             }
-            let t = build_term_from_expr(pair, known_vars);
+            let t = build_term_from_expr(pair, known_vars, univ_var_map);
             terms.into_iter().rev().fold(t, |acc, x| {
                 known_vars.pop_front();
                 Term::Prod(box x, box acc)
@@ -133,31 +187,51 @@ fn build_command_from_expr(pair: Pair<Rule>) -> Command {
     match pair.as_rule() {
         Rule::GetType => {
             let mut iter = pair.into_inner();
-            let t = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new());
+            let t =
+                build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new(), &HashMap::new());
             Command::GetType(t)
         }
         Rule::CheckType => {
             let mut iter = pair.into_inner();
-            let t1 = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new());
-            let t2 = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new());
+            let t1 =
+                build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new(), &HashMap::new());
+            let t2 =
+                build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new(), &HashMap::new());
             Command::CheckType(t1, t2)
         }
         Rule::Define => {
             let mut iter = pair.into_inner();
             let s = iter.next().unwrap().as_str().to_string();
-            let term = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new());
+            //let _univ_params = iter.next();
+            let next = iter.next();
+            let term = {
+                if matches!(
+                    next.clone().map(|x| x.as_rule()),
+                    None | Some(Rule::univ_decl)
+                ) {
+                    let univs = next
+                        .map(build_univ_map_from_expr )
+                        .unwrap_or_default();
+                    build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new(), &univs)
+                } else {
+                    build_term_from_expr(next.unwrap(), &mut VecDeque::new(), &HashMap::new())
+                }
+            };
             Command::Define(s, None, term)
         }
         Rule::DefineCheckType => {
             let mut iter = pair.into_inner();
             let s = iter.next().unwrap().as_str().to_string();
-            let t = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new());
-            let term = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new());
+            let t =
+                build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new(), &HashMap::new());
+            let term =
+                build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new(), &HashMap::new());
             Command::Define(s, Some(t), term)
         }
         Rule::Eval => {
             let mut iter = pair.into_inner();
-            let t = build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new());
+            let t =
+                build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new(), &HashMap::new());
             Command::Eval(t)
         }
 
@@ -174,14 +248,23 @@ fn convert_error(err: Error<Rule>) -> KernelError {
         Rule::Define => "def var := term".to_owned(),
         Rule::CheckType => "check term : term".to_owned(),
         Rule::GetType => "check term".to_owned(),
+        Rule::Eval => "eval term".to_owned(),
         Rule::DefineCheckType => "def var : term := term".to_owned(),
         Rule::Abs => "abstraction".to_owned(),
         Rule::dProd => "dependent product".to_owned(),
         Rule::Prod => "product".to_owned(),
         Rule::App => "application".to_owned(),
         Rule::Prop => "Prop".to_owned(),
+        Rule::Sort => "Sort".to_owned(),
         Rule::Type => "Type".to_owned(),
-        _ => unreachable!("low level rules cannot appear in error messages"),
+        Rule::Max => "max".to_owned(),
+        Rule::Plus => "plus".to_owned(),
+        Rule::arg_univ => "universe argument".to_owned(),
+        Rule::univ_decl => "universe declaration".to_owned(),
+        rule => {
+            println!("{:?}", rule);
+            unreachable!("low level rules cannot appear in error messages")
+        }
     });
 
     // extracting the location from the pest output
@@ -252,11 +335,13 @@ mod tests {
 
     /// Error messages
     const COMMAND_ERR: &str =
-        "expected def var := term, def var : term := term, check term : term, or check term";
+        "expected eval term, def var := term, def var : term := term, check term : term, or check term";
     const TERM_ERR: &str =
-        "expected variable, abstraction, dependent product, application, product, Prop, or Type";
-    const SIMPLE_TERM_ERR: &str = "expected variable, abstraction, Prop, or Type";
-    const UNIVERSE_ERR: &str = "expected universe level, variable, abstraction, Prop, or Type";
+        "expected variable, abstraction, dependent product, application, product, Prop, Type, or Sort";
+    const SIMPLE_TERM_ERR: &str =
+        "expected variable, abstraction, Prop, Type, Sort, or universe argument";
+    const UNIVERSE_ERR: &str =
+        "expected number, variable, abstraction, Prop, Type, Sort, plus, or max";
 
     #[test]
     fn failure_universe_level() {
@@ -273,7 +358,11 @@ mod tests {
     fn successful_definechecktype() {
         assert_eq!(
             parse_line("def x : Type := Prop"),
-            Ok(Define("x".to_string(), Some(Type(0.into())), Prop))
+            Ok(Define(
+                "x".to_string(),
+                Some(Sort(1.into())),
+                Sort(0.into())
+            ))
         )
     }
 
@@ -281,7 +370,7 @@ mod tests {
     fn successful_define() {
         assert_eq!(
             parse_line("def x := Prop"),
-            Ok(Define("x".to_string(), None, Prop))
+            Ok(Define("x".to_string(), None, Sort(0.into())))
         )
     }
 
@@ -289,13 +378,13 @@ mod tests {
     fn successful_checktype() {
         assert_eq!(
             parse_line("check Prop : Type"),
-            Ok(CheckType(Prop, Type(0.into())))
+            Ok(CheckType(Sort(0.into()), Sort(1.into())))
         )
     }
 
     #[test]
     fn successful_gettype_prop() {
-        assert_eq!(parse_line("check Prop"), Ok(GetType(Prop)))
+        assert_eq!(parse_line("check Prop"), Ok(GetType(Sort(0.into()))))
     }
 
     #[test]
@@ -306,15 +395,15 @@ mod tests {
         );
         assert_eq!(
             parse_line("check fun A:Prop => A"),
-            Ok(GetType(Abs(box Prop, box Var(1.into()))))
+            Ok(GetType(Abs(box Sort(0.into()), box Var(1.into()))))
         )
     }
 
     #[test]
     fn successful_type() {
-        assert_eq!(parse_line("check Type"), Ok(GetType(Type(0.into()))));
-        assert_eq!(parse_line("check Type 0"), Ok(GetType(Type(0.into()))));
-        assert_eq!(parse_line("check Type 1"), Ok(GetType(Type(1.into()))))
+        assert_eq!(parse_line("check Type"), Ok(GetType(Sort(1.into()))));
+        assert_eq!(parse_line("check Type 0"), Ok(GetType(Sort(1.into()))));
+        assert_eq!(parse_line("check Type 1"), Ok(GetType(Sort(2.into()))))
     }
 
     #[test]
@@ -408,10 +497,13 @@ mod tests {
         assert_eq!(
             parse_line("check fun w x : Prop, y z : Prop => x"),
             Ok(GetType(Abs(
-                box Prop,
+                box Sort(0.into()),
                 box Abs(
-                    box Prop,
-                    box Abs(box Prop, box Abs(box Prop, box Var(3.into())))
+                    box Sort(0.into()),
+                    box Abs(
+                        box Sort(0.into()),
+                        box Abs(box Sort(0.into()), box Var(3.into()))
+                    )
                 )
             )))
         )
@@ -440,7 +532,7 @@ mod tests {
         assert_eq!(
             parse_line("check fun x : Prop, x : x, x : x => x"),
             Ok(GetType(Abs(
-                box Prop,
+                box Sort(0.into()),
                 box Abs(
                     box Var(1.into()),
                     box Abs(box Var(1.into()), box Var(1.into()))
@@ -450,7 +542,7 @@ mod tests {
         assert_eq!(
             parse_line("check fun x : Prop, x x : x => x"),
             Ok(GetType(Abs(
-                box Prop,
+                box Sort(0.into()),
                 box Abs(
                     box Var(1.into()),
                     box Abs(box Var(1.into()), box Var(1.into()))
@@ -460,7 +552,7 @@ mod tests {
         assert_eq!(
             parse_line("check fun x : Prop, y z : x => z"),
             Ok(GetType(Abs(
-                box Prop,
+                box Sort(0.into()),
                 box Abs(
                     box Var(1.into()),
                     box Abs(box Var(2.into()), box Var(1.into()))
@@ -474,7 +566,7 @@ mod tests {
         assert_eq!(
             parse_line("check (x : Prop, x : x, x : x) -> x"),
             Ok(GetType(Prod(
-                box Prop,
+                box Sort(0.into()),
                 box Prod(
                     box Var(1.into()),
                     box Prod(box Var(1.into()), box Var(1.into()))
@@ -484,7 +576,7 @@ mod tests {
         assert_eq!(
             parse_line("check (x : Prop, x x : x) -> x"),
             Ok(GetType(Prod(
-                box Prop,
+                box Sort(0.into()),
                 box Prod(
                     box Var(1.into()),
                     box Prod(box Var(1.into()), box Var(1.into()))
@@ -494,7 +586,7 @@ mod tests {
         assert_eq!(
             parse_line("check (x : Prop, y z : x) -> z"),
             Ok(GetType(Prod(
-                box Prop,
+                box Sort(0.into()),
                 box Prod(
                     box Var(1.into()),
                     box Prod(box Var(2.into()), box Var(1.into()))
@@ -508,10 +600,13 @@ mod tests {
         assert_eq!(
             parse_line("check fun (((w x : Prop))), y z : Prop => x"),
             Ok(GetType(Abs(
-                box Prop,
+                box Sort(0.into()),
                 box Abs(
-                    box Prop,
-                    box Abs(box Prop, box Abs(box Prop, box Var(3.into())))
+                    box Sort(0.into()),
+                    box Abs(
+                        box Sort(0.into()),
+                        box Abs(box Sort(0.into()), box Var(3.into()))
+                    )
                 )
             )))
         )
@@ -595,7 +690,7 @@ mod tests {
     fn failed_parsers() {
         assert_eq!(
             parse_file(
-                "def x : Type := Prop -> Prop
+                "def x : Type := Prop-> Prop
                  // this is a comment
                         check .x"
             ),

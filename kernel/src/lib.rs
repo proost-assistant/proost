@@ -15,6 +15,7 @@ pub use derive_more;
 pub use num_bigint;
 
 pub use command::Command;
+pub use declaration::Declaration;
 pub use environment::Environment;
 pub use error::{KernelError, Loc};
 pub use term::Term;

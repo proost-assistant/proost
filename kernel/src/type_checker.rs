@@ -46,9 +46,9 @@ impl Term {
     /// The conversion is untyped, meaning that it should **only** be called during type-checking when the two `Term`s are already known to be of the same type and in the same context.
     fn conversion(&self, rhs: &Term, env: &Environment, lvl: DeBruijnIndex) -> bool {
         match (self.whnf(env), rhs.whnf(env)) {
-            (Type(i), Type(j)) => i.is_eq(&j),
+            (lhs, rhs) if lhs == rhs => true,
 
-            (Prop, Prop) => true,
+            (Sort(i), Sort(j)) => i.is_eq(&j),
 
             (Var(i), Var(j)) => i == j,
 
@@ -91,27 +91,16 @@ impl Term {
 
     /// Computes universe the universe in which `(x : A) -> B` lives when `A : u1` and `B : u2`.
     fn imax(&self, rhs: &Term) -> Result<Term, KernelError> {
-        match rhs {
-            // Because Prop is impredicative, if B : Prop, then (x : A) -> b : Prop
-            Prop => Ok(Prop),
-
-            Type(ref i) => match self {
-                Prop => Ok(Type(i.clone())),
-
-                // else if u1 = Type(i) and u2 = Type(j), then (x : A) -> B : Type(max(i,j))
-                Type(j) => Ok(Type(UniverseLevel::Max(box i.clone(), box j.clone()))),
-
-                _ => Err(KernelError::NotUniverse(self.clone())),
-            },
-
+        match (self, rhs) {
+            (Sort(u), Sort(v)) => Ok(Sort(UniverseLevel::IMax(box u.clone(), box v.clone()))),
+            (Sort(_), _) => Err(KernelError::NotUniverse(rhs.clone())),
             _ => Err(KernelError::NotUniverse(rhs.clone())),
         }
     }
 
     fn _infer(&self, env: &Environment, ctx: &mut Context) -> Result<Term, KernelError> {
         match self {
-            Prop => Ok(Type(UniverseLevel::Zero)),
-            Type(i) => Ok(Type(i.clone() + 1)),
+            Sort(i) => Ok(Sort(i.clone() + 1)),
             Var(i) => Ok(ctx.types[ctx.lvl - *i].clone()),
 
             Const(s, vec) => match env.get_type(s, vec) {
@@ -170,41 +159,50 @@ mod tests {
     use crate::type_checker::*;
 
     fn id(l: usize) -> Box<Term> {
-        box Abs(box Prop, box Var(l.into()))
+        box Abs(box Sort(0.into()), box Var(l.into()))
     }
 
     #[test]
     fn var_subst_1() {
         // (λ P. λP. 1) (λP.1)
         let t = App(
-            box Abs(box Prop, box Abs(box Prop, box Var(1.into()))),
+            box Abs(
+                box Sort(0.into()),
+                box Abs(box Sort(0.into()), box Var(1.into())),
+            ),
             id(1),
         );
 
-        let nf = Abs(box Prop, box Var(1.into()));
+        let nf = Abs(box Sort(0.into()), box Var(1.into()));
         assert_eq!(t.normal_form(&Environment::new()), nf)
     }
 
     #[test]
     fn var_subst_2() {
         let t = App(
-            box Abs(box Prop, box Abs(box Prop, box Var(2.into()))),
+            box Abs(
+                box Sort(0.into()),
+                box Abs(box Sort(0.into()), box Var(2.into())),
+            ),
             id(1),
         );
 
-        let nf = Abs(box Prop, id(1));
+        let nf = Abs(box Sort(0.into()), id(1));
         assert_eq!(t.normal_form(&Environment::new()), nf)
     }
 
     #[test]
     fn simple() {
-        let t1 = App(box Abs(box Type(0.into()), box Var(1.into())), box Prop);
+        let t1 = App(
+            box Abs(box Sort(1.into()), box Var(1.into())),
+            box Sort(0.into()),
+        );
 
-        let t2 = Prop;
+        let t2 = Sort(0.into());
         assert!(t1.conversion(&t2, &Environment::new(), 0.into()));
 
         let ty = t1.infer(&Environment::new());
-        assert_eq!(ty, Ok(Type(0.into())));
+        assert_eq!(ty, Ok(Sort(1.into())));
     }
 
     #[test]
@@ -212,15 +210,21 @@ mod tests {
         // λ (x : P -> P).(λ (y :P).x y) x
         //λ P -> P.(λ P.2 1) 1
         let term = Abs(
-            box Prod(box Prop, box Prop),
+            box Prod(box Sort(0.into()), box Sort(0.into())),
             box App(
-                box Abs(box Prop, box App(box Var(2.into()), box Var(1.into()))),
+                box Abs(
+                    box Sort(0.into()),
+                    box App(box Var(2.into()), box Var(1.into())),
+                ),
                 box Var(1.into()),
             ),
         );
 
         // λx.x x
-        let reduced = Abs(box Prop, box App(box Var(1.into()), box Var(1.into())));
+        let reduced = Abs(
+            box Sort(0.into()),
+            box App(box Var(1.into()), box Var(1.into())),
+        );
         assert!(term.is_def_eq(&reduced, &Environment::new()).is_ok());
         assert!(term.infer(&Environment::new()).is_err());
     }
@@ -235,34 +239,40 @@ mod tests {
                     // (P → P) → ((P → P) → P)
                     box Prod(
                         // P -> P
-                        box Prod(box Prop, box Prop),
+                        box Prod(box Sort(0.into()), box Sort(0.into())),
                         // (P -> P) -> P
-                        box Prod(box Prod(box Prop, box Prop), box Prop),
+                        box Prod(
+                            box Prod(box Sort(0.into()), box Sort(0.into())),
+                            box Sort(0.into()),
+                        ),
                     ),
                     // (P → P) → ((P → P) → P)
                     box Prod(
                         // P -> P
-                        box Prod(box Prop, box Prop),
+                        box Prod(box Sort(0.into()), box Sort(0.into())),
                         // (P -> P) -> P
-                        box Prod(box Prod(box Prop, box Prop), box Prop),
+                        box Prod(
+                            box Prod(box Sort(0.into()), box Sort(0.into())),
+                            box Sort(0.into()),
+                        ),
                     ),
                 ),
                 box Abs(
                     // b : P
-                    box Prop,
+                    box Sort(0.into()),
                     box Abs(
                         // c : P
-                        box Prop,
+                        box Sort(0.into()),
                         box App(
                             box App(
                                 box App(
                                     box Var(3.into()),
                                     box Abs(
                                         // d : P -> P
-                                        box Prod(box Prop, box Prop),
+                                        box Prod(box Sort(0.into()), box Sort(0.into())),
                                         box Abs(
                                             // e : P -> P
-                                            box Prod(box Prop, box Prop),
+                                            box Prod(box Sort(0.into()), box Sort(0.into())),
                                             box App(
                                                 box Var(1.into()),
                                                 box App(box Var(2.into()), box Var(4.into())),
@@ -271,10 +281,10 @@ mod tests {
                                     ),
                                 ),
                                 // _ : P
-                                box Abs(box Prop, box Var(2.into())),
+                                box Abs(box Sort(0.into()), box Var(2.into())),
                             ),
                             //d : P
-                            box Abs(box Prop, box Var(1.into())),
+                            box Abs(box Sort(0.into()), box Var(1.into())),
                         ),
                     ),
                 ),
@@ -282,19 +292,25 @@ mod tests {
             box Abs(
                 //a : (P -> P) -> (P -> P) -> P
                 box Prod(
-                    box Prod(box Prop, box Prop),
-                    box Prod(box Prod(box Prop, box Prop), box Prop),
+                    box Prod(box Sort(0.into()), box Sort(0.into())),
+                    box Prod(
+                        box Prod(box Sort(0.into()), box Sort(0.into())),
+                        box Sort(0.into()),
+                    ),
                 ),
                 box Abs(
                     //b : P -> P
-                    box Prod(box Prop, box Prop),
+                    box Prod(box Sort(0.into()), box Sort(0.into())),
                     box App(box Var(2.into()), box Var(1.into())),
                 ),
             ),
         );
 
         // λa : P.λb : P .b
-        let reduced = Abs(box Prop, box Abs(box Prop, box Var(1.into())));
+        let reduced = Abs(
+            box Sort(0.into()),
+            box Abs(box Sort(0.into()), box Var(1.into())),
+        );
         assert!(term.is_def_eq(&reduced, &Environment::new()).is_ok());
         assert!(term.infer(&Environment::new()).is_ok())
     }
@@ -303,7 +319,10 @@ mod tests {
     #[test]
     fn nf_test() {
         //λa.a (λx.x) (λx.x)
-        let reduced = Abs(box Prop, box App(box App(box Var(2.into()), id(1)), id(1)));
+        let reduced = Abs(
+            box Sort(0.into()),
+            box App(box App(box Var(2.into()), id(1)), id(1)),
+        );
 
         let nff = reduced.clone().normal_form(&Environment::new());
         assert_eq!(reduced, nff);
@@ -313,7 +332,7 @@ mod tests {
     #[test]
     fn polymorphism() {
         let id = Abs(
-            box Type(0.into()),
+            box Sort(0.into()),
             box Abs(box Var(1.into()), box Var(1.into())),
         );
 
@@ -322,45 +341,54 @@ mod tests {
 
     #[test]
     fn type_type() {
-        assert!(Type(0.into())
-            .check(&Type(1.into()), &Environment::new())
+        assert!(Sort(0.into())
+            .check(&Sort(1.into()), &Environment::new())
             .is_ok());
     }
 
     #[test]
     fn not_function() {
-        let t = App(box Prop, box Prop);
+        let t = App(box Sort(0.into()), box Sort(0.into()));
         assert!(t.infer(&Environment::new()).is_err())
     }
 
     #[test]
     fn not_type_prod() {
-        let t = Prod(box Abs(box Prop, box Var(1.into())), box Prop);
+        let t = Prod(
+            box Abs(box Sort(0.into()), box Var(1.into())),
+            box Sort(0.into()),
+        );
         assert!(t.infer(&Environment::new()).is_err());
 
-        let t = Prod(box Prop, box Abs(box Prop, box Prop));
+        let t = Prod(
+            box Sort(0.into()),
+            box Abs(box Sort(0.into()), box Sort(0.into())),
+        );
         assert!(t.infer(&Environment::new()).is_err());
 
-        let wf_prod = Prod(box Prop, box Prop);
+        let wf_prod = Prod(box Sort(0.into()), box Sort(0.into()));
         println!("{:?}", wf_prod.infer(&Environment::new()));
-        assert!(wf_prod.check(&Type(0.into()), &Environment::new()).is_ok());
+        assert!(wf_prod.check(&Sort(1.into()), &Environment::new()).is_ok());
 
-        let wf_prod = Prod(box Prop, box Var(1.into()));
-        assert!(wf_prod.check(&Prop, &Environment::new()).is_ok());
+        let wf_prod = Prod(box Sort(0.into()), box Var(1.into()));
+        assert!(wf_prod.check(&Sort(0.into()), &Environment::new()).is_ok());
 
-        // Type0 -> (A : Prop) ->
-        let wf_prod = Prod(box Prop, box Prop);
-        assert!(wf_prod.check(&Type(0.into()), &Environment::new()).is_ok());
+        // Sort0 -> (A : Sort(0.into())) ->
+        let wf_prod = Prod(box Sort(0.into()), box Sort(0.into()));
+        assert!(wf_prod.check(&Sort(1.into()), &Environment::new()).is_ok());
     }
 
     #[test]
     fn poly_test2() {
         let t = Abs(
-            box Prop,
+            box Sort(0.into()),
             box Abs(
-                box Prop,
+                box Sort(0.into()),
                 box Abs(
-                    box Prod(box Prop, box Prod(box Prop, box Prop)),
+                    box Prod(
+                        box Sort(0.into()),
+                        box Prod(box Sort(0.into()), box Sort(0.into())),
+                    ),
                     box App(
                         box App(box Var(1.into()), box Var(3.into())),
                         box Var(2.into()),
@@ -374,10 +402,18 @@ mod tests {
 
     #[test]
     fn env_test() {
-        let id_prop = Prod(box Prop, box Prod(box Var(1.into()), box Var(2.into())));
-        let t = Abs(box Prop, box Abs(box Var(1.into()), box Var(1.into())));
+        let id_prop = Prod(
+            box Sort(0.into()),
+            box Prod(box Var(1.into()), box Var(2.into())),
+        );
+        let t = Abs(
+            box Sort(0.into()),
+            box Abs(box Var(1.into()), box Var(1.into())),
+        );
         let mut binding = Environment::new();
-        let env = binding.insert("foo".into(), id_prop.clone(), Prop).unwrap();
+        let env = binding
+            .insert("foo".into(), id_prop.clone(), Sort(0.into()))
+            .unwrap();
 
         assert!(t.check(&Const("foo".into(), Vec::new()), env).is_ok());
         assert!(id_prop
@@ -387,21 +423,28 @@ mod tests {
 
     #[test]
     fn check_bad() {
-        assert!(Prop.check(&Prop, &Environment::new()).is_err());
+        assert!(Sort(0.into())
+            .check(&Sort(0.into()), &Environment::new())
+            .is_err());
     }
 
     #[test]
     fn not_def_eq() {
-        assert!(Prop
-            .is_def_eq(&Type(0.into()), &Environment::new())
+        assert!(Sort(0.into())
+            .is_def_eq(&Sort(1.into()), &Environment::new())
             .is_err());
     }
 
     #[test]
     fn infer_const() {
-        let id_prop = Prod(box Prop, box Prod(box Var(1.into()), box Var(1.into())));
+        let id_prop = Prod(
+            box Sort(0.into()),
+            box Prod(box Var(1.into()), box Var(1.into())),
+        );
         let mut binding = Environment::new();
-        let env = binding.insert("foo".into(), id_prop, Prop).unwrap();
+        let env = binding
+            .insert("foo".into(), id_prop, Sort(0.into()))
+            .unwrap();
 
         assert!(Const("foo".into(), Vec::new()).infer(env).is_ok());
         assert!(Const("foo".into(), Vec::new())
@@ -411,17 +454,23 @@ mod tests {
 
     #[test]
     fn prod_var() {
-        let ty = Prod(box Prop, box Prod(box Var(1.into()), box Var(2.into())));
-        let t = Abs(box Prop, box Abs(box Var(1.into()), box Var(1.into())));
+        let ty = Prod(
+            box Sort(0.into()),
+            box Prod(box Var(1.into()), box Var(2.into())),
+        );
+        let t = Abs(
+            box Sort(0.into()),
+            box Abs(box Var(1.into()), box Var(1.into())),
+        );
         assert!(t.check(&ty, &Environment::new()).is_ok())
     }
 
     #[test]
     fn univ_reduc() {
         let ty = App(
-            box Abs(box Prop, box Type(0.into())),
-            box Prod(box Prop, box Var(1.into())),
+            box Abs(box Sort(0.into()), box Sort(0.into())),
+            box Prod(box Sort(0.into()), box Var(1.into())),
         );
-        assert!(ty.conversion(&Type(0.into()), &Environment::new(), 0.into()))
+        assert!(ty.conversion(&Sort(0.into()), &Environment::new(), 0.into()))
     }
 }

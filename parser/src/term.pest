@@ -1,15 +1,15 @@
 WHITESPACE = _{ WHITE_SPACE }
 COMMENT = _{ "//" ~ (!"\n" ~ ANY)* }
 eoi = _{ !ANY }
-keywords = @{ ( "fun" | "def" | "check" | "Prop" | "Type" ) ~ !ASCII_ALPHANUMERIC }
+keywords = @{ ( "fun" | "def" | "check" | "Prop" | "Type" | "Sort" ) ~ !ASCII_ALPHANUMERIC }
 number = @{ ASCII_DIGIT+ }
 string = @{ !keywords ~ ASCII_ALPHA ~ ( "_" | ASCII_ALPHANUMERIC )* }
 
-Term = _{ Abs | dProd | Prod | App | Var | Prop | Type | "(" ~ Term ~ ")" }
-term_prod = _{ App | Abs | dProd | Var | Prop | Type | "(" ~ Prod ~ ")" | "(" ~ term_prod ~ ")" }
-term_app = _{ Abs | Var | Prop | Type | "(" ~ App ~ ")" | "(" ~ Prod ~ ")" | "(" ~ dProd ~ ")" | "(" ~ term_app ~ ")" } 
-term_dprod = _{ App | Abs | Prod | dProd | Var | Prop | Type | "(" ~ term_dprod ~ ")" }
-term_abs = _{ App | Abs | Prod | dProd | Var | Prop | Type | "(" ~ term_abs ~ ")" }
+Term = _{ Abs | dProd | Prod | App | Var | Prop | Type | Sort | "(" ~ Term ~ ")" }
+term_prod = _{ App | Abs | dProd | Var | Prop | Type | Sort | "(" ~ Prod ~ ")" | "(" ~ term_prod ~ ")" }
+term_app = _{ Abs | Var | Prop | Type | Sort | "(" ~ App ~ ")" | "(" ~ Prod ~ ")" | "(" ~ dProd ~ ")" | "(" ~ term_app ~ ")" } 
+term_dprod = _{ App | Abs | Prod | dProd | Var | Prop | Type | Sort | "(" ~ term_dprod ~ ")" }
+term_abs = _{ App | Abs | Prod | dProd | Var | Prop | Type | Sort | "(" ~ term_abs ~ ")" }
 
 Abs = { ( "fun" ~ ( arg_abs_par ~ ( "," ~ arg_abs_par )* ) ~ "=>" ~ Term ) }
 arg_abs_par = _{ arg_abs | "(" ~ arg_abs_par ~ ")" }
@@ -24,17 +24,22 @@ Prod = { term_prod ~ ( "->" ~ term_prod )+ }
 Prop = { "Prop" }
 
 Type = { "Type" ~ univ? }
-univ = _{ Plus | Max | Var | Num | "(" ~ univ ~ ")" }
-univ_plus = _{ Max | Var | Num | "(" ~ univ ~ ")" }
+Sort = { "Sort" ~ univ? }
+univ = _{ Plus | Max | Num | string | "(" ~ univ ~ ")" }
+univ_plus = _{ Max | Num | string | "(" ~ univ ~ ")" }
 Num = { number }
 Plus = { univ_plus ~ ( "+" ~ number )+ }
 Max = { ( "max" ~ "(" ~ univ ~ "," ~ univ ~ ")" ) | ( "max" ~ univ ~ univ ) }
-Var = { string }
+
+Var = { string ~ arg_univ? }
+arg_univ = {".{" ~ (univ ~ ("," ~ univ)*)? ~ "}"}
+
+univ_decl = {".{" ~ (string ~ ("," ~ string)* )? ~ "}"}
 
 Command = _{ Eval | Define | CheckType | GetType | DefineCheckType }
 Eval = { "eval" ~ Term }
-Define = { "def" ~ string ~ ":=" ~ Term }
-DefineCheckType = { "def" ~ string ~ ":" ~ Term ~ ":=" ~ Term }
+Define = { "def" ~ string ~ univ_decl? ~ ":=" ~ Term }
+DefineCheckType = { "def" ~ string ~ univ_decl? ~ ":" ~ Term ~ ":=" ~ Term }
 CheckType = { "check" ~ Term ~ ":" ~ Term }
 GetType = { "check" ~ Term }
 
