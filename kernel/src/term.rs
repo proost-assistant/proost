@@ -383,7 +383,7 @@ mod tests {
             box Prod(box Var(1.into()), box Var(1.into())),
         );
         let mut env = Environment::new();
-        env.insert("foo".into(), id_prop.clone(), Sort(0.into()))
+        env.insert_def("foo".into(), id_prop.clone(), Sort(0.into()))
             .unwrap();
 
         assert_eq!(
@@ -408,7 +408,7 @@ mod tests {
         );
         assert!(id_te.check(&id_ty, &Environment::new()).is_ok());
         let mut binding = Environment::new();
-        let env = binding.insert("id".into(), id_te, id_ty).unwrap();
+        let env = binding.insert_def("id".into(), id_te, id_ty).unwrap();
         assert!(Const("id".into(), vec![0.into()])
             .is_def_eq(&id_zero, env)
             .is_ok())

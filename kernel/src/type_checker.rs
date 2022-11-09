@@ -412,7 +412,7 @@ mod tests {
         );
         let mut binding = Environment::new();
         let env = binding
-            .insert("foo".into(), id_prop.clone(), Sort(0.into()))
+            .insert_def("foo".into(), id_prop.clone(), Sort(0.into()))
             .unwrap();
 
         assert!(t.check(&Const("foo".into(), Vec::new()), env).is_ok());
@@ -443,7 +443,7 @@ mod tests {
         );
         let mut binding = Environment::new();
         let env = binding
-            .insert("foo".into(), id_prop, Sort(0.into()))
+            .insert_def("foo".into(), id_prop, Sort(0.into()))
             .unwrap();
 
         assert!(Const("foo".into(), Vec::new()).infer(env).is_ok());
