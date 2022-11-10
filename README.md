@@ -24,4 +24,6 @@ graph TD;
   kernel-->proost;
   parser-->proost;
   parser-->tilleul;
+  parser-->tilleul; 
+  parser-->proost;
 ```
