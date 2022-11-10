@@ -1,246 +1,254 @@
 #![feature(box_syntax)]
 
 use kernel::Command::*;
-use kernel::Environment;
-use kernel::Term::{self, *};
-use lazy_static::lazy_static;
 
-lazy_static! {
-    static ref FALSE: Term = Prod(box Prop, box Var(1.into()));
-    static ref TRUE: Term = Prod(box Const("False".into()), box Const("False".into()));
-}
+use kernel::term::extern_build::*;
+use kernel::term::use_arena;
+use kernel::term::Arena;
 
-fn setup_env() -> Environment {
-    let mut env = Environment::new();
+fn use_and_arena<F, T>(f: F) -> T
+where
+    F: for<'arena> FnOnce(&mut Arena<'arena>) -> T,
+{
+    use_arena(|arena| {
+        let false_ = arena
+            .build_from_extern(prod("P", prop(), var("P")))
+            .unwrap();
+        assert!(Define("False", None, false_)
+            .process(arena)
+            .unwrap()
+            .is_none());
 
-    assert!(Define("False".into(), None, FALSE.clone())
-        .process(&mut env)
-        .unwrap()
-        .is_none());
+        let true_ = arena
+            .build_from_extern(prod("_", var("FALSE"), var("FALSE")))
+            .unwrap();
+        assert!(Define("True", None, true_)
+            .process(arena)
+            .unwrap()
+            .is_none());
 
-    assert!(Define("True".into(), None, TRUE.clone())
-        .process(&mut env)
-        .unwrap()
-        .is_none());
-
-    let and = Abs(
-        box Prop,
-        box Abs(
-            box Prop,
-            box Prod(
-                box Prop,
-                box Prod(
-                    // A -> B -> C
-                    box Prod(
-                        box Var(3.into()),
-                        box Prod(box Var(3.into()), box Var(3.into())),
+        let and = arena
+            .build_from_extern(abs(
+                "A",
+                prop(),
+                abs(
+                    "B",
+                    prop(),
+                    abs(
+                        "C",
+                        prop(),
+                        prod(
+                            "_",
+                            prod("_", var("A"), prod("_", var("B"), var("C"))),
+                            var("C"),
+                        ),
                     ),
-                    box Var(2.into()),
                 ),
-            ),
-        ),
-    );
+            ))
+            .unwrap();
+        assert!(Define("and", None, and).process(arena).unwrap().is_none());
 
-    assert!(Define("and".into(), None, and)
-        .process(&mut env)
-        .unwrap()
-        .is_none());
-
-    env
+        f(arena)
+    })
 }
 
 #[test]
 fn and_true_true() {
-    let mut env = setup_env();
+    use_and_arena(|arena| {
+        let goal = arena
+            .build_from_extern(app(app(var("and"), var("True")), var("True")))
+            .unwrap();
 
-    let goal = App(
-        box App(box Const("and".into()), box Const("True".into())),
-        box Const("True".into()),
-    );
+        let hypothesis = arena
+            .build_from_extern(abs("x", var("False"), var("x")))
+            .unwrap();
+        let true_ = arena.build_from_extern(var("True")).unwrap();
 
-    let hypothesis = Abs(box Const("False".into()).clone(), box Var(1.into()));
+        assert!(Define("hyp", Some(true_), hypothesis)
+            .process(arena)
+            .is_ok());
 
-    assert!(Define("hyp".into(), Some(TRUE.clone()), hypothesis)
-        .process(&mut env)
-        .is_ok());
+        let proof = arena
+            .build_from_extern(abs(
+                "a",
+                prop(),
+                abs(
+                    "b",
+                    prod("_", var("True"), prod("_", var("True"), var("b"))),
+                    app(app(var("b"), var("hyp")), var("hyp")),
+                ),
+            ))
+            .unwrap();
 
-    let proof = Abs(
-        box Prop,
-        box Abs(
-            box Prod(
-                box Const("True".into()),
-                box Prod(box Const("True".into()), box Var(3.into())),
-            ),
-            box App(
-                box App(box Var(1.into()), box Const("hyp".into())),
-                box Const("hyp".into()),
-            ),
-        ),
-    );
-
-    assert!(CheckType(proof, goal).process(&mut env).is_ok());
+        assert!(CheckType(proof, goal).process(arena).is_ok());
+    })
 }
 
 #[test]
 fn and_intro() {
-    let mut env = setup_env();
-
-    let goal = Prod(
-        // A : Prop
-        box Prop,
-        box Prod(
-            // B : Prop
-            box Prop,
-            box Prod(
-                // a : A
-                box Var(2.into()),
-                box Prod(
-                    // b : B
-                    box Var(2.into()),
-                    box App(
-                        box App(box Const("and".into()), box Var(4.into())),
-                        box Var(3.into()),
+    use_and_arena(|arena| {
+        let goal = arena
+            .build_from_extern(prod(
+                "A", // A : prop()
+                prop(),
+                prod(
+                    "B", // B : prop()
+                    prop(),
+                    prod(
+                        "_",
+                        var("A"),
+                        prod("_", var("B"), app(app(var("and"), var("A")), var("B"))),
                     ),
                 ),
-            ),
-        ),
-    );
+            ))
+            .unwrap();
 
-    let proof = Abs(
-        // A : Prop
-        box Prop,
-        box Abs(
-            // B : Prop
-            box Prop,
-            box Abs(
-                // a : A
-                box Var(2.into()),
-                box Abs(
-                    // b : B
-                    box Var(2.into()),
-                    box Abs(
-                        // C : Prop
-                        box Prop,
-                        box Abs(
-                            // p : A -> B -> C
-                            box Prod(
-                                box Var(5.into()),
-                                box Prod(box Var(5.into()), box Var(3.into())),
-                            ),
-                            // p a b
-                            box App(
-                                box App(box Var(1.into()), box Var(4.into())),
-                                box Var(3.into()),
+        let proof = arena
+            .build_from_extern(abs(
+                "A",
+                // A : prop()
+                prop(),
+                abs(
+                    "B",
+                    // B : prop()
+                    prop(),
+                    abs(
+                        "a",
+                        // a : A
+                        var("A"),
+                        abs(
+                            "b",
+                            // b : B
+                            var("B"),
+                            abs(
+                                "C",
+                                // C : prop()
+                                prop(),
+                                abs(
+                                    "p",
+                                    // p : A -> B -> C
+                                    prod("_", var("A"), prod("_", var("B"), var("C"))),
+                                    // p a b
+                                    app(app(var("p"), var("a")), var("b")),
+                                ),
                             ),
                         ),
                     ),
                 ),
-            ),
-        ),
-    );
+            ))
+            .unwrap();
 
-    assert!(CheckType(proof, goal).process(&mut env).is_ok());
+        assert!(CheckType(proof, goal).process(arena).is_ok());
+    })
 }
 
 #[test]
 fn and_elim_1() {
-    let mut env = setup_env();
-
-    let goal = Prod(
-        // A : Prop
-        box Prop,
-        box Prod(
-            // B : Prop
-            box Prop,
-            box Prod(
-                box App(
-                    box App(box Const("and".into()), box Var(2.into())),
-                    box Var(1.into()),
+    use_and_arena(|arena| {
+        let goal = arena
+            .build_from_extern(prod(
+                "A",
+                // A : prop()
+                prop(),
+                prod(
+                    "B",
+                    // B : prop()
+                    prop(),
+                    prod("_", app(app(var("and"), var("A")), var("B")), var("A")),
                 ),
-                box Var(3.into()),
-            ),
-        ),
-    );
+            ))
+            .unwrap();
 
-    let proof = Abs(
-        // A : Prop
-        box Prop,
-        box Abs(
-            // B : Prop
-            box Prop,
-            box Abs(
-                // p : and A B
-                box App(
-                    box App(box Const("and".into()), box Var(2.into())),
-                    box Var(1.into()),
-                ),
-                box App(
-                    box App(box Var(1.into()), box Var(3.into())),
-                    box Abs(
-                        // a : A
-                        box Var(3.into()),
-                        box Abs(
-                            // b : B
-                            box Var(3.into()),
-                            box Var(2.into()),
+        let proof = arena
+            .build_from_extern(abs(
+                "A",
+                // A : prop()
+                prop(),
+                abs(
+                    "B",
+                    // B : prop()
+                    prop(),
+                    abs(
+                        "p",
+                        // p : and A B
+                        app(app(var("and"), var("A")), var("B")),
+                        app(
+                            app(var("p"), var("A")),
+                            abs(
+                                "a",
+                                // a : A
+                                var("A"),
+                                abs(
+                                    "b",
+                                    // b : B
+                                    var("B"),
+                                    var("a"),
+                                ),
+                            ),
                         ),
                     ),
                 ),
-            ),
-        ),
-    );
+            ))
+            .unwrap();
 
-    assert!(CheckType(proof, goal).process(&mut env).is_ok());
+        assert!(CheckType(proof, goal).process(arena).is_ok());
+    })
 }
 
 #[test]
 fn and_elim_2() {
-    let mut env = setup_env();
-
-    let goal = Prod(
-        // A : Prop
-        box Prop,
-        box Prod(
-            // B : Prop
-            box Prop,
-            box Prod(
-                // p : and A B
-                box App(
-                    box App(box Const("and".into()), box Var(2.into())),
-                    box Var(1.into()),
+    use_and_arena(|arena| {
+        let goal = arena
+            .build_from_extern(prod(
+                "A",
+                // A : prop()
+                prop(),
+                prod(
+                    "B",
+                    // B : prop()
+                    prop(),
+                    prod(
+                        "p",
+                        // p : and A B
+                        app(app(var("and"), var("A")), var("B")),
+                        var("B"),
+                    ),
                 ),
-                box Var(2.into()),
-            ),
-        ),
-    );
+            ))
+            .unwrap();
 
-    let proof = Abs(
-        // A : Prop
-        box Prop,
-        box Abs(
-            // B : Prop
-            box Prop,
-            box Abs(
-                // p : and A B
-                box App(
-                    box App(box Const("and".into()), box Var(2.into())),
-                    box Var(1.into()),
-                ),
-                box App(
-                    box App(box Var(1.into()), box Var(2.into())),
-                    box Abs(
-                        // a : A
-                        box Var(3.into()),
-                        box Abs(
-                            // b : B
-                            box Var(3.into()),
-                            box Var(1.into()),
+        let proof = arena
+            .build_from_extern(abs(
+                "A",
+                // A : prop()
+                prop(),
+                abs(
+                    "B",
+                    // B : prop()
+                    prop(),
+                    abs(
+                        "p",
+                        // p : and A B
+                        app(app(var("and"), var("A")), var("B")),
+                        app(
+                            app(var("p"), var("B")),
+                            abs(
+                                "a",
+                                // a : A
+                                var("A"),
+                                abs(
+                                    "b",
+                                    // b : B
+                                    var("B"),
+                                    var("b"),
+                                ),
+                            ),
                         ),
                     ),
                 ),
-            ),
-        ),
-    );
+            ))
+            .unwrap();
 
-    assert!(CheckType(proof, goal).process(&mut env).is_ok());
+        assert!(CheckType(proof, goal).process(arena).is_ok());
+    })
 }
