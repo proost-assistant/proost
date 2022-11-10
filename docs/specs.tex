@@ -144,10 +144,13 @@ tactics. As new features arrive from extensions of the kernel type theory, the
   \item ¤def a : ty := t¤ defines an alias ¤a¤ that is checked to be of type ¤ty¤;
   \item ¤check u : t¤ verifies ¤u¤ has type ¤t¤;
   \item ¤check u¤ provides the type of ¤u¤;
-  \item ¤eval u¤ provides the definition of ¤u¤.\\
+  \item ¤eval u¤ provides the definition of ¤u¤.
 \end{itemize}
 
-Below is an overview of the syntax of terms, as of now without any unification and only elementary type theory and in potential future iterations. The syntax is strongly inspired by that of Ocaml. Commentary are defined using the keyword \texttt{//}.
+Below is an overview of the syntax of terms, as of now and in potential future iterations. The syntax is strongly inspired by that of Ocaml. Commentary are defined using the keyword \texttt{//}.
+
+\vspace{1.5mm}
+elementary type theory:
 \begin{proost}
 // Construction of natural numbers
 def Nat :=
@@ -181,46 +184,42 @@ def t := E n, n * n - n + 4 = 0
 
 \subsection{Toplevel  \members{AuA}}
 The \texttt{proost} command, when provided with no argument, is expected to behave like a toplevel, akin to \texttt{ocaml} or \texttt{coqtop}. There, user is greeted with a prompt and may enter commands. When provided with existing file paths, ¤proost¤ intends to typecheck them in
-order, that is, reading them as successive inputs in the toplevel. Further features for this will include a more extended notion of ``modules'' where files may provides scopes.i
+order, that is, reading them as successive inputs in the toplevel. Further features for this \emph{might} include a more extended notion of ``modules'' where files may provides scopes.
 {
   \begin{center}
     \fbox{\includegraphics{proost.png}}
   \end{center}
 }
 
+
 \subsection{\etun LSP \members{VL}}
 \texttt{tilleul} shall provide an implementation of the Language Server Protocol in order to provide linting and feedback during an editing session.
 
 
-\subsection{Kernel \members{all members}}
-The kernel manipulates \(\lambda\)-terms in the Calculus of Construction and is
-expected to store and manage them with a relative level of efficiency.
-The type theory used to build the terms will be successively extended with:
+\subsection{Parsing \members{AuA}}
+The parsing approach is straightforward and relies on external libraries. The parser is expected to keep adapting to changes made in the term definitions and unification capability. The parser is thoroughly tested to guarantee full coverage in order to ease this continuous transition.
+
+
+\subsection{Kernel \members{all members}} %TODO
+The kernel manipulates \(\lambda\)-terms in the Calculus of Construction and is expected to store and manage them with a relative level of efficiency. The type theory used to build the terms will be successively extended with:
 \begin{itemize}
   \item abstractions, \(\Pi\)-types, predicative universes with \(\mathsf{Prop}\);
-  \item \(*\) universe polymorphism;
-  \item \(*\) \(\Sigma\)-types, equality types, natural numbers;
-  \item \(**\) extraction;
-  \item \(**\) lists, records, accessibility predicate.
+  \item \etun universe polymorphism;
+  \item \etun \(\Sigma\)-types, equality types, natural numbers;
+  \item \etde extraction;
+  \item \etde lists, records, accessibility predicate.
 \end{itemize}
 
 
-\subsubsection{Optimisation \members{VL LTM}}
+\subsection{\etun Optimisation \members{ArA LTM}}
 Extra care must be put into designing an efficient memory management model for
 the kernel, along with satisfactory typing and reduction algorithms.
 
-
-\subsection{Unification \members{ArA LTM}}
+\subsection{\etde Unification}
 Early versions of the tool may require the user to explicit every type at play.
 Successive versions may gradually include unification tools (meta-variables)
 of better quality to assist the user and alleviate some of their typing-annotation
 burden.
-
-
-\subsection{Parsing \members{AuA VL}}
-The parsing approach is straightforward and relies on external libraries. The
-parser is expected to keep adapting to changes made in the term definitions and
-unification capability. The parser is thoroughly tested to ease this continuous transition.
 
 % TODO elaborate, maybe
 \end{document}
