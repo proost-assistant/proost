@@ -154,14 +154,14 @@ elementary type theory:
 \begin{proost}
 // Construction of natural numbers
 def Nat :=
-(N: U) -> (N -> N) -> N -> N
+(N: Type) -> (N -> N) -> N -> N
 
 def z :=
-fun N:U => fun f:(N -> N), x:N => x
+fun N:Type => fun f:(N -> N), x:N => x
 check z : Nat
 
-def succ := fun n: Nat, N: U =>
-fun f: (N -> N), x: N => f (n f x)
+def succ := fun n: Nat, N: Type =>
+fun f: (N -> N), x: N => n (N f x)
 check succ : Nat -> Nat
 \end{proost}
 
