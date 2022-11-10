@@ -5,7 +5,7 @@
 \usepackage{fancyhdr}
 \usepackage{listings}
 \usepackage{bussproofs} % proof tree
-\usepackage{xcolor} % may not be loaded here, is already loaded by Beamer
+\usepackage[dvipsnames]{xcolor}
 \RequirePackage[a4paper, left=2cm, right=2cm, bottom=3cm, headsep=100pt]{geometry}
 \RequirePackage[small]{titlesec} % Taille des sections réduite
 \RequirePackage[pdfborderstyle={/S/U/W 0}]{hyperref} % Le paramètre retire les bordures autour des hyperliens
@@ -47,15 +47,15 @@
     breakatwhitespace=true
 }
 \lstdefinestyle{proost}{
+    alsoletter={//,.,:,=},
     style=default,
     numberstyle=\scriptsize\ttfamily\color{paleblue},
-    comment=[l]{\#},
-    alsoletter={.,:,=},
+    comment=[l]{//},
     keywords={fun, if},
     keywordstyle=\color{forestgreen},
     keywords={Prop, Type},
     keywordstyle=\color{darkred},
-    keywords=[3]{def, check, eval, :=, .},
+    keywords=[3]{def, check, eval, import},
     keywordstyle=[3]\color{darkred},
 }
 \lstnewenvironment{proost}[1][]{\lstset{style=proost, #1}}{}
@@ -98,7 +98,11 @@
 \setlength{\columnsep}{20pt} % 10 pt par défaut
 
 \newcommand{\members}[1]{\texorpdfstring{\hfill\scriptsize #1}{}}
+
+\newcommand{\etun}{({\color{Green} $\star$}) }
+\newcommand{\etde}{({\color{Orange} $\star\star$}) }
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 \begin{document}
 \thispagestyle{fancy}
@@ -114,34 +118,8 @@
 \section{General purpose and functions}
 This project aims at providing a small tool for typechecking expressions written in
 the language of the Calculus of Construction (CoC). This tool shall be
-both terminal and editor based through a LSP and provide both compiler- and toplevel-like capacities and
-options.
-
-
-\subsection{Toplevel}
-The \texttt{proost} command, when provided with no argument, is expected to behave like
-a toplevel, akin to \texttt{ocaml} or \texttt{coqtop}. There, user is greeted with a
-prompt and may enter commands of different kinds, for instance:
-\begin{itemize}
-  \item ¤def a := t¤ defines an alias ¤a¤ that can be used in any following command;
-  \item ¤def a : ty := t¤ defines an alias ¤a¤ that is checked to be of type ¤ty¤.
-  \item ¤check u : t¤ verifies ¤u¤ has type ¤t¤;
-  \item ¤check u¤ provides the type of ¤u¤;
-  \item ¤eval u¤ provides the definition of ¤u¤.
-\end{itemize}
-
-Where terms are the ones permitted by the kernel expressivity.
-More shorthands may be provided later for user convenience.
-
-
-\subsection{Checker}
-When provided with existing file paths, ¤proost¤ intends to typecheck them in
-order, that is, reading them as successive inputs in the toplevel. Further
-features for this \emph{might} include a more extended notion of ``modules'', where files
-may refer to one another and provide scopes.
-
-The file extension is \texttt{.mdln}, which is short for \emph{madelaine}.
-Madelaine also denotes the language manipulated by users in these files.
+both terminal and editor based through the \texttt{proost} program that provides both compiler and toplevel-like capacities and options and a LSP called \texttt{tilleul}.
+The file extension used by both programs is \texttt{.mdln}, which is short for \emph{madelaine}, the name of the language manipulated by users in these files.
 
 
 \section{Project structure}
@@ -150,10 +128,73 @@ meaning the designated members will \emph{mainly} make progress in the associate
 and review the corresponding advancements. Any member may regardless contribute to any part
 of the development of the tool.
 
-Some specific categories and items will be added a star (\(*\)) or two (\(**\)) to
+Some specific categories and items will be added a star \etun or two \etde to
 indicate whether they are respectively late requirements (for the last release
 due in December)
 or extra requirements that will be considered only if there is enough time.
+
+\subsection{Language design \members{all members}}
+The \texttt{proost} tool is a simple proof assistant and does not provide any
+tactics. As new features arrive from extensions of the kernel type theory, the
+\emph{madelaine} language must provide convenient shorthands and notations. The syntax of commands is the following:
+\begin{itemize}
+  \item ¤import relative_path_to_file¤ typecheck and load the the file in the current environment;
+  \item ¤def a := t¤ defines an alias ¤a¤ that can be used in any following command;
+  \item ¤def a : ty := t¤ defines an alias ¤a¤ that is checked to be of type ¤ty¤;
+  \item ¤check u : t¤ verifies ¤u¤ has type ¤t¤;
+  \item ¤check u¤ provides the type of ¤u¤;
+  \item ¤eval u¤ provides the definition of ¤u¤.\\
+\end{itemize}
+
+Below is an overview of the syntax of terms, as of now without any unification and only elementary type theory and in potential future iterations. The syntax is strongly inspired by that of Ocaml. Commentary are defined using the keyword \texttt{//}.
+\begin{proost}
+// Construction of natural numbers
+def Nat :=
+(N: U) -> (N -> N) -> N -> N
+
+def z :=
+fun N:U => fun f:(N -> N), x:N => x
+check z : Nat
+
+def succ := fun n: Nat, N: U =>
+fun f: (N -> N), x: N => f (n f x)
+check succ : Nat -> Nat
+\end{proost}
+
+Using universe polymorphism \etun:
+\begin{proost}
+def foo.{i,j} : Type (max i j) + 1
+:= Type i -> Type j
+\end{proost}
+
+Using unification \etde:
+\begin{proost}
+def comm := \/ x,y, x + y = y + x
+\end{proost}
+
+Using existential types \etde:
+\begin{proost}
+def t := E n, n * n - n + 4 = 0
+\end{proost}
+
+
+\subsection{Toplevel  \members{AuA}}
+The \texttt{proost} command, when provided with no argument, is expected to behave like
+a toplevel, akin to \texttt{ocaml} or \texttt{coqtop}. There, user is greeted with a
+prompt and may enter commands of different kinds, for instance:
+
+Where terms are the ones permitted by the kernel expressivity.
+More shorthands may be provided later for user convenience.\\
+
+When provided with existing file paths, ¤proost¤ intends to typecheck them in
+order, that is, reading them as successive inputs in the toplevel. Further
+features for this will include a more extended notion of ``modules'', where files
+may provides scopes and refer to one another through the command:
+
+
+\subsection{\texorpdfstring{\(*\)}{*} LSP \members{VL}}
+The tool may provide an implementation of the Language Server Protocol in
+order to provide linting and feedback during an editing session.
 
 
 \subsection{Kernel \members{all members}}
@@ -185,49 +226,6 @@ burden.
 The parsing approach is straightforward and relies on external libraries. The
 parser is expected to keep adapting to changes made in the term definitions and
 unification capability. The parser is thoroughly tested to ease this continuous transition.
-
-
-\subsection{Language design \members{all members}}
-The \texttt{proost} tool is a simple proof assistant and does not provide any
-tactics. As new features arrive from extensions of the kernel type theory, the
-\emph{madelaine} language must provide convenient shorthands and notations. See
-the following examples:
-
-Without any unification and only elementary type theory:
-\begin{proost}
-# Construction of natural numbers
-def Nat := \/ A: U ->
-  \/ _: (\/ _: A -> A) -> \/ _: A -> A
-
-def z := /\ A: U ->
-  /\ f: (\/ _: A -> A) -> /\ x: A -> x
-check z: Nat
-
-def succ := /\ n: Nat -> /\ A: U ->
-  /\ f: (\/ _: A -> A) -> /\ x: A ->
-  f (n f x)
-check succ: \/ _: Nat -> Nat
-\end{proost}
-
-With universe polymorphism:
-\begin{proost}
-def foo.{i,j} : Type (max i j) + 1 := Type i -> Type j
-\end{proost}
-
-Further changes, with equality types, natural numbers and adequate axioms may
-look like:
-\begin{proost}
-# with unification
-def comm := \/ x -> \/ y -> x + y = y + x
-
-# Existential types
-def t := E n, n * n - n + 4 = 0
-\end{proost}
-
-
-\subsection{\texorpdfstring{\(*\)}{*} LSP \members{VL}}
-The tool may provide an implementation of the Language Server Protocol in
-order to provide linting and feedback during an editing session.
 
 % TODO elaborate, maybe
 \end{document}
