@@ -2,7 +2,7 @@ use derive_more::{Add, Display, From, Into, Sub};
 
 use num_bigint::BigUint;
 
-use crate::error::{Error, Result, ResultTerm};
+use crate::error::{Error, ResultTerm};
 use bumpalo::Bump;
 use im_rc::hashmap::HashMap as ImHashMap;
 use std::cell::OnceCell;
@@ -52,7 +52,6 @@ struct Node<'arena> {
     type_: OnceCell<Term<'arena>>,
 }
 
-type BinTermHashMap<'arena> = HashMap<(Term<'arena>, Term<'arena>), Term<'arena>>;
 // binary maps are not used so far, because, upon building terms, no particular optimisation is
 // done. On the other hand, if it is decided that only WHNF terms may exist in the arena, there can
 // be an AppMap (only App is relevant, as Abs and Prod preserve WHNF).
@@ -106,11 +105,11 @@ impl<'arena> Hash for Node<'arena> {
 
 pub fn use_arena<F, T>(f: F) -> T
 where
-    F: for<'arena> FnOnce(Arena<'arena>) -> T,
+    F: for<'arena> FnOnce(&mut Arena<'arena>) -> T,
 {
     let alloc = Bump::new();
-    let arena = Arena::new(&alloc);
-    f(arena)
+    let mut arena = Arena::new(&alloc);
+    f(&mut arena)
 }
 
 use extern_build::Generator as ExternGenerator;
@@ -183,11 +182,15 @@ impl<'arena> Arena<'arena> {
 
     #[inline]
     pub fn build_from_extern<F: ExternGenerator<'arena>>(&mut self, f: F) -> ResultTerm<'arena> {
-        f(self, &ImHashMap::new(), DeBruijnIndex(0))
+        f(self, &ImHashMap::new(), 0.into())
+    }
+
+    pub fn bind(&mut self, name: &'arena str, t: Term<'arena>) {
+        self.named_terms.insert(name, t);
     }
 
     /// Apply one step of β-reduction, using the leftmost-outermost evaluation strategy.
-    pub fn beta_reduction(&'arena mut self, t: Term<'arena>) -> Term<'arena> {
+    pub fn beta_reduction(&mut self, t: Term<'arena>) -> Term<'arena> {
         match *t {
             App(t1, t2) => match *t1 {
                 Abs(_, t1) => self.substitute(t1, t2, 1),
@@ -201,8 +204,14 @@ impl<'arena> Arena<'arena> {
                     }
                 }
             },
-            Abs(arg_type, body) => self.abs(arg_type, self.beta_reduction(body)),
-            Prod(arg_type, body) => self.prod(arg_type, self.beta_reduction(body)),
+            Abs(arg_type, body) => {
+                let body = self.beta_reduction(body);
+                self.abs(arg_type, body)
+            }
+            Prod(arg_type, body) => {
+                let body = self.beta_reduction(body);
+                self.prod(arg_type, body)
+            }
             _ => t,
         }
     }
@@ -235,25 +244,32 @@ impl<'arena> Arena<'arena> {
         rhs: Term<'arena>,
         depth: usize,
     ) -> Term<'arena> {
-        match *lhs {
-            Var(i, _) if i == depth.into() => self.shift(rhs, depth - 1, 0),
-            Var(i, type_) if i > depth.into() => self.var(i - 1.into(), type_),
-            App(l, r) => {
-                let l = self.substitute(l, rhs, depth);
-                let r = self.substitute(r, rhs, depth);
-                self.app(l, r)
+        match self.mem_subst.get(&(lhs, rhs, depth.into())) {
+            Some(res) => *res,
+            None => {
+                let res = match *lhs {
+                    Var(i, _) if i == depth.into() => self.shift(rhs, depth - 1, 0),
+                    Var(i, type_) if i > depth.into() => self.var(i - 1.into(), type_),
+                    App(l, r) => {
+                        let l = self.substitute(l, rhs, depth);
+                        let r = self.substitute(r, rhs, depth);
+                        self.app(l, r)
+                    }
+                    Abs(arg_type, body) => {
+                        let arg_type = self.substitute(arg_type, rhs, depth);
+                        let body = self.substitute(body, rhs, depth + 1);
+                        self.abs(arg_type, body)
+                    }
+                    Prod(arg_type, body) => {
+                        let arg_type = self.substitute(arg_type, rhs, depth);
+                        let body = self.substitute(body, rhs, depth + 1);
+                        self.prod(arg_type, body)
+                    }
+                    _ => lhs,
+                };
+                self.mem_subst.insert((lhs, rhs, depth.into()), res);
+                res
             }
-            Abs(arg_type, body) => {
-                let arg_type = self.substitute(arg_type, rhs, depth);
-                let body = self.substitute(body, rhs, depth + 1);
-                self.abs(arg_type, body)
-            }
-            Prod(arg_type, body) => {
-                let arg_type = self.substitute(arg_type, rhs, depth);
-                let body = self.substitute(body, rhs, depth + 1);
-                self.prod(arg_type, body)
-            }
-            _ => lhs,
         }
     }
 
@@ -297,10 +313,7 @@ impl<'arena> Term<'arena> {
 
     pub fn is_redex(self) -> bool {
         match *self {
-            App(t, _) => match *t {
-                Abs(_, _) => true,
-                _ => false,
-            },
+            App(t, _) => matches!(*t, Abs(_, _)),
             _ => false,
         }
     }
@@ -324,7 +337,7 @@ impl<'arena> Deref for Term<'arena> {
 pub(crate) mod intern_build {
     use super::*;
 
-    pub(crate) trait Generator<'arena> = FnOnce(&mut Arena<'arena>) -> Term<'arena>;
+    pub trait Generator<'arena> = FnOnce(&mut Arena<'arena>) -> Term<'arena>;
 
     #[inline]
     pub fn prop<'arena>() -> impl Generator<'arena> {
@@ -401,7 +414,7 @@ pub mod extern_build {
             env.get(name)
                 .map(|(bind_depth, term)| {
                     let var_type = context.shift(*term, usize::from(depth - *bind_depth), 1);
-                     context.var(depth - *bind_depth, var_type)
+                    context.var(depth - *bind_depth, var_type)
                 })
                 .or_else(|| context.named_terms.get(name).copied())
                 .ok_or(Error {
