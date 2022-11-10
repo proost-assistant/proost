@@ -86,10 +86,10 @@ impl UniverseLevel {
             Some(n) => n.to_string(),
             None => match self {
                 Zero => unreachable!("Zero is a numeral"),
-                Succ(_) => match self.plus() {
-                    (u, 0) => u.pretty_print(),
-                    (u, n) => format!("{} + {}", u.pretty_print(), n),
-                },
+                Succ(_) => {
+                        let (u, n) = self.plus();
+                        format!("{} + {}", u.pretty_print(), n)
+                    },
                 Max(box n, box m) => format!("max ({}) ({})", n.pretty_print(), m.pretty_print()),
                 IMax(box n, box m) => format!("imax ({}) ({})", n.pretty_print(), m.pretty_print()),
                 Var(n) => format!("u{}", n),
@@ -181,6 +181,29 @@ impl UniverseLevel {
 mod tests {
     use crate::universe::UniverseLevel::*;
 
+
+    mod pretty_printing {
+        use crate::universe::UniverseLevel::*;
+
+        #[test]
+        fn to_num() {
+        assert_eq!(Max(box Succ(box Zero), box Zero).to_numeral(),Some(1));
+        assert_eq!(Max(box Succ(box Zero), box Succ(box Var(0))).to_numeral(),None);
+        assert_eq!(IMax(box Var(0),box Zero).to_numeral(),Some(0));
+        assert_eq!(IMax(box Zero,box Succ(box Zero)).to_numeral(),Some(1))
+        }
+
+        #[test]
+        fn to_plus() {
+        assert_eq!(Succ(box Zero).plus(),(Zero,1));
+        }
+
+        #[test]
+        fn to_pretty_print() {
+            assert_eq!(Max(box Succ(box Zero), box IMax(box Max(box Zero, box Var(0)), box Succ(box Var(0)))).pretty_print(), "max (1) (imax (max (0) (u0)) (u0 + 1))");
+        }
+    }
+
     #[test]
     fn univ_eq() {
         assert!(&Zero.is_eq(&Default::default()));
@@ -192,23 +215,24 @@ mod tests {
         assert!(!&Max(box Var(1), box Var(1)).is_eq(&Max(box Var(0), box Var(1))));
         assert!(&Succ(box Max(box Var(1), box Var(0)))
             .is_eq(&Max(box Succ(box Var(0)), box Succ(box Var(1)))));
-    }
+        assert!(&Max(box Zero, box IMax(box Zero, box Succ(box Zero))).is_eq(&IMax(box Succ(box Zero), box Max(box Zero, box Zero))));
+        }
 
     #[test]
     fn univ_vars_count() {
         assert_eq!(
-            Max(box Succ(box Zero), box Max(box Var(0), box Var(1))).univ_vars(),
+            IMax(box Zero,box Max(box Succ(box Zero), box Max(box Var(0), box Var(1)))).univ_vars(),
             2
         )
     }
 
     #[test]
     fn subst() {
-        let lvl = Max(box Succ(box Zero), box Max(box Var(0), box Var(1)));
+        let lvl = IMax(box Zero, box Max(box Succ(box Zero), box Max(box Var(0), box Var(1))));
         let subst = vec![Succ(box Zero), Zero];
         assert_eq!(
             lvl.substitute(&subst),
-            Max(box Succ(box Zero), box Max(box Succ(box Zero), box Zero))
+            IMax(box Zero, box Max(box Succ(box Zero), box Max(box Succ(box Zero), box Zero)))
         )
     }
 }
