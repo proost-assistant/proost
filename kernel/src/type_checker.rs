@@ -50,7 +50,7 @@ impl<'arena> Arena<'arena> {
     }
 
     /// Checks whether two terms are definitionally equal.
-    pub fn is_def_eq(&mut self, lhs: Term<'arena>, rhs: Term<'arena>) -> Result<()> {
+    pub fn is_def_eq(&mut self, lhs: Term<'arena>, rhs: Term<'arena>) -> Result<'arena, ()> {
         self.conversion(lhs, rhs).then_some(()).ok_or(Error {
             kind: TypeCheckerError::NotDefEq(lhs, rhs).into(),
         })
@@ -62,11 +62,11 @@ impl<'arena> Arena<'arena> {
             // Because Prop is impredicative, if B : Prop, then (x : A) -> B : Prop
             Prop => Ok(self.prop()),
 
-            Type(i) => match *lhs {
+            Type(ref i) => match *lhs {
                 Prop => Ok(self.type_(i.clone())),
 
                 // else if u1 = Type(i) and u2 = Type(j), then (x : A) -> B : Type(max(i,j))
-                Type(j) => Ok(self.type_(max(i, j).clone())),
+                Type(ref j) => Ok(self.type_(max(i, j).clone())),
 
                 _ => Err(Error {
                     kind: TypeCheckerError::NotUniverse(lhs).into(),
@@ -84,7 +84,7 @@ impl<'arena> Arena<'arena> {
         t.get_type_or_try_init(|| {
             match *t {
                 Prop => Ok(self.type_(BigUint::from(0_u64).into())),
-                Type(i) => Ok(self.type_(i.clone() + BigUint::from(1_u64).into())),
+                Type(ref i) => Ok(self.type_(i.clone() + BigUint::from(1_u64).into())),
                 Var(_, type_) => Ok(type_),
 
                 Prod(t, u) => {
@@ -137,11 +137,11 @@ impl<'arena> Arena<'arena> {
     }
 
     /// Checks whether a given term is of type `ty` in a given context.
-    pub fn check(&mut self, t: Term<'arena>, ty: Term<'arena>) -> Result<()> {
+    pub fn check(&mut self, t: Term<'arena>, ty: Term<'arena>) -> Result<'arena, ()> {
         let tty = self.infer(t)?;
 
         self.conversion(tty, ty).then_some(()).ok_or(Error {
-            kind: TypeCheckerError::TypeMismatch(tty, ty).into(),
+            kind: TypeCheckerError::<'arena>::TypeMismatch(tty, ty).into(),
         })
     }
 }
