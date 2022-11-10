@@ -154,14 +154,14 @@ elementary type theory:
 \begin{proost}
 // Construction of natural numbers
 def Nat :=
-(N: Type) -> (N -> N) -> N -> N
+  (N: Type) -> (N -> N) -> N -> N
 
-def z :=
-fun N:Type => fun f:(N -> N), x:N => x
+def z := fun N:Type =>
+  fun f:(N -> N), x:N => x
 check z : Nat
 
 def succ := fun n: Nat, N: Type =>
-fun f: (N -> N), x: N => n (N f x)
+  fun f: (N -> N), x: N => n (N f x)
 check succ : Nat -> Nat
 \end{proost}
 
@@ -214,6 +214,21 @@ The kernel manipulates \(\lambda\)-terms in the Calculus of Construction and is 
 \subsection{\etun Optimisation \members{ArA LTM}}
 Extra care must be put into designing an efficient memory management model for
 the kernel, along with satisfactory typing and reduction algorithms.
+
+In particular, the first iteration of the program manipulates directly terms on
+the heap, with no particular optimisation: every algorithm is applied soundly
+but naively.
+
+A first refactor of the memory model includes using a common memory location for
+terms, ensuring invariant like unicity of a term in memory, providing laziness
+and storing results of the most expensive functions \emph{(memoizing)}.
+This model also provides stronger isolation properties, preventing several
+memory pools (\emph{arena} is the technical term used in the project) from
+interacting with one another.
+
+This can
+be further extended with other invariants like ensuring every term in memory is
+in weak head normal form.
 
 \subsection{\etde Unification}
 Early versions of the tool may require the user to explicit every type at play.
