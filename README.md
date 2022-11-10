@@ -21,9 +21,7 @@ Please consider the syntax `nix develop --profile <a-file-of-your-choosing>`, wh
 graph TD;
   kernel-->tilleul;
   kernel-->parser;
-  kernel-->proost;
-  parser-->proost;
-  parser-->tilleul;
   parser-->tilleul; 
   parser-->proost;
+  kernel-->proost;
 ```
