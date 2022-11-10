@@ -3,8 +3,11 @@
 A simple proof assistant written in Rust.
 
 The specification of the project may be found [https://gitlab.crans.org/loutr/proost/-/blob/main/docs/specs.pdf](here).
+
 The documentation, generated with `rust-doc` may be found [https://perso.crans.org/v-lafeychine/proost/doc/proost/](here).
 
+### Usage 
+Please see the specification for insights on how to use proost and tilleul.
 
 ### Build and install
 With `nix` installed, type `nix build` to perform a build and have it in the nix store. One can also type `nix profile install` in the repo to install *proost* to one's profile and use it everywhere!
