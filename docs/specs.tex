@@ -149,7 +149,7 @@ tactics. As new features arrive from extensions of the kernel type theory, the
 
 Below is an overview of the syntax of the terms, both present and future. The syntax is strongly inspired by that of OCaml. Comments are defined using the keyword \texttt{//}.
 
-\vspace{1.5mm}
+\vspace{1.2mm}
 elementary type theory:
 \begin{proost}
 // Construction of natural numbers
@@ -161,7 +161,7 @@ def z := fun N:Type =>
 check z : Nat
 
 def succ := fun n: Nat, N: Type =>
-  fun f: (N -> N), x: N => n (N f x)
+  fun f: (N -> N), x: N => f (n N f x)
 check succ : Nat -> Nat
 \end{proost}
 
