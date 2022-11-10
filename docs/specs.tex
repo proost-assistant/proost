@@ -6,6 +6,7 @@
 \usepackage{listings}
 \usepackage{bussproofs} % proof tree
 \usepackage[dvipsnames]{xcolor}
+\usepackage{graphicx}
 \RequirePackage[a4paper, left=2cm, right=2cm, bottom=3cm, headsep=100pt]{geometry}
 \RequirePackage[small]{titlesec} % Taille des sections réduite
 \RequirePackage[pdfborderstyle={/S/U/W 0}]{hyperref} % Le paramètre retire les bordures autour des hyperliens
@@ -138,7 +139,7 @@ The \texttt{proost} tool is a simple proof assistant and does not provide any
 tactics. As new features arrive from extensions of the kernel type theory, the
 \emph{madelaine} language must provide convenient shorthands and notations. The syntax of commands is the following:
 \begin{itemize}
-  \item ¤import relative_path_to_file¤ typecheck and load the the file in the current environment;
+  \item \etun¤import relative_path_to_file¤ typecheck and load the the file in the current environment;
   \item ¤def a := t¤ defines an alias ¤a¤ that can be used in any following command;
   \item ¤def a : ty := t¤ defines an alias ¤a¤ that is checked to be of type ¤ty¤;
   \item ¤check u : t¤ verifies ¤u¤ has type ¤t¤;
@@ -161,40 +162,34 @@ fun f: (N -> N), x: N => f (n f x)
 check succ : Nat -> Nat
 \end{proost}
 
-Using universe polymorphism \etun:
+\etun universe polymorphism:
 \begin{proost}
 def foo.{i,j} : Type (max i j) + 1
 := Type i -> Type j
 \end{proost}
 
-Using unification \etde:
+\etde unification:
 \begin{proost}
 def comm := \/ x,y, x + y = y + x
 \end{proost}
 
-Using existential types \etde:
+\etde existential types:
 \begin{proost}
 def t := E n, n * n - n + 4 = 0
 \end{proost}
 
 
 \subsection{Toplevel  \members{AuA}}
-The \texttt{proost} command, when provided with no argument, is expected to behave like
-a toplevel, akin to \texttt{ocaml} or \texttt{coqtop}. There, user is greeted with a
-prompt and may enter commands of different kinds, for instance:
+The \texttt{proost} command, when provided with no argument, is expected to behave like a toplevel, akin to \texttt{ocaml} or \texttt{coqtop}. There, user is greeted with a prompt and may enter commands. When provided with existing file paths, ¤proost¤ intends to typecheck them in
+order, that is, reading them as successive inputs in the toplevel. Further features for this will include a more extended notion of ``modules'' where files may provides scopes.i
+{
+  \begin{center}
+    \fbox{\includegraphics{proost.png}}
+  \end{center}
+}
 
-Where terms are the ones permitted by the kernel expressivity.
-More shorthands may be provided later for user convenience.\\
-
-When provided with existing file paths, ¤proost¤ intends to typecheck them in
-order, that is, reading them as successive inputs in the toplevel. Further
-features for this will include a more extended notion of ``modules'', where files
-may provides scopes and refer to one another through the command:
-
-
-\subsection{\texorpdfstring{\(*\)}{*} LSP \members{VL}}
-The tool may provide an implementation of the Language Server Protocol in
-order to provide linting and feedback during an editing session.
+\subsection{\etun LSP \members{VL}}
+\texttt{tilleul} shall provide an implementation of the Language Server Protocol in order to provide linting and feedback during an editing session.
 
 
 \subsection{Kernel \members{all members}}
