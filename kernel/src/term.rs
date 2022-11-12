@@ -5,11 +5,13 @@ use num_bigint::BigUint;
 use crate::error::{Error, ResultTerm};
 use bumpalo::Bump;
 use im_rc::hashmap::HashMap as ImHashMap;
+use core::fmt;
 use std::cell::OnceCell;
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 use std::marker::PhantomData;
 use std::ops::Deref;
+use std::fmt::Debug;
 
 #[derive(
     Add, Copy, Clone, Debug, Default, Display, Eq, PartialEq, From, Into, Sub, PartialOrd, Ord, Hash,
@@ -18,6 +20,17 @@ pub struct DeBruijnIndex(usize);
 
 #[derive(Add, Clone, Debug, Default, Display, Eq, From, Sub, PartialEq, PartialOrd, Ord, Hash)]
 pub struct UniverseLevel(BigUint);
+
+struct LazyCell<'arena>(OnceCell<Term<'arena>>);
+
+impl<'arena> Debug for LazyCell<'arena> {
+   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+       match self.0.get() {
+           None => write!(f, "Unset"),
+            Some(_) => write!(f, "Set")
+        }
+    }
+}
 
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
@@ -36,20 +49,20 @@ pub struct Arena<'arena> {
     mem_subst: HashMap<(Term<'arena>, Term<'arena>, DeBruijnIndex), Term<'arena>>,
 }
 
-#[derive(Clone, Copy, Display, Eq, Debug)]
+#[derive(Clone, Copy, Display, Debug)]
 #[display(fmt = "{}", "_0.payload")]
 // PhantomData is a marker to ensure invariance over the 'arena lifetime.
 pub struct Term<'arena>(&'arena Node<'arena>, PhantomData<*mut &'arena ()>);
 
 // no name storage here: meaning consts are known and can be found, but no pretty printing is
 // possible so far.
-#[derive(Clone, Debug, Eq)]
+#[derive(Debug)]
 struct Node<'arena> {
     payload: Payload<'arena>,
     // free_vars: an efficient type to measure whether a term is closed
     // this can be added in future iterations
-    head_normal_form: OnceCell<Term<'arena>>,
-    type_: OnceCell<Term<'arena>>,
+    head_normal_form: LazyCell<'arena>,
+    type_: LazyCell<'arena>,
 }
 
 // binary maps are not used so far, because, upon building terms, no particular optimisation is
@@ -88,6 +101,8 @@ impl<'arena> PartialEq<Term<'arena>> for Term<'arena> {
     }
 }
 
+impl<'arena> Eq for Term<'arena> {}
+
 /// (TODO PRECISE DOCUMENTATION) make use of unicity invariant to speed up equality test
 impl<'arena> Hash for Term<'arena> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -100,6 +115,8 @@ impl<'arena> PartialEq<Node<'arena>> for Node<'arena> {
         self.payload == x.payload
     }
 }
+
+impl<'arena> Eq for Node<'arena> {}
 
 /// (TODO PRECISE DOCUMENTATION) Only the payload matters and caracterises the value. Changing
 /// OnceCells is *guaranteed* to have no impact on that.
@@ -141,8 +158,8 @@ impl<'arena> Arena<'arena> {
     fn hashcons(&mut self, n: Payload<'arena>) -> Term<'arena> {
         let nn = Node {
             payload: n,
-            head_normal_form: OnceCell::new(),
-            type_: OnceCell::new(),
+            head_normal_form: LazyCell(OnceCell::new()),
+            type_: LazyCell(OnceCell::new()),
         };
         match self.hashcons.get(&nn) {
             Some(addr) => Term(addr, PhantomData),
@@ -295,7 +312,7 @@ impl<'arena> Arena<'arena> {
 
     /// Returns the weak-head normal form of a term in a given environment.
     pub fn whnf(&mut self, t: Term<'arena>) -> Term<'arena> {
-        match *t {
+        t.get_whnf_or_init(|| match *t {
             App(t1, t2) => {
                 let t1 = self.whnf(t1);
                 match *t1 {
@@ -308,7 +325,7 @@ impl<'arena> Arena<'arena> {
                 }
             }
             _ => t,
-        }
+        })
     }
 }
 
@@ -317,11 +334,18 @@ impl<'arena> Term<'arena> {
         move |_: &mut Arena<'arena>| self
     }
 
-    pub fn get_type_or_try_init<F>(self, f: F) -> ResultTerm<'arena>
+    pub(crate) fn get_whnf_or_init<F>(self, f: F) -> Term<'arena>
+    where
+        F: FnOnce() -> Term<'arena>,
+    {
+        *self.0.head_normal_form.0.get_or_init(f)
+    }
+
+    pub(crate) fn get_type_or_try_init<F>(self, f: F) -> ResultTerm<'arena>
     where
         F: FnOnce() -> ResultTerm<'arena>,
     {
-        self.0.type_.get_or_try_init(f).copied()
+        self.0.type_.0.get_or_try_init(f).copied()
     }
 }
 
@@ -712,6 +736,15 @@ mod tests {
             ));
 
             assert_eq!(arena.beta_reduction(term), reduced);
+        })
+    }
+
+    #[test]
+    fn whnf_lazy() {
+        use_arena(|arena| {
+            let term = arena.prop();
+            arena.whnf(term);
+            println!("{term:?}")
         })
     }
 }
