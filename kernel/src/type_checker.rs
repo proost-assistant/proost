@@ -39,9 +39,7 @@ impl<'arena> Arena<'arena> {
     ///
     /// The conversion is untyped, meaning that it should **only** be called during type-checking when the two `Term`s are already known to be of the same type and in the same context.
     fn conversion(&mut self, lhs: Term<'arena>, rhs: Term<'arena>) -> bool {
-        let lhs = self.whnf(lhs);
-        let rhs = self.whnf(rhs);
-        lhs == rhs
+        self.whnf(lhs) == self.whnf(rhs)
 
         // TODO: Unused code (#34)
         // (app @ App(Abs(_, _), _), u) | (u, app @ App(Abs(_, _), _)) => {
@@ -56,7 +54,7 @@ impl<'arena> Arena<'arena> {
         })
     }
 
-    /// Computes universe the universe in which `(x : A) -> B` lives when `A : u1` and `B : u2`.
+    /// Computes the universe in which `(x: A) -> B` lives when `A: lhs` and `B: rhs`.
     fn imax(&mut self, lhs: Term<'arena>, rhs: Term<'arena>) -> ResultTerm<'arena> {
         match *rhs {
             // Because Prop is impredicative, if B : Prop, then (x : A) -> B : Prop
@@ -83,7 +81,7 @@ impl<'arena> Arena<'arena> {
     pub fn infer(&mut self, t: Term<'arena>) -> ResultTerm<'arena> {
         t.get_type_or_try_init(|| {
             match *t {
-                Prop => Ok(self.type_(BigUint::from(0_u64).into())),
+                Prop => Ok(self.type_usize(0)),
                 Type(ref i) => Ok(self.type_(i.clone() + BigUint::from(1_u64).into())),
                 Var(_, type_) => Ok(type_),
 
@@ -92,20 +90,22 @@ impl<'arena> Arena<'arena> {
                     let univ_u = self.infer(u)?;
 
                     // TODO: lax normalization to whnf once it is itself laxed (#34)
-                    let univ_u = self.normal_form(univ_u);
                     let univ_t = self.normal_form(univ_t);
-                    self.imax(univ_u, univ_t)
+                    let univ_u = self.normal_form(univ_u);
+                    self.imax(univ_t, univ_u)
                 }
 
                 Abs(t, u) => {
                     let type_t = self.infer(t)?;
-                    if !matches!(*type_t, Type(_) | Prop) {
-                        return Err(Error {
+                    match *type_t {
+                        Type(_) | Prop => {
+                            let type_u = self.infer(u)?;
+                            Ok(self.prod(t, type_u))
+                        }
+                        _ => Err(Error {
                             kind: TypeCheckerError::NotUniverse(type_t).into(),
-                        });
+                        }),
                     }
-                    let type_u = self.infer(u)?;
-                    Ok(self.prod(t, type_u))
                 }
 
                 App(t, u) => {
@@ -141,7 +141,7 @@ impl<'arena> Arena<'arena> {
         let tty = self.infer(t)?;
 
         self.conversion(tty, ty).then_some(()).ok_or(Error {
-            kind: TypeCheckerError::<'arena>::TypeMismatch(tty, ty).into(),
+            kind: TypeCheckerError::TypeMismatch(tty, ty).into(),
         })
     }
 }
@@ -198,8 +198,8 @@ mod tests {
     #[test]
     fn failed_def_equal() {
         use_arena(|arena| {
-            let term_lhs = arena.build(prop());
-            let term_rhs = arena.build(type_(BigUint::from(0_u64).into()));
+            let term_lhs = arena.prop();
+            let term_rhs = arena.type_usize(0);
 
             assert_eq!(
                 arena.is_def_eq(term_lhs, term_rhs),
@@ -213,7 +213,7 @@ mod tests {
     #[test]
     fn failed_prod_binder_conversion() {
         use_arena(|arena| {
-            let type_0 = arena.build(type_(BigUint::from(0_u64).into()));
+            let type_0 = arena.type_usize(0);
 
             let term_lhs = arena.build(prod(prop(), prop()));
             let term_rhs = arena.build(prod(type_0.into(), prop()));
@@ -230,7 +230,7 @@ mod tests {
     #[test]
     fn failed_app_head_conversion() {
         use_arena(|arena| {
-            let type_0 = arena.build(type_(BigUint::from(0_u64).into()));
+            let type_0 = arena.type_usize(0);
             let term_lhs = arena.build(abs(
                 type_0.into(),
                 abs(type_0.into(), app(var(1.into(), prop()), prop())),
@@ -253,7 +253,7 @@ mod tests {
     #[test]
     fn typed_reduction_app_1() {
         use_arena(|arena| {
-            let type_0 = arena.build(type_(BigUint::from(0_u64).into()));
+            let type_0 = arena.type_usize(0);
             let term = arena.build(app(
                 abs(type_0.into(), var(1.into(), type_0.into())),
                 prop(),
@@ -363,8 +363,8 @@ mod tests {
     #[test]
     fn typed_reduction_universe() {
         use_arena(|arena| {
-            let type_0 = arena.build(type_(BigUint::from(0_u64).into()));
-            let type_1 = arena.build(type_(BigUint::from(1_u64).into()));
+            let type_0 = arena.type_usize(0);
+            let type_1 = arena.type_usize(1);
 
             let term = arena.build(app(
                 abs(prop(), type_0.into()),
@@ -382,11 +382,12 @@ mod tests {
     #[test]
     fn escape_from_prop() {
         use_arena(|arena| {
-            let type_0 = arena.build(type_(BigUint::from(0_u64).into()));
+            let type_0 = arena.type_usize(0);
+            let type_1 = arena.type_usize(1);
             let term = arena.build(abs(prop(), prod(var(1.into(), prop()), type_0.into())));
 
             let term_type = arena.infer(term).unwrap();
-            let expected_type = arena.build(prod(prop(), type_(BigUint::from(1_u64).into())));
+            let expected_type = arena.build(prod(prop(), type_1.into()));
             assert_eq!(term_type, expected_type);
             assert!(arena.check(term, term_type).is_ok())
         })
@@ -420,7 +421,7 @@ mod tests {
     #[test]
     fn typed_prod_1() {
         use_arena(|arena| {
-            let type_0 = arena.build(type_(BigUint::from(0_u64).into()));
+            let type_0 = arena.type_usize(0);
             let term = arena.build(prod(prop(), prop()));
             let term_type = arena.infer(term).unwrap();
 
@@ -461,7 +462,7 @@ mod tests {
     #[test]
     fn typed_polymorphism() {
         use_arena(|arena| {
-            let type_0 = arena.build(type_(BigUint::from(0_u64).into()));
+            let type_0 = arena.type_usize(0);
 
             let identity = arena.build(abs(
                 type_0.into(),

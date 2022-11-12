@@ -22,7 +22,7 @@ pub struct UniverseLevel(BigUint);
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum DefinitionError<'arena> {
-    #[display(fmt = "unknown constant {}", _0)]
+    #[display(fmt = "unknown identifiant {}", _0)]
     ConstNotFound(&'arena str),
 }
 
@@ -43,7 +43,7 @@ pub struct Term<'arena>(&'arena Node<'arena>, PhantomData<*mut &'arena ()>);
 
 // no name storage here: meaning consts are known and can be found, but no pretty printing is
 // possible so far.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Eq)]
 struct Node<'arena> {
     payload: Payload<'arena>,
     // free_vars: an efficient type to measure whether a term is closed
@@ -92,6 +92,12 @@ impl<'arena> PartialEq<Term<'arena>> for Term<'arena> {
 impl<'arena> Hash for Term<'arena> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         std::ptr::hash(self.0, state)
+    }
+}
+
+impl<'arena> PartialEq<Node<'arena>> for Node<'arena> {
+    fn eq(&self, x: &Node<'arena>) -> bool {
+        self.payload == x.payload
     }
 }
 
@@ -311,13 +317,6 @@ impl<'arena> Term<'arena> {
         move |_: &mut Arena<'arena>| self
     }
 
-    pub fn is_redex(self) -> bool {
-        match *self {
-            App(t, _) => matches!(*t, Abs(_, _)),
-            _ => false,
-        }
-    }
-
     pub fn get_type_or_try_init<F>(self, f: F) -> ResultTerm<'arena>
     where
         F: FnOnce() -> ResultTerm<'arena>,
@@ -410,13 +409,13 @@ pub mod extern_build {
 
     #[inline]
     pub fn var<'arena>(name: &'arena str) -> impl Generator<'arena> {
-        move |context: &mut Arena<'arena>, env: &Environment<'arena>, depth| {
+        move |arena: &mut Arena<'arena>, env: &Environment<'arena>, depth| {
             env.get(name)
                 .map(|(bind_depth, term)| {
-                    let var_type = context.shift(*term, usize::from(depth - *bind_depth), 1);
-                    context.var(depth - *bind_depth, var_type)
+                    let var_type = arena.shift(*term, usize::from(depth - *bind_depth), 1);
+                    arena.var(depth - *bind_depth, var_type)
                 })
-                .or_else(|| context.named_terms.get(name).copied())
+                .or_else(|| arena.named_terms.get(name).copied())
                 .ok_or(Error {
                     kind: DefinitionError::ConstNotFound(name).into(),
                 })
@@ -425,12 +424,12 @@ pub mod extern_build {
 
     #[inline]
     pub fn prop<'arena>() -> impl Generator<'arena> {
-        |context: &mut Arena<'arena>, _: &Environment<'arena>, _| Ok(context.prop())
+        |arena: &mut Arena<'arena>, _: &Environment<'arena>, _| Ok(arena.prop())
     }
 
     #[inline]
     pub fn type_<'arena>(level: UniverseLevel) -> impl Generator<'arena> {
-        move |context: &mut Arena<'arena>, _: &Environment<'arena>, _| Ok(context.type_(level))
+        move |arena: &mut Arena<'arena>, _: &Environment<'arena>, _| Ok(arena.type_(level))
     }
 
     #[inline]
@@ -438,10 +437,10 @@ pub mod extern_build {
         u1: F1,
         u2: F2,
     ) -> impl Generator<'arena> {
-        |context: &mut Arena<'arena>, env: &Environment<'arena>, depth| {
-            let u1 = u1(context, env, depth)?;
-            let u2 = u2(context, env, depth)?;
-            Ok(context.app(u1, u2))
+        |arena: &mut Arena<'arena>, env: &Environment<'arena>, depth| {
+            let u1 = u1(arena, env, depth)?;
+            let u2 = u2(arena, env, depth)?;
+            Ok(arena.app(u1, u2))
         }
     }
 
@@ -451,11 +450,11 @@ pub mod extern_build {
         arg_type: F1,
         body: F2,
     ) -> impl Generator<'arena> {
-        move |context: &mut Arena<'arena>, env: &Environment<'arena>, depth| {
-            let arg_type = arg_type(context, env, depth)?;
-            let env = env.update(name, (depth + 1.into(), arg_type));
-            let body = body(context, &env, depth)?;
-            Ok(context.abs(arg_type, body))
+        move |arena: &mut Arena<'arena>, env: &Environment<'arena>, depth| {
+            let arg_type = arg_type(arena, env, depth)?;
+            let env = env.update(name, (depth, arg_type));
+            let body = body(arena, &env, depth + 1.into())?;
+            Ok(arena.abs(arg_type, body))
         }
     }
 
@@ -465,11 +464,11 @@ pub mod extern_build {
         arg_type: F1,
         body: F2,
     ) -> impl Generator<'arena> {
-        move |context: &mut Arena<'arena>, env: &Environment<'arena>, depth| {
-            let arg_type = arg_type(context, env, depth)?;
-            let env = env.update(name, (depth + 1.into(), arg_type));
-            let body = body(context, &env, depth)?;
-            Ok(context.prod(arg_type, body))
+        move |arena: &mut Arena<'arena>, env: &Environment<'arena>, depth| {
+            let arg_type = arg_type(arena, env, depth)?;
+            let env = env.update(name, (depth, arg_type));
+            let body = body(arena, &env, depth + 1.into())?;
+            Ok(arena.prod(arg_type, body))
         }
     }
 }
