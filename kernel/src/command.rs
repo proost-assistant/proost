@@ -1,6 +1,5 @@
 use crate::error::Result;
-use crate::term::Arena;
-use crate::term::Term;
+use crate::{Arena, Term};
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Command<'arena> {

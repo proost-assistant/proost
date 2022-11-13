@@ -4,7 +4,7 @@ use derive_more::Display;
 use num_bigint::BigUint;
 
 use crate::error::{Error, Result, ResultTerm};
-use crate::term::{Arena, Payload, Term};
+use crate::term::arena::{Arena, Payload, Term};
 use Payload::*;
 
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
@@ -174,10 +174,10 @@ impl<'arena> Arena<'arena> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::term::intern_build::*;
-    use crate::term::use_arena;
+    use crate::term::builders::intern::*;
+    use crate::use_arena;
 
-    fn id<'arena>() -> impl Generator<'arena> {
+    fn id<'arena>() -> impl Builder<'arena> {
         abs(prop(), var(1.into(), prop()))
     }
 
@@ -297,7 +297,7 @@ mod tests {
     // this test uses more intricate terms. In order to preserve some readibility,
     // switching to extern_build, which is clearer.
     fn typed_reduction_app_2() {
-        use crate::term::extern_build::*;
+        use crate::term::builders::extern_::*;
         use_arena(|arena| {
             // (λa.λb.λc.a (λd.λe.e (d b)) (λ_.c) (λd.d)) (λf.λg.f g)
             let term = arena

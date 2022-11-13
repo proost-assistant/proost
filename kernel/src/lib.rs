@@ -6,9 +6,10 @@
 mod command;
 mod error;
 mod location;
-pub mod term;
+mod term;
 mod type_checker;
 
 pub use self::command::Command;
 pub use self::location::{Location, Position};
-pub use self::term::Term;
+pub use self::term::arena::{use_arena, Arena, Term};
+pub use self::term::builders::extern_ as builders;

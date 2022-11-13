@@ -1,6 +1,8 @@
-use crate::term::{DefinitionError, Term};
-use crate::type_checker::TypeCheckerError;
 use derive_more::{Display, From};
+
+use crate::term::arena::Term;
+use crate::term::builders::extern_::DefinitionError;
+use crate::type_checker::TypeCheckerError;
 
 /// Type representing kernel errors.
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
