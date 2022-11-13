@@ -1,10 +1,6 @@
-#![feature(box_syntax)]
-
+use kernel::builders::*;
 use kernel::Command::*;
-
-use kernel::term::extern_build::*;
-use kernel::term::use_arena;
-use kernel::term::Arena;
+use kernel::{use_arena, Arena};
 
 fn use_and_arena<F, T>(f: F) -> T
 where
