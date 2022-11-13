@@ -107,6 +107,17 @@ impl UniverseLevel {
         }
     }
 
+    fn substitute_single(self, var : usize, u : UniverseLevel) -> UniverseLevel {
+        match self {
+            Zero => Zero,
+            Succ(n) => Succ(box n.substitute_single(var, u.clone())),
+            Max(n, m) => Max(box n.substitute_single(var, u.clone()), box m.substitute_single(var, u)),
+            IMax(n, m) => IMax(box n.substitute_single(var, u.clone()), box m.substitute_single(var, u)),
+            Var(n) => if n == var { u } else { Var(n) },
+        }
+    }
+
+
     pub fn substitute(self, univs: &[UniverseLevel]) -> Self {
         match self {
             Zero => Zero,
@@ -117,58 +128,61 @@ impl UniverseLevel {
         }
     }
 
+    /// Helper function for universe comparison. normalizes imax(es) as follows:
+    /// imax(0, u) = u
+    /// imax(u, 0) = u
+    /// imax(u, S(v)) = max(u, S(v))
+    /// imax(u, imax(v, w)) = max(imax(u, w), imax(v, w))
+    /// imax(u, max(v, w)) = max(imax(u, v), imax(u, w))
+    /// 
+    /// Here, the imax normalization pushes imaxes to all have a Var(i) as the second argument. To solve this last case, one needs to substitute 
+    /// Var(i) with 0 and S(Var(i)). This gives us a consistent way to unstuck the geq-checking.
+    fn normalize(&self) -> Self {
+        match self {
+            IMax(box Zero, box u) => u.clone(),
+            IMax(_ , box Zero) => Zero,
+            IMax(box u, box Succ(v)) => Max(box u.normalize(), box Succ(v.clone())).normalize(),
+            IMax(box u, box IMax(box v, box w)) => {
+                Max(box IMax(box u.clone(), box w.clone()).normalize(),
+                    box IMax(box v.clone(), box w.clone()).normalize())
+            }
+            IMax(box u, box Max(box v, box w)) => {
+                Max(box IMax(box u.clone(), box v.clone()).normalize(),
+                    box IMax(box u.clone(), box w.clone()).normalize())
+            }
+            _ => self.clone(),
+        }
+    }
+
+
+    // checks whether u1 <= u2 + n
+    // In a case where comparison is stuck because of a variable Var(i), it checks whether the test is correct when Var(i) is substituted for
+    // 0 and S(Var(i)).
+    // returns:
+    // -   (true,0) if u1 <= u2 + n,
+    // -   (false,0) if !(u1 <= u2 + n),
+    // -   (false,i+1) if Var(i) needs to be substituted to unstuck the comparison.
+    fn geq_no_subst(&self, u2: &UniverseLevel, n: i64) -> (bool,usize) {
+        match (self.normalize(), u2.normalize()) {
+            (Zero, _) if n >= 0 => (true,0),
+            (_, _) if *self == *u2 && n >= 0 => (true,0),
+            (Succ(l), _) if l.geq_no_subst(u2, n - 1).0 => (true,0),
+            (_, Succ(box l)) if self.geq_no_subst(&l, n + 1).0 => (true,0),
+            (_, Max(box l1, box l2)) if self.geq_no_subst(&l1, n).0 || self.geq_no_subst(&l2, n).0 => (true,0),
+            (Max(box l1, box l2), _) if l1.geq_no_subst(u2, n).0 && l2.geq_no_subst(u2, n).0 => (true,0),
+            (_,IMax(_, box Var(i))) | (IMax(_, box Var(i)),_) => (false,i+1),
+            _ => (false,0),
+        }
+    }
+
     fn geq(&self, u2: &UniverseLevel, n: i64) -> bool {
-        match (self, u2) {
-            (Zero, _) if n >= 0 => true,
-            (_, _) if self == u2 && n >= 0 => true,
-            (Succ(l), _) if l.geq(u2, n - 1) => true,
-            (_, Succ(box l)) if self.geq(l, n + 1) => true,
-            (_, Max(box l1, box l2)) if self.geq(l1, n) || self.geq(l2, n) => true,
-            (Max(box l1, box l2), _) if l1.geq(u2, n) && l2.geq(u2, n) => true,
-            (IMax(_, box Zero), l) if Zero.geq(l, n) => true,
-            (IMax(l1, box Succ(l2)), l) if Max(l1.clone(), box Succ(l2.clone())).geq(l, n) => true,
-            (l, IMax(l1, box Succ(l2))) if l.geq(&Max(l1.clone(), box Succ(l2.clone())), n) => true,
-            (Max(l1, box IMax(l2, l3)), l)
-                if Max(
-                    box IMax(l1.clone(), l3.clone()),
-                    box IMax(l2.clone(), l3.clone()),
-                )
-                .geq(l, n) =>
-            {
-                true
+        match self.geq_no_subst(u2, n) {
+            (true,_) => true,
+            (false,0) => false,
+            (false,i) => {
+                self.clone().substitute_single(i-1,Zero).geq(&u2.clone().substitute_single(i-1,Zero), n) &&
+                self.clone().substitute_single(i-1,Succ(box Var(i-1))).geq(&u2.clone().substitute_single(i-1,Succ(box Var(i-1))), n)
             }
-            (l, IMax(l1, box IMax(l2, l3)))
-                if l.geq(
-                    &Max(
-                        box IMax(l1.clone(), l3.clone()),
-                        box IMax(l2.clone(), l3.clone()),
-                    ),
-                    n,
-                ) =>
-            {
-                true
-            }
-            (IMax(l1, box Max(l2, l3)), l)
-                if Max(
-                    box IMax(l1.clone(), l2.clone()),
-                    box IMax(l1.clone(), l3.clone()),
-                )
-                .geq(l, n) =>
-            {
-                true
-            }
-            (l, IMax(l1, box Max(l2, l3)))
-                if l.geq(
-                    &Max(
-                        box IMax(l1.clone(), l2.clone()),
-                        box IMax(l1.clone(), l3.clone()),
-                    ),
-                    n,
-                ) =>
-            {
-                true
-            }
-            _ => false,
         }
     }
 
@@ -215,8 +229,10 @@ mod tests {
         assert!(!&Max(box Var(1), box Var(1)).is_eq(&Max(box Var(0), box Var(1))));
         assert!(&Succ(box Max(box Var(1), box Var(0)))
             .is_eq(&Max(box Succ(box Var(0)), box Succ(box Var(1)))));
-        assert!(&Max(box Zero, box IMax(box Zero, box Succ(box Zero))).is_eq(&IMax(box Succ(box Zero), box Max(box Zero, box Zero))));
-        }
+        assert!(&Max(box Zero, box IMax(box Zero, box Max(box Succ(box Zero), box Zero))).is_eq(&IMax(box Succ(box Zero), box IMax(box Succ(box Zero), box Succ(box Zero)))));
+        assert!(&Var(0).is_eq(&IMax(box Var(0), box Var(0))));
+    }
+        
 
     #[test]
     fn univ_vars_count() {
