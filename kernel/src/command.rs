@@ -21,7 +21,7 @@ impl<'arena> Command<'arena> {
             }
 
             Command::Define(s, Some(t), term) => {
-                env.check(t, term)?;
+                env.check(term, t)?;
                 env.bind(s, term);
                 Ok(None)
             }

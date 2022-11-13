@@ -20,7 +20,7 @@ where
             .is_none());
 
         let true_ = arena
-            .build_from_extern(prod("_", var("FALSE"), var("FALSE")))
+            .build_from_extern(prod("_", var("False"), var("False")))
             .unwrap();
         assert!(Define("True", None, true_)
             .process(arena)
@@ -34,7 +34,7 @@ where
                 abs(
                     "B",
                     prop(),
-                    abs(
+                    prod(
                         "C",
                         prop(),
                         prod(
@@ -74,7 +74,7 @@ fn and_true_true() {
                 prop(),
                 abs(
                     "b",
-                    prod("_", var("True"), prod("_", var("True"), var("b"))),
+                    prod("_", var("True"), prod("_", var("True"), var("a"))),
                     app(app(var("b"), var("hyp")), var("hyp")),
                 ),
             ))

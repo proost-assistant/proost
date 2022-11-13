@@ -1,8 +1,10 @@
-use crate::error::{Error, Result, ResultTerm};
-use crate::term::{Arena, Payload, Term};
+use std::cmp::max;
+
 use derive_more::Display;
 use num_bigint::BigUint;
-use std::cmp::max;
+
+use crate::error::{Error, Result, ResultTerm};
+use crate::term::{Arena, Payload, Term};
 use Payload::*;
 
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
@@ -21,9 +23,9 @@ pub enum TypeCheckerError<'arena> {
     #[display(fmt = "{} and {} are not definitionaly equal", _0, _1)]
     NotDefEq(Term<'arena>, Term<'arena>),
 
-    /// f of type t1 cannot be applied to x of type t2
-    #[display(fmt = "{} cannot be applied to {}", _0, _1)]
-    WrongArgumentType(TypedTerm<'arena>, TypedTerm<'arena>),
+    /// function f expected a t, received x: t'
+    #[display(fmt = "function {} expects a term of type {}, received {}", _0, _1, _2)]
+    WrongArgumentType(Term<'arena>, Term<'arena>, TypedTerm<'arena>),
 
     /// t1 of type ty is not a function so cannot be applied to t2
     #[display(fmt = "{} is not a function, it cannot be applied to {}", _0, _1)]
@@ -39,7 +41,28 @@ impl<'arena> Arena<'arena> {
     ///
     /// The conversion is untyped, meaning that it should **only** be called during type-checking when the two `Term`s are already known to be of the same type and in the same context.
     fn conversion(&mut self, lhs: Term<'arena>, rhs: Term<'arena>) -> bool {
-        self.whnf(lhs) == self.whnf(rhs)
+        lhs == rhs
+            || match (&*self.whnf(lhs), &*self.whnf(rhs)) {
+                (&Prop, &Prop) => true,
+
+                (&Type(ref i), &Type(ref j)) => i == j,
+
+                (&Var(i, _), &Var(j, _)) => i == j,
+
+                (&Prod(t1, u1), &Prod(t2, u2)) => {
+                    self.conversion(t1, t2) && self.conversion(u1, u2)
+                }
+
+                // Since we assume that both vals already have the same type,
+                // checking conversion over the argument type is useless.
+                // However, this doesn't mean we can simply remove the arg type
+                // from the type constructor in the enum, it is needed to quote back to terms.
+                (&Abs(_, t), &Abs(_, u)) => self.conversion(t, u),
+
+                (&App(t1, u1), &App(t2, u2)) => self.conversion(t1, t2) && self.conversion(u1, u2),
+
+                _ => false,
+            }
 
         // TODO: Unused code (#34)
         // (app @ App(Abs(_, _), _), u) | (u, app @ App(Abs(_, _), _)) => {
@@ -110,6 +133,7 @@ impl<'arena> Arena<'arena> {
 
                 App(t, u) => {
                     let type_t = self.infer(t)?;
+                    let type_t = self.whnf(type_t);
                     match *type_t {
                         Prod(arg_type, cls) => {
                             let type_u = self.infer(u)?;
@@ -119,7 +143,8 @@ impl<'arena> Arena<'arena> {
                             } else {
                                 Err(Error {
                                     kind: TypeCheckerError::WrongArgumentType(
-                                        TypedTerm(t, type_t),
+                                        t,
+                                        arg_type,
                                         TypedTerm(u, type_u),
                                     )
                                     .into(),
@@ -269,92 +294,93 @@ mod tests {
     }
 
     #[test]
+    // this test uses more intricate terms. In order to preserve some readibility,
+    // switching to extern_build, which is clearer.
     fn typed_reduction_app_2() {
+        use crate::term::extern_build::*;
         use_arena(|arena| {
-            let id = arena.build(id());
-
-            // a: ((P → P) → (P → P) → P) → ((P → P) → ((P → P) → P))
-            let type_a = arena.build(prod(
-                // (P → P) → ((P → P) → P)
-                prod(
-                    // P -> P
-                    prod(prop(), prop()),
-                    // (P -> P) -> P
-                    prod(prod(prop(), prop()), prop()),
-                ),
-                // (P → P) → ((P → P) → P)
-                prod(
-                    // P -> P
-                    prod(prop(), prop()),
-                    // (P -> P) -> P
-                    prod(prod(prop(), prop()), prop()),
-                ),
-            ));
-
-            // f: (P -> P) -> (P -> P) -> P
-            let type_f = arena.build(prod(
-                prod(prop(), prop()),
-                prod(prod(prop(), prop()), prop()),
-            ));
-
             // (λa.λb.λc.a (λd.λe.e (d b)) (λ_.c) (λd.d)) (λf.λg.f g)
-            let term = arena.build(app(
-                abs(
-                    type_a.into(),
+            let term = arena
+                .build_from_extern(app(
                     abs(
-                        // b : P
-                        prop(),
+                        "a",
+                        // a: ((P → P) → (P → P) → P) → ((P → P) → ((P → P) → P))
+                        prod(
+                            "_",
+                            // (P → P) → ((P → P) → P)
+                            prod(
+                                "_",
+                                // P -> P
+                                prod("_", prop(), prop()),
+                                // (P -> P) -> P
+                                prod("_", prod("_", prop(), prop()), prop()),
+                            ),
+                            // (P → P) → ((P → P) → P)
+                            prod(
+                                "_",
+                                // P -> P
+                                prod("_", prop(), prop()),
+                                // (P -> P) -> P
+                                prod("_", prod("_", prop(), prop()), prop()),
+                            ),
+                        ),
                         abs(
-                            // c : P
+                            "b",
                             prop(),
-                            app(
+                            abs(
+                                "c",
+                                prop(),
                                 app(
                                     app(
-                                        var(3.into(), type_a.into()),
-                                        abs(
-                                            // d : P -> P
-                                            prod(prop(), prop()),
+                                        app(
+                                            var("a"),
                                             abs(
-                                                // e : P -> P
-                                                prod(prop(), prop()),
-                                                app(
-                                                    var(1.into(), prod(prop(), prop())),
-                                                    app(
-                                                        var(2.into(), prod(prop(), prop())),
-                                                        var(4.into(), prop()),
-                                                    ),
+                                                "d",
+                                                prod("_", prop(), prop()),
+                                                abs(
+                                                    "e",
+                                                    prod("_", prop(), prop()),
+                                                    app(var("e"), app(var("d"), var("b"))),
                                                 ),
                                             ),
                                         ),
+                                        // _ : P
+                                        abs("_", prop(), var("c")),
                                     ),
-                                    // _ : P
-                                    abs(prop(), var(2.into(), prop())),
+                                    // d : P
+                                    abs("d", prop(), var("d")),
                                 ),
-                                // d : P
-                                id.into(),
                             ),
                         ),
                     ),
-                ),
-                abs(
-                    type_f.into(),
+                    // f: (P -> P) -> (P -> P) -> P
                     abs(
-                        // g: P -> P
-                        prod(prop(), prop()),
-                        app(
-                            var(2.into(), type_f.into()),
-                            var(1.into(), prod(prop(), prop())),
+                        "f",
+                        prod(
+                            "_",
+                            prod("_", prop(), prop()),
+                            prod("_", prod("_", prop(), prop()), prop()),
+                        ),
+                        abs(
+                            "g",
+                            // g: P -> P
+                            prod("_", prop(), prop()),
+                            app(var("f"), var("g")),
                         ),
                     ),
-                ),
-            ));
+                ))
+                .unwrap();
 
             // λa: P. λb: P. b
-            let reduced = arena.build(abs(prop(), id.into()));
+            let reduced = arena
+                .build_from_extern(abs("_", prop(), abs("x", prop(), var("x"))))
+                .unwrap();
             assert!(arena.is_def_eq(term, reduced).is_ok());
 
             let term_type = arena.infer(term).unwrap();
-            let expected_type = arena.build(prod(prop(), prop()));
+            let expected_type = arena
+                .build_from_extern(prod("_", prop(), prod("_", prop(), prop())))
+                .unwrap();
             assert_eq!(term_type, expected_type);
             assert!(arena.check(term, term_type).is_ok())
         })
@@ -368,7 +394,7 @@ mod tests {
 
             let term = arena.build(app(
                 abs(prop(), type_0.into()),
-                prod(prop(), var(1.into(), type_0.into())),
+                prod(prop(), var(1.into(), prop())),
             ));
 
             assert!(arena.is_def_eq(term, type_0).is_ok());
@@ -396,8 +422,8 @@ mod tests {
     #[test]
     fn illtyped_reduction() {
         use_arena(|arena| {
-            // λ (x : P -> P).(λ (y :P).x y) x
-            // λ P -> P.(λ P.2 1) 1
+            // λ(x: P -> P).(λ(y: P).x y) x
+            // λP -> P.(λP.2 1) 1
             let term = arena.build(abs(
                 prod(prop(), prop()),
                 app(
@@ -405,7 +431,7 @@ mod tests {
                         prop(),
                         app(var(2.into(), prod(prop(), prop())), var(1.into(), prop())),
                     ),
-                    var(1.into(), prop()),
+                    var(1.into(), prod(prop(), prop())),
                 ),
             ));
 
@@ -414,6 +440,7 @@ mod tests {
                 prop(),
                 app(var(1.into(), prop()), var(1.into(), prop())),
             ));
+
             assert!(arena.is_def_eq(term, reduced).is_ok())
         })
     }
@@ -451,7 +478,7 @@ mod tests {
             let term_type = arena.infer(term).unwrap();
             let expected_type = arena.build(prod(
                 prop(),
-                prod(var(1.into(), prop()), var(2.into(), var(1.into(), prop()))),
+                prod(var(1.into(), prop()), var(2.into(), prop())),
             ));
 
             assert_eq!(term_type, expected_type);
@@ -471,14 +498,12 @@ mod tests {
                     var(1.into(), var(2.into(), type_0.into())),
                 ),
             ));
+
+            let identity_type = arena.infer(identity).unwrap();
             let expected_type = arena.build(prod(
                 type_0.into(),
-                abs(
-                    var(1.into(), type_0.into()),
-                    var(1.into(), var(2.into(), type_0.into())),
-                ),
+                prod(var(1.into(), type_0.into()), var(2.into(), type_0.into())),
             ));
-            let identity_type = arena.infer(identity).unwrap();
 
             assert_eq!(identity_type, expected_type);
             assert!(arena.check(identity, identity_type).is_ok());
@@ -653,8 +678,8 @@ mod tests {
         #[test]
         fn wrong_argument_type() {
             use_arena(|arena| {
-                // λ (x : P -> P).(λ (y :P).x y) x
-                // λ P -> P.(λ P.2 1) 1
+                // λ(x: P -> P).(λ(y: P).x y) x
+                // λP -> P.(λP.2 1) 1
                 let term = arena.build(abs(
                     prod(prop(), prop()),
                     app(
@@ -662,7 +687,7 @@ mod tests {
                             prop(),
                             app(var(2.into(), prod(prop(), prop())), var(1.into(), prop())),
                         ),
-                        var(1.into(), prop()),
+                        var(1.into(), prod(prop(), prop())),
                     ),
                 ));
 
@@ -670,15 +695,13 @@ mod tests {
                     arena.infer(term),
                     Err(Error {
                         kind: TypeCheckerError::WrongArgumentType(
+                            arena.build(abs(
+                                prop(),
+                                app(var(2.into(), prod(prop(), prop())), var(1.into(), prop()))
+                            )),
+                            arena.prop(),
                             TypedTerm(
-                                arena.build(abs(
-                                    prop(),
-                                    app(var(2.into(), prod(prop(), prop())), var(1.into(), prop()))
-                                )),
-                                arena.prop()
-                            ),
-                            TypedTerm(
-                                arena.build(var(1.into(), prop())),
+                                arena.build(var(1.into(), prod(prop(), prop()))),
                                 arena.build(prod(prop(), prop()))
                             )
                         )
@@ -695,7 +718,10 @@ mod tests {
                     prop(),
                     abs(
                         var(1.into(), prop()),
-                        abs(var(1.into(), prop()), var(1.into(), var(2.into(), prop()))),
+                        abs(
+                            var(1.into(), var(2.into(), prop())),
+                            var(1.into(), var(2.into(), prop())),
+                        ),
                     ),
                 ));
 
