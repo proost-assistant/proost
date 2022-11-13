@@ -16,10 +16,6 @@ pub enum UniverseLevel {
     Var(usize),
 }
 
-//Each declaration in the global context has a number corresponding to its number of universe parameters.
-//things to worry about : how to check conversion between universe polymorphic types ? only check universe_eq between them ? might be incomplete.
-// TODO extend universe checking.
-
 impl Add<usize> for UniverseLevel {
     type Output = Self;
 
@@ -97,6 +93,7 @@ impl UniverseLevel {
         }
     }
 
+    /// Is used to find the number of universe in a declaration.
     pub fn univ_vars(self) -> usize {
         match self {
             Zero => 0,
@@ -107,6 +104,7 @@ impl UniverseLevel {
         }
     }
 
+    /// Helper function for equality checking, used to substitute Var(i) with Z and S(Var(i)).
     fn substitute_single(self, var: usize, u: UniverseLevel) -> UniverseLevel {
         match self {
             Zero => Zero,
@@ -129,6 +127,7 @@ impl UniverseLevel {
         }
     }
 
+    /// General universe substitution, given a vector of universe levels, it substitutes each Var(i) with the i-th element of the vector.
     pub fn substitute(self, univs: &[UniverseLevel]) -> Self {
         match self {
             Zero => Zero,
@@ -166,8 +165,6 @@ impl UniverseLevel {
     }
 
     // checks whether u1 <= u2 + n
-    // In a case where comparison is stuck because of a variable Var(i), it checks whether the test is correct when Var(i) is substituted for
-    // 0 and S(Var(i)).
     // returns:
     // -   (true,0) if u1 <= u2 + n,
     // -   (false,0) if !(u1 <= u2 + n),
@@ -191,6 +188,10 @@ impl UniverseLevel {
         }
     }
 
+
+    /// Checks whether u1 <= u2 + n
+    // In a case where comparison is stuck because of a variable Var(i), it checks whether the test is correct when Var(i) is substituted for
+    // 0 and S(Var(i)).
     fn geq(&self, u2: &UniverseLevel, n: i64) -> bool {
         match self.geq_no_subst(u2, n) {
             (true, _) => true,

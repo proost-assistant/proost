@@ -1,5 +1,6 @@
 use crate::term::Term;
 use crate::universe::UniverseLevel;
+use crate::KernelError;
 
 /// Declarations constructed through commands. A declaration describes a constant in the environment, whether it's a definition with
 /// a corresponding term, or an axiom with only a type.
@@ -24,29 +25,24 @@ impl Declaration {
         }
     }
 
-    pub fn get_type(&self, vec: &[UniverseLevel]) -> Term {
+    /// Returns the type linked to a definition in a given environment.
+    pub fn get_type(&self, vec: &[UniverseLevel]) -> Result<Term,KernelError>  {
         if self.univ_vars != vec.len() {
-            //TODO wrap in a Result monad
-            panic!(
-                "wrong type of universe arguments, expected {}, found {}",
-                self.univ_vars,
-                vec.len()
-            )
+            Err(KernelError::WrongNumberOfUniverseArguments(self.univ_vars,
+                vec.len()))
         } else {
-            self.ty.substitute_univs(vec)
+            Ok(self.ty.substitute_univs(vec))
         }
     }
 
-    pub fn get_term(&self, vec: &[UniverseLevel]) -> Option<Term> {
+    /// Returns the term linked to a definition in a given environment.
+    /// Since the declaration might be an axiom, it might not have an associated term to reduce to, hence the Option.
+    pub fn get_term(&self, vec: &[UniverseLevel]) -> Result<Option<Term>,KernelError> {
         if self.univ_vars != vec.len() {
-            //TODO wrap in a Result monad
-            panic!(
-                "wrong type of universe arguments, expected {}, found {}",
-                self.univ_vars,
-                vec.len()
-            )
+            Err(KernelError::WrongNumberOfUniverseArguments(self.univ_vars,
+                vec.len()))
         } else {
-            self.clone().term.map(|x| x.substitute_univs(vec))
+            Ok(self.clone().term.map(|x| x.substitute_univs(vec)))
         }
     }
 }

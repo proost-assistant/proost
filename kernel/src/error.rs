@@ -28,7 +28,7 @@ impl Loc {
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
 pub enum KernelError {
     // cannot parse command
-    #[display(fmt = "cannot parse: {}", _1)]
+    #[display(fmt = "Cannot parse: {}", _1)]
     CannotParse(Loc, String),
 
     // s is already defined
@@ -65,6 +65,10 @@ pub enum KernelError {
     NotAFunction(Term, Term, Term),
 
     /// Expected ty1, found ty2
-    #[display(fmt = "expected {}, found {}", _0, _1)]
+    #[display(fmt = "Expected {}, found {}", _0, _1)]
     TypeMismatch(Term, Term),
+
+    #[display(fmt = "Wrong number of universe arguments, expected {}, found {}", _0, _1)]
+    WrongNumberOfUniverseArguments(usize, usize),
+
 }
