@@ -1,17 +1,16 @@
-use derive_more::{Add, Display, From, Into, Sub};
-
-use num_bigint::BigUint;
-
-use crate::error::{Error, ResultTerm};
-use bumpalo::Bump;
-use im_rc::hashmap::HashMap as ImHashMap;
-use core::fmt;
 use std::cell::OnceCell;
 use std::collections::{HashMap, HashSet};
+use std::fmt::Debug;
 use std::hash::Hash;
 use std::marker::PhantomData;
 use std::ops::Deref;
-use std::fmt::Debug;
+
+use bumpalo::Bump;
+use derive_more::{Add, Display, From, Into, Sub};
+use im_rc::hashmap::HashMap as ImHashMap;
+use num_bigint::BigUint;
+
+use crate::error::{Error, ResultTerm};
 
 #[derive(
     Add, Copy, Clone, Debug, Default, Display, Eq, PartialEq, From, Into, Sub, PartialOrd, Ord, Hash,
@@ -46,7 +45,7 @@ pub struct Term<'arena>(&'arena Node<'arena>, PhantomData<*mut &'arena ()>);
 
 // the rest of the struct is very verbose and useless for debugging
 impl<'arena> Debug for Term<'arena> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         self.0.payload.fmt(f)
     }
 }
@@ -351,19 +350,19 @@ impl<'arena> Deref for Term<'arena> {
 pub(crate) mod intern_build {
     use super::*;
 
-    pub trait Generator<'arena> = FnOnce(&mut Arena<'arena>) -> Term<'arena>;
+    pub(crate) trait Generator<'arena> = FnOnce(&mut Arena<'arena>) -> Term<'arena>;
 
     #[inline]
-    pub fn prop<'arena>() -> impl Generator<'arena> {
+    pub(crate) fn prop<'arena>() -> impl Generator<'arena> {
         |env: &mut Arena<'arena>| env.prop()
     }
 
     #[inline]
-    pub fn type_<'arena>(level: UniverseLevel) -> impl Generator<'arena> {
+    pub(crate) fn type_<'arena>(level: UniverseLevel) -> impl Generator<'arena> {
         move |env: &mut Arena<'arena>| env.type_(level)
     }
 
-    pub fn var<'arena, F: Generator<'arena>>(
+    pub(crate) fn var<'arena, F: Generator<'arena>>(
         index: DeBruijnIndex,
         type_: F,
     ) -> impl Generator<'arena> {
@@ -374,7 +373,7 @@ pub(crate) mod intern_build {
     }
 
     #[inline]
-    pub fn app<'arena, F1: Generator<'arena>, F2: Generator<'arena>>(
+    pub(crate) fn app<'arena, F1: Generator<'arena>, F2: Generator<'arena>>(
         u1: F1,
         u2: F2,
     ) -> impl Generator<'arena> {
@@ -386,7 +385,7 @@ pub(crate) mod intern_build {
     }
 
     #[inline]
-    pub fn abs<'arena, F1: Generator<'arena>, F2: Generator<'arena>>(
+    pub(crate) fn abs<'arena, F1: Generator<'arena>, F2: Generator<'arena>>(
         u1: F1,
         u2: F2,
     ) -> impl Generator<'arena> {
@@ -398,7 +397,7 @@ pub(crate) mod intern_build {
     }
 
     #[inline]
-    pub fn prod<'arena, F1: Generator<'arena>, F2: Generator<'arena>>(
+    pub(crate) fn prod<'arena, F1: Generator<'arena>, F2: Generator<'arena>>(
         u1: F1,
         u2: F2,
     ) -> impl Generator<'arena> {
@@ -427,7 +426,8 @@ pub mod extern_build {
         move |arena: &mut Arena<'arena>, env: &Environment<'arena>, depth| {
             env.get(name)
                 .map(|(bind_depth, term)| {
-                    let var_type = arena.shift(*term, usize::from(depth - *bind_depth), 1);
+                    // maybe find a way to make this call efficiently lazy
+                    let var_type = arena.shift(*term, usize::from(depth - *bind_depth), 0);
                     arena.var(depth - *bind_depth, var_type)
                 })
                 .or_else(|| arena.named_terms.get(name).copied())
