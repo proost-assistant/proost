@@ -21,17 +21,6 @@ pub struct DeBruijnIndex(usize);
 #[derive(Add, Clone, Debug, Default, Display, Eq, From, Sub, PartialEq, PartialOrd, Ord, Hash)]
 pub struct UniverseLevel(BigUint);
 
-struct LazyCell<'arena>(OnceCell<Term<'arena>>);
-
-impl<'arena> Debug for LazyCell<'arena> {
-   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-       match self.0.get() {
-           None => write!(f, "Unset"),
-            Some(_) => write!(f, "Set")
-        }
-    }
-}
-
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum DefinitionError<'arena> {
@@ -47,29 +36,33 @@ pub struct Arena<'arena> {
     named_terms: HashMap<&'arena str, Term<'arena>>,
 
     mem_subst: HashMap<(Term<'arena>, Term<'arena>, DeBruijnIndex), Term<'arena>>,
+    // a shift hashmap may also be added when the is_certainly_closed also is
 }
 
-#[derive(Clone, Copy, Display, Debug)]
+#[derive(Clone, Copy, Display, Eq)]
 #[display(fmt = "{}", "_0.payload")]
 // PhantomData is a marker to ensure invariance over the 'arena lifetime.
 pub struct Term<'arena>(&'arena Node<'arena>, PhantomData<*mut &'arena ()>);
+
+// the rest of the struct is very verbose and useless for debugging
+impl<'arena> Debug for Term<'arena> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.payload.fmt(f)
+    }
+}
 
 // no name storage here: meaning consts are known and can be found, but no pretty printing is
 // possible so far.
 #[derive(Debug)]
 struct Node<'arena> {
     payload: Payload<'arena>,
-    // free_vars: an efficient type to measure whether a term is closed
-    // this can be added in future iterations
-    head_normal_form: LazyCell<'arena>,
-    type_: LazyCell<'arena>,
-}
 
-// binary maps are not used so far, because, upon building terms, no particular optimisation is
-// done. On the other hand, if it is decided that only WHNF terms may exist in the arena, there can
-// be an AppMap (only App is relevant, as Abs and Prod preserve WHNF).
-//
-// We also need a substitution hasmap, (body, level_of_substitution, Term_to_incorporate)
+    head_normal_form: OnceCell<Term<'arena>>,
+    type_: OnceCell<Term<'arena>>,
+    //
+    // is_certainly_closed: boolean underapproximation of whether a term is closed, which can
+    // greatly improve performance in shifting
+}
 
 #[derive(Clone, Debug, Display, Eq, PartialEq, Hash)]
 pub enum Payload<'arena> {
@@ -100,8 +93,6 @@ impl<'arena> PartialEq<Term<'arena>> for Term<'arena> {
         std::ptr::eq(self.0, x.0)
     }
 }
-
-impl<'arena> Eq for Term<'arena> {}
 
 /// (TODO PRECISE DOCUMENTATION) make use of unicity invariant to speed up equality test
 impl<'arena> Hash for Term<'arena> {
@@ -158,8 +149,8 @@ impl<'arena> Arena<'arena> {
     fn hashcons(&mut self, n: Payload<'arena>) -> Term<'arena> {
         let nn = Node {
             payload: n,
-            head_normal_form: LazyCell(OnceCell::new()),
-            type_: LazyCell(OnceCell::new()),
+            head_normal_form: OnceCell::new(),
+            type_: OnceCell::new(),
         };
         match self.hashcons.get(&nn) {
             Some(addr) => Term(addr, PhantomData),
@@ -338,14 +329,14 @@ impl<'arena> Term<'arena> {
     where
         F: FnOnce() -> Term<'arena>,
     {
-        *self.0.head_normal_form.0.get_or_init(f)
+        *self.0.head_normal_form.get_or_init(f)
     }
 
     pub(crate) fn get_type_or_try_init<F>(self, f: F) -> ResultTerm<'arena>
     where
         F: FnOnce() -> ResultTerm<'arena>,
     {
-        self.0.type_.0.get_or_try_init(f).copied()
+        self.0.type_.get_or_try_init(f).copied()
     }
 }
 
@@ -736,15 +727,6 @@ mod tests {
             ));
 
             assert_eq!(arena.beta_reduction(term), reduced);
-        })
-    }
-
-    #[test]
-    fn whnf_lazy() {
-        use_arena(|arena| {
-            let term = arena.prop();
-            arena.whnf(term);
-            println!("{term:?}")
         })
     }
 }
