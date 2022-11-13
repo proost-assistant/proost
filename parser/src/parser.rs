@@ -58,7 +58,7 @@ fn convert_span(span: Span) -> Loc {
 fn build_univ_map_from_expr(pair: Pair<Rule>) -> HashMap<String, usize> {
     let iter = pair.into_inner();
     let mut map = HashMap::new();
-    for (i,pair) in iter.enumerate() {
+    for (i, pair) in iter.enumerate() {
         let str = pair.as_str();
         if map.insert(str.to_string(), i).is_some() {
             panic!("Duplicate universe variable {}", str);
@@ -209,9 +209,7 @@ fn build_command_from_expr(pair: Pair<Rule>) -> Command {
                     next.clone().map(|x| x.as_rule()),
                     None | Some(Rule::univ_decl)
                 ) {
-                    let univs = next
-                        .map(build_univ_map_from_expr )
-                        .unwrap_or_default();
+                    let univs = next.map(build_univ_map_from_expr).unwrap_or_default();
                     build_term_from_expr(iter.next().unwrap(), &mut VecDeque::new(), &univs)
                 } else {
                     build_term_from_expr(next.unwrap(), &mut VecDeque::new(), &HashMap::new())
