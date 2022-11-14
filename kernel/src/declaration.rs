@@ -26,10 +26,12 @@ impl Declaration {
     }
 
     /// Returns the type linked to a definition in a given environment.
-    pub fn get_type(&self, vec: &[UniverseLevel]) -> Result<Term,KernelError>  {
+    pub fn get_type(&self, vec: &[UniverseLevel]) -> Result<Term, KernelError> {
         if self.univ_vars != vec.len() {
-            Err(KernelError::WrongNumberOfUniverseArguments(self.univ_vars,
-                vec.len()))
+            Err(KernelError::WrongNumberOfUniverseArguments(
+                self.univ_vars,
+                vec.len(),
+            ))
         } else {
             Ok(self.ty.substitute_univs(vec))
         }
@@ -37,10 +39,12 @@ impl Declaration {
 
     /// Returns the term linked to a definition in a given environment.
     /// Since the declaration might be an axiom, it might not have an associated term to reduce to, hence the Option.
-    pub fn get_term(&self, vec: &[UniverseLevel]) -> Result<Option<Term>,KernelError> {
+    pub fn get_term(&self, vec: &[UniverseLevel]) -> Result<Option<Term>, KernelError> {
         if self.univ_vars != vec.len() {
-            Err(KernelError::WrongNumberOfUniverseArguments(self.univ_vars,
-                vec.len()))
+            Err(KernelError::WrongNumberOfUniverseArguments(
+                self.univ_vars,
+                vec.len(),
+            ))
         } else {
             Ok(self.clone().term.map(|x| x.substitute_univs(vec)))
         }

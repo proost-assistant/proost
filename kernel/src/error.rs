@@ -68,7 +68,10 @@ pub enum KernelError {
     #[display(fmt = "Expected {}, found {}", _0, _1)]
     TypeMismatch(Term, Term),
 
-    #[display(fmt = "Wrong number of universe arguments, expected {}, found {}", _0, _1)]
+    #[display(
+        fmt = "Wrong number of universe arguments, expected {}, found {}",
+        _0,
+        _1
+    )]
     WrongNumberOfUniverseArguments(usize, usize),
-
 }

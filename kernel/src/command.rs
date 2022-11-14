@@ -27,7 +27,7 @@ impl Command {
 
             Command::GetType(t) => t.infer(env).map(Some),
 
-            Command::Eval(t) => Ok(Some(t.normal_form(env))),
+            Command::Eval(t) => Ok(Some(t.normal_form(env)?)),
         }
     }
 }

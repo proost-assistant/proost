@@ -44,19 +44,24 @@ impl Term {
     /// Conversion function, checks whether two terms are definitionally equal.
     ///
     /// The conversion is untyped, meaning that it should **only** be called during type-checking when the two `Term`s are already known to be of the same type and in the same context.
-    fn conversion(&self, rhs: &Term, env: &Environment, lvl: DeBruijnIndex) -> bool {
-        match (self.whnf(env), rhs.whnf(env)) {
-            (lhs, rhs) if lhs == rhs => true,
+    fn conversion(
+        &self,
+        rhs: &Term,
+        env: &Environment,
+        lvl: DeBruijnIndex,
+    ) -> Result<bool, KernelError> {
+        match (self.whnf(env)?, rhs.whnf(env)?) {
+            (lhs, rhs) if lhs == rhs => Ok(true),
 
-            (Sort(i), Sort(j)) => i.is_eq(&j),
+            (Sort(i), Sort(j)) => Ok(i.is_eq(&j)),
 
-            (Var(i), Var(j)) => i == j,
+            (Var(i), Var(j)) => Ok(i == j),
 
             (Prod(t1, u1), Prod(box t2, u2)) => {
                 let u1 = u1.substitute(&Var(lvl), lvl.into());
                 let u2 = u2.substitute(&Var(lvl), lvl.into());
 
-                t1.conversion(&t2, env, lvl) && u1.conversion(&u2, env, lvl + 1.into())
+                Ok(t1.conversion(&t2, env, lvl)? && u1.conversion(&u2, env, lvl + 1.into())?)
             }
 
             // Since we assume that both vals already have the same type,
@@ -71,20 +76,20 @@ impl Term {
             }
 
             (App(box t1, box u1), App(box t2, box u2)) => {
-                t1.conversion(&t2, env, lvl) && u1.conversion(&u2, env, lvl)
+                Ok(t1.conversion(&t2, env, lvl)? && u1.conversion(&u2, env, lvl)?)
             }
 
             (app @ App(box Abs(_, _), box _), u) | (u, app @ App(box Abs(_, _), box _)) => {
-                app.beta_reduction(env).conversion(&u, env, lvl)
+                app.beta_reduction(env)?.conversion(&u, env, lvl)
             }
 
-            _ => false,
+            _ => Ok(false),
         }
     }
 
     /// Checks whether two terms are definitionally equal.
     pub fn is_def_eq(&self, rhs: &Term, env: &Environment) -> Result<(), KernelError> {
-        self.conversion(rhs, env, 1.into())
+        self.conversion(rhs, env, 1.into())?
             .then_some(())
             .ok_or_else(|| KernelError::NotDefEq(self.clone(), rhs.clone()))
     }
@@ -103,16 +108,13 @@ impl Term {
             Sort(i) => Ok(Sort(i.clone() + 1)),
             Var(i) => Ok(ctx.types[ctx.lvl - *i].clone()),
 
-            Const(s, vec) => match env.get_type(s, vec) {
-                Some(ty) => Ok(ty),
-                None => Err(KernelError::ConstNotFound(s.clone())),
-            },
+            Const(s, vec) => env.get_type(s, vec),
 
             Prod(box t, u) => {
                 let univ_t = t._infer(env, ctx)?;
                 let univ_u = u._infer(env, ctx.clone().bind(t))?;
 
-                univ_t.normal_form(env).imax(&univ_u.normal_form(env))
+                univ_t.normal_form(env)?.imax(&univ_u.normal_form(env)?)
             }
 
             Abs(box t, u) => {
@@ -126,7 +128,7 @@ impl Term {
                     let typ_rhs = u._infer(env, ctx)?;
 
                     typ_lhs
-                        .conversion(&typ_rhs, env, ctx.types.len().into())
+                        .conversion(&typ_rhs, env, ctx.types.len().into())?
                         .then_some(*cls)
                         .ok_or_else(|| {
                             KernelError::WrongArgumentType(t.clone(), typ_lhs, u.clone(), typ_rhs)
@@ -148,7 +150,7 @@ impl Term {
         let ctx = &mut Context::new();
         let tty = self._infer(env, ctx)?;
 
-        tty.conversion(ty, env, ctx.types.len().into())
+        tty.conversion(ty, env, ctx.types.len().into())?
             .then_some(())
             .ok_or_else(|| KernelError::TypeMismatch(tty, ty.clone()))
     }
@@ -174,7 +176,7 @@ mod tests {
         );
 
         let nf = Abs(box Sort(0.into()), box Var(1.into()));
-        assert_eq!(t.normal_form(&Environment::new()), nf)
+        assert_eq!(t.normal_form(&Environment::new()).unwrap(), nf)
     }
 
     #[test]
@@ -188,7 +190,7 @@ mod tests {
         );
 
         let nf = Abs(box Sort(0.into()), id(1));
-        assert_eq!(t.normal_form(&Environment::new()), nf)
+        assert_eq!(t.normal_form(&Environment::new()).unwrap(), nf)
     }
 
     #[test]
@@ -199,7 +201,7 @@ mod tests {
         );
 
         let t2 = Sort(0.into());
-        assert!(t1.conversion(&t2, &Environment::new(), 0.into()));
+        assert!(t1.conversion(&t2, &Environment::new(), 0.into()).unwrap());
 
         let ty = t1.infer(&Environment::new());
         assert_eq!(ty, Ok(Sort(1.into())));
@@ -324,7 +326,7 @@ mod tests {
             box App(box App(box Var(2.into()), id(1)), id(1)),
         );
 
-        let nff = reduced.clone().normal_form(&Environment::new());
+        let nff = reduced.clone().normal_form(&Environment::new()).unwrap();
         assert_eq!(reduced, nff);
         assert!(reduced.is_def_eq(&nff, &Environment::new()).is_ok());
     }
@@ -471,6 +473,8 @@ mod tests {
             box Abs(box Sort(0.into()), box Sort(0.into())),
             box Prod(box Sort(0.into()), box Var(1.into())),
         );
-        assert!(ty.conversion(&Sort(0.into()), &Environment::new(), 0.into()))
+        assert!(ty
+            .conversion(&Sort(0.into()), &Environment::new(), 0.into())
+            .unwrap())
     }
 }

@@ -35,12 +35,18 @@ impl Environment {
     }
 
     /// Returns the term linked to a definition in a given environment.
-    pub fn get_term(&self, s: &String, vec: &[UniverseLevel]) -> Option<Term> {
-        self.0.get(s).and_then(|decl| decl.get_term(vec))
+    pub fn get_term(&self, s: &String, vec: &[UniverseLevel]) -> Result<Option<Term>, KernelError> {
+        match self.0.get(s) {
+            Some(decl) => Ok(decl.get_term(vec)?),
+            None => Err(KernelError::ConstNotFound(s.clone())),
+        }
     }
 
     /// Returns the type linked to a definition in a given environment.
-    pub fn get_type(&self, s: &String, vec: &[UniverseLevel]) -> Option<Term> {
-        self.0.get(s).map(|decl| decl.get_type(vec))
+    pub fn get_type(&self, s: &String, vec: &[UniverseLevel]) -> Result<Term, KernelError> {
+        match self.0.get(s) {
+            Some(decl) => Ok(decl.get_type(vec)?),
+            None => Err(KernelError::ConstNotFound(s.clone())),
+        }
     }
 }

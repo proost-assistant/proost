@@ -1,5 +1,6 @@
 use crate::environment::Environment;
 use crate::universe::UniverseLevel;
+use crate::KernelError;
 use derive_more::{Add, Display, From, Into, Sub};
 
 #[derive(
@@ -41,19 +42,19 @@ impl Term {
     }
 
     /// Apply one step of β-reduction, using leftmost outermost evaluation strategy.
-    pub fn beta_reduction(&self, env: &Environment) -> Term {
+    pub fn beta_reduction(&self, env: &Environment) -> Result<Term, KernelError> {
         //if self.is_eliminator() {
         //    return self.compute()
         //}
         match self {
-            App(box Abs(_, box t1), box t2) => t1.substitute(t2, 1),
-            App(box t1, box t2) => App(box t1.beta_reduction(env), box t2.clone()),
-            Abs(x, box t) => Abs(x.clone(), box t.beta_reduction(env)),
-            Const(s, vec) => match env.get_term(s, vec) {
-                Some(t) => t,
-                None => self.clone(),
+            App(box Abs(_, box t1), box t2) => Ok(t1.substitute(t2, 1)),
+            App(box t1, box t2) => Ok(App(box t1.beta_reduction(env)?, box t2.clone())),
+            Abs(x, box t) => Ok(Abs(x.clone(), box t.beta_reduction(env)?)),
+            Const(s, vec) => match env.get_term(s, vec)? {
+                Some(t) => Ok(t),
+                None => Ok(self.clone()),
             },
-            _ => self.clone(),
+            _ => Ok(self.clone()),
         }
     }
 
@@ -82,29 +83,29 @@ impl Term {
     /// Returns the normal form of a term in a given environment.
     ///
     /// This function is computationally expensive and should only be used for Reduce/Eval commands, not when Sort-checking.
-    pub fn normal_form(self, env: &Environment) -> Term {
-        let mut res = self.beta_reduction(env);
+    pub fn normal_form(self, env: &Environment) -> Result<Term, KernelError> {
+        let mut res = self.beta_reduction(env)?;
         let mut temp = self;
 
         while res != temp {
             temp = res.clone();
-            res = res.beta_reduction(env)
+            res = res.beta_reduction(env)?
         }
-        res
+        Ok(res)
     }
 
     /// Returns the weak-head normal form of a term in a given environment.
-    pub fn whnf(&self, env: &Environment) -> Term {
+    pub fn whnf(&self, env: &Environment) -> Result<Term, KernelError> {
         match self {
-            App(box t, t2) => match t.whnf(env) {
-                whnf @ Abs(_, _) => App(box whnf, t2.clone()).beta_reduction(env).whnf(env),
-                _ => self.clone(),
+            App(box t, t2) => match t.whnf(env)? {
+                whnf @ Abs(_, _) => App(box whnf, t2.clone()).beta_reduction(env)?.whnf(env),
+                _ => Ok(self.clone()),
             },
-            Const(s, vec) => match env.get_term(s, vec) {
-                Some(t) => t,
-                None => self.clone(),
+            Const(s, vec) => match env.get_term(s, vec)? {
+                Some(t) => Ok(t),
+                None => Ok(self.clone()),
             },
-            _ => self.clone(),
+            _ => Ok(self.clone()),
         }
     }
 
@@ -174,7 +175,7 @@ mod tests {
             box App(box Var(1.into()), box Var(1.into())),
         );
 
-        assert_eq!(term.beta_reduction(&Environment::new()), reduced);
+        assert_eq!(term.beta_reduction(&Environment::new()).unwrap(), reduced);
     }
 
     #[test]
@@ -355,14 +356,14 @@ mod tests {
 
         let env = Environment::new();
 
-        assert_eq!(term.beta_reduction(&env), term_step_1);
-        assert_eq!(term_step_1.beta_reduction(&env), term_step_2);
-        assert_eq!(term_step_2.beta_reduction(&env), term_step_3);
-        assert_eq!(term_step_3.beta_reduction(&env), term_step_4);
-        assert_eq!(term_step_4.beta_reduction(&env), term_step_5);
-        assert_eq!(term_step_5.beta_reduction(&env), term_step_6);
-        assert_eq!(term_step_6.beta_reduction(&env), term_step_7);
-        assert_eq!(term_step_7.beta_reduction(&env), term_step_7);
+        assert_eq!(term.beta_reduction(&env).unwrap(), term_step_1);
+        assert_eq!(term_step_1.beta_reduction(&env).unwrap(), term_step_2);
+        assert_eq!(term_step_2.beta_reduction(&env).unwrap(), term_step_3);
+        assert_eq!(term_step_3.beta_reduction(&env).unwrap(), term_step_4);
+        assert_eq!(term_step_4.beta_reduction(&env).unwrap(), term_step_5);
+        assert_eq!(term_step_5.beta_reduction(&env).unwrap(), term_step_6);
+        assert_eq!(term_step_6.beta_reduction(&env).unwrap(), term_step_7);
+        assert_eq!(term_step_7.beta_reduction(&env).unwrap(), term_step_7);
     }
 
     #[test]
@@ -373,7 +374,7 @@ mod tests {
             box Sort(0.into()),
         );
 
-        assert_eq!(t2.beta_reduction(&Environment::new()), t1)
+        assert_eq!(t2.beta_reduction(&Environment::new()).unwrap(), t1)
     }
 
     #[test]
@@ -387,7 +388,9 @@ mod tests {
             .unwrap();
 
         assert_eq!(
-            Const("foo".into(), Vec::new()).beta_reduction(&env),
+            Const("foo".into(), Vec::new())
+                .beta_reduction(&env)
+                .unwrap(),
             id_prop
         );
     }

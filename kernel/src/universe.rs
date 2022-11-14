@@ -188,7 +188,6 @@ impl UniverseLevel {
         }
     }
 
-
     /// Checks whether u1 <= u2 + n
     // In a case where comparison is stuck because of a variable Var(i), it checks whether the test is correct when Var(i) is substituted for
     // 0 and S(Var(i)).
