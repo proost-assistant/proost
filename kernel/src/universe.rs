@@ -87,6 +87,10 @@ impl UniverseLevel {
                     format!("{} + {}", u.pretty_print(), n)
                 }
                 Max(box n, box m) => format!("max ({}) ({})", n.pretty_print(), m.pretty_print()),
+                IMax(box _, box Zero) => "Zero".into(),
+                IMax(box n, box m @ Succ(_)) => {
+                    format!("max ({}) ({})", n.pretty_print(), m.pretty_print())
+                }
                 IMax(box n, box m) => format!("imax ({}) ({})", n.pretty_print(), m.pretty_print()),
                 Var(n) => format!("u{}", n),
             },

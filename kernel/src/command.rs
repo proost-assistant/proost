@@ -25,6 +25,12 @@ impl Command {
 
             Command::CheckType(t1, t2) => t1.check(&t2, env).map(|_| None),
 
+            // This is only a temporary workaround. Once metavariables will be part of the system,
+            // there won't be any issue with checking/infering with a term with non-unified metavariables
+            Command::GetType(Term::Const(s, vec)) if vec.is_empty() => {
+                env.get_type_free_univ(&s).map(Some)
+            }
+
             Command::GetType(t) => t.infer(env).map(Some),
 
             Command::Eval(t) => Ok(Some(t.normal_form(env)?)),

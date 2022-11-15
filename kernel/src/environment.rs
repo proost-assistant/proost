@@ -49,4 +49,12 @@ impl Environment {
             None => Err(KernelError::ConstNotFound(s.clone())),
         }
     }
+
+    /// Returns the type linked to a definition in a given environment.
+    pub fn get_type_free_univ(&self, s: &String) -> Result<Term, KernelError> {
+        match self.0.get(s) {
+            Some(decl) => Ok(decl.get_type_free_univ()),
+            None => Err(KernelError::ConstNotFound(s.clone())),
+        }
+    }
 }
