@@ -116,7 +116,7 @@ where
     f(&mut arena)
 }
 
-use super::builders::extern_::Builder;
+use super::builders::extern_::BuilderTrait;
 use Payload::*;
 
 impl<'arena> Arena<'arena> {
@@ -133,7 +133,12 @@ impl<'arena> Arena<'arena> {
         }
     }
 
-    pub fn bind(&mut self, name: &'arena str, t: Term<'arena>) {
+    pub fn store_name(&mut self, name: &str) -> &'arena str {
+        self.alloc.alloc_str(name)
+    }
+
+    pub fn bind(&mut self, name: &str, t: Term<'arena>) {
+        let name = self.store_name(name);
         self.named_terms.insert(name, t);
     }
 
@@ -189,7 +194,13 @@ impl<'arena> Arena<'arena> {
     }
 
     #[inline]
-    pub fn build_from_extern<F: Builder<'arena>>(&mut self, f: F) -> ResultTerm<'arena> {
+    pub fn build_from_extern<'build, F: BuilderTrait<'build, 'arena>>(
+        &mut self,
+        f: F,
+    ) -> ResultTerm<'arena>
+    where
+        'arena: 'build,
+    {
         f(self, &ImHashMap::new(), 0.into())
     }
 
