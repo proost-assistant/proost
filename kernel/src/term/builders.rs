@@ -191,13 +191,14 @@ pub mod extern_ {
         }
     }
 
+    #[derive(Clone)]
     pub enum Builder<'r> {
         Var(&'r str),
         Type(usize),
         Prop,
-        App(&'r Builder<'r>, &'r Builder<'r>),
-        Abs(&'r str, &'r Builder<'r>, &'r Builder<'r>),
-        Prod(&'r str, &'r Builder<'r>, &'r Builder<'r>),
+        App(Box<Builder<'r>>, Box<Builder<'r>>),
+        Abs(&'r str, Box<Builder<'r>>, Box<Builder<'r>>),
+        Prod(&'r str, Box<Builder<'r>>, Box<Builder<'r>>),
     }
 
     impl<'build> Builder<'build> {
@@ -222,13 +223,13 @@ pub mod extern_ {
                 Var(s) => var(s)(arena, env, depth),
                 Type(level) => type_usize(level)(arena, env, depth),
                 Prop => prop()(arena, env, depth),
-                App(l, r) => {
+                App(ref l, ref r) => {
                     app(l.partial_application(), r.partial_application())(arena, env, depth)
                 }
-                Abs(s, arg, body) => {
+                Abs(s, ref arg, ref body) => {
                     abs(s, arg.partial_application(), body.partial_application())(arena, env, depth)
                 }
-                Prod(s, arg, body) => {
+                Prod(s, ref arg, ref body) => {
                     prod(s, arg.partial_application(), body.partial_application())(
                         arena, env, depth,
                     )

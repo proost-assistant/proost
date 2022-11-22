@@ -43,6 +43,10 @@ impl<'arena> Debug for Term<'arena> {
     }
 }
 
+// this is a fix to make it work with the anyhow error system.
+unsafe impl<'arena> Sync for Term<'arena> {}
+unsafe impl<'arena> Send for Term<'arena> {}
+
 // no name storage here: meaning consts are known and can be found, but no pretty printing is
 // possible so far.
 #[derive(Debug)]

@@ -2,15 +2,15 @@ use crate::error::Result;
 use crate::{Arena, Term};
 
 #[derive(Debug, Eq, PartialEq)]
-pub enum Command<'arena> {
-    Define(&'arena str, Option<Term<'arena>>, Term<'arena>),
+pub enum Command<'build, 'arena> {
+    Define(&'build str, Option<Term<'arena>>, Term<'arena>),
 
     CheckType(Term<'arena>, Term<'arena>),
 
     GetType(Term<'arena>),
 }
 
-impl<'arena> Command<'arena> {
+impl<'build, 'arena> Command<'build, 'arena> {
     pub fn process(self, env: &mut Arena<'arena>) -> Result<'arena, Option<Term<'arena>>> {
         match self {
             Command::Define(s, None, term) => {

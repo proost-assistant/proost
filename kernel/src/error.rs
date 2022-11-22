@@ -22,4 +22,4 @@ pub enum ErrorKind<'arena> {
 impl<'arena> std::error::Error for Error<'arena> {}
 
 pub type Result<'arena, T> = std::result::Result<T, Error<'arena>>;
-pub(crate) type ResultTerm<'arena> = Result<'arena, Term<'arena>>;
+pub type ResultTerm<'arena> = Result<'arena, Term<'arena>>;
