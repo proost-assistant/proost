@@ -48,13 +48,13 @@ impl Validator for RustyLineHelper {
         if ctx.input().starts_with("import") {
             Ok(ValidationResult::Valid(None))
         } else {
-            Ok(validate_arrows(ctx.input()).unwrap_or(validate_brackets(ctx.input())))
+            Ok(validate_arrows(ctx.input()).unwrap_or_else(|| validate_brackets(ctx.input())))
         }
     }
 }
 
 fn validate_arrows(input: &str) -> Option<ValidationResult> {
-    let mut iter = input.as_bytes().into_iter().rev();
+    let mut iter = input.as_bytes().iter().rev();
     if let Some(b) = iter.find(|b| **b != b' ') {
         if *b == b'>' && let Some(b) = iter.next() && (*b == b'-' || *b == b'=') {
             return Some(ValidationResult::Incomplete)
@@ -96,7 +96,7 @@ fn validate_brackets(input: &str) -> ValidationResult {
 /// see: https://docs.rs/rustyline/10.0.0/rustyline/highlight/struct.MatchingBracketHighlighter.html
 impl Highlighter for RustyLineHelper {
     fn highlight_hint<'h>(&self, hint: &'h str) -> Cow<'h, str> {
-        Owned(format!("{}", hint.bold()).to_owned())
+        Owned(format!("{}", hint.bold()))
     }
 
     fn highlight_char(&self, _line: &str, _pos: usize) -> bool {
@@ -173,15 +173,9 @@ fn matching_bracket(bracket: u8) -> u8 {
 }
 
 const fn is_bracket(bracket: u8) -> bool {
-    match bracket {
-        b'(' | b')' => true,
-        _ => false,
-    }
+    matches!(bracket, b'(' | b')')
 }
 
 const fn is_open_bracket(bracket: u8) -> bool {
-    match bracket {
-        b'(' => true,
-        _ => false,
-    }
+    matches!(bracket, b'(')
 }
