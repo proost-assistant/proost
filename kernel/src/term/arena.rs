@@ -7,7 +7,6 @@ use std::ops::Deref;
 
 use bumpalo::Bump;
 use derive_more::{Add, Display, From, Into, Sub};
-use im_rc::hashmap::HashMap as ImHashMap;
 use num_bigint::BigUint;
 
 use crate::error::ResultTerm;
@@ -42,10 +41,6 @@ impl<'arena> Debug for Term<'arena> {
         self.0.payload.fmt(f)
     }
 }
-
-// this is a fix to make it work with the anyhow error system.
-unsafe impl<'arena> Sync for Term<'arena> {}
-unsafe impl<'arena> Send for Term<'arena> {}
 
 // no name storage here: meaning consts are known and can be found, but no pretty printing is
 // possible so far.
@@ -120,7 +115,6 @@ where
     f(&mut arena)
 }
 
-use super::builders::extern_::BuilderTrait;
 use Payload::*;
 
 impl<'arena> Arena<'arena> {
@@ -195,17 +189,6 @@ impl<'arena> Arena<'arena> {
 
     pub(crate) fn prod(&mut self, arg_type: Term<'arena>, u: Term<'arena>) -> Term<'arena> {
         self.hashcons(Prod(arg_type, u))
-    }
-
-    #[inline]
-    pub fn build_from_extern<'build, F: BuilderTrait<'build, 'arena>>(
-        &mut self,
-        f: F,
-    ) -> ResultTerm<'arena>
-    where
-        'arena: 'build,
-    {
-        f(self, &ImHashMap::new(), 0.into())
     }
 
     pub(crate) fn get_subst_or_init<F>(

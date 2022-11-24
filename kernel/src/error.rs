@@ -1,7 +1,7 @@
 use derive_more::{Display, From};
 
 use crate::term::arena::Term;
-use crate::term::builders::extern_::DefinitionError;
+use crate::term::builders::DefinitionError;
 use crate::type_checker::TypeCheckerError;
 
 /// Type representing kernel errors.
