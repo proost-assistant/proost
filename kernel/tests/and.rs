@@ -7,24 +7,20 @@ where
     F: for<'arena> FnOnce(&mut Arena<'arena>) -> T,
 {
     use_arena(|arena| {
-        let false_ = arena
-            .build_from_extern(prod("P", prop(), var("P")))
-            .unwrap();
+        let false_ = arena.build(prod("P", prop(), var("P"))).unwrap();
         assert!(Define("False", None, false_)
             .process(arena)
             .unwrap()
             .is_none());
 
-        let true_ = arena
-            .build_from_extern(prod("_", var("False"), var("False")))
-            .unwrap();
+        let true_ = arena.build(prod("_", var("False"), var("False"))).unwrap();
         assert!(Define("True", None, true_)
             .process(arena)
             .unwrap()
             .is_none());
 
         let and = arena
-            .build_from_extern(abs(
+            .build(abs(
                 "A",
                 prop(),
                 abs(
@@ -52,20 +48,18 @@ where
 fn and_true_true() {
     use_and_arena(|arena| {
         let goal = arena
-            .build_from_extern(app(app(var("and"), var("True")), var("True")))
+            .build(app(app(var("and"), var("True")), var("True")))
             .unwrap();
 
-        let hypothesis = arena
-            .build_from_extern(abs("x", var("False"), var("x")))
-            .unwrap();
-        let true_ = arena.build_from_extern(var("True")).unwrap();
+        let hypothesis = arena.build(abs("x", var("False"), var("x"))).unwrap();
+        let true_ = arena.build(var("True")).unwrap();
 
         assert!(Define("hyp", Some(true_), hypothesis)
             .process(arena)
             .is_ok());
 
         let proof = arena
-            .build_from_extern(abs(
+            .build(abs(
                 "a",
                 prop(),
                 abs(
@@ -84,7 +78,7 @@ fn and_true_true() {
 fn and_intro() {
     use_and_arena(|arena| {
         let goal = arena
-            .build_from_extern(prod(
+            .build(prod(
                 "A", // A : prop()
                 prop(),
                 prod(
@@ -100,7 +94,7 @@ fn and_intro() {
             .unwrap();
 
         let proof = arena
-            .build_from_extern(abs(
+            .build(abs(
                 "A",
                 // A : prop()
                 prop(),
@@ -142,7 +136,7 @@ fn and_intro() {
 fn and_elim_1() {
     use_and_arena(|arena| {
         let goal = arena
-            .build_from_extern(prod(
+            .build(prod(
                 "A",
                 // A : prop()
                 prop(),
@@ -156,7 +150,7 @@ fn and_elim_1() {
             .unwrap();
 
         let proof = arena
-            .build_from_extern(abs(
+            .build(abs(
                 "A",
                 // A : prop()
                 prop(),
@@ -195,7 +189,7 @@ fn and_elim_1() {
 fn and_elim_2() {
     use_and_arena(|arena| {
         let goal = arena
-            .build_from_extern(prod(
+            .build(prod(
                 "A",
                 // A : prop()
                 prop(),
@@ -214,7 +208,7 @@ fn and_elim_2() {
             .unwrap();
 
         let proof = arena
-            .build_from_extern(abs(
+            .build(abs(
                 "A",
                 // A : prop()
                 prop(),

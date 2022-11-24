@@ -116,13 +116,13 @@ impl<'arena> Arena<'arena> {
 mod tests {
     // /!\ most of these tests are on ill-typed terms and should not be used for further testings
     use super::super::arena::use_arena;
-    use super::super::builders::intern::*;
+    use super::super::builders::raw::*;
 
     #[test]
     fn simple_subst() {
         use_arena(|arena| {
             // λx.(λy.x y) x
-            let term = arena.build(abs(
+            let term = arena.build_raw(abs(
                 prop(),
                 app(
                     abs(prop(), app(var(2.into(), prop()), var(1.into(), prop()))),
@@ -130,7 +130,7 @@ mod tests {
                 ),
             ));
             // λx.x x
-            let reduced = arena.build(abs(
+            let reduced = arena.build_raw(abs(
                 prop(),
                 app(var(1.into(), prop()), var(1.into(), prop())),
             ));
@@ -143,7 +143,7 @@ mod tests {
     fn complex_subst() {
         use_arena(|arena| {
             // (λa.λb.λc.a (λd.λe.e (d b)) (λ_.c) (λd.d)) (λa.λb.a b)
-            let term = arena.build(app(
+            let term = arena.build_raw(app(
                 abs(
                     prop(),
                     abs(
@@ -181,7 +181,7 @@ mod tests {
                 ),
             ));
 
-            let term_step_1 = arena.build(abs(
+            let term_step_1 = arena.build_raw(abs(
                 prop(),
                 abs(
                     prop(),
@@ -210,7 +210,7 @@ mod tests {
                 ),
             ));
 
-            let term_step_2 = arena.build(abs(
+            let term_step_2 = arena.build_raw(abs(
                 prop(),
                 abs(
                     prop(),
@@ -239,7 +239,7 @@ mod tests {
                 ),
             ));
 
-            let term_step_3 = arena.build(abs(
+            let term_step_3 = arena.build_raw(abs(
                 prop(),
                 abs(
                     prop(),
@@ -262,7 +262,7 @@ mod tests {
                 ),
             ));
 
-            let term_step_4 = arena.build(abs(
+            let term_step_4 = arena.build_raw(abs(
                 prop(),
                 abs(
                     prop(),
@@ -279,7 +279,7 @@ mod tests {
                 ),
             ));
 
-            let term_step_5 = arena.build(abs(
+            let term_step_5 = arena.build_raw(abs(
                 prop(),
                 abs(
                     prop(),
@@ -290,7 +290,7 @@ mod tests {
                 ),
             ));
 
-            let term_step_6 = arena.build(abs(
+            let term_step_6 = arena.build_raw(abs(
                 prop(),
                 abs(
                     prop(),
@@ -299,7 +299,7 @@ mod tests {
             ));
 
             // λa.λb.b
-            let term_step_7 = arena.build(abs(prop(), abs(prop(), var(1.into(), prop()))));
+            let term_step_7 = arena.build_raw(abs(prop(), abs(prop(), var(1.into(), prop()))));
 
             assert_eq!(arena.beta_reduction(term), term_step_1);
             assert_eq!(arena.beta_reduction(term_step_1), term_step_2);
@@ -315,8 +315,8 @@ mod tests {
     #[test]
     fn shift_prod() {
         use_arena(|arena| {
-            let reduced = arena.build(prod(prop(), var(1.into(), prop())));
-            let term = arena.build(app(abs(prop(), reduced.into()), prop()));
+            let reduced = arena.build_raw(prod(prop(), var(1.into(), prop())));
+            let term = arena.build_raw(app(abs(prop(), reduced.into()), prop()));
 
             assert_eq!(arena.beta_reduction(term), reduced)
         })
@@ -325,11 +325,11 @@ mod tests {
     #[test]
     fn prod_beta_red() {
         use_arena(|arena| {
-            let term = arena.build(prod(
+            let term = arena.build_raw(prod(
                 prop(),
                 app(abs(prop(), var(1.into(), prop())), var(1.into(), prop())),
             ));
-            let reduced = arena.build(prod(prop(), var(1.into(), prop())));
+            let reduced = arena.build_raw(prod(prop(), var(1.into(), prop())));
 
             assert_eq!(arena.beta_reduction(term), reduced);
         })
@@ -338,14 +338,14 @@ mod tests {
     #[test]
     fn app_red_rhs() {
         use_arena(|arena| {
-            let term = arena.build(abs(
+            let term = arena.build_raw(abs(
                 prop(),
                 app(
                     var(1.into(), prop()),
                     app(abs(prop(), var(1.into(), prop())), var(1.into(), prop())),
                 ),
             ));
-            let reduced = arena.build(abs(
+            let reduced = arena.build_raw(abs(
                 prop(),
                 app(var(1.into(), prop()), var(1.into(), prop())),
             ));
