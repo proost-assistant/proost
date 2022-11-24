@@ -77,6 +77,14 @@ impl Highlighter for RustyLineHelper {
             && let Some((matching, pos)) = find_matching_bracket(line, pos, bracket) {
                 copy.replace_range(pos..=pos, &format!("\x1b[1;34m{}\x1b[0m", matching as char));
             }
+        let mut found = false;
+        copy.find(|c| {
+            if c != ' ' {
+                found = true;
+            }
+            c == ' ' && found
+        })
+        .map(|offset| copy.insert_str(offset, "\x1b[0m"));
         KEYWORDS
             .iter()
             .for_each(|m| copy = copy.replace(m, &format!("\x1b[34m{}\x1b[0m", m)));
@@ -88,6 +96,10 @@ impl Highlighter for RustyLineHelper {
         true
     }
 }
+
+/// Language keywords that should be highligted
+const KEYWORDS: [&str; 1] = [" fun "];
+
 fn find_matching_bracket(line: &str, pos: usize, bracket: u8) -> Option<(u8, usize)> {
     let matching_bracket = matching_bracket(bracket);
     let mut to_match = 1;
@@ -149,6 +161,3 @@ const fn is_open_bracket(bracket: u8) -> bool {
         _ => false,
     }
 }
-
-/// Language keywords that should be highligted
-const KEYWORDS: [&str; 5] = ["def ", "import ", "eval ", "check ", " fun "];
