@@ -23,7 +23,6 @@ pub struct RustyLineHelper {
 }
 
 impl RustyLineHelper {
-    /// Constructor
     pub fn new() -> Self {
         Self {
             bracket: Cell::new(None),
@@ -43,7 +42,7 @@ impl Completer for RustyLineHelper {
         if line.starts_with("import") {
             self.completer.complete_path(line, pos)
         } else {
-            Ok((0, vec![]))
+            Ok(Default::default())
         }
     }
 }
@@ -70,19 +69,18 @@ impl Highlighter for RustyLineHelper {
 
     fn highlight<'l>(&self, line: &'l str, _pos: usize) -> Cow<'l, str> {
         if line.len() <= 1 {
-            Borrowed(line)
-        } else {
-            let mut copy = line.to_owned();
+            return Borrowed(line);
+        }
+        let mut copy = line.to_owned();
 
-            if let Some((bracket, pos)) = self.bracket.get()
+        if let Some((bracket, pos)) = self.bracket.get()
             && let Some((matching, pos)) = find_matching_bracket(line, pos, bracket) {
                 copy.replace_range(pos..=pos, &format!("\x1b[1;34m{}\x1b[0m", matching as char));
             }
-            KEYWORDS
-                .iter()
-                .for_each(|m| copy = copy.replace(m, &format!("\x1b[34m{}\x1b[0m", m)));
-            Owned(copy)
-        }
+        KEYWORDS
+            .iter()
+            .for_each(|m| copy = copy.replace(m, &format!("\x1b[34m{}\x1b[0m", m)));
+        Owned(copy)
     }
 
     fn highlight_char(&self, line: &str, pos: usize) -> bool {
@@ -130,11 +128,11 @@ fn check_bracket(line: &str, pos: usize) -> Option<(u8, usize)> {
     None
 }
 
-const fn matching_bracket(bracket: u8) -> u8 {
+fn matching_bracket(bracket: u8) -> u8 {
     match bracket {
         b'(' => b')',
         b')' => b'(',
-        b => b,
+        _ => unreachable!("this function is only called on brackets"),
     }
 }
 
