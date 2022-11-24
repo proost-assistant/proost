@@ -1,6 +1,6 @@
-#![feature(box_syntax)]
 #![feature(let_chains)]
 
+mod error;
 mod process;
 mod rustyline_helper;
 
@@ -12,7 +12,6 @@ use rustyline::error::ReadlineError;
 use rustyline::{Cmd, Editor, EventHandler, KeyCode, KeyEvent, Modifiers, Result};
 use rustyline_helper::*;
 
-use kernel::Environment;
 use process::*;
 
 #[derive(Parser)]
@@ -60,22 +59,23 @@ fn main() -> Result<()> {
         KeyEvent(KeyCode::Enter, Modifiers::ALT),
         EventHandler::Simple(Cmd::Newline),
     );
-    println!("Welcome to {} {}", NAME, VERSION);
 
-    let mut env = Environment::new();
+    kernel::use_arena(|arena| {
+        println!("Welcome to {} {}", NAME, VERSION);
 
-    loop {
-        let readline = rl.readline("\u{00BB} ");
-        match readline {
-            Ok(line) if !line.is_empty() => {
-                rl.add_history_entry(line.as_str());
-                print_repl(process_line(line.as_str(), &mut env));
+        loop {
+            let readline = rl.readline("\u{00BB} ");
+            match readline {
+                Ok(line) if !line.is_empty() => {
+                    rl.add_history_entry(line.as_str());
+                    print_repl(process_line(line.as_str(), arena));
+                }
+                Ok(_) => (),
+                Err(ReadlineError::Interrupted) => {}
+                Err(ReadlineError::Eof) => break,
+                Err(err) => return Err(err),
             }
-            Ok(_) => (),
-            Err(ReadlineError::Interrupted) => {}
-            Err(ReadlineError::Eof) => break,
-            Err(err) => return Err(err),
         }
-    }
-    Ok(())
+        Ok(())
+    })
 }

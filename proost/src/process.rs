@@ -1,12 +1,17 @@
 use colored::Colorize;
-use kernel::{Environment, Term};
+
+use crate::error::{Error::*, Result};
+use kernel::{Arena, Term};
 use parser::parse_line;
 
-pub fn process_line(line: &str, env: &mut Environment) -> anyhow::Result<Option<Term>> {
-    Ok(parse_line(line)?.process(env)?)
+pub fn process_line<'arena>(
+    line: &str,
+    arena: &mut Arena<'arena>,
+) -> Result<'arena, Option<Term<'arena>>> {
+    Ok(parse_line(arena, line)?.process(arena)?)
 }
 
-pub fn print_repl(res: anyhow::Result<Option<Term>>) {
+pub fn print_repl<'arena>(res: Result<'arena, Option<Term<'arena>>>) {
     match res {
         Ok(None) => println!("{}", "\u{2713}".green()),
         Ok(Some(t)) => {
@@ -15,8 +20,13 @@ pub fn print_repl(res: anyhow::Result<Option<Term>>) {
             }
         }
         Err(err) => {
-            let string = match err.downcast_ref::<parser::Error>() {
-                Some(parser::Error {
+            let string = match err {
+                Parser(parser::Error {
+                    kind: parser::ErrorKind::EarlyKernelError(err),
+                    ..
+                }) => err.to_string(),
+
+                Parser(parser::Error {
                     kind: parser::ErrorKind::CannotParse(message),
                     location: loc,
                 }) => {
