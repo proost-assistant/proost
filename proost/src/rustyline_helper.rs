@@ -94,10 +94,10 @@ fn find_matching_bracket(line: &str, pos: usize, bracket: u8) -> Option<(u8, usi
     let matching_bracket = matching_bracket(bracket);
     let mut to_match = 1;
 
-    let match_bracket = |b: &u8| {
-        if *b == matching_bracket {
+    let match_bracket = |b: u8| {
+        if b == matching_bracket {
             to_match -= 1;
-        } else if *b == bracket {
+        } else if b == bracket {
             to_match += 1;
         };
         to_match == 0
@@ -105,19 +105,18 @@ fn find_matching_bracket(line: &str, pos: usize, bracket: u8) -> Option<(u8, usi
 
     if is_open_bracket(bracket) {
         // forward search
-        line.as_bytes()[pos + 1..]
-            .iter()
+        line[pos + 1..]
+            .bytes()
             .position(match_bracket)
-            .map(|pos2| pos2 + pos + 1)
+            .map(|pos2| (matching_bracket, pos2 + pos + 1))
     } else {
         // backward search
-        line.as_bytes()[..pos]
-            .iter()
+        line[..pos]
+            .bytes()
             .rev()
             .position(match_bracket)
-            .map(|pos2| pos - pos2 - 1)
+            .map(|pos2| (matching_bracket, pos - pos2 - 1))
     }
-    .map(|pos| (matching_bracket, pos))
 }
 
 /// Check if the cursor is on a bracket
