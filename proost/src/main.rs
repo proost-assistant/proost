@@ -5,22 +5,22 @@ mod process;
 mod replace_word;
 mod rustyline_helper;
 
+use std::fs;
+
 use clap::Parser;
-use kernel::Environment;
-use process::*;
 use rustyline::error::ReadlineError;
 use rustyline::{Cmd, Editor, EventHandler, KeyCode, KeyEvent, Modifiers, Result};
 use rustyline_helper::*;
-use std::fs;
 
-// clap configuration
+use kernel::Environment;
+use process::*;
+
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Args {
     files: Vec<String>,
 }
 
-// constants fetching
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const NAME: &str = env!("CARGO_PKG_NAME");
 

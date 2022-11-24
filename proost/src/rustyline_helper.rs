@@ -3,9 +3,7 @@ use colored::*;
 use rustyline::completion::{Completer, FilenameCompleter, Pair};
 use rustyline::highlight::Highlighter;
 use rustyline::hint::HistoryHinter;
-use rustyline::validate::{
-    MatchingBracketValidator, ValidationContext, ValidationResult, Validator,
-};
+use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::{Context, Result};
 use rustyline_derive::{Helper, Hinter};
 use std::borrow::Cow::{self, Borrowed, Owned};
@@ -16,8 +14,6 @@ use std::borrow::Cow::{self, Borrowed, Owned};
 #[derive(Helper, Hinter)]
 pub struct RustyLineHelper {
     completer: FilenameCompleter,
-    #[rustyline(Validator)]
-    validator: MatchingBracketValidator,
     #[rustyline(Hinter)]
     hinter: HistoryHinter,
 }
@@ -26,7 +22,6 @@ impl RustyLineHelper {
     pub fn new() -> Self {
         Self {
             completer: FilenameCompleter::new(),
-            validator: MatchingBracketValidator::new(),
             hinter: HistoryHinter {},
         }
     }
@@ -53,8 +48,46 @@ impl Validator for RustyLineHelper {
         if ctx.input().starts_with("import") {
             Ok(ValidationResult::Valid(None))
         } else {
-            self.validator.validate(ctx)
+            Ok(validate_arrows(ctx.input()).unwrap_or(validate_brackets(ctx.input())))
         }
+    }
+}
+
+fn validate_arrows(input: &str) -> Option<ValidationResult> {
+    let mut iter = input.as_bytes().into_iter().rev();
+    if let Some(b) = iter.find(|b| **b != b' ') {
+        if *b == b'>' && let Some(b) = iter.next() && (*b == b'-' || *b == b'=') {
+            return Some(ValidationResult::Incomplete)
+        }
+    }
+    None
+}
+
+fn validate_brackets(input: &str) -> ValidationResult {
+    let mut stack = vec![];
+    for c in input.chars() {
+        match c {
+            '(' => stack.push(c),
+            ')' => match stack.pop() {
+                Some('(') => {}
+                Some(_) => {
+                    return ValidationResult::Invalid(Some(
+                        "Mismatched brackets: ) is not properly closed".to_string(),
+                    ))
+                }
+                None => {
+                    return ValidationResult::Invalid(Some(
+                        "Mismatched brackets: ( is unpaired".to_string(),
+                    ))
+                }
+            },
+            _ => {}
+        }
+    }
+    if stack.is_empty() {
+        ValidationResult::Valid(None)
+    } else {
+        ValidationResult::Incomplete
     }
 }
 
