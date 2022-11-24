@@ -17,7 +17,7 @@ fn convert_span(span: Span) -> Location {
     ((x1, y1), (x2, y2)).into()
 }
 
-fn builder_from_parser<'i>(pair: Pair<'i, Rule>) -> Builder<'i> {
+fn builder_from_parser(pair: Pair<Rule>) -> Builder {
     // location to be used in a future version
     let _loc = convert_span(pair.as_span());
     use Builder::*;
@@ -25,7 +25,7 @@ fn builder_from_parser<'i>(pair: Pair<'i, Rule>) -> Builder<'i> {
         Rule::Prop => Prop,
         Rule::Type => Type(
             pair.into_inner()
-                .fold(0, |_, x| x.as_str().parse::<usize>().unwrap().into()),
+                .fold(0, |_, x| x.as_str().parse::<usize>().unwrap()),
         ),
         Rule::Var => Var(pair.into_inner().as_str()),
         Rule::App => {
@@ -36,24 +36,22 @@ fn builder_from_parser<'i>(pair: Pair<'i, Rule>) -> Builder<'i> {
         Rule::Abs => {
             let mut iter = pair.into_inner();
             let body = builder_from_parser(iter.next_back().unwrap());
-            iter.map(|pair| {
+            iter.flat_map(|pair| {
                 let mut pair = pair.into_inner();
                 let type_ = Box::new(builder_from_parser(pair.next_back().unwrap()));
                 pair.map(move |var| (var.as_str(), type_.clone()))
             })
-            .flatten()
             .rev()
             .fold(body, |acc, (var, type_)| Abs(var, type_, Box::new(acc)))
         }
         Rule::dProd => {
             let mut iter = pair.into_inner();
             let body = builder_from_parser(iter.next_back().unwrap());
-            iter.map(|pair| {
+            iter.flat_map(|pair| {
                 let mut pair = pair.into_inner();
                 let type_ = Box::new(builder_from_parser(pair.next_back().unwrap()));
                 pair.map(move |var| (var.as_str(), type_.clone()))
             })
-            .flatten()
             .rev()
             .fold(body, |acc, (var, type_)| Prod(var, type_, Box::new(acc)))
         }
@@ -200,20 +198,21 @@ pub fn parse_file<'arena, 'build>(
         .and_then(|pairs| {
             pairs
                 .into_iter()
-                .map(|line| build_command_from_expr(arena, line.into_inner().next().unwrap()))
+                .map(|line| build_command_from_expr(arena, line))
                 .collect::<kernel::Result<Vec<Command<'_, '_>>>>()
                 .map_err(|err| Error {
                     kind: ErrorKind::EarlyKernelError(err),
                     location: Location::default(),
                 })
         })
-    //.collect::<Result<Vec<Command<'_, '_>>>>()),
 }
 
 #[cfg(test)]
 mod tests {
+    use kernel::builders::*;
+    use kernel::use_arena;
+
     use super::Command::*;
-    use super::Term::*;
     use super::*;
 
     /// Error messages
@@ -226,344 +225,414 @@ mod tests {
 
     #[test]
     fn failure_universe_level() {
-        assert_eq!(
-            parse_line("check fun x : Prop -> Type"),
-            Err(Error {
-                kind: ErrorKind::CannotParse(UNIVERSE_ERR.to_string()),
-                location: Location::new((1, 27).into(), (1, 27).into()),
-            })
-        );
+        use_arena(|arena| {
+            assert_eq!(
+                parse_line(arena, "check fun x : Prop -> Type"),
+                Err(Error {
+                    kind: ErrorKind::CannotParse(UNIVERSE_ERR.to_string()),
+                    location: Location::new((1, 27).into(), (1, 27).into()),
+                })
+            );
+        })
     }
 
     #[test]
     fn successful_definechecktype() {
-        assert_eq!(
-            parse_line("def x : Type := Prop"),
-            Ok(Define(
-                "x".to_string(),
-                Some(Type(BigUint::from(0_u64).into())),
-                Prop
-            ))
-        );
+        use_arena(|arena| {
+            let type_0 = arena.build(type_usize(0)).unwrap();
+            let prop = arena.build(prop()).unwrap();
+            assert_eq!(
+                parse_line(arena, "def x : Type := Prop"),
+                Ok(Define("x", Some(type_0), prop))
+            );
+        })
     }
 
     #[test]
     fn successful_define() {
-        assert_eq!(
-            parse_line("def x := Prop"),
-            Ok(Define("x".to_string(), None, Prop))
-        );
+        use_arena(|arena| {
+            assert_eq!(
+                parse_line(arena, "def x := Prop"),
+                Ok(Define("x", None, arena.build(prop()).unwrap()))
+            );
+        })
     }
 
     #[test]
     fn successful_checktype() {
-        assert_eq!(
-            parse_line("check Prop : Type"),
-            Ok(CheckType(Prop, Type(BigUint::from(0_u64).into())))
-        );
+        use_arena(|arena| {
+            let type_0 = arena.build(type_usize(0)).unwrap();
+            assert_eq!(
+                parse_line(arena, "check Prop : Type"),
+                Ok(CheckType(arena.build(prop()).unwrap(), type_0))
+            );
+        })
     }
 
     #[test]
     fn successful_gettype_prop() {
-        assert_eq!(parse_line("check Prop"), Ok(GetType(Prop)));
+        use_arena(|arena| {
+            let prop = arena.build(prop()).unwrap();
+            assert_eq!(parse_line(arena, "check Prop"), Ok(GetType(prop)));
+        })
     }
 
     #[test]
     fn successful_var() {
-        assert_eq!(parse_line("check A"), Ok(GetType(Const("A".to_string()))));
-        assert_eq!(
-            parse_line("check fun A:Prop => A"),
-            Ok(GetType(Abs(box Prop, box Var(1.into()))))
-        );
+        use_arena(|arena| {
+            let res = arena.build(abs("A", prop(), var("A"))).unwrap();
+            assert_eq!(parse_line(arena, "check fun A:Prop => A"), Ok(GetType(res)));
+        })
     }
 
     #[test]
     fn successful_type() {
-        assert_eq!(
-            parse_line("check Type"),
-            Ok(GetType(Type(BigUint::from(0_u64).into())))
-        );
-        assert_eq!(
-            parse_line("check Type 0"),
-            Ok(GetType(Type(BigUint::from(0_u64).into())))
-        );
-        assert_eq!(
-            parse_line("check Type 1"),
-            Ok(GetType(Type(BigUint::from(1_u64).into())))
-        );
+        use_arena(|arena| {
+            let type_0 = arena.build(type_usize(0)).unwrap();
+            let type_1 = arena.build(type_usize(1)).unwrap();
+            assert_eq!(parse_line(arena, "check Type"), Ok(GetType(type_0)));
+            assert_eq!(parse_line(arena, "check Type 0"), Ok(GetType(type_0)));
+            assert_eq!(parse_line(arena, "check Type 1"), Ok(GetType(type_1)));
+        })
     }
 
     #[test]
     fn successful_app() {
-        assert_eq!(
-            parse_line("check A B C"),
-            Ok(GetType(App(
-                box App(box Const("A".to_string()), box Const("B".to_string())),
-                box Const("C".to_string())
-            )))
-        );
-        assert_eq!(
-            parse_line("check (A B) C"),
-            Ok(GetType(App(
-                box App(box Const("A".to_string()), box Const("B".to_string())),
-                box Const("C".to_string())
-            )))
-        );
-        assert_eq!(
-            parse_line("check A (B C)"),
-            Ok(GetType(App(
-                box Const("A".to_string()),
-                box App(box Const("B".to_string()), box Const("C".to_string()))
-            )))
-        );
+        use_arena(|arena| {
+            let res_left = arena
+                .build(abs(
+                    "A",
+                    prop(),
+                    abs(
+                        "B",
+                        prop(),
+                        abs("C", prop(), app(app(var("A"), var("B")), var("C"))),
+                    ),
+                ))
+                .unwrap();
+            let res_right = arena
+                .build(abs(
+                    "A",
+                    prop(),
+                    abs(
+                        "B",
+                        prop(),
+                        abs("C", prop(), app(var("A"), app(var("B"), var("C")))),
+                    ),
+                ))
+                .unwrap();
+            assert_eq!(
+                parse_line(arena, "check fun A B C: Prop => A B C"),
+                Ok(GetType(res_left))
+            );
+            assert_eq!(
+                parse_line(arena, "check fun A B C: Prop => (A B) C"),
+                Ok(GetType(res_left))
+            );
+            assert_eq!(
+                parse_line(arena, "check fun A B C: Prop => A (B C)"),
+                Ok(GetType(res_right))
+            );
+        })
     }
 
     #[test]
     fn successful_prod() {
-        assert_eq!(
-            parse_line("check A -> B -> C"),
-            Ok(GetType(Prod(
-                box Const("A".to_string()),
-                box Prod(box Const("B".to_string()), box Const("C".to_string()))
-            )))
-        );
-        assert_eq!(
-            parse_line("check A -> (B -> C)"),
-            Ok(GetType(Prod(
-                box Const("A".to_string()),
-                box Prod(box Const("B".to_string()), box Const("C".to_string()))
-            )))
-        );
-        assert_eq!(
-            parse_line("check (A -> B) -> C"),
-            Ok(GetType(Prod(
-                box Prod(box Const("A".to_string()), box Const("B".to_string())),
-                box Const("C".to_string())
-            )))
-        );
+        use_arena(|arena| {
+            let res_left = arena
+                .build(abs(
+                    "A",
+                    prop(),
+                    abs(
+                        "B",
+                        prop(),
+                        abs(
+                            "C",
+                            prop(),
+                            prod("_", prod("_", var("A"), var("B")), var("C")),
+                        ),
+                    ),
+                ))
+                .unwrap();
+            let res_right = arena
+                .build(abs(
+                    "A",
+                    prop(),
+                    abs(
+                        "B",
+                        prop(),
+                        abs(
+                            "C",
+                            prop(),
+                            prod("_", var("A"), prod("_", var("B"), var("C"))),
+                        ),
+                    ),
+                ))
+                .unwrap();
+            assert_eq!(
+                parse_line(arena, "check fun A B C: Prop => A -> B -> C"),
+                Ok(GetType(res_right))
+            );
+            assert_eq!(
+                parse_line(arena, "check fun A B C: Prop => A -> (B -> C)"),
+                Ok(GetType(res_right))
+            );
+            assert_eq!(
+                parse_line(arena, "check fun A B C: Prop => (A -> B) -> C"),
+                Ok(GetType(res_left))
+            );
+        })
     }
 
     #[test]
     fn successful_dprod() {
-        assert_eq!(
-            parse_line("check (x:A) -> (y:B) -> x"),
-            Ok(GetType(Prod(
-                box Const("A".to_string()),
-                box Prod(box Const("B".to_string()), box Var(2.into()))
-            )))
-        );
-        assert_eq!(
-            parse_line("check (x:A) -> ((y:B) -> x)"),
-            Ok(GetType(Prod(
-                box Const("A".to_string()),
-                box Prod(box Const("B".to_string()), box Var(2.into()))
-            )))
-        );
+        use_arena(|arena| {
+            let res = arena
+                .build(prod("x", type_usize(0), prod("y", type_usize(1), var("x"))))
+                .unwrap();
+            assert_eq!(
+                parse_line(arena, "check (x:Type) -> (y:Type 1) -> x"),
+                Ok(GetType(res))
+            );
+            assert_eq!(
+                parse_line(arena, "check (x:Type) -> ((y:Type 1) -> x)"),
+                Ok(GetType(res))
+            );
+        })
     }
 
     #[test]
     fn successful_abs() {
-        assert_eq!(
-            parse_line("check fun w x : Prop, y z : Prop => x"),
-            Ok(GetType(Abs(
-                box Prop,
-                box Abs(
-                    box Prop,
-                    box Abs(box Prop, box Abs(box Prop, box Var(3.into())))
-                )
-            )))
-        );
+        use_arena(|arena| {
+            let res = arena
+                .build(abs(
+                    "w",
+                    prop(),
+                    abs("x", prop(), abs("y", prop(), abs("z", prop(), var("x")))),
+                ))
+                .unwrap();
+            assert_eq!(
+                parse_line(arena, "check fun w x: Prop, y z: Prop => x"),
+                Ok(GetType(res))
+            );
+        })
     }
 
     #[test]
     fn failed_dprod() {
-        assert_eq!(
-            parse_line("check (x:A)"),
-            Err(Error {
-                kind: ErrorKind::CannotParse(SIMPLE_TERM_ERR.to_string()),
-                location: Location::new((1, 7).into(), (1, 11).into()),
-            })
-        );
-        assert_eq!(
-            parse_line("check (x:A) -> (y:B)"),
-            Err(Error {
-                kind: ErrorKind::CannotParse(SIMPLE_TERM_ERR.to_string()),
-                location: Location::new((1, 16).into(), (1, 20).into()),
-            })
-        );
+        use_arena(|arena| {
+            assert_eq!(
+                parse_line(arena, "check (x:A)"),
+                Err(Error {
+                    kind: ErrorKind::CannotParse(SIMPLE_TERM_ERR.to_string()),
+                    location: Location::new((1, 7).into(), (1, 11).into()),
+                })
+            );
+            assert_eq!(
+                parse_line(arena, "check (x:A) -> (y:B)"),
+                Err(Error {
+                    kind: ErrorKind::CannotParse(SIMPLE_TERM_ERR.to_string()),
+                    location: Location::new((1, 16).into(), (1, 20).into()),
+                })
+            );
+        })
     }
 
     #[test]
     fn context_for_abs_args() {
-        assert_eq!(
-            parse_line("check fun x : Prop, x : x, x : x => x"),
-            Ok(GetType(Abs(
-                box Prop,
-                box Abs(
-                    box Var(1.into()),
-                    box Abs(box Var(1.into()), box Var(1.into()))
-                )
-            )))
-        );
-        assert_eq!(
-            parse_line("check fun x : Prop, x x : x => x"),
-            Ok(GetType(Abs(
-                box Prop,
-                box Abs(
-                    box Var(1.into()),
-                    box Abs(box Var(1.into()), box Var(1.into()))
-                )
-            )))
-        );
-        assert_eq!(
-            parse_line("check fun x : Prop, y z : x => z"),
-            Ok(GetType(Abs(
-                box Prop,
-                box Abs(
-                    box Var(1.into()),
-                    box Abs(box Var(2.into()), box Var(1.into()))
-                )
-            )))
-        );
+        use_arena(|arena| {
+            let res = arena
+                .build(abs(
+                    "x",
+                    prop(),
+                    abs("x", var("x"), abs("x", var("x"), var("x"))),
+                ))
+                .unwrap();
+            let res2 = arena
+                .build(abs(
+                    "x",
+                    prop(),
+                    abs("y", var("x"), abs("z", var("x"), var("z"))),
+                ))
+                .unwrap();
+            assert_eq!(
+                parse_line(arena, "check fun x : Prop, x : x, x : x => x"),
+                Ok(GetType(res))
+            );
+            assert_eq!(
+                parse_line(arena, "check fun x : Prop, x x : x => x"),
+                Ok(GetType(res))
+            );
+            assert_eq!(
+                parse_line(arena, "check fun x : Prop, y z : x => z"),
+                Ok(GetType(res2))
+            );
+        })
     }
 
     #[test]
     fn context_for_dprod_args() {
-        assert_eq!(
-            parse_line("check (x : Prop, x : x, x : x) -> x"),
-            Ok(GetType(Prod(
-                box Prop,
-                box Prod(
-                    box Var(1.into()),
-                    box Prod(box Var(1.into()), box Var(1.into()))
-                )
-            )))
-        );
-        assert_eq!(
-            parse_line("check (x : Prop, x x : x) -> x"),
-            Ok(GetType(Prod(
-                box Prop,
-                box Prod(
-                    box Var(1.into()),
-                    box Prod(box Var(1.into()), box Var(1.into()))
-                )
-            )))
-        );
-        assert_eq!(
-            parse_line("check (x : Prop, y z : x) -> z"),
-            Ok(GetType(Prod(
-                box Prop,
-                box Prod(
-                    box Var(1.into()),
-                    box Prod(box Var(2.into()), box Var(1.into()))
-                )
-            )))
-        );
+        use_arena(|arena| {
+            let res = arena
+                .build(prod(
+                    "x",
+                    prop(),
+                    prod("x", var("x"), prod("x", var("x"), var("x"))),
+                ))
+                .unwrap();
+            let res2 = arena
+                .build(prod(
+                    "x",
+                    prop(),
+                    prod("y", var("x"), prod("z", var("x"), var("z"))),
+                ))
+                .unwrap();
+            assert_eq!(
+                parse_line(arena, "check (x : Prop, x : x, x : x) -> x"),
+                Ok(GetType(res))
+            );
+            assert_eq!(
+                parse_line(arena, "check (x : Prop, x x : x) -> x"),
+                Ok(GetType(res))
+            );
+            assert_eq!(
+                parse_line(arena, "check (x : Prop, y z : x) -> z"),
+                Ok(GetType(res2))
+            );
+        })
     }
 
     #[test]
     fn parenthesis_in_abs() {
-        assert_eq!(
-            parse_line("check fun (((w x : Prop))), y z : Prop => x"),
-            Ok(GetType(Abs(
-                box Prop,
-                box Abs(
-                    box Prop,
-                    box Abs(box Prop, box Abs(box Prop, box Var(3.into())))
-                )
-            )))
-        );
+        use_arena(|arena| {
+            let res = arena
+                .build(abs(
+                    "w",
+                    prop(),
+                    abs("x", prop(), abs("y", prop(), abs("z", prop(), var("x")))),
+                ))
+                .unwrap();
+            assert_eq!(
+                parse_line(arena, "check fun (((w x : Prop))), y z : Prop => x"),
+                Ok(GetType(res))
+            );
+        })
     }
 
     #[test]
     fn parenthesis_in_prod() {
-        assert_eq!(
-            parse_line("check (((A))) -> (((B -> C)))"),
-            Ok(GetType(Prod(
-                box Const("A".to_string()),
-                box Prod(box Const("B".to_string()), box Const("C".to_string()))
-            )))
-        );
+        use_arena(|arena| {
+            let res = arena
+                .build(prod(
+                    "_",
+                    type_usize(0),
+                    prod("_", type_usize(1), type_usize(2)),
+                ))
+                .unwrap();
+            assert_eq!(
+                parse_line(arena, "check (((Type))) -> (((Type 1 -> Type 2)))"),
+                Ok(GetType(res))
+            );
+        })
     }
 
     #[test]
     fn parenthesis_in_dprod() {
-        assert_eq!(
-            parse_line("check (((x:A))) -> ((((y:B) -> x)))"),
-            Ok(GetType(Prod(
-                box Const("A".to_string()),
-                box Prod(box Const("B".to_string()), box Var(2.into()))
-            )))
-        );
+        use_arena(|arena| {
+            let res = arena
+                .build(prod("x", type_usize(0), prod("y", type_usize(1), var("x"))))
+                .unwrap();
+            assert_eq!(
+                parse_line(arena, "check (((x:Type))) -> ((((y:Type 1) -> x)))"),
+                Ok(GetType(res))
+            );
+        })
     }
 
     #[test]
     fn parenthesis_in_app() {
-        assert_eq!(
-            parse_line("check ((((((A))) (((B C))))))"),
-            Ok(GetType(App(
-                box Const("A".to_string()),
-                box App(box Const("B".to_string()), box Const("C".to_string()))
-            )))
-        );
+        use_arena(|arena| {
+            let res = arena
+                .build(abs(
+                    "A",
+                    prop(),
+                    abs(
+                        "B",
+                        prop(),
+                        abs("C", prop(), app(var("A"), app(var("B"), var("C")))),
+                    ),
+                ))
+                .unwrap();
+            assert_eq!(
+                parse_line(arena, "check fun A B C: Prop => ((((((A))) (((B C))))))"),
+                Ok(GetType(res))
+            );
+        })
     }
 
     #[test]
     fn successful_parsers() {
-        let file = r#"
+        use_arena(|arena| {
+            let file = r#"
             def x := Prop -> Prop
 
             // this is a comment
             check fun x:Prop => x
         "#;
 
-        assert_eq!(
-            parse_file(file).unwrap()[0],
-            parse_line("def x := Prop -> Prop").unwrap()
-        );
-        assert_eq!(
-            parse_file(file).unwrap()[1],
-            parse_line("check fun x:Prop => x").unwrap()
-        );
+            assert_eq!(
+                parse_file(arena, file).unwrap()[0],
+                parse_line(arena, "def x := Prop -> Prop").unwrap()
+            );
+            assert_eq!(
+                parse_file(arena, file).unwrap()[1],
+                parse_line(arena, "check fun x:Prop => x").unwrap()
+            );
+        })
     }
 
     #[test]
     fn successful_convert_error() {
-        assert_eq!(
-            parse_line("chehk 2x"),
-            Err(Error {
-                kind: ErrorKind::CannotParse(COMMAND_ERR.to_string()),
-                location: Location::new((1, 1).into(), (1, 5).into()),
-            })
-        );
-        assert_eq!(
-            parse_line("check 2x"),
-            Err(Error {
-                kind: ErrorKind::CannotParse(TERM_ERR.to_string()),
-                location: Location::new((1, 7).into(), (1, 8).into()),
-            })
-        );
-        assert_eq!(
-            parse_line("check x:"),
-            Err(Error {
-                kind: ErrorKind::CannotParse(TERM_ERR.to_string()),
-                location: Location::new((1, 9).into(), (1, 9).into()),
-            })
-        );
+        use_arena(|arena| {
+            assert_eq!(
+                parse_line(arena, "chehk 2x"),
+                Err(Error {
+                    kind: ErrorKind::CannotParse(COMMAND_ERR.to_string()),
+                    location: Location::new((1, 1).into(), (1, 5).into()),
+                })
+            );
+            assert_eq!(
+                parse_line(arena, "check 2x"),
+                Err(Error {
+                    kind: ErrorKind::CannotParse(TERM_ERR.to_string()),
+                    location: Location::new((1, 7).into(), (1, 8).into()),
+                })
+            );
+            assert_eq!(
+                parse_line(arena, "check x:"),
+                Err(Error {
+                    kind: ErrorKind::CannotParse(TERM_ERR.to_string()),
+                    location: Location::new((1, 9).into(), (1, 9).into()),
+                })
+            );
+        })
     }
 
     #[test]
     fn failed_parsers() {
-        assert_eq!(
-            parse_file(
-                "def x : Type := Prop -> Prop
+        use_arena(|arena| {
+            assert_eq!(
+                parse_file(
+                    arena,
+                    "def x : Type := Prop -> Prop
                  // this is a comment
                         check .x"
-            ),
-            Err(Error {
-                kind: ErrorKind::CannotParse(TERM_ERR.to_string()),
-                location: Location::new((3, 31).into(), (3, 32).into()),
-            })
-        );
+                ),
+                Err(Error {
+                    kind: ErrorKind::CannotParse(TERM_ERR.to_string()),
+                    location: Location::new((3, 31).into(), (3, 32).into()),
+                })
+            );
+        })
     }
 }
