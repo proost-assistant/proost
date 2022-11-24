@@ -2,6 +2,7 @@
 #![feature(let_chains)]
 
 mod process;
+mod replace_word;
 mod rustyline_helper;
 
 use clap::Parser;
@@ -39,7 +40,6 @@ fn main() -> Result<()> {
     }
 
     let helper = RustyLineHelper::new();
-    //let mut rl_err: Result<(),ReadlineError> = None;
     let mut rl = Editor::<RustyLineHelper>::new()?;
     rl.set_helper(Some(helper));
     rl.bind_sequence(
@@ -51,7 +51,7 @@ fn main() -> Result<()> {
     let mut env = Environment::new();
 
     loop {
-        let readline = rl.readline("\x1b[0m\u{00BB}\x1b[1;34m ");
+        let readline = rl.readline("\u{00BB} ");
         match readline {
             Ok(line) if !line.is_empty() => {
                 rl.add_history_entry(line.as_str());

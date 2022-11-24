@@ -1,3 +1,5 @@
+use crate::replace_word::*;
+use colored::*;
 use rustyline::completion::{Completer, FilenameCompleter, Pair};
 use rustyline::highlight::Highlighter;
 use rustyline::hint::HistoryHinter;
@@ -7,14 +9,12 @@ use rustyline::validate::{
 use rustyline::{Context, Result};
 use rustyline_derive::{Helper, Hinter};
 use std::borrow::Cow::{self, Borrowed, Owned};
-use std::cell::Cell;
 
 /// An Helper for a RustyLine Editor that implements:
 /// - a standard hinter
 /// - customs validator, completer and highlighter
 #[derive(Helper, Hinter)]
 pub struct RustyLineHelper {
-    bracket: Cell<Option<(u8, usize)>>,
     completer: FilenameCompleter,
     #[rustyline(Validator)]
     validator: MatchingBracketValidator,
@@ -25,7 +25,6 @@ pub struct RustyLineHelper {
 impl RustyLineHelper {
     pub fn new() -> Self {
         Self {
-            bracket: Cell::new(None),
             completer: FilenameCompleter::new(),
             validator: MatchingBracketValidator::new(),
             hinter: HistoryHinter {},
@@ -64,41 +63,33 @@ impl Validator for RustyLineHelper {
 /// see: https://docs.rs/rustyline/10.0.0/rustyline/highlight/struct.MatchingBracketHighlighter.html
 impl Highlighter for RustyLineHelper {
     fn highlight_hint<'h>(&self, hint: &'h str) -> Cow<'h, str> {
-        Owned("\x1b[1m".to_owned() + hint + "\x1b[m")
+        Owned(format!("{}", hint.bold()).to_owned())
     }
 
-    fn highlight<'l>(&self, line: &'l str, _pos: usize) -> Cow<'l, str> {
+    fn highlight_char(&self, _line: &str, _pos: usize) -> bool {
+        true
+    }
+
+    fn highlight<'l>(&self, line: &'l str, pos: usize) -> Cow<'l, str> {
         if line.len() <= 1 {
             return Borrowed(line);
         }
         let mut copy = line.to_owned();
 
-        if let Some((bracket, pos)) = self.bracket.get()
+        if let Some((bracket, pos)) = get_bracket(line, pos)
             && let Some((matching, pos)) = find_matching_bracket(line, pos, bracket) {
-                copy.replace_range(pos..=pos, &format!("\x1b[1;34m{}\x1b[0m", matching as char));
+                let s = format!("{}", matching as char);
+                copy.replace_range(pos..=pos, &format!("{}", s.blue().bold()));
             }
-        let mut found = false;
-        copy.find(|c| {
-            if c != ' ' {
-                found = true;
-            }
-            c == ' ' && found
-        })
-        .map(|offset| copy.insert_str(offset, "\x1b[0m"));
         KEYWORDS
             .iter()
-            .for_each(|m| copy = copy.replace(m, &format!("\x1b[34m{}\x1b[0m", m)));
+            .for_each(|m| copy = replace_word(&copy, m, &format!("{}", m.blue().bold())));
         Owned(copy)
-    }
-
-    fn highlight_char(&self, line: &str, pos: usize) -> bool {
-        self.bracket.set(check_bracket(line, pos));
-        true
     }
 }
 
 /// Language keywords that should be highligted
-const KEYWORDS: [&str; 1] = [" fun "];
+const KEYWORDS: [&str; 4] = ["check", "def", "eval", "import"];
 
 fn find_matching_bracket(line: &str, pos: usize, bracket: u8) -> Option<(u8, usize)> {
     let matching_bracket = matching_bracket(bracket);
@@ -130,7 +121,7 @@ fn find_matching_bracket(line: &str, pos: usize, bracket: u8) -> Option<(u8, usi
 }
 
 /// Check if the cursor is on a bracket
-fn check_bracket(line: &str, pos: usize) -> Option<(u8, usize)> {
+fn get_bracket(line: &str, pos: usize) -> Option<(u8, usize)> {
     if !line.is_empty() && pos < line.len() {
         let b = line.as_bytes()[pos];
         if is_bracket(b) {
@@ -144,7 +135,7 @@ fn matching_bracket(bracket: u8) -> u8 {
     match bracket {
         b'(' => b')',
         b')' => b'(',
-        _ => unreachable!("this function is only called on brackets"),
+        _ => unreachable!(),
     }
 }
 
