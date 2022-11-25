@@ -2,9 +2,9 @@
 
 A simple proof assistant written in Rust.
 
-The specification of the project may be found [here](https://gitlab.crans.org/loutr/proost/-/blob/main/docs/specs.pdf).
+The specification of the project may be found [here](docs/specs.pdf).
 
-The documentation, generated with `rust-doc` may be found [here](https://perso.crans.org/v-lafeychine/proost/doc/proost/).
+The documentation, generated with `rust-doc` may be found [here](doc/proost/).
 
 ### Usage 
 Please see the specification for insights on how to use proost and tilleul.
