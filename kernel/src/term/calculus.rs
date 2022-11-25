@@ -1,3 +1,9 @@
+//! A set of lambda-calculus quasi-primitives.
+//!
+//! This module consists of internal utility functions used by the type checker, and
+//! correspond to usual functions over lambda-terms. These functions interact appropriately with
+//! a given arena.
+
 use super::arena::{Arena, Payload, Term};
 use Payload::*;
 
@@ -29,6 +35,8 @@ impl<'arena> Arena<'arena> {
         }
     }
 
+    /// Returns the term `t` where all variables with de Bruijn index larger than `depth` are offset
+    /// by `offset`.
     pub(crate) fn shift(&mut self, t: Term<'arena>, offset: usize, depth: usize) -> Term<'arena> {
         match *t {
             Var(i, type_) if i > depth.into() => self.var(i + offset.into(), type_),
@@ -51,37 +59,39 @@ impl<'arena> Arena<'arena> {
         }
     }
 
+    /// Returns the term `t` where all instances of the variable tracked by `depth` are substituted
+    /// with `sub`.
     pub(crate) fn substitute(
         &mut self,
-        lhs: Term<'arena>,
-        rhs: Term<'arena>,
+        t: Term<'arena>,
+        sub: Term<'arena>,
         depth: usize,
     ) -> Term<'arena> {
-        self.get_subst_or_init(&(lhs, rhs, depth), |arena| match *lhs {
-            Var(i, _) if i == depth.into() => arena.shift(rhs, depth - 1, 0),
+        self.get_subst_or_init(&(t, sub, depth), |arena| match *t {
+            Var(i, _) if i == depth.into() => arena.shift(sub, depth - 1, 0),
             Var(i, type_) if i > depth.into() => arena.var(i - 1.into(), type_),
             App(l, r) => {
-                let l = arena.substitute(l, rhs, depth);
-                let r = arena.substitute(r, rhs, depth);
+                let l = arena.substitute(l, sub, depth);
+                let r = arena.substitute(r, sub, depth);
                 arena.app(l, r)
             }
             Abs(arg_type, body) => {
-                let arg_type = arena.substitute(arg_type, rhs, depth);
-                let body = arena.substitute(body, rhs, depth + 1);
+                let arg_type = arena.substitute(arg_type, sub, depth);
+                let body = arena.substitute(body, sub, depth + 1);
                 arena.abs(arg_type, body)
             }
             Prod(arg_type, body) => {
-                let arg_type = arena.substitute(arg_type, rhs, depth);
-                let body = arena.substitute(body, rhs, depth + 1);
+                let arg_type = arena.substitute(arg_type, sub, depth);
+                let body = arena.substitute(body, sub, depth + 1);
                 arena.prod(arg_type, body)
             }
-            _ => lhs,
+            _ => t,
         })
     }
 
-    /// Returns the normal form of a term in a given environment.
+    /// Returns the normal form of a term.
     ///
-    /// This function is computationally expensive and should only be used for Reduce/Eval commands, not when type-checking.
+    /// This function is computationally expensive and should only be used for reduce/eval commands, not when type-checking.
     pub fn normal_form(&mut self, t: Term<'arena>) -> Term<'arena> {
         let mut temp = t;
         let mut res = self.beta_reduction(t);
@@ -93,7 +103,7 @@ impl<'arena> Arena<'arena> {
         res
     }
 
-    /// Returns the weak-head normal form of a term in a given environment.
+    /// Returns the weak-head normal form of a term.
     pub fn whnf(&mut self, t: Term<'arena>) -> Term<'arena> {
         t.get_whnf_or_init(|| match *t {
             App(t1, t2) => {
