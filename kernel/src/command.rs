@@ -11,26 +11,26 @@ pub enum Command<'build, 'arena> {
 }
 
 impl<'build, 'arena> Command<'build, 'arena> {
-    pub fn process(self, env: &mut Arena<'arena>) -> Result<'arena, Option<Term<'arena>>> {
+    pub fn process(self, arena: &mut Arena<'arena>) -> Result<'arena, Option<Term<'arena>>> {
         match self {
             Command::Define(s, None, term) => {
-                env.infer(term)?;
-                env.bind(s, term);
+                arena.infer(term)?;
+                arena.bind(s, term);
                 Ok(None)
             }
 
             Command::Define(s, Some(t), term) => {
-                env.check(term, t)?;
-                env.bind(s, term);
+                arena.check(term, t)?;
+                arena.bind(s, term);
                 Ok(None)
             }
 
             Command::CheckType(t1, t2) => {
-                env.check(t1, t2)?;
+                arena.check(t1, t2)?;
                 Ok(None)
             }
 
-            Command::GetType(t) => env.infer(t).map(Some),
+            Command::GetType(t) => arena.infer(t).map(Some),
         }
     }
 }

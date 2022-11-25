@@ -177,7 +177,7 @@ mod tests {
     use crate::term::builders::raw::*;
     use crate::use_arena;
 
-    fn id<'arena>() -> impl Builder<'arena> {
+    fn id<'arena>() -> impl BuilderTrait<'arena> {
         abs(prop(), var(1.into(), prop()))
     }
 

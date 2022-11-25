@@ -35,16 +35,9 @@ pub struct Arena<'arena> {
 // PhantomData is a marker to ensure invariance over the 'arena lifetime.
 pub struct Term<'arena>(&'arena Node<'arena>, PhantomData<*mut &'arena ()>);
 
-// the rest of the struct is very verbose and useless for debugging
-impl<'arena> Debug for Term<'arena> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        self.0.payload.fmt(f)
-    }
-}
-
 // no name storage here: meaning consts are known and can be found, but no pretty printing is
 // possible so far.
-#[derive(Debug)]
+#[derive(Debug, Eq)]
 struct Node<'arena> {
     payload: Payload<'arena>,
 
@@ -76,36 +69,6 @@ pub enum Payload<'arena> {
     Prod(Term<'arena>, Term<'arena>),
 }
 
-/// (TODO PRECISE DOCUMENTATION) make use of unicity invariant to speed up equality test
-impl<'arena> PartialEq<Term<'arena>> for Term<'arena> {
-    fn eq(&self, x: &Term<'arena>) -> bool {
-        std::ptr::eq(self.0, x.0)
-    }
-}
-
-/// (TODO PRECISE DOCUMENTATION) make use of unicity invariant to speed up equality test
-impl<'arena> Hash for Term<'arena> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        std::ptr::hash(self.0, state)
-    }
-}
-
-impl<'arena> PartialEq<Node<'arena>> for Node<'arena> {
-    fn eq(&self, x: &Node<'arena>) -> bool {
-        self.payload == x.payload
-    }
-}
-
-impl<'arena> Eq for Node<'arena> {}
-
-/// (TODO PRECISE DOCUMENTATION) Only the payload matters and caracterises the value. Changing
-/// OnceCells is *guaranteed* to have no impact on that.
-impl<'arena> Hash for Node<'arena> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.payload.hash(state);
-    }
-}
-
 pub fn use_arena<F, T>(f: F) -> T
 where
     F: for<'arena> FnOnce(&mut Arena<'arena>) -> T,
@@ -131,7 +94,7 @@ impl<'arena> Arena<'arena> {
         }
     }
 
-    pub fn store_name(&mut self, name: &str) -> &'arena str {
+    pub(crate) fn store_name(&mut self, name: &str) -> &'arena str {
         self.alloc.alloc_str(name)
     }
 
@@ -148,15 +111,15 @@ impl<'arena> Arena<'arena> {
     /// which use it immediatly intend to compute the type and/or WHNF of the term, or this is
     /// postponed and computed lazily. This iteration chooses the second approach.
     fn hashcons(&mut self, n: Payload<'arena>) -> Term<'arena> {
-        let nn = Node {
+        let new_node = Node {
             payload: n,
             head_normal_form: OnceCell::new(),
             type_: OnceCell::new(),
         };
-        match self.hashcons.get(&nn) {
+        match self.hashcons.get(&new_node) {
             Some(addr) => Term(addr, PhantomData),
             None => {
-                let addr = self.alloc.alloc(nn);
+                let addr = self.alloc.alloc(new_node);
                 self.hashcons.insert(addr);
                 Term(addr, PhantomData)
             }
@@ -231,5 +194,40 @@ impl<'arena> Deref for Term<'arena> {
 
     fn deref(&self) -> &Self::Target {
         &self.0.payload
+    }
+}
+
+// the rest of the struct is very verbose and useless for debugging
+impl<'arena> Debug for Term<'arena> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        self.0.payload.fmt(f)
+    }
+}
+
+/// (TODO PRECISE DOCUMENTATION) make use of unicity invariant to speed up equality test
+impl<'arena> PartialEq<Term<'arena>> for Term<'arena> {
+    fn eq(&self, x: &Term<'arena>) -> bool {
+        std::ptr::eq(self.0, x.0)
+    }
+}
+
+/// (TODO PRECISE DOCUMENTATION) make use of unicity invariant to speed up equality test
+impl<'arena> Hash for Term<'arena> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.0, state)
+    }
+}
+
+impl<'arena> PartialEq<Node<'arena>> for Node<'arena> {
+    fn eq(&self, x: &Node<'arena>) -> bool {
+        self.payload == x.payload
+    }
+}
+
+/// (TODO PRECISE DOCUMENTATION) Only the payload matters and caracterises the value. Changing
+/// OnceCells is *guaranteed* to have no impact on that.
+impl<'arena> Hash for Node<'arena> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.payload.hash(state);
     }
 }

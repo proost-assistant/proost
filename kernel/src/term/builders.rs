@@ -1,14 +1,14 @@
+use derive_more::Display;
+use im_rc::hashmap::HashMap as ImHashMap;
+
 use super::arena::{Arena, DeBruijnIndex, Term, UniverseLevel};
+use crate::error::{Error, ResultTerm};
 
 /// These functions are available publicly, to the attention of the parser. They manipulate
 /// objects with a type morally equal to (Env -> Term), where Env is a working environment used
 /// in term construction from the parser.
 /// This is done as a way to elengantly keep the logic encapsulated in the kernel, but let the
 /// parser itself explore the term.
-use derive_more::Display;
-use im_rc::hashmap::HashMap as ImHashMap;
-
-use crate::error::{Error, ResultTerm};
 
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
@@ -18,8 +18,19 @@ pub enum DefinitionError<'arena> {
 }
 
 pub type Environment<'build, 'arena> = ImHashMap<&'build str, (DeBruijnIndex, Term<'arena>)>;
+
 pub trait BuilderTrait<'build, 'arena> =
     FnOnce(&mut Arena<'arena>, &Environment<'build, 'arena>, DeBruijnIndex) -> ResultTerm<'arena>;
+
+impl<'arena> Arena<'arena> {
+    #[inline]
+    pub fn build<'build, F: BuilderTrait<'build, 'arena>>(&mut self, f: F) -> ResultTerm<'arena>
+    where
+        'arena: 'build,
+    {
+        f(self, &Environment::new(), 0.into())
+    }
+}
 
 #[inline]
 pub fn var<'build, 'arena>(name: &'build str) -> impl BuilderTrait<'build, 'arena> {
@@ -95,16 +106,6 @@ pub fn prod<'build, 'arena, F1: BuilderTrait<'build, 'arena>, F2: BuilderTrait<'
     }
 }
 
-impl<'arena> Arena<'arena> {
-    #[inline]
-    pub fn build<'build, F: BuilderTrait<'build, 'arena>>(&mut self, f: F) -> ResultTerm<'arena>
-    where
-        'arena: 'build,
-    {
-        f(self, &ImHashMap::new(), 0.into())
-    }
-}
-
 #[derive(Clone)]
 pub enum Builder<'r> {
     Var(&'r str),
@@ -154,35 +155,25 @@ impl<'build> Builder<'build> {
 pub(crate) mod raw {
     use super::*;
 
+    pub(crate) trait BuilderTrait<'arena> = FnOnce(&mut Arena<'arena>) -> Term<'arena>;
+
     impl<'arena> Arena<'arena> {
-        pub(crate) fn build_raw<F: Builder<'arena>>(&mut self, f: F) -> Term<'arena> {
+        pub(crate) fn build_raw<F: BuilderTrait<'arena>>(&mut self, f: F) -> Term<'arena> {
             f(self)
         }
     }
 
     impl<'arena> Term<'arena> {
-        pub(crate) fn into(self) -> impl Builder<'arena> {
+        pub(crate) fn into(self) -> impl BuilderTrait<'arena> {
             move |_: &mut Arena<'arena>| self
         }
     }
 
-    pub(crate) trait Builder<'arena> = FnOnce(&mut Arena<'arena>) -> Term<'arena>;
-
     #[inline]
-    pub(crate) fn prop<'arena>() -> impl Builder<'arena> {
-        |env: &mut Arena<'arena>| env.prop()
-    }
-
-    #[inline]
-    pub(crate) fn type_<'arena>(level: UniverseLevel) -> impl Builder<'arena> {
-        move |env: &mut Arena<'arena>| env.type_(level)
-    }
-
-    #[inline]
-    pub(crate) fn var<'arena, F: Builder<'arena>>(
+    pub(crate) fn var<'arena, F: BuilderTrait<'arena>>(
         index: DeBruijnIndex,
         type_: F,
-    ) -> impl Builder<'arena> {
+    ) -> impl BuilderTrait<'arena> {
         move |env: &mut Arena<'arena>| {
             let ty = type_(env);
             env.var(index, ty)
@@ -190,10 +181,20 @@ pub(crate) mod raw {
     }
 
     #[inline]
-    pub(crate) fn app<'arena, F1: Builder<'arena>, F2: Builder<'arena>>(
+    pub(crate) fn prop<'arena>() -> impl BuilderTrait<'arena> {
+        |env: &mut Arena<'arena>| env.prop()
+    }
+
+    #[inline]
+    pub(crate) fn type_<'arena>(level: UniverseLevel) -> impl BuilderTrait<'arena> {
+        move |env: &mut Arena<'arena>| env.type_(level)
+    }
+
+    #[inline]
+    pub(crate) fn app<'arena, F1: BuilderTrait<'arena>, F2: BuilderTrait<'arena>>(
         u1: F1,
         u2: F2,
-    ) -> impl Builder<'arena> {
+    ) -> impl BuilderTrait<'arena> {
         |env: &mut Arena<'arena>| {
             let u1 = u1(env);
             let u2 = u2(env);
@@ -202,10 +203,10 @@ pub(crate) mod raw {
     }
 
     #[inline]
-    pub(crate) fn abs<'arena, F1: Builder<'arena>, F2: Builder<'arena>>(
+    pub(crate) fn abs<'arena, F1: BuilderTrait<'arena>, F2: BuilderTrait<'arena>>(
         u1: F1,
         u2: F2,
-    ) -> impl Builder<'arena> {
+    ) -> impl BuilderTrait<'arena> {
         |env: &mut Arena<'arena>| {
             let u1 = u1(env);
             let u2 = u2(env);
@@ -214,10 +215,10 @@ pub(crate) mod raw {
     }
 
     #[inline]
-    pub(crate) fn prod<'arena, F1: Builder<'arena>, F2: Builder<'arena>>(
+    pub(crate) fn prod<'arena, F1: BuilderTrait<'arena>, F2: BuilderTrait<'arena>>(
         u1: F1,
         u2: F2,
-    ) -> impl Builder<'arena> {
+    ) -> impl BuilderTrait<'arena> {
         |env: &mut Arena<'arena>| {
             let u1 = u1(env);
             let u2 = u2(env);
