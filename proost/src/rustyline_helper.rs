@@ -13,14 +13,16 @@ use std::borrow::Cow::{self, Borrowed, Owned};
 /// - customs validator, completer and highlighter
 #[derive(Helper, Hinter)]
 pub struct RustyLineHelper {
+    color: bool,
     completer: FilenameCompleter,
     #[rustyline(Hinter)]
     hinter: HistoryHinter,
 }
 
 impl RustyLineHelper {
-    pub fn new() -> Self {
+    pub fn new(color: bool) -> Self {
         Self {
+            color,
             completer: FilenameCompleter::new(),
             hinter: HistoryHinter {},
         }
@@ -107,15 +109,18 @@ fn validate_brackets(input: &str) -> ValidationResult {
 /// see: https://docs.rs/rustyline/10.0.0/rustyline/highlight/struct.MatchingBracketHighlighter.html
 impl Highlighter for RustyLineHelper {
     fn highlight_hint<'h>(&self, hint: &'h str) -> Cow<'h, str> {
+        if !self.color {
+            return Owned(hint.to_owned());
+        }
         Owned(format!("{}", hint.bold()))
     }
 
     fn highlight_char(&self, _line: &str, _pos: usize) -> bool {
-        true
+        self.color
     }
 
     fn highlight<'l>(&self, line: &'l str, pos: usize) -> Cow<'l, str> {
-        if line.len() <= 1 {
+        if line.len() <= 1 || !self.color {
             return Borrowed(line);
         }
         let mut copy = line.to_owned();

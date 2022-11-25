@@ -7,6 +7,7 @@ mod rustyline_helper;
 
 use std::fs;
 
+use atty::Stream;
 use clap::Parser;
 use rustyline::error::ReadlineError;
 use rustyline::{Cmd, Editor, EventHandler, KeyCode, KeyEvent, Modifiers, Result};
@@ -19,6 +20,8 @@ use process::*;
 #[command(author, version, about, long_about = None)]
 struct Args {
     files: Vec<String>,
+    #[arg(long)]
+    no_color: bool,
 }
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -27,6 +30,7 @@ const NAME: &str = env!("CARGO_PKG_NAME");
 fn main() -> Result<()> {
     let args = Args::parse();
 
+    // check if files are inputed
     if !args.files.is_empty() {
         for path in args.files.iter() {
             match fs::read_to_string(path) {
@@ -39,7 +43,12 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    let helper = RustyLineHelper::new();
+    // check if we are in a terminal
+    if atty::isnt(Stream::Stdout) || atty::isnt(Stream::Stdin) {
+        return Ok(());
+    }
+
+    let helper = RustyLineHelper::new(!args.no_color);
     let mut rl = Editor::<RustyLineHelper>::new()?;
     rl.set_helper(Some(helper));
     rl.bind_sequence(

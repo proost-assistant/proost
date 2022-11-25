@@ -467,6 +467,7 @@ name = "proost"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "atty",
  "clap",
  "colored",
  "kernel",

@@ -12,7 +12,7 @@ parser.path = "../parser"
 
 anyhow.workspace = true
 clap.workspace = true
-
-colored = "2"
-rustyline = "10.0.0"
-rustyline-derive = "0.7.0"
+atty.workspace = true
+colored.workspace = true
+rustyline.workspace = true
+rustyline-derive.workspace = true
