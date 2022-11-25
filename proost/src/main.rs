@@ -43,6 +43,10 @@ fn main() -> Result<()> {
     let mut rl = Editor::<RustyLineHelper>::new()?;
     rl.set_helper(Some(helper));
     rl.bind_sequence(
+        KeyEvent::from('\t'),
+        EventHandler::Conditional(Box::new(TabEventHandler)),
+    );
+    rl.bind_sequence(
         KeyEvent(KeyCode::Enter, Modifiers::ALT),
         EventHandler::Simple(Cmd::Newline),
     );

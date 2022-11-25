@@ -4,7 +4,7 @@ use rustyline::completion::{Completer, FilenameCompleter, Pair};
 use rustyline::highlight::Highlighter;
 use rustyline::hint::HistoryHinter;
 use rustyline::validate::{ValidationContext, ValidationResult, Validator};
-use rustyline::{Context, Result};
+use rustyline::{Cmd, ConditionalEventHandler, Context, Event, EventContext, RepeatCount, Result};
 use rustyline_derive::{Helper, Hinter};
 use std::borrow::Cow::{self, Borrowed, Owned};
 
@@ -24,6 +24,17 @@ impl RustyLineHelper {
             completer: FilenameCompleter::new(),
             hinter: HistoryHinter {},
         }
+    }
+}
+
+/// An Handler for the tab event
+pub struct TabEventHandler;
+impl ConditionalEventHandler for TabEventHandler {
+    fn handle(&self, _: &Event, n: RepeatCount, _: bool, ctx: &EventContext) -> Option<Cmd> {
+        if ctx.line().starts_with("import") {
+            return None;
+        }
+        Some(Cmd::Insert(n, "\t".to_string()))
     }
 }
 
