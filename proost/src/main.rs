@@ -19,7 +19,9 @@ use process::*;
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Args {
+    /// some .mdln files
     files: Vec<String>,
+    /// remove syntax highlighting
     #[arg(long)]
     no_color: bool,
 }
