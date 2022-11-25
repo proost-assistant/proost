@@ -176,7 +176,7 @@ fn find_matching_bracket(line: &str, pos: usize, bracket: u8) -> Option<(u8, usi
 }
 
 /// Check if the cursor is on a bracket
-fn get_bracket(line: &str, pos: usize) -> Option<(u8, usize)> {
+const fn get_bracket(line: &str, pos: usize) -> Option<(u8, usize)> {
     if !line.is_empty() && pos < line.len() {
         let b = line.as_bytes()[pos];
         if is_bracket(b) {
