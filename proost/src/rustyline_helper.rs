@@ -8,6 +8,9 @@ use rustyline::{Cmd, ConditionalEventHandler, Context, Event, EventContext, Repe
 use rustyline_derive::{Helper, Hinter};
 use std::borrow::Cow::{self, Borrowed, Owned};
 
+/// Language keywords that should be highligted
+const KEYWORDS: [&str; 4] = ["check", "def", "eval", "import"];
+
 /// An Helper for a RustyLine Editor that implements:
 /// - a standard hinter
 /// - customs validator, completer and highlighter
@@ -142,9 +145,6 @@ impl Highlighter for RustyLineHelper {
         Owned(copy)
     }
 }
-
-/// Language keywords that should be highligted
-const KEYWORDS: [&str; 4] = ["check", "def", "eval", "import"];
 
 fn find_matching_bracket(line: &str, pos: usize, bracket: u8) -> Option<(u8, usize)> {
     let matching_bracket = matching_bracket(bracket);
