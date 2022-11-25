@@ -61,46 +61,52 @@ impl Validator for RustyLineHelper {
         if ctx.input().starts_with("import") {
             Ok(ValidationResult::Valid(None))
         } else {
-            Ok(validate_arrows(ctx.input()).unwrap_or_else(|| validate_brackets(ctx.input())))
+            Ok(validate_arrows(ctx.input())
+                .or_else(|| validate_brackets(ctx.input()))
+                .unwrap_or(ValidationResult::Valid(None)))
         }
     }
 }
 
 fn validate_arrows(input: &str) -> Option<ValidationResult> {
     let mut iter = input.as_bytes().iter().rev();
+
     if let Some(b) = iter.find(|b| **b != b' ') {
         if *b == b'>' && let Some(b) = iter.next() && (*b == b'-' || *b == b'=') {
             return Some(ValidationResult::Incomplete)
         }
     }
+
     None
 }
 
-fn validate_brackets(input: &str) -> ValidationResult {
+fn validate_brackets(input: &str) -> Option<ValidationResult> {
     let mut stack = vec![];
+
     for c in input.chars() {
         match c {
             '(' => stack.push(c),
             ')' => match stack.pop() {
                 Some('(') => {}
                 Some(_) => {
-                    return ValidationResult::Invalid(Some(
+                    return Some(ValidationResult::Invalid(Some(
                         "Mismatched brackets: ) is not properly closed".to_string(),
-                    ))
+                    )))
                 }
                 None => {
-                    return ValidationResult::Invalid(Some(
+                    return Some(ValidationResult::Invalid(Some(
                         "Mismatched brackets: ( is unpaired".to_string(),
-                    ))
+                    )))
                 }
             },
             _ => {}
         }
     }
+
     if stack.is_empty() {
-        ValidationResult::Valid(None)
+        None
     } else {
-        ValidationResult::Incomplete
+        Some(ValidationResult::Incomplete)
     }
 }
 
