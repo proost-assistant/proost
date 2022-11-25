@@ -11,29 +11,72 @@ use num_bigint::BigUint;
 
 use crate::error::ResultTerm;
 
+/// An index used to designate bound variables.
 #[derive(
     Add, Copy, Clone, Debug, Default, Display, Eq, PartialEq, From, Into, Sub, PartialOrd, Ord, Hash,
 )]
 pub struct DeBruijnIndex(usize);
 
+/// A level of universe, used to build termes of the form `Type i`.
+///
+/// In type theory, this corresponds to the construction of universes ``à la Russell'', the purpose
+/// of which is to give a hierarchy to these types, so as to preserve soundness against paradoxes
+/// akin to Russell's. Universe levels can be arbitrarily large, and, with good faith, they are
+/// represented with *big unsigned integers*, limited only to the memory of the operating computer.
 #[derive(Add, Clone, Debug, Default, Display, Eq, From, Sub, PartialEq, PartialOrd, Ord, Hash)]
 pub struct UniverseLevel(BigUint);
 
+/// A comprehensive memory management unit for terms.
+///
+/// An arena is a location in memory where a group of terms with several properties is stored. Most
+/// importantly, it ensures that all terms living in the arena are syntaxically unique, which
+/// accelerates many algorithms. In particular, this property allows for *memoizing* easily
+/// operations on terms like substitution, shifting, type checking, etc. It also facilitates the
+/// (building of terms)[./builder.rs] which are named or use named terms.
+///
+/// This paradigm of memory management is akin to what is usually lectured for Binary Decision
+/// Diagrams (BDD) management. Additionally, it makes use of Rust features to provide a clean
+/// interface: the arena type is invariant over its lifetime argument (usually called `'arena`),
+/// which together with the [`use_arena`] function, enforces strong guarantees on how the arena can
+/// be used, particularily if several of them are used simultaneously.
+///
+/// Early versions of this system are freely inspired by an assignment designed by
+/// (Jacques-Henri Jourdan)[https://jhjourdan.mketjh.fr].
 pub struct Arena<'arena> {
     alloc: &'arena Bump,
+
+    // enforces invariances over lifetime parameter
     _phantom: PhantomData<*mut &'arena ()>,
 
+    // Hashconsing of terms, at the heart of the uniqueness property
     hashcons: HashSet<&'arena Node<'arena>>,
     named_terms: HashMap<&'arena str, Term<'arena>>,
 
+    // Hash maps used to speed up certain algorithms. See also `OnceCell`s in [`Term`]
     mem_subst: HashMap<(Term<'arena>, Term<'arena>, usize), Term<'arena>>,
-    // a shift hashmap may also be added when the is_certainly_closed also is (see #45)
+    // TODO shift hashmap (see #45)
+    // requires the design of an additional is_certainly_closed predicate in terms.
+>>>>>>> 994770f (doc(kernel/arena): WIP)
 }
 
+/// A term of the calculus of constructions.
+///
+/// This type is associated, through its lifetime argument, to an [`Arena`], where it lives. There,
+/// it is guaranteed to be unique, which accelerates many algorithms. It is fundamentally a pointer
+/// to an internal term structure, called a Node, which itself contains the core term, [`Payload`],
+/// which is what can be expected of a term.
+///
+/// Additionally, the Node contains lazy structures which indicate the result of certain
+/// transformation on the term, namely type checking and term reduction. Storing it directly here
+/// is both faster and takes overall less space than storing the result in a separate hash table.
 #[derive(Clone, Copy, Display, Eq)]
 #[display(fmt = "{}", "_0.payload")]
-// PhantomData is a marker to ensure invariance over the 'arena lifetime.
-pub struct Term<'arena>(&'arena Node<'arena>, PhantomData<*mut &'arena ()>);
+pub struct Term<'arena>(
+    &'arena Node<'arena>,
+
+    // This marker ensures invariance over the 'arena lifetime.
+    PhantomData<*mut &'arena ()>
+);
 
 // no name storage here: meaning consts are known and can be found, but no pretty printing is
 // possible so far.
@@ -41,30 +84,44 @@ pub struct Term<'arena>(&'arena Node<'arena>, PhantomData<*mut &'arena ()>);
 struct Node<'arena> {
     payload: Payload<'arena>,
 
+    // Lazy and aliasing-compatible structures for memoizing
     head_normal_form: OnceCell<Term<'arena>>,
     type_: OnceCell<Term<'arena>>,
-    //
-    // is_certainly_closed: boolean underapproximation of whether a term is closed, which can
-    // greatly improve performance in shifting
+    // TODO is_certainly_closed: boolean underapproximation of whether a term is closed.
+    // This may greatly improve performance in shifting, along with a mem_shift hash map.
 }
 
+/// The essence of a term.
+///
+/// This enumeration has the same shape as the algebraic type of terms in the calculus of
+/// constructions.
+///
+/// There is one true exception, which is the variable (Var)[`Payload::Var`]. Along with its de
+/// Bruijn index, the variable also stores its type, which is unique, and also ensures two
+/// variables with a different type do not share the same term in memory.
 #[derive(Clone, Debug, Display, Eq, PartialEq, Hash)]
 pub enum Payload<'arena> {
+    /// A variable, with its de Bruijn index and its type
     #[display(fmt = "{}", _0)]
     Var(DeBruijnIndex, Term<'arena>),
 
+    /// The type of propositions
     #[display(fmt = "Prop")]
     Prop,
 
+    /// Type i, as described in [`UniverseLevel`]
     #[display(fmt = "Type {}", _0)]
     Type(UniverseLevel),
 
+    /// The application of two terms
     #[display(fmt = "{} {}", _0, _1)]
     App(Term<'arena>, Term<'arena>),
 
+    /// The lambda-abstraction of a term: the argument type is on the left, the body on the right.
     #[display(fmt = "\u{003BB} {} \u{02192} {}", _0, _1)]
     Abs(Term<'arena>, Term<'arena>),
 
+    /// The dependant product of the term on the right over all elements of the type on the left.
     #[display(fmt = "\u{03A0} {} \u{02192} {}", _0, _1)]
     Prod(Term<'arena>, Term<'arena>),
 }
