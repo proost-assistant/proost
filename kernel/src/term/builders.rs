@@ -33,7 +33,7 @@ impl<'arena> Arena<'arena> {
 }
 
 #[inline]
-pub fn var<'build, 'arena>(name: &'build str) -> impl BuilderTrait<'build, 'arena> {
+pub const fn var<'build, 'arena>(name: &'build str) -> impl BuilderTrait<'build, 'arena> {
     move |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, depth| {
         env.get(name)
             .map(|(bind_depth, term)| {
@@ -49,17 +49,17 @@ pub fn var<'build, 'arena>(name: &'build str) -> impl BuilderTrait<'build, 'aren
 }
 
 #[inline]
-pub fn prop<'build, 'arena>() -> impl BuilderTrait<'build, 'arena> {
+pub const fn prop<'build, 'arena>() -> impl BuilderTrait<'build, 'arena> {
     |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _| Ok(arena.prop())
 }
 
 #[inline]
-pub fn type_<'build, 'arena>(level: UniverseLevel) -> impl BuilderTrait<'build, 'arena> {
+pub const fn type_<'build, 'arena>(level: UniverseLevel) -> impl BuilderTrait<'build, 'arena> {
     move |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _| Ok(arena.type_(level))
 }
 
 #[inline]
-pub fn type_usize<'build, 'arena>(level: usize) -> impl BuilderTrait<'build, 'arena> {
+pub const fn type_usize<'build, 'arena>(level: usize) -> impl BuilderTrait<'build, 'arena> {
     use num_bigint::BigUint;
     move |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _| {
         Ok(arena.type_(BigUint::from(level).into()))
@@ -67,7 +67,12 @@ pub fn type_usize<'build, 'arena>(level: usize) -> impl BuilderTrait<'build, 'ar
 }
 
 #[inline]
-pub fn app<'build, 'arena, F1: BuilderTrait<'build, 'arena>, F2: BuilderTrait<'build, 'arena>>(
+pub const fn app<
+    'build,
+    'arena,
+    F1: BuilderTrait<'build, 'arena>,
+    F2: BuilderTrait<'build, 'arena>,
+>(
     u1: F1,
     u2: F2,
 ) -> impl BuilderTrait<'build, 'arena> {
@@ -79,7 +84,12 @@ pub fn app<'build, 'arena, F1: BuilderTrait<'build, 'arena>, F2: BuilderTrait<'b
 }
 
 #[inline]
-pub fn abs<'build, 'arena, F1: BuilderTrait<'build, 'arena>, F2: BuilderTrait<'build, 'arena>>(
+pub const fn abs<
+    'build,
+    'arena,
+    F1: BuilderTrait<'build, 'arena>,
+    F2: BuilderTrait<'build, 'arena>,
+>(
     name: &'build str,
     arg_type: F1,
     body: F2,
@@ -93,7 +103,12 @@ pub fn abs<'build, 'arena, F1: BuilderTrait<'build, 'arena>, F2: BuilderTrait<'b
 }
 
 #[inline]
-pub fn prod<'build, 'arena, F1: BuilderTrait<'build, 'arena>, F2: BuilderTrait<'build, 'arena>>(
+pub const fn prod<
+    'build,
+    'arena,
+    F1: BuilderTrait<'build, 'arena>,
+    F2: BuilderTrait<'build, 'arena>,
+>(
     name: &'build str,
     arg_type: F1,
     body: F2,
@@ -155,7 +170,7 @@ impl<'build> Builder<'build> {
 pub(crate) mod raw {
     use super::*;
 
-    pub(crate) trait BuilderTrait<'arena> = FnOnce(&mut Arena<'arena>) -> Term<'arena>;
+    pub trait BuilderTrait<'arena> = FnOnce(&mut Arena<'arena>) -> Term<'arena>;
 
     impl<'arena> Arena<'arena> {
         pub(crate) fn build_raw<F: BuilderTrait<'arena>>(&mut self, f: F) -> Term<'arena> {
@@ -164,13 +179,12 @@ pub(crate) mod raw {
     }
 
     impl<'arena> Term<'arena> {
-        pub(crate) fn into(self) -> impl BuilderTrait<'arena> {
+        pub(crate) const fn into(self) -> impl BuilderTrait<'arena> {
             move |_: &mut Arena<'arena>| self
         }
     }
 
-    #[inline]
-    pub(crate) fn var<'arena, F: BuilderTrait<'arena>>(
+    pub const fn var<'arena, F: BuilderTrait<'arena>>(
         index: DeBruijnIndex,
         type_: F,
     ) -> impl BuilderTrait<'arena> {
@@ -180,18 +194,15 @@ pub(crate) mod raw {
         }
     }
 
-    #[inline]
-    pub(crate) fn prop<'arena>() -> impl BuilderTrait<'arena> {
+    pub const fn prop<'arena>() -> impl BuilderTrait<'arena> {
         |env: &mut Arena<'arena>| env.prop()
     }
 
-    #[inline]
-    pub(crate) fn type_<'arena>(level: UniverseLevel) -> impl BuilderTrait<'arena> {
+    pub const fn type_<'arena>(level: UniverseLevel) -> impl BuilderTrait<'arena> {
         move |env: &mut Arena<'arena>| env.type_(level)
     }
 
-    #[inline]
-    pub(crate) fn app<'arena, F1: BuilderTrait<'arena>, F2: BuilderTrait<'arena>>(
+    pub const fn app<'arena, F1: BuilderTrait<'arena>, F2: BuilderTrait<'arena>>(
         u1: F1,
         u2: F2,
     ) -> impl BuilderTrait<'arena> {
@@ -202,8 +213,7 @@ pub(crate) mod raw {
         }
     }
 
-    #[inline]
-    pub(crate) fn abs<'arena, F1: BuilderTrait<'arena>, F2: BuilderTrait<'arena>>(
+    pub const fn abs<'arena, F1: BuilderTrait<'arena>, F2: BuilderTrait<'arena>>(
         u1: F1,
         u2: F2,
     ) -> impl BuilderTrait<'arena> {
@@ -214,8 +224,7 @@ pub(crate) mod raw {
         }
     }
 
-    #[inline]
-    pub(crate) fn prod<'arena, F1: BuilderTrait<'arena>, F2: BuilderTrait<'arena>>(
+    pub const fn prod<'arena, F1: BuilderTrait<'arena>, F2: BuilderTrait<'arena>>(
         u1: F1,
         u2: F2,
     ) -> impl BuilderTrait<'arena> {

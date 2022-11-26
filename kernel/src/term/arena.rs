@@ -27,7 +27,7 @@ pub struct Arena<'arena> {
     named_terms: HashMap<&'arena str, Term<'arena>>,
 
     mem_subst: HashMap<(Term<'arena>, Term<'arena>, usize), Term<'arena>>,
-    // a shift hashmap may also be added when the is_certainly_closed also is
+    // a shift hashmap may also be added when the is_certainly_closed also is (see #45)
 }
 
 #[derive(Clone, Copy, Display, Eq)]

@@ -18,9 +18,10 @@ fn convert_span(span: Span) -> Location {
 }
 
 fn builder_from_parser(pair: Pair<Rule>) -> Builder {
+    use Builder::*;
+
     // location to be used in a future version
     let _loc = convert_span(pair.as_span());
-    use Builder::*;
     match pair.as_rule() {
         Rule::Prop => Prop,
         Rule::Type => Type(
