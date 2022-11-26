@@ -2,7 +2,6 @@
 #![feature(let_chains)]
 
 mod process;
-mod replace_word;
 mod rustyline_helper;
 
 use std::fs;

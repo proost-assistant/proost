@@ -1,4 +1,3 @@
-use crate::replace_word::*;
 use colored::*;
 use rustyline::completion::{Completer, FilenameCompleter, Pair};
 use rustyline::highlight::Highlighter;
@@ -39,7 +38,7 @@ impl ConditionalEventHandler for TabEventHandler {
         if ctx.line().starts_with("import") {
             return None;
         }
-        Some(Cmd::Insert(n, "\t".to_string()))
+        Some(Cmd::Insert(n, "  ".to_string()))
     }
 }
 
@@ -93,12 +92,12 @@ fn validate_brackets(input: &str) -> Option<ValidationResult> {
                 Some('(') => {}
                 Some(_) => {
                     return Some(ValidationResult::Invalid(Some(
-                        "Mismatched brackets: ) is not properly closed".to_string(),
+                        "\nMismatched brackets: ) is not properly closed".to_string(),
                     )))
                 }
                 None => {
                     return Some(ValidationResult::Invalid(Some(
-                        "Mismatched brackets: ( is unpaired".to_string(),
+                        "\nMismatched brackets: ( is unpaired".to_string(),
                     )))
                 }
             },
@@ -141,8 +140,24 @@ impl Highlighter for RustyLineHelper {
             }
         KEYWORDS
             .iter()
-            .for_each(|m| copy = replace_word(&copy, m, &format!("{}", m.blue().bold())));
+            .for_each(|m| replace_inplace(&mut copy, m, &format!("{}", m.blue().bold())));
         Owned(copy)
+    }
+}
+
+/// Variation of the std replace function that only replace full words
+pub fn replace_inplace(input: &mut String, from: &str, to: &str) {
+    let mut offset = 0;
+    while let Some(pos) = input[offset..].find(from) {
+        if (pos == 0 || input.as_bytes()[offset + pos - 1] == b' ')
+            && (offset + pos + from.len() == input.len()
+                || input.as_bytes()[offset + pos + from.len()] == b' ')
+        {
+            input.replace_range(offset + pos..offset + pos + from.len(), to);
+            offset += pos + to.len();
+        } else {
+            offset += pos + from.len()
+        }
     }
 }
 
