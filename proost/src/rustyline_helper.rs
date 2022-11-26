@@ -62,12 +62,12 @@ impl Completer for RustyLineHelper {
 impl Validator for RustyLineHelper {
     fn validate(&self, ctx: &mut ValidationContext) -> Result<ValidationResult> {
         if ctx.input().starts_with("import") {
-            Ok(ValidationResult::Valid(None))
-        } else {
-            Ok(validate_arrows(ctx.input())
-                .or_else(|| validate_brackets(ctx.input()))
-                .unwrap_or(ValidationResult::Valid(None)))
+            return Ok(ValidationResult::Valid(None));
         }
+
+        Ok(validate_arrows(ctx.input())
+            .or_else(|| validate_brackets(ctx.input()))
+            .unwrap_or(ValidationResult::Valid(None)))
     }
 }
 
