@@ -36,4 +36,5 @@ impl<'build, 'arena> Command<'build, 'arena> {
 }
 
 #[cfg(test)]
+// Waiting for new kernel interactions (#44)
 mod tests {}
