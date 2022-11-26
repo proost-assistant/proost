@@ -10,6 +10,5 @@ kernel.path = "../kernel"
 
 derive_more.workspace = true
 num-bigint.workspace = true
-
-pest = "2.4"
-pest_derive = "2.4"
+pest.workspace = true
+pest_derive.workspace = true

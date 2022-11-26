@@ -24,7 +24,7 @@ Prod = { term_prod ~ ( "->" ~ term_prod )+ }
 
 Prop = { "Prop" }
 Type = { "Type(" ~ number ~ ")" | "Type" ~ number? }
-Var = { string }
+Var = { string | SYMBOL }
 
 Command = _{ Define | CheckType | GetType | DefineCheckType }
 Define = { "def" ~ string ~ ":=" ~ Term }

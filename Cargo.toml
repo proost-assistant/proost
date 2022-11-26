@@ -14,6 +14,8 @@ atty = "0.2"
 colored = "2"
 rustyline = "10.0.0"
 rustyline-derive = "0.7.0"
+pest = "2.5"
+pest_derive = "2.5"
 
 [workspace.package]
 authors = [

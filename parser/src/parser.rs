@@ -153,11 +153,11 @@ fn convert_error(err: pest::error::Error<Rule>) -> Error {
         LineColLocation::Pos((x, y)) => {
             let mut right = y;
             let mut left = 1;
-            let chars = err.line().chars();
+            let bytes = err.line().bytes();
             let mut i = 0;
-            for c in chars {
+            for c in bytes {
                 i += 1;
-                if char::is_whitespace(c) {
+                if c == b' ' {
                     if i < y {
                         left = i + 1
                     } else {
