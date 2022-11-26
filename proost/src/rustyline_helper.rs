@@ -138,9 +138,9 @@ impl Highlighter for RustyLineHelper {
                 let s = String::from(matching as char);
                 copy.replace_range(pos..=pos, &s.blue().bold());
             }
-        KEYWORDS.iter().for_each(|keyword| {
-            replace_inplace(&mut copy, keyword, &keyword.blue().bold())
-        });
+        KEYWORDS
+            .iter()
+            .for_each(|keyword| replace_inplace(&mut copy, keyword, &keyword.blue().bold()));
         Owned(copy)
     }
 }
