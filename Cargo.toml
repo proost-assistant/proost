@@ -6,12 +6,13 @@ members = [
 ]
 
 [workspace.dependencies]
-anyhow = "1.0"
-clap = { version = "4.0.10", features = ["derive"] }
-derive_more = "0.99.17"
-num-bigint = "0.4"
 atty = "0.2"
+bumpalo = "3.11.1"
+clap = { version = "4.0.10", features = ["derive"] }
 colored = "2"
+derive_more = "0.99.17"
+im-rc = "15.1.0"
+num-bigint = "0.4"
 rustyline = "10.0.0"
 rustyline-derive = "0.7.0"
 
@@ -19,7 +20,7 @@ rustyline-derive = "0.7.0"
 authors = [
     "Arthur Adjedj",
     "Augustin Albert",
-    "Lucas Tabary-Maujean",
-    "Vincent Lafeychine"
+    "Vincent Lafeychine",
+    "Lucas Tabary-Maujean"
 ]
 license = "GPL-3.0-or-later"

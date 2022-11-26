@@ -10,9 +10,9 @@ license.workspace = true
 kernel.path = "../kernel"
 parser.path = "../parser"
 
-anyhow.workspace = true
-clap.workspace = true
 atty.workspace = true
+clap.workspace = true
 colored.workspace = true
-rustyline.workspace = true
+derive_more.workspace = true
 rustyline-derive.workspace = true
+rustyline.workspace = true
