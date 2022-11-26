@@ -8,7 +8,6 @@ license.workspace = true
 [dependencies]
 kernel.path = "../kernel"
 
-anyhow.workspace = true
 derive_more.workspace = true
 num-bigint.workspace = true
 

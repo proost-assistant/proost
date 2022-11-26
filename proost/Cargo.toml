@@ -10,7 +10,6 @@ license.workspace = true
 kernel.path = "../kernel"
 parser.path = "../parser"
 
-anyhow.workspace = true
 atty.workspace = true
 clap.workspace = true
 colored.workspace = true
