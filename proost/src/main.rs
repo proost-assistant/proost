@@ -1,29 +1,37 @@
 #![feature(box_syntax)]
+#![feature(let_chains)]
 
 mod process;
+mod rustyline_helper;
 
-use clap::Parser;
-use kernel::Environment;
-use process::*;
-use rustyline::error::ReadlineError;
-use rustyline::Editor;
-use std::error::Error;
 use std::fs;
 
-// clap configuration
+use atty::Stream;
+use clap::Parser;
+use rustyline::error::ReadlineError;
+use rustyline::{Cmd, Editor, EventHandler, KeyCode, KeyEvent, Modifiers, Result};
+use rustyline_helper::*;
+
+use kernel::Environment;
+use process::*;
+
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Args {
+    /// some .mdln files
     files: Vec<String>,
+    /// remove syntax highlighting
+    #[arg(long)]
+    no_color: bool,
 }
 
-// constants fetching
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const NAME: &str = env!("CARGO_PKG_NAME");
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<()> {
     let args = Args::parse();
 
+    // check if files are inputed
     if !args.files.is_empty() {
         for path in args.files.iter() {
             match fs::read_to_string(path) {
@@ -36,8 +44,22 @@ fn main() -> Result<(), Box<dyn Error>> {
         return Ok(());
     }
 
-    let mut rl_err: Option<ReadlineError> = None;
-    let mut rl = Editor::<()>::new()?;
+    // check if we are in a terminal
+    if atty::isnt(Stream::Stdout) || atty::isnt(Stream::Stdin) {
+        return Ok(());
+    }
+
+    let helper = RustyLineHelper::new(!args.no_color);
+    let mut rl = Editor::<RustyLineHelper>::new()?;
+    rl.set_helper(Some(helper));
+    rl.bind_sequence(
+        KeyEvent::from('\t'),
+        EventHandler::Conditional(Box::new(TabEventHandler)),
+    );
+    rl.bind_sequence(
+        KeyEvent(KeyCode::Enter, Modifiers::ALT),
+        EventHandler::Simple(Cmd::Newline),
+    );
     println!("Welcome to {} {}", NAME, VERSION);
 
     let mut env = Environment::new();
@@ -52,14 +74,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             Ok(_) => (),
             Err(ReadlineError::Interrupted) => {}
             Err(ReadlineError::Eof) => break,
-            Err(err) => {
-                rl_err = Some(err);
-                break;
-            }
+            Err(err) => return Err(err),
         }
     }
-    match rl_err {
-        None => Ok(()),
-        Some(err) => Err(box err),
-    }
+    Ok(())
 }
