@@ -10,7 +10,7 @@ The documentation, generated with `rust-doc` may be found [here](doc/proost/).
 Please see the specification for insights on how to use `proost` and `tilleul`.
 
 ### Build and install
-With `nix` installed, type `nix build` to perform a build and have it in the nix store. One can also type `nix profile install` in the repo to install `proost` to one's profile and use it everywhere!
+With `nix` installed, simply type `nix run git+ssh://git@gitlab.crans.org/loutr/proost.git` to launch `proost`. Alternatively, clone this git repository and type `nix build` to perform a build and have it in the nix store. One can also type `nix profile install` in the repo to install `proost` to one's profile and use it everywhere!
 
 ### Development environment
 With `nix` installed, simply type `nix develop`. This provides an environment with all the necessary tools, including `clippy` and `rustfmt`. There, it is possible to run the usual `cargo build` and so on.
