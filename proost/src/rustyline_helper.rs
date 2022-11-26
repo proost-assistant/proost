@@ -137,7 +137,7 @@ impl Highlighter for RustyLineHelper {
         if let Some((bracket, pos)) = get_bracket(line, pos)
             && let Some((matching, pos)) = find_matching_bracket(line, pos, bracket) {
                 let s = format!("{}", matching as char);
-                copy.replace_range(pos..=pos, &format!("{}", s.blue().bold()));
+                copy.replace_range(pos..=pos, &s.blue().bold().to_string());
             }
         KEYWORDS
             .iter()
