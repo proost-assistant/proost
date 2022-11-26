@@ -60,7 +60,6 @@ pub struct Arena<'arena> {
     mem_subst: HashMap<(Term<'arena>, Term<'arena>, usize), Term<'arena>>,
     // TODO shift hashmap (see #45)
     // requires the design of an additional is_certainly_closed predicate in terms.
->>>>>>> 994770f (doc(kernel/arena): WIP)
 }
 
 /// A term of the calculus of constructions.

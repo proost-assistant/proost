@@ -6,7 +6,7 @@
 mod command;
 mod error;
 mod location;
-mod term;
+pub mod term;
 mod type_checker;
 
 pub use self::command::Command;
