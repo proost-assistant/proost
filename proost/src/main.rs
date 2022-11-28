@@ -86,6 +86,6 @@ fn is_command(input: &String) -> bool {
     input
         .chars()
         .position(|c| !c.is_whitespace())
-        .map(|pos| input[pos..pos + 2] != "//".to_string())
+        .map(|pos| input[pos..pos + 2] != *"//")
         .unwrap_or_else(|| false)
 }
