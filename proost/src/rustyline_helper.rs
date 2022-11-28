@@ -73,7 +73,7 @@ impl Validator for RustyLineHelper {
 fn validate_arrows(input: &str) -> Option<ValidationResult> {
     let mut iter = input.as_bytes().iter().rev();
 
-    if let Some(b) = iter.find(|b| **b != b' ') {
+    if let Some(b) = iter.find(|b| !(**b).is_ascii_whitespace()) {
         if *b == b'>' && let Some(b) = iter.next() && (*b == b'-' || *b == b'=') {
             return Some(ValidationResult::Incomplete)
         }
@@ -149,9 +149,9 @@ impl Highlighter for RustyLineHelper {
 pub fn replace_inplace(input: &mut String, from: &str, to: &str) {
     let mut offset = 0;
     while let Some(pos) = input[offset..].find(from) {
-        if (pos == 0 || input.as_bytes()[offset + pos - 1] == b' ')
+        if (pos == 0 || input.as_bytes()[offset + pos - 1].is_ascii_whitespace())
             && (offset + pos + from.len() == input.len()
-                || input.as_bytes()[offset + pos + from.len()] == b' ')
+                || input.as_bytes()[offset + pos + from.len()].is_ascii_whitespace())
         {
             input.replace_range(offset + pos..offset + pos + from.len(), to);
             offset += pos + to.len();

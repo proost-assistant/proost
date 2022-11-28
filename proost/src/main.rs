@@ -1,7 +1,7 @@
 #![feature(let_chains)]
 
+mod command_processor;
 mod error;
-mod process;
 mod rustyline_helper;
 
 use std::fs;
@@ -12,7 +12,7 @@ use rustyline::error::ReadlineError;
 use rustyline::{Cmd, Editor, EventHandler, KeyCode, KeyEvent, Modifiers, Result};
 use rustyline_helper::*;
 
-use process::*;
+use command_processor::{print_repl, Processor};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -61,14 +61,16 @@ fn main() -> Result<()> {
     );
 
     kernel::term::arena::use_arena(|arena| {
+        let processor = Processor::new();
+
         println!("Welcome to {} {}", NAME, VERSION);
 
         loop {
             let readline = rl.readline("\u{00BB} ");
             match readline {
-                Ok(line) if !line.is_empty() => {
+                Ok(line) if is_command(&line) => {
                     rl.add_history_entry(line.as_str());
-                    print_repl(process_line(line.as_str(), arena));
+                    print_repl(processor.process_line(line.as_str(), arena));
                 }
                 Ok(_) => (),
                 Err(ReadlineError::Interrupted) => {}
@@ -78,4 +80,12 @@ fn main() -> Result<()> {
         }
         Ok(())
     })
+}
+
+fn is_command(input: &String) -> bool {
+    input
+        .chars()
+        .position(|c| !c.is_whitespace())
+        .map(|pos| input[pos..pos + 2] != "//".to_string())
+        .unwrap_or_else(|| false)
 }

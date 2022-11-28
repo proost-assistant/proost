@@ -1,26 +1,29 @@
-//! High-level commands that the kernel may receive.
+//! High-level which constitute the end-user language.
 //!
-//! This complements low-level commands defined in the [`crate::type_checker`] module.
-//!
-//! Be aware that this portion of the code will be refactored (see issue #44 on GitLab).
+//! This complements low-level commands defined in the [`kernel::type_checker`] module.
 
-use crate::error::Result;
-use crate::term::arena::{Arena, Term};
+use kernel::error::Result;
+use kernel::term::arena::{Arena, Term};
 
 /// The type of commands that can be received by the kernel.
 #[derive(Debug, Eq, PartialEq)]
 pub enum Command<'build, 'arena> {
+    /// Define a new term and optionally check that it's type match the given one.
     Define(&'build str, Option<Term<'arena>>, Term<'arena>),
-
+    /// Infer the type of a term and check that it match the given one.
     CheckType(Term<'arena>, Term<'arena>),
-
+    /// Infer the type of a term.
     GetType(Term<'arena>),
 }
 
-impl<'build, 'arena> Command<'build, 'arena> {
+pub trait CommandProcessor<'build, 'arena> {
     /// Processes a command in a given arena.
-    pub fn process(self, arena: &mut Arena<'arena>) -> Result<'arena, Option<Term<'arena>>> {
-        match self {
+    fn process(
+        &self,
+        command: Command<'build, 'arena>,
+        arena: &mut Arena<'arena>,
+    ) -> Result<'arena, Option<Term<'arena>>> {
+        match command {
             Command::Define(s, None, term) => {
                 arena.infer(term)?;
                 arena.bind(s, term);

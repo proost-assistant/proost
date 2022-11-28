@@ -2,13 +2,22 @@ use colored::Colorize;
 
 use crate::error::{Error::*, Result};
 use kernel::term::arena::{Arena, Term};
-use parser::parse_line;
+use parser::{parse_line, command::CommandProcessor};
 
-pub fn process_line<'arena>(
-    line: &str,
-    arena: &mut Arena<'arena>,
-) -> Result<'arena, Option<Term<'arena>>> {
-    Ok(parse_line(arena, line)?.process(arena)?)
+pub struct Processor;
+impl<'arena> CommandProcessor<'_, 'arena> for Processor {}
+impl Processor {
+    pub fn new() -> Processor {
+        Processor {}
+    }
+
+    pub fn process_line<'arena>(
+        &self,
+        line: &str,
+        arena: &mut Arena<'arena>,
+    ) -> Result<'arena, Option<Term<'arena>>> {
+        Ok(self.process(parse_line(arena, line)?, arena)?)
+    }
 }
 
 pub fn print_repl<'arena>(res: Result<'arena, Option<Term<'arena>>>) {

@@ -2,8 +2,8 @@ use pest::error::LineColLocation;
 use pest::iterators::Pair;
 use pest::{Parser, Span};
 
+use crate::command::Command;
 use crate::error::{Error, ErrorKind, Result};
-use kernel::command::Command;
 use kernel::error::ResultTerm;
 use kernel::location::Location;
 use kernel::term::{arena::Arena, builders::Builder};
