@@ -15,7 +15,6 @@ pub struct Error<'arena> {
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum ErrorKind<'arena> {
-    #[display(fmt = "cannot parse: {}", _0)]
     CannotParse(String),
     EarlyKernelError(kernel::error::Error<'arena>),
 }

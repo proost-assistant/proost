@@ -4,6 +4,7 @@ mod command_processor;
 mod error;
 mod rustyline_helper;
 
+use std::env::current_dir;
 use std::fs;
 
 use atty::Stream;
@@ -33,12 +34,7 @@ fn main() -> Result<()> {
     // check if files are provided as command-line arguments
     if !args.files.is_empty() {
         for path in args.files.iter() {
-            match fs::read_to_string(path) {
-                Ok(_contents) => (),
-                Err(_) => {
-                    println!("no such file or directory: {}", path);
-                }
-            }
+            fs::read_to_string(path).expect("no such file or directory");
         }
         return Ok(());
     }
@@ -61,7 +57,8 @@ fn main() -> Result<()> {
     );
 
     kernel::term::arena::use_arena(|arena| {
-        let processor = Processor::new();
+        let current_path = current_dir().expect("unnecessary permisions to obtain current path");
+        let mut processor = Processor::new(current_path);
 
         println!("Welcome to {} {}", NAME, VERSION);
 
@@ -70,7 +67,7 @@ fn main() -> Result<()> {
             match readline {
                 Ok(line) if is_command(&line) => {
                     rl.add_history_entry(line.as_str());
-                    print_repl(processor.process_line(line.as_str(), arena));
+                    print_repl(processor.process_line(arena, line.as_str()));
                 }
                 Ok(_) => (),
                 Err(ReadlineError::Interrupted) => {}

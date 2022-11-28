@@ -202,9 +202,8 @@ fn convert_error<'arena>(err: pest::error::Error<Rule>) -> Error<'arena> {
     }
 }
 
-/// Parse a text input and try to convert it into a command.
-///
-/// If unsuccessful, a box containing the first error that was encountered is returned.
+/// parse a text input and try to convert it into a command:
+/// if unsuccessful, a box containing the first error that was encountered is returned.
 pub fn parse_line<'arena, 'build>(
     arena: &mut Arena<'arena>,
     line: &'build str,
@@ -219,9 +218,8 @@ pub fn parse_line<'arena, 'build>(
         })
 }
 
-/// Parse a text input and try to convert it into a vector of commands.
-///
-/// If unsuccessful, a box containing the first error that was encountered is returned.
+/// parse a text input and try to convert it into a vector of commands:
+/// if unsuccessful, a box containing the first error that was encountered is returned.
 pub fn parse_file<'arena, 'build>(
     arena: &mut Arena<'arena>,
     file: &'build str,

@@ -4,6 +4,7 @@ use derive_more::{Display, From};
 pub enum Error<'arena> {
     Parser(parser::error::Error<'arena>),
     Kernel(kernel::error::Error<'arena>),
+    IO(crate::command_processor::Error),
 }
 
 impl std::error::Error for Error<'_> {}

@@ -17,6 +17,7 @@ pest = "2.4"
 pest_derive = "2.4"
 rustyline = "10.0.0"
 rustyline-derive = "0.7.0"
+path-absolutize = "3.0.14"
 
 [workspace.package]
 authors = [

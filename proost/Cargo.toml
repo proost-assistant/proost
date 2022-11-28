@@ -16,3 +16,4 @@ colored.workspace = true
 derive_more.workspace = true
 rustyline-derive.workspace = true
 rustyline.workspace = true
+path-absolutize.workspace = true
