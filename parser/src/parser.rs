@@ -122,6 +122,11 @@ fn build_command_from_expr<'arena, 'build>(
             Ok(Command::Define(s, Some(t), term))
         }
 
+        Rule::Eval => {
+            let term = build_term_from_expr(arena, pair.into_inner().next().unwrap())?;
+            Ok(Command::Eval(term))
+        }
+
         Rule::ImportFile => {
             let files = pair
                 .into_inner()
@@ -150,6 +155,9 @@ fn convert_error<'arena>(err: pest::error::Error<Rule>) -> Error<'arena> {
         Rule::App => "application".to_owned(),
         Rule::Prop => "Prop".to_owned(),
         Rule::Type => "Type".to_owned(),
+        Rule::Eval => "eval term".to_owned(),
+        Rule::filename => "path_to_file".to_owned(),
+        Rule::ImportFile => "import path_to_file".to_owned(),
         _ => unreachable!("low level rules cannot appear in error messages"),
     });
 

@@ -27,11 +27,12 @@ Prop = { "Prop" }
 Type = { "Type(" ~ number ~ ")" | "Type" ~ number? }
 Var = { string }
 
-Command = _{ Define | CheckType | GetType | DefineCheckType | ImportFile }
+Command = _{ Define | CheckType | GetType | DefineCheckType | Eval | ImportFile }
 Define = { "def" ~ string ~ ":=" ~ Term }
 DefineCheckType = { "def" ~ string ~ ":" ~ Term ~ ":=" ~ Term }
 CheckType = { "check" ~ Term ~ ":" ~ Term }
 GetType = { "check" ~ Term }
+Eval = { "eval" ~ Term }
 ImportFile = { "import" ~ filename* }
 
 command = _{SOI ~ Command ~ eoi }

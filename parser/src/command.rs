@@ -13,6 +13,8 @@ pub enum Command<'build, 'arena> {
     CheckType(Term<'arena>, Term<'arena>),
     /// Infer the type of a term.
     GetType(Term<'arena>),
+    /// Evaluate a term.
+    Eval(Term<'arena>),
     /// Import a file.
     Import(Vec<String>),
 }

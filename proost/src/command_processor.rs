@@ -38,6 +38,8 @@ impl<'build, 'arena> CommandProcessor<'build, 'arena, Result<'arena, Option<Term
                 Ok(Some(t))
             }
 
+            Command::Eval(t) => Ok(Some(arena.whnf(t))),
+
             Command::Import(files) => {
                 print!("{:?}", files);
                 Ok(None)
