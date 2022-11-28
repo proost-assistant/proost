@@ -289,14 +289,16 @@ impl<'arena> Term<'arena> {
 ///
 /// This is done for convenience, as it allows to manipulate the terms relatively seemlessly.
 /// ```
+/// # use kernel::term::arena::{use_arena, Payload::*};
+/// # use kernel::term::builders::prop;
 /// # use_arena(|arena| {
-/// # let t = arena.prop();
+/// # let t = arena.build(prop()).unwrap();
 /// match *t {
 ///     Abs(_, t2) => arena.beta_reduction(t2),
 ///     App(t1, _) => t1,
 ///     _ => t
 /// }
-/// # })
+/// # ;})
 /// ```
 /// Please note that this trait has some limits. For instance, the notations used to match against
 /// a *pair* of terms still requires some convolution.

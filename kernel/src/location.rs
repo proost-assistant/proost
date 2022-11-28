@@ -1,4 +1,7 @@
-// TODO: Waiting for #15 to handle correctly location inside Terms
+//! Location of terms in a text interface.
+//!
+//! Be aware that this portion of the code will be refactored (see issue #38 on GitLab).
+
 use derive_more::{Constructor, Display, From};
 
 /// Line and column position.

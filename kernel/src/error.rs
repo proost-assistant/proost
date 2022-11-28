@@ -1,3 +1,5 @@
+//! Errors that can be yielded by the kernel
+
 use derive_more::{Display, From};
 
 use crate::term::arena::Term;
@@ -12,6 +14,8 @@ pub struct Error<'arena> {
     // This struct might contains more fields in the future (waiting for #15)
 }
 
+/// The kind of the error. This disambiguate between the different sections of the kernel, where
+/// the errors are respectively defined.
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq, From)]
 pub enum ErrorKind<'arena> {

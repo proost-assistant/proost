@@ -155,9 +155,10 @@ pub const fn prod<
 
 /// Template of terms.
 ///
-/// A Builder describes a term in a naive but easy to build manner. It strongly ressembles
-/// [`crate::term::arena::Payload`], except that `Var`, `Abs` and `Prod` constructors include a
-/// name, as in the classic way of writing lambda-terms (i.e. no de Bruijn indices involved).
+/// A Builder describes a term in a naive but easy to build manner. It strongly ressembles the
+/// [payload](`crate::term::arena::Payload`) type, except that `Var`, `Abs` and `Prod` constructors
+/// include a name, as in the classic way of writing lambda-terms (i.e. no de Bruijn indices
+/// involved).
 #[derive(Clone)]
 pub enum Builder<'r> {
     Var(&'r str),
@@ -169,8 +170,8 @@ pub enum Builder<'r> {
 }
 
 impl<'build> Builder<'build> {
-    /// Build a terms from a [`Builder`]. This internally uses functions described in the module
-    /// [`crate::term::builders`].
+    /// Build a terms from a [`Builder`]. This internally uses functions described in the
+    /// [builders](`crate::term::builders`) module.
     pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
         arena.build(self.partial_application())
     }

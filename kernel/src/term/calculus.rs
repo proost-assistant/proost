@@ -1,8 +1,7 @@
 //! A set of lambda-calculus quasi-primitives.
 //!
-//! This module consists of internal utility functions used by the type checker, and
-//! correspond to usual functions over lambda-terms. These functions interact appropriately with
-//! a given arena.
+//! This module consists of internal utility functions used by the type checker, and correspond to
+//! usual functions over lambda-terms. These functions interact appropriately with a given arena.
 
 use super::arena::{Arena, Payload, Term};
 use Payload::*;

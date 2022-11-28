@@ -1,3 +1,7 @@
+//! Type checking functions
+//!
+//! The logical core of the kernel.
+
 use std::cmp::max;
 
 use derive_more::Display;
@@ -39,7 +43,8 @@ pub enum TypeCheckerError<'arena> {
 impl<'arena> Arena<'arena> {
     /// Conversion function, checks whether two terms are definitionally equal.
     ///
-    /// The conversion is untyped, meaning that it should **only** be called during type-checking when the two `Term`s are already known to be of the same type and in the same context.
+    /// The conversion is untyped, meaning that it should **only** be called during type-checking
+    /// when the two `Term`s are already known to be of the same type and in the same context.
     fn conversion(&mut self, lhs: Term<'arena>, rhs: Term<'arena>) -> bool {
         lhs == rhs
             || match (&*self.whnf(lhs), &*self.whnf(rhs)) {
@@ -100,7 +105,7 @@ impl<'arena> Arena<'arena> {
         }
     }
 
-    /// Infers the type of a `Term` in a given context.
+    /// Infers the type of the term `t`, living in arena `self`.
     pub fn infer(&mut self, t: Term<'arena>) -> ResultTerm<'arena> {
         t.get_type_or_try_init(|| {
             match *t {
@@ -161,7 +166,7 @@ impl<'arena> Arena<'arena> {
         })
     }
 
-    /// Checks whether a given term is of type `ty` in a given context.
+    /// Checks whether the term `t` living in `self` is of type `ty`.
     pub fn check(&mut self, t: Term<'arena>, ty: Term<'arena>) -> Result<'arena, ()> {
         let tty = self.infer(t)?;
 
