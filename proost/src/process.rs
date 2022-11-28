@@ -1,7 +1,7 @@
 use colored::Colorize;
 
 use crate::error::{Error::*, Result};
-use kernel::{Arena, Term};
+use kernel::term::arena::{Arena, Term};
 use parser::parse_line;
 
 pub fn process_line<'arena>(
@@ -21,13 +21,13 @@ pub fn print_repl<'arena>(res: Result<'arena, Option<Term<'arena>>>) {
         }
         Err(err) => {
             let string = match err {
-                Parser(parser::Error {
-                    kind: parser::ErrorKind::EarlyKernelError(err),
+                Parser(parser::error::Error {
+                    kind: parser::error::ErrorKind::EarlyKernelError(err),
                     ..
                 }) => err.to_string(),
 
-                Parser(parser::Error {
-                    kind: parser::ErrorKind::CannotParse(message),
+                Parser(parser::error::Error {
+                    kind: parser::error::ErrorKind::CannotParse(message),
                     location: loc,
                 }) => {
                     if loc.start.column == loc.end.column {
