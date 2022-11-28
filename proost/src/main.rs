@@ -46,7 +46,7 @@ fn main() -> Result<()> {
 
     let helper = RustyLineHelper::new(!args.no_color);
     let config = Config::builder()
-        .completion_type(rustyline::CompletionType::Circular)
+        .completion_type(rustyline::CompletionType::List)
         .build();
     let mut rl = Editor::with_config(config)?;
     rl.set_helper(Some(helper));
