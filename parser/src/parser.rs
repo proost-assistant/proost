@@ -248,7 +248,7 @@ mod tests {
 
     /// Error messages
     const COMMAND_ERR: &str =
-        "expected def var := term, def var : term := term, check term : term, or check term";
+        "expected def var := term, def var : term := term, check term : term, check term, eval term, or import path_to_file";
     const TERM_ERR: &str =
         "expected variable, abstraction, dependent product, application, product, Prop, or Type";
     const SIMPLE_TERM_ERR: &str = "expected variable, abstraction, Prop, or Type";
