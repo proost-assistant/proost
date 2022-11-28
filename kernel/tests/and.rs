@@ -1,6 +1,6 @@
-use kernel::builders::*;
-use kernel::Command::*;
-use kernel::{use_arena, Arena};
+use kernel::command::Command::*;
+use kernel::term::arena::{use_arena, Arena};
+use kernel::term::builders::*;
 
 fn use_and_arena<F, T>(f: F) -> T
 where
