@@ -433,7 +433,6 @@ dependencies = [
  "num-bigint",
  "pest",
  "pest_derive",
- "unicode-width",
 ]
 
 [[package]]

@@ -101,9 +101,10 @@ impl<'arena> Processor {
                 self.importing.push(file_path.clone());
                 let file =
                     read_to_string(file_path.clone()).expect("permission error, cannot open file");
-                self.process_file(arena, &file)?;
+                let result = self.process_file(arena, &file);
                 self.imported
-                    .insert(self.importing.last().unwrap().to_path_buf());
+                    .insert(self.importing.pop().unwrap().to_path_buf());
+                result?;
                 Ok(())
             }
         } else {
@@ -164,15 +165,18 @@ impl<'build, 'arena> CommandProcessor<'build, 'arena, Result<'arena, Option<Term
 
             Command::Eval(t) => Ok(Some(arena.whnf(*t))),
 
-            Command::Import(files) => files
-                .iter()
-                .map(|relative_path| {
-                    let file_path =
-                        self.create_path(Location::default(), relative_path.to_string())?;
-                    self.import_file(arena, Location::default(), file_path)
-                })
-                .collect::<Result<'arena, Vec<()>>>()
-                .map(|_| None),
+            Command::Import(files) => {
+                print!("{:?}", self.importing);
+                files
+                    .iter()
+                    .map(|relative_path| {
+                        let file_path =
+                            self.create_path(Location::default(), relative_path.to_string())?;
+                        self.import_file(arena, Location::default(), file_path)
+                    })
+                    .collect::<Result<'arena, Vec<()>>>()
+                    .map(|_| None)
+            }
         }
     }
 }

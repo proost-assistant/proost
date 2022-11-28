@@ -10,7 +10,7 @@ use std::fs;
 use atty::Stream;
 use clap::Parser;
 use rustyline::error::ReadlineError;
-use rustyline::{Cmd, Editor, EventHandler, KeyCode, KeyEvent, Modifiers, Result};
+use rustyline::{Cmd, Config, Editor, EventHandler, KeyCode, KeyEvent, Modifiers, Result};
 use rustyline_helper::*;
 
 use command_processor::{print_repl, Processor};
@@ -45,7 +45,10 @@ fn main() -> Result<()> {
     }
 
     let helper = RustyLineHelper::new(!args.no_color);
-    let mut rl = Editor::<RustyLineHelper>::new()?;
+    let config = Config::builder()
+        .completion_type(rustyline::CompletionType::Circular)
+        .build();
+    let mut rl = Editor::with_config(config)?;
     rl.set_helper(Some(helper));
     rl.bind_sequence(
         KeyEvent::from('\t'),
