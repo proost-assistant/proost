@@ -12,3 +12,4 @@ derive_more.workspace = true
 num-bigint.workspace = true
 pest.workspace = true
 pest_derive.workspace = true
+unicode-width.workspace = true
