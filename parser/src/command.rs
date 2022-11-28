@@ -24,5 +24,5 @@ pub enum Command<'build, 'arena> {
 }
 
 pub trait CommandProcessor<'build, 'arena, T> {
-    fn process(&mut self, arena: &mut Arena<'arena>, command: Command<'build, 'arena>) -> T;
+    fn process(&mut self, arena: &mut Arena<'arena>, command: &Command<'build, 'arena>) -> T;
 }

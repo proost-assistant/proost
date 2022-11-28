@@ -1,5 +1,6 @@
 use std::{
     collections::HashSet,
+    fs::read_to_string,
     path::{Path, PathBuf},
 };
 
@@ -50,7 +51,7 @@ impl<'arena> Processor {
 
     /// Return the current working path
     fn path(&self) -> &Path {
-        let path = &self.importing.last().unwrap();
+        let path = self.importing.last().unwrap();
         if path.is_file() {
             path.parent().unwrap()
         } else {
@@ -78,15 +79,15 @@ impl<'arena> Processor {
 
     /// Begin a new file importation
     /// file_path must be absolutize
-    fn import(&mut self, location: Location, file_path: PathBuf) -> Result<'arena, ()> {
+    fn import_file(
+        &mut self,
+        arena: &mut Arena<'arena>,
+        location: Location,
+        file_path: PathBuf,
+    ) -> Result<'arena, ()> {
         if !self.imported.contains(&file_path) {
-            match self.importing.iter().position(|path| path == &file_path) {
-                None => {
-                    self.importing.push(file_path);
-
-                    Ok(())
-                }
-                Some(i) => Err(IO(Error {
+            if let Some(i) = self.importing.iter().position(|path| path == &file_path) {
+                Err(IO(Error {
                     kind: ErrorKind::CyclicDependencies(
                         self.importing[i..]
                             .iter()
@@ -95,7 +96,15 @@ impl<'arena> Processor {
                             .join("->\n"),
                     ),
                     location,
-                })),
+                }))
+            } else {
+                self.importing.push(file_path.clone());
+                let file =
+                    read_to_string(file_path.clone()).expect("permission error, cannot open file");
+                self.process_file(arena, &file)?;
+                self.imported
+                    .insert(self.importing.last().unwrap().to_path_buf());
+                Ok(())
             }
         } else {
             Ok(())
@@ -108,16 +117,20 @@ impl<'arena> Processor {
         line: &str,
     ) -> Result<'arena, Option<Term<'arena>>> {
         let command = parse_line(arena, line)?;
-        self.process(arena, command)
+        self.process(arena, &command)
     }
 
-    pub fn _process_file(
+    pub fn process_file(
         &mut self,
         arena: &mut Arena<'arena>,
         file: &str,
     ) -> Result<'arena, Option<Term<'arena>>> {
-        let _command = parse_file(arena, file)?;
-        Ok(None)
+        let commands = parse_file(arena, file)?;
+        commands
+            .iter()
+            .map(|command| self.process(arena, command).map(|_| ()))
+            .collect::<Result<'arena, Vec<()>>>()
+            .map(|_| None)
     }
 }
 
@@ -127,39 +140,36 @@ impl<'build, 'arena> CommandProcessor<'build, 'arena, Result<'arena, Option<Term
     fn process(
         &mut self,
         arena: &mut Arena<'arena>,
-        command: Command<'build, 'arena>,
+        command: &Command<'build, 'arena>,
     ) -> Result<'arena, Option<Term<'arena>>> {
         match command {
             Command::Define(s, None, term) => {
-                arena.infer(term)?;
-                arena.bind(s, term);
+                arena.infer(*term)?;
+                arena.bind(s, *term);
                 Ok(None)
             }
 
             Command::Define(s, Some(t), term) => {
-                arena.check(term, t)?;
-                arena.bind(s, term);
+                arena.check(*term, *t)?;
+                arena.bind(s, *term);
                 Ok(None)
             }
 
             Command::CheckType(t1, t2) => {
-                arena.check(t1, t2)?;
+                arena.check(*t1, *t2)?;
                 Ok(None)
             }
 
-            Command::GetType(t) => {
-                arena.infer(t).map(Some)?;
-                Ok(Some(t))
-            }
+            Command::GetType(t) => Ok(arena.infer(*t).map(Some)?),
 
-            Command::Eval(t) => Ok(Some(arena.whnf(t))),
+            Command::Eval(t) => Ok(Some(arena.whnf(*t))),
 
             Command::Import(files) => files
                 .iter()
                 .map(|relative_path| {
                     let file_path =
                         self.create_path(Location::default(), relative_path.to_string())?;
-                    self.import(Location::default(), file_path)
+                    self.import_file(arena, Location::default(), file_path)
                 })
                 .collect::<Result<'arena, Vec<()>>>()
                 .map(|_| None),
