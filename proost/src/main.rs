@@ -60,7 +60,7 @@ fn main() -> Result<()> {
         EventHandler::Simple(Cmd::Newline),
     );
 
-    kernel::use_arena(|arena| {
+    kernel::term::arena::use_arena(|arena| {
         println!("Welcome to {} {}", NAME, VERSION);
 
         loop {

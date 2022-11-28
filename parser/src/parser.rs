@@ -3,7 +3,10 @@ use pest::iterators::Pair;
 use pest::{Parser, Span};
 
 use crate::error::{Error, ErrorKind, Result};
-use kernel::{builders::Builder, Arena, Command, Location, ResultTerm};
+use kernel::command::Command;
+use kernel::error::ResultTerm;
+use kernel::location::Location;
+use kernel::term::{arena::Arena, builders::Builder};
 
 #[derive(Parser)]
 #[grammar = "term.pest"]
@@ -17,6 +20,7 @@ fn convert_span(span: Span) -> Location {
     ((x1, y1), (x2, y2)).into()
 }
 
+/// Returns a kernel term builder from pest output
 fn builder_from_parser(pair: Pair<Rule>) -> Builder {
     use Builder::*;
 
@@ -78,7 +82,7 @@ fn build_term_from_expr<'arena>(arena: &mut Arena<'arena>, pair: Pair<Rule>) -> 
 fn build_command_from_expr<'arena, 'build>(
     arena: &mut Arena<'arena>,
     pair: Pair<'build, Rule>,
-) -> kernel::Result<'arena, Command<'build, 'arena>> {
+) -> kernel::error::Result<'arena, Command<'build, 'arena>> {
     // location to be used in a future version
     let _loc = convert_span(pair.as_span());
     match pair.as_rule() {
@@ -200,7 +204,7 @@ pub fn parse_file<'arena, 'build>(
             pairs
                 .into_iter()
                 .map(|line| build_command_from_expr(arena, line))
-                .collect::<kernel::Result<Vec<Command<'_, '_>>>>()
+                .collect::<kernel::error::Result<Vec<Command<'_, '_>>>>()
                 .map_err(|err| Error {
                     kind: ErrorKind::EarlyKernelError(err),
                     location: Location::default(),
@@ -210,8 +214,8 @@ pub fn parse_file<'arena, 'build>(
 
 #[cfg(test)]
 mod tests {
-    use kernel::builders::*;
-    use kernel::use_arena;
+    use kernel::term::arena::use_arena;
+    use kernel::term::builders::*;
 
     use super::Command::*;
     use super::*;

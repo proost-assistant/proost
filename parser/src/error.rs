@@ -1,5 +1,5 @@
 use derive_more::Display;
-use kernel::Location;
+use kernel::location::Location;
 
 /// Type representing parser errors.
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
@@ -17,7 +17,7 @@ pub struct Error<'arena> {
 pub enum ErrorKind<'arena> {
     #[display(fmt = "cannot parse: {}", _0)]
     CannotParse(String),
-    EarlyKernelError(kernel::Error<'arena>),
+    EarlyKernelError(kernel::error::Error<'arena>),
 }
 
 impl std::error::Error for Error<'_> {}
