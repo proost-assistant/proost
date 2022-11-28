@@ -11,4 +11,4 @@ extern crate pest_derive;
 pub mod error;
 mod parser;
 
-pub use parser::*;
+pub use self::parser::*;

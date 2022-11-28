@@ -179,8 +179,8 @@ impl<'arena> Arena<'arena> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::term::arena::use_arena;
     use crate::term::builders::raw::*;
-    use crate::use_arena;
 
     fn id<'arena>() -> impl BuilderTrait<'arena> {
         abs(prop(), var(1.into(), prop()))
