@@ -79,7 +79,7 @@ fn main() -> Result<()> {
     })
 }
 
-fn is_command(input: &String) -> bool {
+fn is_command(input: &str) -> bool {
     input
         .chars()
         .position(|c| !c.is_whitespace())

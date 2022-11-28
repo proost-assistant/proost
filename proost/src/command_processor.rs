@@ -11,7 +11,7 @@ use crate::error::{Error::*, Result};
 use kernel::location::Location;
 use kernel::term::arena::{Arena, Term};
 use parser::command::{Command, CommandProcessor};
-use parser::parse_line;
+use parser::{parse_file, parse_line};
 
 /// Type representing parser errors.
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
@@ -108,7 +108,16 @@ impl<'arena> Processor {
         line: &str,
     ) -> Result<'arena, Option<Term<'arena>>> {
         let command = parse_line(arena, line)?;
-        Ok(self.process(arena, command)?)
+        self.process(arena, command)
+    }
+
+    pub fn _process_file(
+        &mut self,
+        arena: &mut Arena<'arena>,
+        file: &str,
+    ) -> Result<'arena, Option<Term<'arena>>> {
+        let _command = parse_file(arena, file)?;
+        Ok(None)
     }
 }
 
