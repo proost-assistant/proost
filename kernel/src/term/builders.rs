@@ -1,7 +1,7 @@
 //! Collection of safe functions to build Terms
 //!
 //! This module provides two main ways of building terms. The first one is via closures: users can
-//! manipulate closures and create bigger ones which, when [built](Arena::build), provides the expected
+//! manipulate closures and create bigger ones which, when [built](Arena::build), provide the expected
 //! term.
 //!
 //! The overall syntax remains transparent to the user. This means the user focuses on the
@@ -22,11 +22,11 @@ use crate::error::{Error, ResultTerm};
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum DefinitionError<'arena> {
-    #[display(fmt = "unknown identifiant {}", _0)]
+    #[display(fmt = "unknown identifier {}", _0)]
     ConstNotFound(&'arena str),
 }
 
-/// Local environment used to store correspondance between locally-bound variables and the pair
+/// Local environment used to store correspondence between locally-bound variables and the pair
 /// (depth at which they were bound, their type)
 pub type Environment<'build, 'arena> = ImHashMap<&'build str, (DeBruijnIndex, Term<'arena>)>;
 
@@ -155,7 +155,7 @@ pub const fn prod<
 
 /// Template of terms.
 ///
-/// A Builder describes a term in a naive but easy to build manner. It strongly ressembles the
+/// A Builder describes a term in a naive but easy to build manner. It strongly resembles the
 /// [payload](`crate::term::arena::Payload`) type, except that `Var`, `Abs` and `Prod` constructors
 /// include a name, as in the classic way of writing lambda-terms (i.e. no de Bruijn indices
 /// involved).

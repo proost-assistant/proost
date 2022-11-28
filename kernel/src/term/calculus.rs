@@ -123,7 +123,7 @@ impl<'arena> Arena<'arena> {
 
 #[cfg(test)]
 mod tests {
-    // /!\ most of these tests are on ill-typed terms and should not be used for further testings
+    // /!\ most terms used in these tests are ill-typed; they should not be used elsewhere
     use super::super::arena::use_arena;
     use super::super::builders::raw::*;
 

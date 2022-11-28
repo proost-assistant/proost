@@ -21,7 +21,7 @@ use crate::error::ResultTerm;
 )]
 pub struct DeBruijnIndex(usize);
 
-/// A level of universe, used to build termes of the form `Type i`.
+/// A level of universe, used to build terms of the form `Type i`.
 ///
 /// In type theory, this corresponds to the construction of universes "à la Russell", the purpose
 /// of which is to give a hierarchy to these types, so as to preserve soundness against paradoxes
@@ -33,7 +33,7 @@ pub struct UniverseLevel(BigUint);
 /// A comprehensive memory management unit for terms.
 ///
 /// An arena is a location in memory where a group of terms with several properties is stored. Most
-/// importantly, it ensures that all terms living in the arena are syntaxically unique, which
+/// importantly, it ensures that all terms living in the arena are syntactically unique, which
 /// accelerates many algorithms. In particular, this property allows for *memoizing* easily
 /// operations on terms like substitution, shifting, type checking, etc. It also facilitates the
 /// [building of terms](super::builders) which are named or use named terms.
@@ -42,7 +42,7 @@ pub struct UniverseLevel(BigUint);
 /// Diagrams (BDD) management. Additionally, it makes use of Rust features to provide a clean
 /// interface: the arena type is invariant over its lifetime argument (usually called `'arena`),
 /// which together with the [`use_arena`] function, enforces strong guarantees on how the arena can
-/// be used, particularily if several of them are used simultaneously.
+/// be used, particularly if several of them are used simultaneously.
 ///
 /// Early versions of this system are freely inspired by an assignment designed by
 /// [Jacques-Henri Jourdan](<https://jhjourdan.mketjh.fr>).
@@ -80,8 +80,6 @@ pub struct Term<'arena>(
     PhantomData<*mut &'arena ()>,
 );
 
-// no name storage here: meaning consts are known and can be found, but no pretty printing is
-// possible so far.
 #[derive(Debug, Eq)]
 struct Node<'arena> {
     payload: Payload<'arena>,
@@ -132,10 +130,10 @@ pub enum Payload<'arena> {
 /// one to provide an entry point for Arena objects, by means of a closure provided by the end
 /// user.
 ///
-/// Such an interface is the most elegant way to ensure the one-to-one correspondance between
+/// Such an interface is the most elegant way to ensure the one-to-one correspondence between
 /// lifetime parameters and [`Arena`] objects.
 ///
-/// To generate the alloc object in this function is necessary, as this is the main way to
+/// To generate the `alloc` object in this function is necessary, as this is the main way to
 /// "create" a lifetime variable which makes sense. That way, `'arena` is valid exactly during
 /// the execution of the function `f`.
 pub fn use_arena<F, T>(f: F) -> T
@@ -287,7 +285,7 @@ impl<'arena> Term<'arena> {
 /// A Term is arguably a smart pointer, and as such, can be directly dereferenced to its associated
 /// payload.
 ///
-/// This is done for convenience, as it allows to manipulate the terms relatively seemlessly.
+/// This is done for convenience, as it allows to manipulate the terms relatively seamlessly.
 /// ```
 /// # use kernel::term::arena::{use_arena, Payload::*};
 /// # use kernel::term::builders::prop;
@@ -312,9 +310,9 @@ impl<'arena> Deref for Term<'arena> {
 
 /// Debug mode only prints the payload of a term.
 ///
-/// Apart from enhancing the debug readibility, this reimplementation is surprisingly necessary:
+/// Apart from enhancing the debug readability, this reimplementation is surprisingly necessary:
 /// because terms may refer to themselves in the payload, the default debug implementation
-/// indefinitely recurses through it and provokes a stack overflow.
+/// recursively calls itself and provokes a stack overflow.
 impl<'arena> Debug for Term<'arena> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         self.0.payload.fmt(f)
@@ -343,7 +341,7 @@ impl<'arena> PartialEq<Node<'arena>> for Node<'arena> {
     }
 }
 
-/// Nodes are not guaranteed to be unique. Nonetheless, only the payload matters and caracterises
+/// Nodes are not guaranteed to be unique. Nonetheless, only the payload matters and characterises
 /// the value. Which means computing the hash for nodes can be restricted to hashing their
 /// payloads.
 impl<'arena> Hash for Node<'arena> {
