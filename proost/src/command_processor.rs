@@ -2,10 +2,50 @@ use colored::Colorize;
 
 use crate::error::{Error::*, Result};
 use kernel::term::arena::{Arena, Term};
-use parser::{parse_line, command::CommandProcessor};
+use parser::parse_line;
+use parser::command::{Command, CommandProcessor};
 
 pub struct Processor;
-impl<'arena> CommandProcessor<'_, 'arena> for Processor {}
+
+impl<'build, 'arena> CommandProcessor<'build, 'arena, Result<'arena, Option<Term<'arena>>>>
+    for Processor
+{
+    fn process(
+        &self,
+        command: Command<'build, 'arena>,
+        arena: &mut Arena<'arena>,
+    ) -> Result<'arena, Option<Term<'arena>>> {
+        match command {
+            Command::Define(s, None, term) => {
+                arena.infer(term)?;
+                arena.bind(s, term);
+                Ok(None)
+            }
+
+            Command::Define(s, Some(t), term) => {
+                arena.check(term, t)?;
+                arena.bind(s, term);
+                Ok(None)
+            }
+
+            Command::CheckType(t1, t2) => {
+                arena.check(t1, t2)?;
+                Ok(None)
+            }
+
+            Command::GetType(t) => {
+                arena.infer(t).map(Some)?;
+                Ok(Some(t))
+            }
+
+            Command::Import(files) => {
+                print!("{:?}", files);
+                Ok(None)
+            }
+        }
+    }
+}
+
 impl Processor {
     pub fn new() -> Processor {
         Processor {}

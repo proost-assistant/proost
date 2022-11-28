@@ -1,8 +1,7 @@
-//! High-level which constitute the end-user language.
+//! High-level commands which constitute the end-user language.
 //!
-//! This complements low-level commands defined in the [`kernel::type_checker`] module.
+//! This complements low-level functions defined in the [`kernel::type_checker`] module.
 
-use kernel::error::Result;
 use kernel::term::arena::{Arena, Term};
 
 /// The type of commands that can be received by the kernel.
@@ -14,36 +13,12 @@ pub enum Command<'build, 'arena> {
     CheckType(Term<'arena>, Term<'arena>),
     /// Infer the type of a term.
     GetType(Term<'arena>),
+    /// Import a file.
+    Import(Vec<String>),
 }
 
-pub trait CommandProcessor<'build, 'arena> {
-    /// Processes a command in a given arena.
-    fn process(
-        &self,
-        command: Command<'build, 'arena>,
-        arena: &mut Arena<'arena>,
-    ) -> Result<'arena, Option<Term<'arena>>> {
-        match command {
-            Command::Define(s, None, term) => {
-                arena.infer(term)?;
-                arena.bind(s, term);
-                Ok(None)
-            }
-
-            Command::Define(s, Some(t), term) => {
-                arena.check(term, t)?;
-                arena.bind(s, term);
-                Ok(None)
-            }
-
-            Command::CheckType(t1, t2) => {
-                arena.check(t1, t2)?;
-                Ok(None)
-            }
-
-            Command::GetType(t) => arena.infer(t).map(Some),
-        }
-    }
+pub trait CommandProcessor<'build, 'arena, T> {
+    fn process(&self, command: Command<'build, 'arena>, arena: &mut Arena<'arena>) -> T;
 }
 
 #[cfg(test)]

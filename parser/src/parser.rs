@@ -16,7 +16,6 @@ struct CommandParser;
 fn convert_span(span: Span) -> Location {
     let (x1, y1) = span.start_pos().line_col();
     let (x2, y2) = span.end_pos().line_col();
-
     ((x1, y1), (x2, y2)).into()
 }
 
@@ -26,18 +25,23 @@ fn builder_from_parser(pair: Pair<Rule>) -> Builder {
 
     // location to be used in a future version
     let _loc = convert_span(pair.as_span());
+
     match pair.as_rule() {
         Rule::Prop => Prop,
+
+        Rule::Var => Var(pair.into_inner().as_str()),
+
         Rule::Type => Type(
             pair.into_inner()
                 .fold(0, |_, x| x.as_str().parse::<usize>().unwrap()),
         ),
-        Rule::Var => Var(pair.into_inner().as_str()),
+
         Rule::App => {
             let mut iter = pair.into_inner().map(builder_from_parser);
             let t = iter.next().unwrap();
             iter.fold(t, |acc, x| App(Box::new(acc), Box::new(x)))
         }
+
         Rule::Abs => {
             let mut iter = pair.into_inner();
             let body = builder_from_parser(iter.next_back().unwrap());
@@ -49,6 +53,7 @@ fn builder_from_parser(pair: Pair<Rule>) -> Builder {
             .rev()
             .fold(body, |acc, (var, type_)| Abs(var, type_, Box::new(acc)))
         }
+
         Rule::dProd => {
             let mut iter = pair.into_inner();
             let body = builder_from_parser(iter.next_back().unwrap());
@@ -60,6 +65,7 @@ fn builder_from_parser(pair: Pair<Rule>) -> Builder {
             .rev()
             .fold(body, |acc, (var, type_)| Prod(var, type_, Box::new(acc)))
         }
+
         Rule::Prod => {
             let mut iter = pair.into_inner();
             let ret = builder_from_parser(iter.next_back().unwrap());
@@ -69,6 +75,7 @@ fn builder_from_parser(pair: Pair<Rule>) -> Builder {
                     Prod("_", Box::new(argtype), Box::new(acc))
                 })
         }
+
         term => unreachable!("Unexpected term: {:?}", term),
     }
 }
@@ -85,24 +92,28 @@ fn build_command_from_expr<'arena, 'build>(
 ) -> kernel::error::Result<'arena, Command<'build, 'arena>> {
     // location to be used in a future version
     let _loc = convert_span(pair.as_span());
+
     match pair.as_rule() {
         Rule::GetType => {
             let mut iter = pair.into_inner();
             let t = build_term_from_expr(arena, iter.next().unwrap())?;
             Ok(Command::GetType(t))
         }
+
         Rule::CheckType => {
             let mut iter = pair.into_inner();
             let t1 = build_term_from_expr(arena, iter.next().unwrap())?;
             let t2 = build_term_from_expr(arena, iter.next().unwrap())?;
             Ok(Command::CheckType(t1, t2))
         }
+
         Rule::Define => {
             let mut iter = pair.into_inner();
             let s: &'build str = iter.next().unwrap().as_str();
             let term = build_term_from_expr(arena, iter.next().unwrap())?;
             Ok(Command::Define(s, None, term))
         }
+
         Rule::DefineCheckType => {
             let mut iter = pair.into_inner();
             let s: &'build str = iter.next().unwrap().as_str();
@@ -110,6 +121,15 @@ fn build_command_from_expr<'arena, 'build>(
             let term = build_term_from_expr(arena, iter.next().unwrap())?;
             Ok(Command::Define(s, Some(t), term))
         }
+
+        Rule::ImportFile => {
+            let files = pair
+                .into_inner()
+                .map(|pair| pair.as_str().to_string())
+                .collect();
+            Ok(Command::Import(files))
+        }
+
         command => unreachable!("Unexpected command: {:?}", command),
     }
 }
