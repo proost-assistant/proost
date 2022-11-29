@@ -4,7 +4,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use colored::Colorize;
 use derive_more::Display;
 use path_absolutize::Absolutize;
 
@@ -32,6 +31,8 @@ pub enum ErrorKind {
     FileNotFound(String),
     #[display(fmt = "cyclic dependency:\n{}", _0)]
     CyclicDependencies(String),
+    #[display(fmt = "identifiant {} defined already", _0)]
+    BoundVariable(String),
 }
 
 impl std::error::Error for Error {}
@@ -70,7 +71,7 @@ impl<'arena> Processor {
         if file_path.is_file() {
             Ok(file_path)
         } else {
-            Err(IO(Error {
+            Err(Toplevel(Error {
                 kind: ErrorKind::FileNotFound(file_path.to_string_lossy().to_string()),
                 location,
             }))
@@ -87,7 +88,7 @@ impl<'arena> Processor {
     ) -> Result<'arena, ()> {
         if !self.imported.contains(&file_path) {
             if let Some(i) = self.importing.iter().position(|path| path == &file_path) {
-                Err(IO(Error {
+                Err(Toplevel(Error {
                     kind: ErrorKind::CyclicDependencies(
                         self.importing[i..]
                             .iter()
@@ -129,7 +130,10 @@ impl<'arena> Processor {
         let commands = parse_file(arena, file)?;
         commands
             .iter()
-            .map(|command| self.process(arena, command).map(|_| ()))
+            .map(|command| {
+                print!("{:?}", command);
+                self.process(arena, command).map(|_| ())
+            })
             .collect::<Result<'arena, Vec<()>>>()
             .map(|_| None)
     }
@@ -145,9 +149,16 @@ impl<'build, 'arena> CommandProcessor<'build, 'arena, Result<'arena, Option<Term
     ) -> Result<'arena, Option<Term<'arena>>> {
         match command {
             Command::Define(s, None, term) => {
-                arena.infer(*term)?;
-                arena.bind(s, *term);
-                Ok(None)
+                if arena.get_binding(s).is_none() {
+                    arena.infer(*term)?;
+                    arena.bind(s, *term);
+                    Ok(None)
+                } else {
+                    Err(Toplevel(Error {
+                        kind: ErrorKind::BoundVariable(s.to_string()),
+                        location: Location::default(), //TODO
+                    }))
+                }
             }
 
             Command::Define(s, Some(t), term) => {
@@ -178,45 +189,3 @@ impl<'build, 'arena> CommandProcessor<'build, 'arena, Result<'arena, Option<Term
     }
 }
 
-pub fn print_repl<'arena>(res: Result<'arena, Option<Term<'arena>>>) {
-    match res {
-        Ok(None) => println!("{}", "\u{2713}".green()),
-        Ok(Some(t)) => {
-            for line in t.to_string().lines() {
-                println!("{} {}", "\u{2713}".green(), line)
-            }
-        }
-        Err(err) => {
-            let string = match err {
-                Parser(parser::error::Error {
-                    kind: parser::error::ErrorKind::EarlyKernelError(err),
-                    ..
-                }) => err.to_string(),
-
-                Parser(parser::error::Error {
-                    kind: parser::error::ErrorKind::CannotParse(message),
-                    location: loc,
-                }) => {
-                    if loc.start.column == loc.end.column {
-                        format!("{:0w1$}^\n{m}", "", w1 = loc.start.column - 1, m = message)
-                    } else {
-                        format!(
-                            "{:0w1$}^{:-<w2$}^\n{m}",
-                            "",
-                            "",
-                            w1 = loc.start.column - 1,
-                            w2 = loc.end.column - loc.start.column - 1,
-                            m = message
-                        )
-                    }
-                }
-
-                _ => err.to_string(),
-            };
-
-            for line in string.lines() {
-                println!("{} {}", "\u{2717}".red(), line)
-            }
-        }
-    }
-}

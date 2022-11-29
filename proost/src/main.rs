@@ -2,6 +2,7 @@
 
 mod command_processor;
 mod error;
+mod pretty_printing;
 mod rustyline_helper;
 
 use std::env::current_dir;
@@ -13,7 +14,8 @@ use rustyline::error::ReadlineError;
 use rustyline::{Cmd, Config, Editor, EventHandler, KeyCode, KeyEvent, Modifiers, Result};
 use rustyline_helper::*;
 
-use command_processor::{print_repl, Processor};
+use command_processor::Processor;
+use pretty_printing::print_repl;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
