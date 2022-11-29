@@ -8,7 +8,7 @@ use rustyline_derive::{Helper, Hinter};
 use std::borrow::Cow::{self, Borrowed, Owned};
 
 /// Language keywords that should be highlighted
-const KEYWORDS: [&str; 4] = ["check", "def", "eval", "import"];
+const KEYWORDS: [&str; 5] = ["check", "def", "eval", "import", "search"];
 
 /// An Helper for a RustyLine Editor that implements:
 /// - a standard hinter

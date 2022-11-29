@@ -21,6 +21,9 @@ pub enum Command<'build, 'arena> {
 
     /// Import a file.
     Import(Vec<String>),
+
+    /// Search for a variable
+    Search(String),
 }
 
 pub trait CommandProcessor<'build, 'arena, T> {

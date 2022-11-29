@@ -103,7 +103,7 @@ impl<'arena> Processor {
                 let file =
                     read_to_string(file_path.clone()).expect("permission error, cannot open file");
                 let result = self.process_file(arena, &file);
-                let file_path = self.importing.pop().unwrap().to_path_buf();
+                let file_path = self.importing.pop().unwrap();
                 result?;
                 self.imported.insert(file_path);
                 Ok(())
@@ -130,10 +130,7 @@ impl<'arena> Processor {
         let commands = parse_file(arena, file)?;
         commands
             .iter()
-            .map(|command| {
-                print!("{:?}", command);
-                self.process(arena, command).map(|_| ())
-            })
+            .map(|command| self.process(arena, command).map(|_| ()))
             .collect::<Result<'arena, Vec<()>>>()
             .map(|_| None)
     }
@@ -175,6 +172,8 @@ impl<'build, 'arena> CommandProcessor<'build, 'arena, Result<'arena, Option<Term
             Command::GetType(t) => Ok(arena.infer(*t).map(Some)?),
 
             Command::Eval(t) => Ok(Some(arena.whnf(*t))),
+
+            Command::Search(s) => Ok(arena.get_binding(s)), //TODO
 
             Command::Import(files) => files
                 .iter()

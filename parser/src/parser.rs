@@ -135,6 +135,11 @@ fn build_command_from_expr<'arena, 'build>(
             Ok(Command::Import(files))
         }
 
+        Rule::Search => {
+            let s = pair.into_inner().next().unwrap().as_str().to_string();
+            Ok(Command::Search(s))
+        }
+
         command => unreachable!("Unexpected command: {:?}", command),
     }
 }
@@ -158,6 +163,7 @@ fn convert_error<'arena>(err: pest::error::Error<Rule>) -> Error<'arena> {
         Rule::Eval => "eval term".to_owned(),
         Rule::filename => "path_to_file".to_owned(),
         Rule::ImportFile => "import path_to_file".to_owned(),
+        Rule::Search => "search var".to_owned(),
         _ => unreachable!("low level rules cannot appear in error messages"),
     });
 
