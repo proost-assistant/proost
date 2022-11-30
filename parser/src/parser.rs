@@ -4,8 +4,8 @@ use pest::{Parser, Span};
 
 use crate::command::Command;
 use crate::error::{Error, ErrorKind};
-use kernel::term::builders::Builder;
 use kernel::location::Location;
+use kernel::term::builders::Builder;
 
 #[derive(Parser)]
 #[grammar = "term.pest"]
@@ -124,7 +124,7 @@ fn build_command_from_expr<'build>(pair: Pair<'build, Rule>) -> Command<'build> 
         }
 
         Rule::Search => {
-            let s = pair.into_inner().next().unwrap().as_str().to_string();
+            let s = pair.into_inner().next().unwrap().as_str();
             Command::Search(s)
         }
 
@@ -222,7 +222,7 @@ mod tests {
 
     /// Error messages
     const COMMAND_ERR: &str =
-        "expected def var := term, def var : term := term, check term : term, check term, eval term, or import path_to_file";
+        "expected def var := term, def var : term := term, check term : term, check term, eval term, import path_to_file, or search var";
     const TERM_ERR: &str =
         "expected variable, abstraction, dependent product, application, product, Prop, or Type";
     const SIMPLE_TERM_ERR: &str = "expected variable, abstraction, Prop, or Type";

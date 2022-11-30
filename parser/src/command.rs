@@ -2,8 +2,10 @@
 //!
 //! This complements low-level functions defined in the [`kernel::type_checker`] module.
 
-use kernel::term::builders::Builder;
+use core::fmt;
+
 use kernel::term::arena::Arena;
+use kernel::term::builders::Builder;
 
 /// The type of commands that can be received by the kernel.
 #[derive(Debug, Eq, PartialEq)]
@@ -24,7 +26,29 @@ pub enum Command<'build> {
     Import(Vec<&'build str>),
 
     /// Search for a variable
-    Search(String),
+    Search(&'build str),
+}
+
+impl<'build> fmt::Display for Command<'build> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use Command::*;
+
+        match self {
+            Define(name, None, t) => write!(f, "def {} := {}", name, t),
+
+            Define(name, Some(ty), t) => write!(f, "def {}: {} := {}", name, ty, t),
+
+            CheckType(t, ty) => write!(f, "check {}: {}", t, ty),
+
+            GetType(t) => write!(f, "check {}", t),
+
+            Eval(t) => write!(f, "eval {}", t),
+
+            Import(_) => write!(f, "FILE IMPORTS"),
+
+            Search(name) => write!(f, "search {}", name),
+        }
+    }
 }
 
 pub trait CommandProcessor<'build, 'arena, T> {

@@ -130,7 +130,10 @@ impl<'arena> Processor {
         let commands = parse_file(file)?;
         commands
             .iter()
-            .map(|command| self.process(arena, command).map(|_| ()))
+            .map(|command| {
+                println!("{}", command);
+                self.process(arena, command).map(|_| ())
+            })
             .collect::<Result<'arena, Vec<()>>>()
             .map(|_| None)
     }
@@ -198,4 +201,3 @@ impl<'build, 'arena> CommandProcessor<'build, 'arena, Result<'arena, Option<Term
         }
     }
 }
-
