@@ -8,8 +8,7 @@
 #[macro_use]
 extern crate pest_derive;
 
-mod error;
+pub mod error;
 mod parser;
 
-pub use self::error::{Error, ErrorKind};
-pub use self::parser::{parse_file, parse_line};
+pub use self::parser::*;

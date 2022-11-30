@@ -7,7 +7,7 @@ use rustyline::{Cmd, ConditionalEventHandler, Context, Event, EventContext, Repe
 use rustyline_derive::{Helper, Hinter};
 use std::borrow::Cow::{self, Borrowed, Owned};
 
-/// Language keywords that should be highligted
+/// Language keywords that should be highlighted
 const KEYWORDS: [&str; 4] = ["check", "def", "eval", "import"];
 
 /// An Helper for a RustyLine Editor that implements:

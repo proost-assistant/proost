@@ -1,3 +1,7 @@
+//! Type checking functions
+//!
+//! The logical core of the kernel.
+
 use std::cmp::max;
 
 use derive_more::Display;
@@ -15,23 +19,23 @@ pub struct TypedTerm<'arena>(Term<'arena>, Term<'arena>);
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum TypeCheckerError<'arena> {
-    /// t is not a universe
+    /// `t` is not a universe
     #[display(fmt = "{} is not a universe", _0)]
     NotUniverse(Term<'arena>),
 
-    /// t1 and t2 are not definitionally equal
-    #[display(fmt = "{} and {} are not definitionaly equal", _0, _1)]
+    /// `t1` and `t2` are not definitionally equal
+    #[display(fmt = "{} and {} are not definitionally equal", _0, _1)]
     NotDefEq(Term<'arena>, Term<'arena>),
 
-    /// function f expected a t, received x: t'
+    /// function `f` expected a `t`, received `x: t`'
     #[display(fmt = "function {} expects a term of type {}, received {}", _0, _1, _2)]
     WrongArgumentType(Term<'arena>, Term<'arena>, TypedTerm<'arena>),
 
-    /// t1 of type ty is not a function so cannot be applied to t2
+    /// `t1` of type `ty` is not a function so cannot be applied to `t2`
     #[display(fmt = "{} is not a function, it cannot be applied to {}", _0, _1)]
     NotAFunction(TypedTerm<'arena>, Term<'arena>),
 
-    /// Expected ty1, found ty2
+    /// Expected `ty1`, found `ty2`
     #[display(fmt = "expected {}, got {}", _0, _1)]
     TypeMismatch(Term<'arena>, Term<'arena>),
 }
@@ -39,7 +43,8 @@ pub enum TypeCheckerError<'arena> {
 impl<'arena> Arena<'arena> {
     /// Conversion function, checks whether two terms are definitionally equal.
     ///
-    /// The conversion is untyped, meaning that it should **only** be called during type-checking when the two `Term`s are already known to be of the same type and in the same context.
+    /// The conversion is untyped, meaning that it should **only** be called during type-checking
+    /// when the two `Term`s are already known to be of the same type and in the same context.
     fn conversion(&mut self, lhs: Term<'arena>, rhs: Term<'arena>) -> bool {
         lhs == rhs
             || match (&*self.whnf(lhs), &*self.whnf(rhs)) {
@@ -53,7 +58,7 @@ impl<'arena> Arena<'arena> {
                     self.conversion(t1, t2) && self.conversion(u1, u2)
                 }
 
-                // Since we assume that both vals already have the same type,
+                // Since we assume that both values already have the same type,
                 // checking conversion over the argument type is useless.
                 // However, this doesn't mean we can simply remove the arg type
                 // from the type constructor in the enum, it is needed to quote back to terms.
@@ -100,7 +105,7 @@ impl<'arena> Arena<'arena> {
         }
     }
 
-    /// Infers the type of a `Term` in a given context.
+    /// Infers the type of the term `t`, living in arena `self`.
     pub fn infer(&mut self, t: Term<'arena>) -> ResultTerm<'arena> {
         t.get_type_or_try_init(|| {
             match *t {
@@ -112,7 +117,7 @@ impl<'arena> Arena<'arena> {
                     let univ_t = self.infer(t)?;
                     let univ_u = self.infer(u)?;
 
-                    // TODO: lax normalization to whnf once it is itself laxed (#34)
+                    // TODO: relax normalization to whnf once it is itself relaxed (#34)
                     let univ_t = self.normal_form(univ_t);
                     let univ_u = self.normal_form(univ_u);
                     self.imax(univ_t, univ_u)
@@ -161,7 +166,7 @@ impl<'arena> Arena<'arena> {
         })
     }
 
-    /// Checks whether a given term is of type `ty` in a given context.
+    /// Checks whether the term `t` living in `self` is of type `ty`.
     pub fn check(&mut self, t: Term<'arena>, ty: Term<'arena>) -> Result<'arena, ()> {
         let tty = self.infer(t)?;
 
@@ -174,8 +179,8 @@ impl<'arena> Arena<'arena> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::term::arena::use_arena;
     use crate::term::builders::raw::*;
-    use crate::use_arena;
 
     fn id<'arena>() -> impl BuilderTrait<'arena> {
         abs(prop(), var(1.into(), prop()))
@@ -294,7 +299,7 @@ mod tests {
     }
 
     #[test]
-    // this test uses more intricate terms. In order to preserve some readibility,
+    // this test uses more intricate terms. In order to preserve some readability,
     // switching to extern_build, which is clearer.
     fn typed_reduction_app_2() {
         use crate::term::builders::*;

@@ -30,7 +30,7 @@ const NAME: &str = env!("CARGO_PKG_NAME");
 fn main() -> Result<()> {
     let args = Args::parse();
 
-    // check if files are inputed
+    // check if files are provided as command-line arguments
     if !args.files.is_empty() {
         for path in args.files.iter() {
             match fs::read_to_string(path) {
@@ -60,7 +60,7 @@ fn main() -> Result<()> {
         EventHandler::Simple(Cmd::Newline),
     );
 
-    kernel::use_arena(|arena| {
+    kernel::term::arena::use_arena(|arena| {
         println!("Welcome to {} {}", NAME, VERSION);
 
         loop {

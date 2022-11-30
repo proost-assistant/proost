@@ -1,6 +1,13 @@
-use crate::error::Result;
-use crate::{Arena, Term};
+//! High-level commands that the kernel may receive.
+//!
+//! This complements low-level commands defined in the [`crate::type_checker`] module.
+//!
+//! Be aware that this portion of the code will be refactored (see issue #44 on GitLab).
 
+use crate::error::Result;
+use crate::term::arena::{Arena, Term};
+
+/// The type of commands that can be received by the kernel.
 #[derive(Debug, Eq, PartialEq)]
 pub enum Command<'build, 'arena> {
     Define(&'build str, Option<Term<'arena>>, Term<'arena>),
@@ -11,6 +18,7 @@ pub enum Command<'build, 'arena> {
 }
 
 impl<'build, 'arena> Command<'build, 'arena> {
+    /// Processes a command in a given arena.
     pub fn process(self, arena: &mut Arena<'arena>) -> Result<'arena, Option<Term<'arena>>> {
         match self {
             Command::Define(s, None, term) => {

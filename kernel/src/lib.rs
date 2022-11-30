@@ -1,16 +1,14 @@
-//! TODO: Make a documentation (#15)
+//! A kernel for the calculus of constructions.
+//!
+//! Terms can be built with functions from the [`term`] module. Then, the kernel can be queried in
+//! two different ways: the [`type_checker`] module provides low-level interactions, while the
+//! [`command`] module provides higher-level ones.
 
 #![feature(once_cell)]
 #![feature(trait_alias)]
 
-mod command;
-mod error;
-mod location;
-mod term;
-mod type_checker;
-
-pub use self::command::Command;
-pub use self::error::{Error, Result, ResultTerm};
-pub use self::location::{Location, Position};
-pub use self::term::arena::{use_arena, Arena, Term};
-pub use self::term::builders;
+pub mod command;
+pub mod error;
+pub mod location;
+pub mod term;
+pub mod type_checker;

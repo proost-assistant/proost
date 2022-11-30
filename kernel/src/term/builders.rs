@@ -1,28 +1,49 @@
+//! Collection of safe functions to build Terms
+//!
+//! This module provides two main ways of building terms. The first one is via closures: users can
+//! manipulate closures and create bigger ones which, when [built](Arena::build), provide the expected
+//! term.
+//!
+//! The overall syntax remains transparent to the user. This means the user focuses on the
+//! structure of the term they want to build, while the [closures](`BuilderTrait`) internally build an appropriate
+//! logic: converting regular terms into de Bruijn-compatible ones, assigning types to variables,
+//! etc.
+//!
+//! The other way to proceed is built on top of the latter. Users can also manipulate a sort of
+//! *high-level term* or *template*, described by the public enumeration [`Builder`], and at any
+//! moment, [realise](Builder::realise) it.
+
 use derive_more::Display;
 use im_rc::hashmap::HashMap as ImHashMap;
 
 use super::arena::{Arena, DeBruijnIndex, Term, UniverseLevel};
 use crate::error::{Error, ResultTerm};
 
-/// These functions are available publicly, to the attention of the parser. They manipulate
-/// objects with a type morally equal to (Env -> Term), where Env is a working environment used
-/// in term construction from the parser.
-/// This is done as a way to elengantly keep the logic encapsulated in the kernel, but let the
-/// parser itself explore the term.
-
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum DefinitionError<'arena> {
-    #[display(fmt = "unknown identifiant {}", _0)]
+    #[display(fmt = "unknown identifier {}", _0)]
     ConstNotFound(&'arena str),
 }
 
+/// Local environment used to store correspondence between locally-bound variables and the pair
+/// (depth at which they were bound, their type)
 pub type Environment<'build, 'arena> = ImHashMap<&'build str, (DeBruijnIndex, Term<'arena>)>;
 
+/// The trait of closures which build terms with an adequate logic.
+///
+/// A call with a triplet of arguments `(arena, env, index)` of a closure with this trait should
+/// build a definite term in the [`Arena`] `arena`, knowing the bindings declared in `environment`,
+/// provided that the term is built at a current depth `index`.
+///
+/// Please note that this is just a trait alias, meaning it enforces very little constraints: while
+/// functions in this module returning a closure with this trait are guaranteed to be sound, end
+/// users can also create their own closures satisfying `BuilderTrait`; this should be avoided.
 pub trait BuilderTrait<'build, 'arena> =
     FnOnce(&mut Arena<'arena>, &Environment<'build, 'arena>, DeBruijnIndex) -> ResultTerm<'arena>;
 
 impl<'arena> Arena<'arena> {
+    /// Returns the term built from the given closure, provided with an empty context, at depth 0.
     #[inline]
     pub fn build<'build, F: BuilderTrait<'build, 'arena>>(&mut self, f: F) -> ResultTerm<'arena>
     where
@@ -32,12 +53,14 @@ impl<'arena> Arena<'arena> {
     }
 }
 
+/// Returns a closure building a variable associated to the name `name`
 #[inline]
 pub const fn var<'build, 'arena>(name: &'build str) -> impl BuilderTrait<'build, 'arena> {
     move |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, depth| {
         env.get(name)
             .map(|(bind_depth, term)| {
-                // maybe find a way to make this call efficiently lazy
+                // This is arguably an eager computation, it could be worth making it lazy,
+                // or at least memoizing it so as to not compute it again
                 let var_type = arena.shift(*term, usize::from(depth - *bind_depth), 0);
                 arena.var(depth - *bind_depth, var_type)
             })
@@ -48,16 +71,19 @@ pub const fn var<'build, 'arena>(name: &'build str) -> impl BuilderTrait<'build,
     }
 }
 
+/// Returns a closure building the Prop term.
 #[inline]
 pub const fn prop<'build, 'arena>() -> impl BuilderTrait<'build, 'arena> {
     |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _| Ok(arena.prop())
 }
 
+/// Returns a closure building the Type `level` term.
 #[inline]
 pub const fn type_<'build, 'arena>(level: UniverseLevel) -> impl BuilderTrait<'build, 'arena> {
     move |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _| Ok(arena.type_(level))
 }
 
+/// Returns a closure building the Type `level` term (indirection from `usize`).
 #[inline]
 pub const fn type_usize<'build, 'arena>(level: usize) -> impl BuilderTrait<'build, 'arena> {
     use num_bigint::BigUint;
@@ -66,6 +92,8 @@ pub const fn type_usize<'build, 'arena>(level: usize) -> impl BuilderTrait<'buil
     }
 }
 
+/// Returns a closure building the application of two terms built from the given closures `u1` and
+/// `u2`.
 #[inline]
 pub const fn app<
     'build,
@@ -83,6 +111,8 @@ pub const fn app<
     }
 }
 
+/// Returns a closure building the lambda-abstraction with a body built from `body` and an argument
+/// type from `arg_type`.
 #[inline]
 pub const fn abs<
     'build,
@@ -102,6 +132,8 @@ pub const fn abs<
     }
 }
 
+/// Returns a closure building the dependant product of a term built from `body` over all elements
+/// of the type built from `arg_type`.
 #[inline]
 pub const fn prod<
     'build,
@@ -121,6 +153,12 @@ pub const fn prod<
     }
 }
 
+/// Template of terms.
+///
+/// A Builder describes a term in a naive but easy to build manner. It strongly resembles the
+/// [payload](`crate::term::arena::Payload`) type, except that `Var`, `Abs` and `Prod` constructors
+/// include a name, as in the classic way of writing lambda-terms (i.e. no de Bruijn indices
+/// involved).
 #[derive(Clone)]
 pub enum Builder<'r> {
     Var(&'r str),
@@ -132,6 +170,8 @@ pub enum Builder<'r> {
 }
 
 impl<'build> Builder<'build> {
+    /// Build a terms from a [`Builder`]. This internally uses functions described in the
+    /// [builders](`crate::term::builders`) module.
     pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
         arena.build(self.partial_application())
     }
