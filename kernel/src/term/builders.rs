@@ -159,7 +159,7 @@ pub const fn prod<
 /// [payload](`crate::term::arena::Payload`) type, except that `Var`, `Abs` and `Prod` constructors
 /// include a name, as in the classic way of writing lambda-terms (i.e. no de Bruijn indices
 /// involved).
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Builder<'r> {
     Var(&'r str),
     Type(usize),
