@@ -118,7 +118,7 @@ impl<'arena> Processor {
         arena: &mut Arena<'arena>,
         line: &str,
     ) -> Result<'arena, Option<Term<'arena>>> {
-        let command = parse_line(arena, line)?;
+        let command = parse_line(line)?;
         self.process(arena, &command)
     }
 
@@ -127,7 +127,7 @@ impl<'arena> Processor {
         arena: &mut Arena<'arena>,
         file: &str,
     ) -> Result<'arena, Option<Term<'arena>>> {
-        let commands = parse_file(arena, file)?;
+        let commands = parse_file(file)?;
         commands
             .iter()
             .map(|command| self.process(arena, command).map(|_| ()))
@@ -142,13 +142,14 @@ impl<'build, 'arena> CommandProcessor<'build, 'arena, Result<'arena, Option<Term
     fn process(
         &mut self,
         arena: &mut Arena<'arena>,
-        command: &Command<'build, 'arena>,
+        command: &Command<'build>,
     ) -> Result<'arena, Option<Term<'arena>>> {
         match command {
             Command::Define(s, None, term) => {
+                let term = term.realise(arena)?;
                 if arena.get_binding(s).is_none() {
-                    arena.infer(*term)?;
-                    arena.bind(s, *term);
+                    arena.infer(term)?;
+                    arena.bind(s, term);
                     Ok(None)
                 } else {
                     Err(Toplevel(Error {
@@ -159,19 +160,29 @@ impl<'build, 'arena> CommandProcessor<'build, 'arena, Result<'arena, Option<Term
             }
 
             Command::Define(s, Some(t), term) => {
-                arena.check(*term, *t)?;
-                arena.bind(s, *term);
+                let term = term.realise(arena)?;
+                let t = t.realise(arena)?;
+                arena.check(term, t)?;
+                arena.bind(s, term);
                 Ok(None)
             }
 
             Command::CheckType(t1, t2) => {
-                arena.check(*t1, *t2)?;
+                let t1 = t1.realise(arena)?;
+                let t2 = t2.realise(arena)?;
+                arena.check(t1, t2)?;
                 Ok(None)
             }
 
-            Command::GetType(t) => Ok(arena.infer(*t).map(Some)?),
+            Command::GetType(t) => {
+                let t = t.realise(arena)?;
+                Ok(arena.infer(t).map(Some)?)
+            }
 
-            Command::Eval(t) => Ok(Some(arena.whnf(*t))),
+            Command::Eval(t) => {
+                let t = t.realise(arena)?;
+                Ok(Some(arena.normal_form(t)))
+            }
 
             Command::Search(s) => Ok(arena.get_binding(s)), //TODO
 
