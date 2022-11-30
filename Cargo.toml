@@ -13,6 +13,8 @@ colored = "2"
 derive_more = "0.99.17"
 im-rc = "15.1.0"
 num-bigint = "0.4"
+pest = "2.4"
+pest_derive = "2.4"
 rustyline = "10.0.0"
 rustyline-derive = "0.7.0"
 
@@ -23,4 +25,7 @@ authors = [
     "Vincent Lafeychine",
     "Lucas Tabary-Maujean"
 ]
+description = "A simple proof assistant written in Rust"
+edition = "2021"
 license = "GPL-3.0-or-later"
+version = "0.1.0"
