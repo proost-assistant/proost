@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://gitlab.crans.org/loutr/proost/-/raw/48-first-release-preparations/docs/media/logo.png" width="25%"/>
+</p>
+
 # Proost
 
 A simple proof assistant written in Rust.
