@@ -40,13 +40,15 @@ impl std::error::Error for Error {}
 pub struct Processor {
     importing: Vec<PathBuf>,
     imported: HashSet<PathBuf>,
+    verbose: bool,
 }
 
 impl<'arena> Processor {
-    pub fn new(current_path: PathBuf) -> Processor {
+    pub fn new(current_path: PathBuf, verbose: bool) -> Processor {
         Processor {
             importing: vec![current_path],
             imported: HashSet::new(),
+            verbose,
         }
     }
 
@@ -135,7 +137,9 @@ impl<'arena> Processor {
         commands
             .iter()
             .try_for_each(|command| {
-                println!("{}", command); // TODO verbose
+                if self.verbose {
+                    println!("{}", command);
+                }
                 self.process(arena, command).map(|_| ())
             })
             .map(|_| None)

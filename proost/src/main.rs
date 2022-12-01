@@ -26,6 +26,9 @@ struct Args {
     /// remove syntax highlighting
     #[arg(long)]
     no_color: bool,
+    /// print the content of imported files
+    #[arg(short, long)]
+    verbose: bool,
 }
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -65,7 +68,7 @@ fn main() -> Result<'static, ()> {
 
     kernel::term::arena::use_arena(|arena| {
         let current_path = current_dir()?;
-        let mut processor = Processor::new(current_path);
+        let mut processor = Processor::new(current_path, args.verbose);
 
         println!("Welcome to {} {}", NAME, VERSION);
 
