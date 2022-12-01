@@ -4,6 +4,8 @@ use kernel::term::arena::Term;
 
 use crate::error::{Error::*, Result};
 
+// See issue #50 for putting the rustyline struct into a repl struct
+
 pub fn print_repl<'arena>(res: Result<'arena, Option<Term<'arena>>>) {
     match res {
         Ok(None) => println!("{}", "\u{2713}".green()),
