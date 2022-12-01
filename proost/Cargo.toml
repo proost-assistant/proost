@@ -1,10 +1,10 @@
 [package]
 name = "proost"
-description = "A simple proof assistant written in Rust"
-edition = "2021"
-version = "0.1.0"
+description.workspace = true
 authors.workspace = true
+edition.workspace = true
 license.workspace = true
+version.workspace = true
 
 [dependencies]
 kernel.path = "../kernel"

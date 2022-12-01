@@ -48,11 +48,11 @@ impl<'arena> Arena<'arena> {
     fn conversion(&mut self, lhs: Term<'arena>, rhs: Term<'arena>) -> bool {
         lhs == rhs
             || match (&*self.whnf(lhs), &*self.whnf(rhs)) {
-                (&Prop, &Prop) => true,
+                (Prop, Prop) => true,
 
-                (&Type(ref i), &Type(ref j)) => i == j,
+                (Type(i), Type(j)) => *i == *j,
 
-                (&Var(i, _), &Var(j, _)) => i == j,
+                (Var(i, _), Var(j, _)) => i == j,
 
                 (&Prod(t1, u1), &Prod(t2, u2)) => {
                     self.conversion(t1, t2) && self.conversion(u1, u2)
