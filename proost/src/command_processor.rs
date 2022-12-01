@@ -186,7 +186,7 @@ impl<'arena> Processor {
                 Ok(Some(arena.normal_form(t)))
             }
 
-            Command::Search(s) => Ok(arena.get_binding(s)), // TODO
+            Command::Search(s) => Ok(arena.get_binding(s)), // TODO (see #45)
 
             Command::Import(files) => files
                 .iter()
