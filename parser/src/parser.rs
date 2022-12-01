@@ -68,11 +68,9 @@ fn parse_term(pair: Pair<Rule>) -> Builder {
         Rule::Prod => {
             let mut iter = pair.into_inner();
             let ret = parse_term(iter.next_back().unwrap());
-            iter.map(parse_term)
-                .rev()
-                .fold(ret, |acc, argtype| {
-                    Prod("_", Box::new(argtype), Box::new(acc))
-                })
+            iter.map(parse_term).rev().fold(ret, |acc, argtype| {
+                Prod("_", Box::new(argtype), Box::new(acc))
+            })
         }
 
         term => unreachable!("Unexpected term: {:?}", term),

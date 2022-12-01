@@ -31,7 +31,7 @@ pub enum ErrorKind {
     FileNotFound(String),
     #[display(fmt = "cyclic dependency:\n{}", _0)]
     CyclicDependencies(String),
-    #[display(fmt = "identifiant {} defined already", _0)]
+    #[display(fmt = "identifier {} already defined", _0)]
     BoundVariable(String),
 }
 
@@ -78,39 +78,41 @@ impl<'arena> Processor {
         }
     }
 
-    /// Begin a new file importation
-    /// file_path must be absolutize
+    /// Begin a new file importation.
+    ///
+    /// file_path must be absolute
     fn import_file(
         &mut self,
         arena: &mut Arena<'arena>,
         location: Location,
         file_path: PathBuf,
     ) -> Result<'arena, ()> {
-        if !self.imported.contains(&file_path) {
-            if let Some(i) = self.importing.iter().position(|path| path == &file_path) {
-                Err(Toplevel(Error {
-                    kind: ErrorKind::CyclicDependencies(
-                        self.importing[i..]
-                            .iter()
-                            .map(|path| path.to_string_lossy())
-                            .collect::<Vec<_>>()
-                            .join(" \u{2192}\n"),
-                    ),
-                    location,
-                }))
-            } else {
-                self.importing.push(file_path.clone());
-                let file =
-                    read_to_string(file_path.clone()).expect("permission error, cannot open file");
-                let result = self.process_file(arena, &file);
-                let file_path = self.importing.pop().unwrap();
-                result?;
-                self.imported.insert(file_path);
-                Ok(())
-            }
-        } else {
-            Ok(())
+        if self.imported.contains(&file_path) {
+            return Ok(());
         }
+
+        if let Some(i) = self.importing.iter().position(|path| path == &file_path) {
+            return Err(Toplevel(Error {
+                kind: ErrorKind::CyclicDependencies(
+                    self.importing[i..]
+                        .iter()
+                        .map(|path| path.to_string_lossy())
+                        .collect::<Vec<_>>()
+                        .join(" \u{2192}\n"),
+                ),
+                location,
+            }));
+        }
+
+        self.importing.push(file_path.clone());
+
+        let file = read_to_string(file_path)?;
+        self.process_file(arena, &file)?;
+
+        let file_path = self.importing.pop().unwrap();
+        self.imported.insert(file_path);
+
+        Ok(())
     }
 
     pub fn process_line(
@@ -130,11 +132,10 @@ impl<'arena> Processor {
         let commands = parse_file(file)?;
         commands
             .iter()
-            .map(|command| {
+            .try_for_each(|command| {
                 println!("{}", command);
                 self.process(arena, command).map(|_| ())
             })
-            .collect::<Result<'arena, Vec<()>>>()
             .map(|_| None)
     }
 }
@@ -157,7 +158,7 @@ impl<'build, 'arena> CommandProcessor<'build, 'arena, Result<'arena, Option<Term
                 } else {
                     Err(Toplevel(Error {
                         kind: ErrorKind::BoundVariable(s.to_string()),
-                        location: Location::default(), //TODO
+                        location: Location::default(), // TODO (see #38)
                     }))
                 }
             }
@@ -187,7 +188,7 @@ impl<'build, 'arena> CommandProcessor<'build, 'arena, Result<'arena, Option<Term
                 Ok(Some(arena.normal_form(t)))
             }
 
-            Command::Search(s) => Ok(arena.get_binding(s)), //TODO
+            Command::Search(s) => Ok(arena.get_binding(s)), // TODO
 
             Command::Import(files) => files
                 .iter()

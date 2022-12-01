@@ -11,9 +11,10 @@ use std::fs;
 use atty::Stream;
 use clap::Parser;
 use rustyline::error::ReadlineError;
-use rustyline::{Cmd, Config, Editor, EventHandler, KeyCode, KeyEvent, Modifiers, Result};
+use rustyline::{Cmd, Config, Editor, EventHandler, KeyCode, KeyEvent, Modifiers};
 use rustyline_helper::*;
 
+use crate::error::Result;
 use command_processor::Processor;
 use pretty_printing::print_repl;
 
@@ -30,15 +31,16 @@ struct Args {
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const NAME: &str = env!("CARGO_PKG_NAME");
 
-fn main() -> Result<()> {
+fn main() -> Result<'static, ()> {
     let args = Args::parse();
 
     // check if files are provided as command-line arguments
     if !args.files.is_empty() {
-        for path in args.files.iter() {
-            fs::read_to_string(path).expect("no such file or directory");
-        }
-        return Ok(());
+        return args
+            .files
+            .iter()
+            .try_for_each(|path| fs::read_to_string(path).map(|_| ()))
+            .map_err(error::Error::from);
     }
 
     // check if we are in a terminal
@@ -62,7 +64,7 @@ fn main() -> Result<()> {
     );
 
     kernel::term::arena::use_arena(|arena| {
-        let current_path = current_dir().expect("unnecessary permisions to obtain current path");
+        let current_path = current_dir()?;
         let mut processor = Processor::new(current_path);
 
         println!("Welcome to {} {}", NAME, VERSION);
@@ -77,7 +79,7 @@ fn main() -> Result<()> {
                 Ok(_) => (),
                 Err(ReadlineError::Interrupted) => {}
                 Err(ReadlineError::Eof) => break,
-                Err(err) => return Err(err),
+                Err(err) => return Err(err.into()),
             }
         }
         Ok(())
