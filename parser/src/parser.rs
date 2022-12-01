@@ -19,7 +19,7 @@ fn convert_span(span: Span) -> Location {
 }
 
 /// Returns a kernel term builder from pest output
-fn builder_from_parser(pair: Pair<Rule>) -> Builder {
+fn parse_term(pair: Pair<Rule>) -> Builder {
     use Builder::*;
 
     // location to be used in a future version
@@ -36,17 +36,17 @@ fn builder_from_parser(pair: Pair<Rule>) -> Builder {
         ),
 
         Rule::App => {
-            let mut iter = pair.into_inner().map(builder_from_parser);
+            let mut iter = pair.into_inner().map(parse_term);
             let t = iter.next().unwrap();
             iter.fold(t, |acc, x| App(Box::new(acc), Box::new(x)))
         }
 
         Rule::Abs => {
             let mut iter = pair.into_inner();
-            let body = builder_from_parser(iter.next_back().unwrap());
+            let body = parse_term(iter.next_back().unwrap());
             iter.flat_map(|pair| {
                 let mut pair = pair.into_inner();
-                let type_ = Box::new(builder_from_parser(pair.next_back().unwrap()));
+                let type_ = Box::new(parse_term(pair.next_back().unwrap()));
                 pair.map(move |var| (var.as_str(), type_.clone()))
             })
             .rev()
@@ -55,10 +55,10 @@ fn builder_from_parser(pair: Pair<Rule>) -> Builder {
 
         Rule::dProd => {
             let mut iter = pair.into_inner();
-            let body = builder_from_parser(iter.next_back().unwrap());
+            let body = parse_term(iter.next_back().unwrap());
             iter.flat_map(|pair| {
                 let mut pair = pair.into_inner();
-                let type_ = Box::new(builder_from_parser(pair.next_back().unwrap()));
+                let type_ = Box::new(parse_term(pair.next_back().unwrap()));
                 pair.map(move |var| (var.as_str(), type_.clone()))
             })
             .rev()
@@ -67,8 +67,8 @@ fn builder_from_parser(pair: Pair<Rule>) -> Builder {
 
         Rule::Prod => {
             let mut iter = pair.into_inner();
-            let ret = builder_from_parser(iter.next_back().unwrap());
-            iter.map(builder_from_parser)
+            let ret = parse_term(iter.next_back().unwrap());
+            iter.map(parse_term)
                 .rev()
                 .fold(ret, |acc, argtype| {
                     Prod("_", Box::new(argtype), Box::new(acc))
@@ -80,41 +80,41 @@ fn builder_from_parser(pair: Pair<Rule>) -> Builder {
 }
 
 /// build commands from errorless pest's output
-fn build_command_from_expr<'build>(pair: Pair<'build, Rule>) -> Command<'build> {
+fn parse_expr<'build>(pair: Pair<'build, Rule>) -> Command<'build> {
     // location to be used in a future version
     let _loc = convert_span(pair.as_span());
 
     match pair.as_rule() {
         Rule::GetType => {
             let mut iter = pair.into_inner();
-            let t = builder_from_parser(iter.next().unwrap());
+            let t = parse_term(iter.next().unwrap());
             Command::GetType(t)
         }
 
         Rule::CheckType => {
             let mut iter = pair.into_inner();
-            let t1 = builder_from_parser(iter.next().unwrap());
-            let t2 = builder_from_parser(iter.next().unwrap());
+            let t1 = parse_term(iter.next().unwrap());
+            let t2 = parse_term(iter.next().unwrap());
             Command::CheckType(t1, t2)
         }
 
         Rule::Define => {
             let mut iter = pair.into_inner();
             let s: &'build str = iter.next().unwrap().as_str();
-            let term = builder_from_parser(iter.next().unwrap());
+            let term = parse_term(iter.next().unwrap());
             Command::Define(s, None, term)
         }
 
         Rule::DefineCheckType => {
             let mut iter = pair.into_inner();
             let s: &'build str = iter.next().unwrap().as_str();
-            let t = builder_from_parser(iter.next().unwrap());
-            let term = builder_from_parser(iter.next().unwrap());
+            let t = parse_term(iter.next().unwrap());
+            let term = parse_term(iter.next().unwrap());
             Command::Define(s, Some(t), term)
         }
 
         Rule::Eval => {
-            let term = builder_from_parser(pair.into_inner().next().unwrap());
+            let term = parse_term(pair.into_inner().next().unwrap());
             Command::Eval(term)
         }
 
@@ -196,20 +196,22 @@ fn convert_error(err: pest::error::Error<Rule>) -> Error {
     }
 }
 
-/// parse a text input and try to convert it into a command:
+/// Parse a text input and try to convert it into a command.
+///
 /// if unsuccessful, a box containing the first error that was encountered is returned.
 pub fn parse_line(line: &str) -> crate::error::Result<Command> {
     CommandParser::parse(Rule::command, line)
         .map_err(convert_error)
-        .map(|mut pairs| build_command_from_expr(pairs.next().unwrap()))
+        .map(|mut pairs| parse_expr(pairs.next().unwrap()))
 }
 
-/// parse a text input and try to convert it into a vector of commands:
+/// Parse a text input and try to convert it into a vector of commands.
+///
 /// if unsuccessful, a box containing the first error that was encountered is returned.
 pub fn parse_file(file: &str) -> crate::error::Result<Vec<Command>> {
     CommandParser::parse(Rule::file, file)
         .map_err(convert_error)
-        .map(|pairs| pairs.into_iter().map(build_command_from_expr).collect())
+        .map(|pairs| pairs.into_iter().map(parse_expr).collect())
 }
 
 #[cfg(test)]
