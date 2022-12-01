@@ -16,8 +16,9 @@
 use derive_more::Display;
 use im_rc::hashmap::HashMap as ImHashMap;
 
-use super::arena::{Arena, DeBruijnIndex, Term, UniverseLevel};
+use super::arena::{Arena, DeBruijnIndex, Term};
 use crate::error::{Error, ResultTerm};
+use super::level::Level;
 
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
@@ -79,7 +80,7 @@ pub const fn prop<'build, 'arena>() -> impl BuilderTrait<'build, 'arena> {
 
 /// Returns a closure building the Type `level` term.
 #[inline]
-pub const fn type_<'build, 'arena>(level: UniverseLevel) -> impl BuilderTrait<'build, 'arena> {
+pub const fn type_<'build, 'arena>(level: Level<'arena>) -> impl BuilderTrait<'build, 'arena> {
     move |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _| Ok(arena.type_(level))
 }
 
@@ -224,7 +225,7 @@ pub(crate) mod raw {
         |env: &mut Arena<'arena>| env.prop()
     }
 
-    pub const fn type_<'arena>(level: UniverseLevel) -> impl BuilderTrait<'arena> {
+    pub const fn type_<'arena>(level: Level<'arena>) -> impl BuilderTrait<'arena> {
         move |env: &mut Arena<'arena>| env.type_(level)
     }
 

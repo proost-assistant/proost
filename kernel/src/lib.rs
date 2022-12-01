@@ -12,5 +12,5 @@
 
 pub mod error;
 pub mod location;
-pub mod term;
+pub mod memory;
 pub mod type_checker;

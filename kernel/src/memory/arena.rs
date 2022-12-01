@@ -8,25 +8,17 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::marker::PhantomData;
 use std::ops::Deref;
+use super::level::Level;
+use super::declaration::Declaration;
 
 use bumpalo::Bump;
 use derive_more::{Add, Display, From, Into, Sub};
-use num_bigint::BigUint;
 
 use crate::error::ResultTerm;
 
 /// An index used to designate bound variables.
 #[derive(Add, Copy, Clone, Debug, Default, Display, PartialEq, Eq, Hash, From, Into, PartialOrd, Ord, Sub)]
 pub struct DeBruijnIndex(usize);
-
-/// A level of universe, used to build terms of the form `Type i`.
-///
-/// In type theory, this corresponds to the construction of universes "à la Russell", the purpose
-/// of which is to give a hierarchy to these types, so as to preserve soundness against paradoxes
-/// akin to Russell's. Universe levels can be arbitrarily large, and, with good faith, they are
-/// represented with *big unsigned integers*, limited only by the memory of the operating computer.
-#[derive(Add, Clone, Debug, Default, Display, PartialEq, Eq, From, Hash, PartialOrd, Ord, Sub)]
-pub struct UniverseLevel(BigUint);
 
 /// A comprehensive memory management unit for terms.
 ///
@@ -50,8 +42,10 @@ pub struct Arena<'arena> {
     // enforces invariances over lifetime parameter
     _phantom: PhantomData<*mut &'arena ()>,
 
-    // Hashconsing of terms, at the heart of the uniqueness property
-    hashcons: HashSet<&'arena Node<'arena>>,
+    // Hashconsing of terms, levels and declarations, at the heart of the uniqueness property
+    hashcons_terms: HashSet<&'arena Node<'arena>>,
+    hashcons_levels: HashSet<&'arena Level<'arena>>,
+    hashcons_decls: HashSet<&'arena Declaration<'arena>>,
     named_terms: HashMap<&'arena str, Term<'arena>>,
 
     // Hash maps used to speed up certain algorithms. See also `OnceCell`s in [`Term`]
@@ -109,7 +103,7 @@ pub enum Payload<'arena> {
 
     /// Type i, as described in [`UniverseLevel`]
     #[display(fmt = "Type {}", _0)]
-    Type(UniverseLevel),
+    Type(Level<'arena>),
 
     /// The application of two terms
     #[display(fmt = "{} {}", _0, _1)]
@@ -153,7 +147,9 @@ impl<'arena> Arena<'arena> {
             alloc,
             _phantom: PhantomData,
 
-            hashcons: HashSet::new(),
+            hashcons_terms: HashSet::new(),
+            hashcons_levels: HashSet::new(),
+            hashcons_decls: HashSet::new(),
             named_terms: HashMap::new(),
 
             mem_subst: HashMap::new(),
@@ -191,11 +187,11 @@ impl<'arena> Arena<'arena> {
             type_: OnceCell::new(),
         };
 
-        match self.hashcons.get(&new_node) {
+        match self.hashcons_terms.get(&new_node) {
             Some(addr) => Term(addr, PhantomData),
             None => {
                 let addr = self.alloc.alloc(new_node);
-                self.hashcons.insert(addr);
+                self.hashcons_terms.insert(addr);
                 Term(addr, PhantomData)
             },
         }
@@ -211,8 +207,7 @@ impl<'arena> Arena<'arena> {
         self.hashcons(Prop)
     }
 
-    /// Returns the term corresponding to Type(level)
-    pub(crate) fn type_(&mut self, level: UniverseLevel) -> Term<'arena> {
+    pub(crate) fn type_(&mut self, level: Level<'arena>) -> Term<'arena> {
         self.hashcons(Type(level))
     }
 

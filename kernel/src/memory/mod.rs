@@ -6,4 +6,5 @@
 pub mod arena;
 pub mod builders;
 pub mod calculus;
-pub mod universe;
+pub mod level;
+pub mod declaration;

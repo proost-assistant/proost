@@ -4,6 +4,8 @@ use std::ops::Add;
 use std::marker::PhantomData;
 use std::cell::OnceCell;
 use derive_more::{Add, Display, From, Into, Sub};
+use std::hash::Hash;
+use super::arena::Arena;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub enum LevelPayload<'arena> {
@@ -19,8 +21,27 @@ pub enum LevelPayload<'arena> {
     Var(usize),
 }
 
-#[derive(Clone, Copy ,Debug, PartialEq, Eq, Hash)]
-pub struct Level<'arena>(&'arena LevelPayload<'arena>, PhantomData<*mut &'arena ()>);
+#[derive(Clone, Copy ,Debug, PartialEq, Eq)]
+pub struct Level<'arena>(&'arena LevelNode<'arena>, PhantomData<*mut &'arena ()>);
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct LevelNode<'arena> {
+    payload: LevelPayload<'arena>,
+    normalized: OnceCell<Level<'arena>>,
+}
+
+/// (TODO PRECISE DOCUMENTATION) make use of unicity invariant to speed up equality test
+impl<'arena> Hash for Level<'arena> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.0, state)
+    }
+}
+
+impl<'arena> Hash for LevelNode<'arena> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.payload.hash(state);
+    }
+}
 
 use LevelPayload::*;
 
@@ -46,15 +67,14 @@ impl From<usize> for Level<'_> {
     }
 }
 
-impl Display for UniverseLevel {
+impl Display for Level<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.pretty_print())
     }
 }
 
-use UniverseLevel::*;
 
-impl UniverseLevel {
+impl<'arena> Level<'arena> {
     /// Helper function for pretty printing, if universe doesn't contain any variable then it gets printed as a decimal number.
     fn to_numeral(&self) -> Option<usize> {
         match self {

@@ -1,7 +1,5 @@
-use crate::term::Term;
-use crate::universe::UniverseLevel;
-use crate::KernelError;
-use crate::Level;
+use super::arena::Term;
+use super::level::Level;
 
 /// Declarations constructed through commands. A declaration describes a constant in the environment, whether it's a definition with
 /// a corresponding term, or an axiom with only a type.
@@ -11,14 +9,14 @@ use crate::Level;
 /// However, additional checks to ensure this invariant will have to be put in place. For now, when constructing declarations, only the number of
 /// universes in ty are counted.
 #[derive(Clone, Debug, PartialEq, Eq)]
- pub struct Declaration {
-    ty: Term,
-    term: Option<Term>,
+ pub struct Declaration<'arena> {
+    ty: Term<'arena>,
+    term: Option<Term<'arena>>,
     univ_vars: usize,
 }
 
-impl Declaration {
-    pub fn make(term: Option<Term>, ty: Term) -> Declaration {
+impl<'arena> Declaration<'arena> {
+    pub fn make(term: Option<Term>, ty: Term) -> Self {
         Declaration {
             ty: ty.clone(),
             term,
@@ -27,7 +25,7 @@ impl Declaration {
     }
 
     /// Returns the type linked to a definition in a given environment.
-    pub fn get_type(&self, vec: &[UniverseLevel]) -> Result<Term, KernelError> {
+    pub fn get_type(&self, vec: &[Level<'arena>]) -> Result<Term<'arena>, KernelError> {
         if self.univ_vars != vec.len() {
             Err(KernelError::WrongNumberOfUniverseArguments(
                 self.univ_vars,

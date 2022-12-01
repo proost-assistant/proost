@@ -6,10 +6,10 @@ use std::cmp::max;
 
 use derive_more::Display;
 use num_bigint::BigUint;
-use Payload::*;
 
 use crate::error::{Error, Result, ResultTerm};
-use crate::term::arena::{Arena, Payload, Term};
+use crate::memory::arena::{Arena, Payload, Term};
+use Payload::*;
 
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 #[display(fmt = "{}: {}", _0, _1)]
@@ -174,8 +174,8 @@ impl<'arena> Arena<'arena> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::term::arena::use_arena;
-    use crate::term::builders::raw::*;
+    use crate::memory::arena::use_arena;
+    use crate::memory::builders::raw::*;
 
     fn id<'arena>() -> impl BuilderTrait<'arena> {
         abs(prop(), var(1.into(), prop()))
