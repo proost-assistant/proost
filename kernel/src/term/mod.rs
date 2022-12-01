@@ -6,3 +6,4 @@
 pub mod arena;
 pub mod builders;
 pub mod calculus;
+pub mod universe;
