@@ -8,9 +8,9 @@ use derive_more::{Display, From};
 pub enum Error<'arena> {
     Parser(parser::error::Error),
     Kernel(kernel::error::Error<'arena>),
-    Toplevel(crate::command_processor::Error),
+    Toplevel(crate::repl::Error),
 
-    IO(std::io::Error),
+    Io(std::io::Error),
     RustyLine(rustyline::error::ReadlineError),
 }
 

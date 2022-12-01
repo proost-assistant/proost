@@ -1,6 +1,5 @@
 #![feature(let_chains)]
 
-mod command_processor;
 mod error;
 mod repl;
 mod rustyline_helper;
@@ -15,8 +14,7 @@ use rustyline::{Cmd, Config, Editor, EventHandler, KeyCode, KeyEvent, Modifiers}
 use rustyline_helper::*;
 
 use crate::error::Result;
-use command_processor::Processor;
-use repl::print_repl;
+use repl::Repl;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -68,7 +66,7 @@ fn main() -> Result<'static, ()> {
 
     kernel::term::arena::use_arena(|arena| {
         let current_path = current_dir()?;
-        let mut processor = Processor::new(current_path, args.verbose);
+        let mut repl = Repl::new(current_path, args.verbose);
 
         println!("Welcome to {} {}", NAME, VERSION);
 
@@ -77,7 +75,8 @@ fn main() -> Result<'static, ()> {
             match readline {
                 Ok(line) if is_command(&line) => {
                     rl.add_history_entry(line.as_str());
-                    print_repl(processor.process_line(arena, line.as_str()));
+                    let result = repl.process_line(arena, line.as_str());
+                    repl.display(result);
                 }
                 Ok(_) => (),
                 Err(ReadlineError::Interrupted) => {}
