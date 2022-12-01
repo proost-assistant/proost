@@ -4,7 +4,6 @@
 
 use core::fmt;
 
-use kernel::term::arena::Arena;
 use kernel::term::builders::Builder;
 
 /// The type of commands that can be received by the kernel.
@@ -52,8 +51,4 @@ impl<'build> fmt::Display for Command<'build> {
             Search(name) => write!(f, "search {}", name),
         }
     }
-}
-
-pub trait CommandProcessor<'build, 'arena, T> {
-    fn process(&mut self, arena: &mut Arena<'arena>, command: &Command<'build>) -> T;
 }

@@ -10,7 +10,7 @@ use path_absolutize::Absolutize;
 use crate::error::{Error::*, Result};
 use kernel::location::Location;
 use kernel::term::arena::{Arena, Term};
-use parser::command::{Command, CommandProcessor};
+use parser::command::Command;
 use parser::{parse_file, parse_line};
 
 /// Type representing parser errors.
@@ -140,12 +140,8 @@ impl<'arena> Processor {
             })
             .map(|_| None)
     }
-}
 
-impl<'build, 'arena> CommandProcessor<'build, 'arena, Result<'arena, Option<Term<'arena>>>>
-    for Processor
-{
-    fn process(
+    fn process<'build>(
         &mut self,
         arena: &mut Arena<'arena>,
         command: &Command<'build>,
