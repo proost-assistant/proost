@@ -7,7 +7,7 @@
 \usepackage{bussproofs} % proof tree
 \usepackage[dvipsnames]{xcolor}
 \usepackage{graphicx}
-\RequirePackage[a4paper, left=2cm, right=2cm, bottom=3cm, headsep=100pt]{geometry}
+\RequirePackage[a4paper, left=2cm, right=2cm, bottom=3cm, top=2.3cm, headsep=100pt]{geometry}
 \RequirePackage[small]{titlesec} % Taille des sections réduite
 \RequirePackage[pdfborderstyle={/S/U/W 0}]{hyperref} % Le paramètre retire les bordures autour des hyperliens
 
@@ -18,7 +18,10 @@
   Lucas \textsc{Tabary-Maujean}
 }
 
-\title{\textbf{Proost: specifications}\\
+\title{
+  \includegraphics[height=2.5cm]{media/logo}
+
+  \textbf{Proost: specifications}\\
   \large A small proof assistant written in Rust
   \\[1\baselineskip]\normalsize ENS Paris-Saclay
 }
@@ -112,42 +115,44 @@
 \emph{
   This project is under development, and its specifications themselves are
   subject to changes, should time be an issue or a general consensus be reached
-  to change the purposes of the tool. An example of that is the syntax of
-  the language, which is still largely unstable.
-}
+  to change the purposes of the tool. An example of that is the syntax of the
+  language, which is still largely unstable. }
 
-\section{General purpose and functions}
-This project aims at providing a small tool for typechecking expressions written in
-the language of the Calculus of Construction (CoC). This tool shall be
-both terminal and editor based through the \texttt{proost} program that provides both compiler and toplevel-like capacities and options and a LSP called \texttt{tilleul}.
-The file extension used by both programs is \texttt{.mdln}, which is short for \emph{madelaine}, the name of the language manipulated by users in these files.
+\section{General purpose and functions} This project aims at providing a small
+tool for typechecking expressions written in the language of the Calculus of
+Construction (CoC). This tool shall be both terminal and editor based through
+the \texttt{proost} program that provides both compiler and toplevel-like
+capacities and options and a LSP called \texttt{tilleul}. The file extension
+used by both programs is \texttt{.mdln}, which is short for \emph{madelaine},
+the name of the language manipulated by users in these files.
 
 
-\section{Project structure}
-Each category of the project is assigned some or all members of the group,
-meaning the designated members will \emph{mainly} make progress in the associated categories
-and review the corresponding advancements. Any member may regardless contribute to any part
-of the development of the tool.
+\section{Project structure} Each category of the project is assigned some or all
+members of the group, meaning the designated members will \emph{mainly} make
+progress in the associated categories and review the corresponding advancements.
+Any member may regardless contribute to any part of the development of the tool.
 
 Some specific categories and items will be added a star \etun or two \etde to
 indicate whether they are respectively late requirements (for the last release
-due in December)
-or extra requirements that will be considered only if there is enough time.
+due in December) or extra requirements that will be considered only if there is
+enough time.
 
-\subsection{Language design \members{all members}}
-The \texttt{proost} tool is a simple proof assistant and does not provide any
-tactics. As new features arrive from extensions of the kernel type theory, the
-\emph{madelaine} language must provide convenient shorthands and notations. The syntax of commands is the following:
-\begin{itemize}
-  \item \etun¤import relative_path_to_file¤ typecheck and load the the file in the current environment;
-  \item ¤def a := t¤ defines an alias ¤a¤ that can be used in any following command;
-  \item ¤def a : ty := t¤ defines an alias ¤a¤ that is checked to be of type ¤ty¤;
-  \item ¤check u : t¤ verifies ¤u¤ has type ¤t¤;
+\subsection{Language design \members{all members}} The \texttt{proost} tool is a
+simple proof assistant and does not provide any tactics. As new features arrive
+from extensions of the kernel type theory, the \emph{madelaine} language must
+provide convenient shorthands and notations. The syntax of commands is the
+following: \begin{itemize} \item \etun¤import relative_path_to_file¤ typecheck
+	and load the the file in the current environment; \item ¤def a := t¤
+	defines an alias ¤a¤ that can be used in any following command; \item
+	¤def a : ty := t¤ defines an alias ¤a¤ that is checked to be of type
+	¤ty¤; \item ¤check u : t¤ verifies ¤u¤ has type ¤t¤;
   \item ¤check u¤ provides the type of ¤u¤;
   \item ¤eval u¤ provides the definition of ¤u¤.
 \end{itemize}
 
-Below is an overview of the syntax of the terms, both present and future. The syntax is strongly inspired by that of OCaml. Comments are defined using the keyword \texttt{//}.
+Below is an overview of the syntax of the terms, both present and future. The
+syntax is strongly inspired by that of OCaml. Comments are defined using the
+keyword \texttt{//}.
 
 \vspace{1.2mm}
 elementary type theory:
@@ -182,26 +187,34 @@ def t := E n, n * n - n + 4 = 0
 \end{proost}
 
 
-\subsection{Toplevel  \members{AuA}}
-The \texttt{proost} command, when provided with no argument, is expected to behave like a toplevel, akin to \texttt{ocaml} or \texttt{coqtop}. There, user is greeted with a prompt and may enter commands. When provided with existing file paths, ¤proost¤ intends to typecheck them in
-order, that is, reading them as successive inputs in the toplevel. Further features for this \emph{might} include a more extended notion of ``modules'' where files may provides scopes.
-{
-  \begin{center}
-    \fbox{\includegraphics{proost.png}}
-  \end{center}
-}
+\subsection{Toplevel  \members{AuA}} The \texttt{proost} command, when provided
+with no argument, is expected to behave like a toplevel, akin to \texttt{ocaml}
+or \texttt{coqtop}. There, user is greeted with a prompt and may enter commands.
+When provided with existing file paths, ¤proost¤ intends to typecheck them in
+order, that is, reading them as successive inputs in the toplevel. Further
+features for this \emph{might} include a more extended notion of ``modules''
+where files may provides scopes. { \begin{center}
+\fbox{\includegraphics{media/screenshot_toplevel}} \end{center} }
 
 
 \subsection{\etun LSP \members{VL}}
-\texttt{tilleul} shall provide an implementation of the Language Server Protocol in order to provide linting and feedback during an editing session.
+\texttt{tilleul} shall provide an
+implementation of the Language Server Protocol in order to provide linting and
+feedback during an editing session.
 
 
 \subsection{Parsing \members{AuA}}
-The parsing approach is straightforward and relies on external libraries. The parser is expected to keep adapting to changes made in the term definitions and unification capability. The parser is thoroughly tested to guarantee full coverage.
+The parsing approach is straightforward and
+relies on external libraries. The parser is expected to keep adapting to changes
+made in the term definitions and unification capability. The parser is
+thoroughly tested to guarantee full coverage.
 
 
 \subsection{Kernel \members{all members}}
-The kernel manipulates \(\lambda\)-terms in the Calculus of Construction and is expected to store and manage them with a relative level of efficiency. The type theory used to build the terms will be successively extended with:
+The kernel manipulates
+\(\lambda\)-terms in the Calculus of Construction and is expected to store and
+manage them with a relative level of efficiency. The type theory used to build
+the terms will be successively extended with:
 \begin{itemize}
   \item abstractions, \(\Pi\)-types, predicative universes with \(\mathsf{Prop}\);
   \item \etun universe polymorphism;
@@ -212,8 +225,9 @@ The kernel manipulates \(\lambda\)-terms in the Calculus of Construction and is 
 
 
 \subsection{\etun Optimisation \members{ArA LTM}}
-Extra care must be put into designing an efficient memory management model for
-the kernel, along with satisfactory typing and reduction algorithms.
+Extra care must be put into
+designing an efficient memory management model for the kernel, along with
+satisfactory typing and reduction algorithms.
 
 In particular, the first iteration of the program manipulates directly terms on
 the heap, with no particular optimisation: every algorithm is applied soundly
@@ -221,24 +235,26 @@ but naively.
 
 A first refactor of the memory model includes using a common memory location for
 terms, ensuring invariant like unicity of a term in memory, providing laziness
-and storing results of the most expensive functions \emph{(memoizing)}.
-This model also provides stronger isolation properties, preventing several
-memory pools (\emph{arena} is the technical term used in the project) from
-interacting with one another.
+and storing results of the most expensive functions \emph{(memoizing)}. This
+model also provides stronger isolation properties, preventing several memory
+pools (\emph{arena} is the technical term used in the project) from interacting
+with one another.
 
-This can
-be further extended with other invariants like ensuring every term in memory is
-in weak head normal form.
+This can be further extended with other invariants like ensuring every term in
+memory is in weak head normal form.
 
 \subsection{\etde Unification}
-Early versions of the tool may require the user to explicit every type at play.
-Successive versions may gradually include unification tools (meta-variables)
-of better quality to assist the user and alleviate some of their typing-annotation
-burden.
+Early versions of the tool may require the user
+to explicit every type at play. Successive versions may gradually include
+unification tools (meta-variables) of better quality to assist the user and
+alleviate some of their typing-annotation burden.
 
 \subsection{Developpement tools \members{VL LTM}}
-Tests are mandatory in every part of the project. A tool originally developed by the Mozilla team was modified to allow for a more precise branch coverage of the project.
-The Nix framework is used to automatically build and package the application as well as generating a docker image and providing developers tools of the same version.
+Tests are mandatory in every
+part of the project. A tool originally developed by the Mozilla team was
+modified to allow for a more precise branch coverage of the project. The Nix
+framework is used to automatically build and package the application as well as
+generating a docker image and providing developers tools of the same version.
 
 % TODO elaborate, maybe
 \end{document}
