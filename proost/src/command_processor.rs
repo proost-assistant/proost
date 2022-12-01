@@ -103,15 +103,17 @@ impl<'arena> Processor {
                 location,
             }));
         }
-
+        // add file to the list of files to import
         self.importing.push(file_path.clone());
-
+        // read it
         let file = read_to_string(file_path)?;
-        self.process_file(arena, &file)?;
-
+        // try to import it
+        let result = self.process_file(arena, &file);
+        // remove it from the list of files to import
         let file_path = self.importing.pop().unwrap();
+        // if importation failed, return error, else add file to imported files
+        result?;
         self.imported.insert(file_path);
-
         Ok(())
     }
 
@@ -133,7 +135,7 @@ impl<'arena> Processor {
         commands
             .iter()
             .try_for_each(|command| {
-                println!("{}", command);
+                println!("{}", command); // TODO verbose
                 self.process(arena, command).map(|_| ())
             })
             .map(|_| None)
