@@ -2,7 +2,7 @@
 
 mod command_processor;
 mod error;
-mod pretty_printing;
+mod repl;
 mod rustyline_helper;
 
 use std::env::current_dir;
@@ -16,7 +16,7 @@ use rustyline_helper::*;
 
 use crate::error::Result;
 use command_processor::Processor;
-use pretty_printing::print_repl;
+use repl::print_repl;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
