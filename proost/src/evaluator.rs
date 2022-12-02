@@ -1,8 +1,4 @@
-use std::{
-    collections::HashSet,
-    fs::read_to_string,
-    path::PathBuf,
-};
+use std::{collections::HashSet, fs::read_to_string, path::PathBuf};
 
 use colored::Colorize;
 use derive_more::Display;
@@ -58,7 +54,7 @@ impl<'arena> Evaluator {
         &self,
         location: Location,
         relative_path: String,
-        importing: &Vec<PathBuf>,
+        importing: &[PathBuf],
     ) -> Result<'arena, PathBuf> {
         let file_path = importing
             .last()
