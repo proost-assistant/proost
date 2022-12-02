@@ -1,7 +1,7 @@
 use std::{
     collections::HashSet,
     fs::read_to_string,
-    path::{PathBuf},
+    path::PathBuf,
 };
 
 use colored::Colorize;

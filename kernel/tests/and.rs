@@ -7,16 +7,16 @@ where
 {
     use_arena(|arena| {
         let false_ = arena.build(prod("P", prop(), var("P"))).unwrap();
-        assert!(Define("False", None, false_)
-            .process(arena)
-            .unwrap()
-            .is_none());
+        //assert!(Define("False", None, false_)
+        //   .process(arena)
+        //   .unwrap()
+        //    .is_none());
 
         let true_ = arena.build(prod("_", var("False"), var("False"))).unwrap();
-        assert!(Define("True", None, true_)
-            .process(arena)
-            .unwrap()
-            .is_none());
+        //assert!(Define("True", None, true_)
+        //   .process(arena)
+        //   .unwrap()
+        //   .is_none());
 
         let and = arena
             .build(abs(
@@ -37,7 +37,8 @@ where
                 ),
             ))
             .unwrap();
-        assert!(Define("and", None, and).process(arena).unwrap().is_none());
+
+        arena.bind("and", and);
 
         f(arena)
     })
@@ -53,9 +54,8 @@ fn and_true_true() {
         let hypothesis = arena.build(abs("x", var("False"), var("x"))).unwrap();
         let true_ = arena.build(var("True")).unwrap();
 
-        assert!(Define("hyp", Some(true_), hypothesis)
-            .process(arena)
-            .is_ok());
+        assert!(arena.check(hypothesis, true_).is_ok());
+        arena.bind("hyp", hypothesis);
 
         let proof = arena
             .build(abs(
@@ -69,7 +69,7 @@ fn and_true_true() {
             ))
             .unwrap();
 
-        assert!(CheckType(proof, goal).process(arena).is_ok());
+        assert!(arena.check(proof, goal).is_ok());
     })
 }
 
@@ -127,7 +127,7 @@ fn and_intro() {
             ))
             .unwrap();
 
-        assert!(CheckType(proof, goal).process(arena).is_ok());
+        assert!(arena.check(proof, goal).is_ok());
     })
 }
 
@@ -180,7 +180,7 @@ fn and_elim_1() {
             ))
             .unwrap();
 
-        assert!(CheckType(proof, goal).process(arena).is_ok());
+        assert!(arena.check(proof, goal).is_ok());
     })
 }
 
@@ -238,6 +238,6 @@ fn and_elim_2() {
             ))
             .unwrap();
 
-        assert!(CheckType(proof, goal).process(arena).is_ok());
+        assert!(arena.check(proof, goal).is_ok());
     })
 }
