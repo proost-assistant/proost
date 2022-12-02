@@ -43,7 +43,7 @@ impl<'arena> Declaration<'arena> {
 
     /// Returns the term linked to a definition in a given environment.
     /// Since the declaration might be an axiom, it might not have an associated term to reduce to, hence the Option.
-    pub fn get_term(&self, vec: &[UniverseLevel]) -> Result<Option<Term>, KernelError> {
+    pub fn get_term(&self, vec: &[Level<'arena>]) -> Result<Option<Term>, KernelError> {
         if self.univ_vars != vec.len() {
             Err(KernelError::WrongNumberOfUniverseArguments(
                 self.univ_vars,
