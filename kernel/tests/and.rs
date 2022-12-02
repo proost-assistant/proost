@@ -7,16 +7,12 @@ where
 {
     use_arena(|arena| {
         let false_ = arena.build(prod("P", prop(), var("P"))).unwrap();
-        //assert!(Define("False", None, false_)
-        //   .process(arena)
-        //   .unwrap()
-        //    .is_none());
+
+        arena.bind("False", false_);
 
         let true_ = arena.build(prod("_", var("False"), var("False"))).unwrap();
-        //assert!(Define("True", None, true_)
-        //   .process(arena)
-        //   .unwrap()
-        //   .is_none());
+
+        arena.bind("True", true_);
 
         let and = arena
             .build(abs(
