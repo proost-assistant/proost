@@ -216,3 +216,57 @@ const fn is_bracket(bracket: u8) -> bool {
 const fn is_open_bracket(bracket: u8) -> bool {
     matches!(bracket, b'(')
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn get_bracket_empty() {
+        assert!(get_bracket("", 0).is_none())
+    }
+
+    #[test]
+    fn get_bracket_out_of_bound() {
+        assert!(get_bracket("(())", 4).is_none())
+    }
+
+    #[test]
+    fn get_bracket_none() {
+        assert!(get_bracket("a()[", 0).is_none());
+        assert!(get_bracket("a()[", 3).is_none())
+    }
+
+    #[test]
+    fn get_bracket_some() {
+        assert!(get_bracket("a()[", 1).is_some());
+        assert!(get_bracket("a()[", 2).is_some())
+    }
+
+    #[test]
+    fn find_matching_bracket_direction() {
+        assert!(find_matching_bracket("  )", 1, b')').is_none());
+        assert!(find_matching_bracket("  )", 1, b'(').is_some());
+        assert!(find_matching_bracket("(  ", 1, b')').is_some());
+        assert!(find_matching_bracket("(  ", 1, b'(').is_none())
+    }
+
+    #[test]
+    fn find_matching_bracket_matching() {
+        assert_eq!(find_matching_bracket("  )", 1, b'('), Some((b')', 2)));
+        assert_eq!(find_matching_bracket("(  ", 1, b')'), Some((b'(', 0)))
+    }
+
+    #[test]
+    fn find_matching_bracket_counter() {
+        assert_eq!(find_matching_bracket(" (())))", 0, b'('), Some((b')', 5)));
+        assert_eq!(find_matching_bracket("(((()) ", 6, b')'), Some((b'(', 1)));
+    }
+
+    #[test]
+    fn replace_inplace() {
+        let mut message = "mot motus et mots mot mot".to_string();
+        super::replace_inplace(&mut message, "mot", "mots");
+        assert_eq!(message, "mots motus et mots mots mots".to_string())
+    }
+}

@@ -1,4 +1,3 @@
-use kernel::command::Command::*;
 use kernel::term::arena::{use_arena, Arena};
 use kernel::term::builders::*;
 
