@@ -95,3 +95,21 @@ fn is_command(input: &str) -> bool {
         .map(|pos| input[pos..pos + 2] != *"//")
         .unwrap_or_else(|| false)
 }
+
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn is_command_false() {
+        assert_eq!(super::is_command("    "), false);
+        assert_eq!(super::is_command(" "), false);
+        assert_eq!(super::is_command("// comment"), false)
+    }
+
+    #[test]
+    fn is_command_true() {
+        assert_eq!(super::is_command("     check x"), true);
+        assert_eq!(super::is_command("  check x"), true);
+        assert_eq!(super::is_command("check x // comment"), true)
+    }
+}
