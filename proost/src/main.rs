@@ -101,15 +101,15 @@ mod tests {
 
     #[test]
     fn is_command_false() {
-        assert_eq!(super::is_command("    "), false);
-        assert_eq!(super::is_command(" "), false);
-        assert_eq!(super::is_command("// comment"), false)
+        assert!(!super::is_command("    "));
+        assert!(!super::is_command(" "));
+        assert!(!super::is_command("// comment"))
     }
 
     #[test]
     fn is_command_true() {
-        assert_eq!(super::is_command("     check x"), true);
-        assert_eq!(super::is_command("  check x"), true);
-        assert_eq!(super::is_command("check x // comment"), true)
+        assert!(super::is_command("     check x"));
+        assert!(super::is_command("  check x"));
+        assert!(super::is_command("check x // comment"))
     }
 }
