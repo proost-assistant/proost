@@ -1,2 +1,0 @@
-def var := Prop
-def func := fun x:Prop => var

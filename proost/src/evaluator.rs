@@ -38,35 +38,32 @@ pub enum ErrorKind {
 
 impl std::error::Error for Error {}
 
-pub struct Repl {
-    importing: Vec<PathBuf>,
+pub struct Evaluator {
+    path: PathBuf,
     imported: HashSet<PathBuf>,
     verbose: bool,
 }
 
-impl<'arena> Repl {
-    pub fn new(current_path: PathBuf, verbose: bool) -> Repl {
-        Repl {
-            importing: vec![current_path],
+impl<'arena> Evaluator {
+    pub fn new(path: PathBuf, verbose: bool) -> Evaluator {
+        Evaluator {
+            path,
             imported: HashSet::new(),
             verbose,
         }
     }
 
-    /// Return the current working path
-    fn path(&self) -> &Path {
-        let path = self.importing.last().unwrap();
-        if path.is_file() {
-            path.parent().unwrap()
-        } else {
-            path
-        }
-    }
-
     /// Create a new path from a relative path
-    fn create_path(&self, location: Location, relative_path: String) -> Result<'arena, PathBuf> {
-        let file_path = self
-            .path()
+    fn create_path(
+        &self,
+        location: Location,
+        relative_path: String,
+        importing: &Vec<PathBuf>,
+    ) -> Result<'arena, PathBuf> {
+        let file_path = importing
+            .last()
+            .and_then(|path| path.parent())
+            .unwrap_or(&self.path)
             .join(relative_path)
             .absolutize()
             .unwrap()
@@ -89,15 +86,16 @@ impl<'arena> Repl {
         arena: &mut Arena<'arena>,
         location: Location,
         file_path: PathBuf,
+        importing: &mut Vec<PathBuf>,
     ) -> Result<'arena, ()> {
         if self.imported.contains(&file_path) {
             return Ok(());
         }
 
-        if let Some(i) = self.importing.iter().position(|path| path == &file_path) {
+        if let Some(i) = importing.iter().position(|path| path == &file_path) {
             return Err(Toplevel(Error {
                 kind: ErrorKind::CyclicDependencies(
-                    self.importing[i..]
+                    importing[i..]
                         .iter()
                         .map(|path| path.to_string_lossy())
                         .collect::<Vec<_>>()
@@ -107,13 +105,13 @@ impl<'arena> Repl {
             }));
         }
         // add file to the list of files to import
-        self.importing.push(file_path.clone());
+        importing.push(file_path.clone());
         // read it
         let file = read_to_string(file_path)?;
         // try to import it
-        let result = self.process_file(arena, &file);
+        let result = self.process_file(arena, &file, importing);
         // remove it from the list of files to import
-        let file_path = self.importing.pop().unwrap();
+        let file_path = importing.pop().unwrap();
         // if importation failed, return error, else add file to imported files
         result?;
         self.imported.insert(file_path);
@@ -126,13 +124,14 @@ impl<'arena> Repl {
         line: &str,
     ) -> Result<'arena, Option<Term<'arena>>> {
         let command = parse_line(line)?;
-        self.process(arena, &command)
+        self.process(arena, &command, &mut Vec::new())
     }
 
     pub fn process_file(
         &mut self,
         arena: &mut Arena<'arena>,
         file: &str,
+        importing: &mut Vec<PathBuf>,
     ) -> Result<'arena, Option<Term<'arena>>> {
         let commands = parse_file(file)?;
         commands
@@ -141,7 +140,7 @@ impl<'arena> Repl {
                 if self.verbose {
                     println!("{}", command);
                 }
-                self.process(arena, command).map(|_| ())
+                self.process(arena, command, importing).map(|_| ())
             })
             .map(|_| None)
     }
@@ -150,6 +149,7 @@ impl<'arena> Repl {
         &mut self,
         arena: &mut Arena<'arena>,
         command: &Command<'build>,
+        importing: &mut Vec<PathBuf>,
     ) -> Result<'arena, Option<Term<'arena>>> {
         match command {
             Command::Define(s, None, term) => {
@@ -196,9 +196,12 @@ impl<'arena> Repl {
             Command::Import(files) => files
                 .iter()
                 .map(|relative_path| {
-                    let file_path =
-                        self.create_path(Location::default(), relative_path.to_string())?;
-                    self.import_file(arena, Location::default(), file_path)
+                    let file_path = self.create_path(
+                        Location::default(),
+                        relative_path.to_string(),
+                        importing,
+                    )?;
+                    self.import_file(arena, Location::default(), file_path, importing)
                 })
                 .collect::<Result<'arena, Vec<()>>>()
                 .map(|_| None),
