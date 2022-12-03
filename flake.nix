@@ -53,8 +53,8 @@
 
             copyToRoot = pkgs.buildEnv {
               name = "proost-dependencies";
-              paths = (with pkgs; [ coreutils gcc gnugrep gnused grcov lcov libxslt openssh rsync rust-ci ])
-                ++ (with pkgs.dockerTools; [ binSh caCertificates fakeNss ]);
+              paths = (with pkgs; [ cargo-deny coreutils gcc gnugrep gnused grcov lcov libxslt openssh rsync ])
+                ++ (with pkgs.dockerTools; [ binSh caCertificates fakeNss ]) ++ [ rust-ci ];
               pathsToLink = [ "/bin" "/etc" ];
             };
 
@@ -88,7 +88,7 @@
             help = "Launch tests and generate HTML coverage website";
           }];
 
-          packages = with pkgs; [ grcov lcov rust-dev ];
+          packages = with pkgs; [ cargo-deny grcov lcov rust-dev ];
         };
       });
 }

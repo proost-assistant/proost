@@ -23,6 +23,7 @@ format:
   stage: check
   cache: []
   script:
+    - cargo deny check
     - cargo fmt --check
 
 lint:
