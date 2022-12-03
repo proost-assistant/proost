@@ -12,8 +12,8 @@ use rustyline_derive::{Helper, Hinter};
 const KEYWORDS: [&str; 5] = ["check", "def", "eval", "import", "search"];
 
 /// An Helper for a RustyLine Editor that implements:
-/// - a standard hinter
-/// - customs validator, completer and highlighter
+/// - a standard hinter;
+/// - custom validator, completer and highlighter.
 #[derive(Helper, Hinter)]
 pub struct RustyLineHelper {
     color: bool,
@@ -43,7 +43,7 @@ impl ConditionalEventHandler for TabEventHandler {
     }
 }
 
-/// A variation of FilenameCompleter:
+/// A variation of [FilenameCompleter](https://docs.rs/rustyline/latest/rustyline/completion/struct.FilenameCompleter.html):
 /// file completion is available only after having typed import
 impl Completer for RustyLineHelper {
     type Candidate = Pair;
@@ -53,8 +53,9 @@ impl Completer for RustyLineHelper {
     }
 }
 
-/// A variation of MatchingBracketValidator:
-/// no validation occurs when entering the import command
+/// A variation of [MatchingBracketValidator](https://docs.rs/rustyline/latest/rustyline/validate/struct.MatchingBracketValidator.html).
+///
+/// No validation occurs when entering the import command
 impl Validator for RustyLineHelper {
     fn validate(&self, ctx: &mut ValidationContext) -> Result<ValidationResult> {
         if ctx.input().starts_with("import") {
@@ -97,15 +98,15 @@ fn validate_brackets(input: &str) -> Option<ValidationResult> {
     if stack.is_empty() { None } else { Some(ValidationResult::Incomplete) }
 }
 
-/// A variation of MatchingBrackerHighlighter:
-/// no check occurs before cursor
-/// see: https://docs.rs/rustyline/10.0.0/rustyline/highlight/struct.MatchingBracketHighlighter.html
+/// A variation of [MatchingBracketHighlighter](https://docs.rs/rustyline/latest/rustyline/highlight/struct.MatchingBracketHighlighter.html).
+///
+/// No check occurs before cursor
 impl Highlighter for RustyLineHelper {
     fn highlight_hint<'h>(&self, hint: &'h str) -> Cow<'h, str> {
         if !self.color {
             return Owned(hint.to_owned());
         }
-        Owned(format!("{}", hint.bold()))
+        Owned(format!("{}", hint.grey()))
     }
 
     fn highlight_char(&self, _line: &str, _pos: usize) -> bool {
