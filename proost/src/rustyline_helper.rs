@@ -106,7 +106,7 @@ impl Highlighter for RustyLineHelper {
         if !self.color {
             return Owned(hint.to_owned());
         }
-        Owned(format!("{}", hint.grey()))
+        Owned(format!("{}", hint.bright_black()))
     }
 
     fn highlight_char(&self, _line: &str, _pos: usize) -> bool {
