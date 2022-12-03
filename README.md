@@ -10,22 +10,50 @@ The specification of the project may be found [here](docs/specs.pdf).
 
 The documentation, generated with `rust-doc` may be found [here](doc/proost/).
 
-### Usage 
-Please see the specification for insights on how to use `proost` and `tilleul`.
+## Build and install
+To install proost with `nix` installed, simply type:
+```sh
+nix profile install git+ssh://git@gitlab.crans.org/loutr/proost.git?ref=main
+```
+A toplevel instance can then be launched with `proost`. Alternatively, replace
+`profile install` with `run` to give the program a go without installing it.
 
-### Build and install
-With `nix` installed, simply type `nix run git+ssh://git@gitlab.crans.org/loutr/proost.git?ref=main` to launch `proost`. Alternatively, clone this git repository and type `nix build` to perform a build and have it in the nix store. One can also type `nix profile install` in the repo to install `proost` to one's profile and use it everywhere!
+Without `nix` installed, `git clone` the project and, with Rust and
+[`cargo`](https://doc.rust-lang.org/stable/cargo/) properly setup to an
+appropriate version (either through your package manager or
+[`rustup`](https://rustup.rs/)), do `cargo run --release`.
 
-### Development environment
-With `nix` installed, simply type `nix develop`. This provides an environment with all the necessary tools, including `clippy` and `rustfmt`. There, it is possible to run the usual `cargo build` and so on.
+## Usage
+In the toplevel, one can write terms as described [here](docs/presentation.pdf),
+with the appropriate commands. Alternatively, users can write their terms and
+proofs in a separate text file and use the `import` command in the toplevel.
 
-Please consider the syntax `nix develop --profile <a-file-of-your-choosing>`, which will prevent the garbage collection of the development dependencies.
+## Development environment (with `nix`)
+Type `nix develop`. This provides an environment with all the necessary tools,
+including `cargo` (with `clippy`, `rustfmt`) and `rust-analyzer`. Then, use your
+regular `cargo` commands.
 
-### Crates dependencies
+Please consider the syntax `nix develop --profile <a-file-of-your-choosing>`,
+which will prevent the garbage collection of the development dependencies as
+long as the given file lives.
+
+## Crates
+The project is organised as such:
+- the crate `kernel` provides an interface for building and manipulating terms,
+  as well as type inference and type checking functions;
+- the crate `parser` provides parsing functions which return `Builder` objects,
+  which can be seen as template that can be provided to the kernel to get a
+  real, well-formed term to perform computations upon;
+- the crate `proost` provides a toplevel interface for end-users that can be
+  used to manipulate terms and query the kernel. It provides partial
+  auto-completion, some color highlighting and other readline-like features;
+- the crate `tilleul`, which is still in preparation, which will implement the
+  Language Server Protocol.
+
 ```mermaid
 graph TD;
   kernel-->tilleul;
-  kernel-->parser;
+  kernel-.->parser;
   parser-->tilleul; 
   parser-->proost;
   kernel-->proost;
