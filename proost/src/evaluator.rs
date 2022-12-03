@@ -191,7 +191,7 @@ impl<'arena> Evaluator {
 
             Command::Import(files) => files
                 .iter()
-                .map(|relative_path| {
+                .try_for_each(|relative_path| {
                     let file_path = self.create_path(
                         Location::default(),
                         relative_path.to_string(),
@@ -199,7 +199,6 @@ impl<'arena> Evaluator {
                     )?;
                     self.import_file(arena, Location::default(), file_path, importing)
                 })
-                .collect::<Result<'arena, Vec<()>>>()
                 .map(|_| None),
         }
     }
