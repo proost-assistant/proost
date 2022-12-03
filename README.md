@@ -3,12 +3,11 @@
 </p>
 
 # Proost
-
 A simple proof assistant written in Rust.
 
-The specification of the project may be found [here](docs/specs.pdf).
-
-The documentation, generated with `rust-doc` may be found [here](doc/proost/).
+The specification of the project may be found [here](docs/specs.pdf), and the
+user manual [here](docs/manual.pdf). The API documentation can be found by
+clicking on the corresponding badge below the project name.
 
 ## Build and install
 To install proost with `nix` installed, simply type:
@@ -22,11 +21,6 @@ Without `nix` installed, `git clone` the project and, with Rust and
 [`cargo`](https://doc.rust-lang.org/stable/cargo/) properly setup to an
 appropriate version (either through your package manager or
 [`rustup`](https://rustup.rs/)), do `cargo run --release`.
-
-## Usage
-In the toplevel, one can write terms as described [here](docs/presentation.pdf),
-with the appropriate commands. Alternatively, users can write their terms and
-proofs in a separate text file and use the `import` command in the toplevel.
 
 ## Development environment (with `nix`)
 Type `nix develop`. This provides an environment with all the necessary tools,

@@ -57,9 +57,9 @@
     comment=[l]{//},
     keywords={fun, if},
     keywordstyle=\color{forestgreen},
-    keywords={Prop, Type},
-    keywordstyle=\color{darkred},
-    keywords=[3]{def, check, eval, import},
+		keywords=[2]{Prop, Type},
+		keywordstyle=[2]\color{darkred},
+    keywords=[3]{def, check, eval, search, import},
     keywordstyle=[3]\color{darkred},
 }
 \lstnewenvironment{proost}[1][]{\lstset{style=proost, #1}}{}
@@ -103,8 +103,8 @@
 
 \newcommand{\members}[1]{\texorpdfstring{\hfill\scriptsize #1}{}}
 
-\newcommand{\etun}{({\color{Green} $\star$}) }
-\newcommand{\etde}{({\color{Orange} $\star\star$}) }
+\newcommand{\etun}{{\color{Green} ($\star$)} }
+\newcommand{\etde}{{\color{Orange} ($\star\star$)} }
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
@@ -141,18 +141,24 @@ enough time.
 simple proof assistant and does not provide any tactics. As new features arrive
 from extensions of the kernel type theory, the \emph{madelaine} language must
 provide convenient shorthands and notations. The syntax of commands is the
-following: \begin{itemize} \item \etun¤import relative_path_to_file¤ typecheck
-	and load the the file in the current environment; \item ¤def a := t¤
-	defines an alias ¤a¤ that can be used in any following command; \item
-	¤def a : ty := t¤ defines an alias ¤a¤ that is checked to be of type
-	¤ty¤; \item ¤check u : t¤ verifies ¤u¤ has type ¤t¤;
+following:
+\begin{itemize}
+	\item \etun ¤import relative_path_to_file¤ typechecks
+		and loads the file in the current environment;
+	\item \etde ¤search t¤ searches ¤t¤ in all known terms, where ¤t¤ may contain
+		¤_¤ joker identifiers (see section \ref{sec:unification});
+	\item ¤def a := t¤
+		defines an alias ¤a¤ that can be used in any following command;
+	\item ¤def a: ty := t¤ defines an alias ¤a¤ that is checked to
+		be of type ¤ty¤;
+	\item ¤check u: t¤ verifies ¤u¤ has type ¤t¤;
   \item ¤check u¤ provides the type of ¤u¤;
   \item ¤eval u¤ provides the definition of ¤u¤.
 \end{itemize}
 
-Below is an overview of the syntax of the terms, both present and future. The
-syntax is strongly inspired by that of OCaml. Comments are defined using the
-keyword \texttt{//}.
+Below is an overview of the syntax of the terms, including hypothetical
+developments. The syntax is strongly inspired by that of OCaml. Comments are
+defined using the keyword \texttt{//}.
 
 \vspace{1.2mm}
 elementary type theory:
@@ -161,13 +167,14 @@ elementary type theory:
 def Nat :=
   (N: Type) -> (N -> N) -> N -> N
 
-def z := fun N:Type =>
-  fun f:(N -> N), x:N => x
-check z : Nat
+def z := fun N: Type =>
+  fun f: (N -> N), x:N => x
+check z: Nat
 
 def succ := fun n: Nat, N: Type =>
-  fun f: (N -> N), x: N => f (n N f x)
-check succ : Nat -> Nat
+  fun f: (N -> N), x: N =>
+    f (n N f x)
+check succ: Nat -> Nat
 \end{proost}
 
 \etun universe polymorphism:
@@ -178,7 +185,7 @@ def foo.{i,j} : Type (max i j) + 1
 
 \etde unification:
 \begin{proost}
-def comm := \/ x,y, x + y = y + x
+def comm := \/x y, x + y = y + x
 \end{proost}
 
 \etde existential types:
@@ -193,8 +200,10 @@ or \texttt{coqtop}. There, user is greeted with a prompt and may enter commands.
 When provided with existing file paths, ¤proost¤ intends to typecheck them in
 order, that is, reading them as successive inputs in the toplevel. Further
 features for this \emph{might} include a more extended notion of ``modules''
-where files may provides scopes. { \begin{center}
-\fbox{\includegraphics{media/screenshot_toplevel}} \end{center} }
+where files may provides scopes.
+\begin{center}
+	\fbox{\includegraphics{media/screenshot_toplevel}}
+\end{center}
 
 
 \subsection{\etun LSP \members{VL}}
@@ -243,7 +252,7 @@ with one another.
 This can be further extended with other invariants like ensuring every term in
 memory is in weak head normal form.
 
-\subsection{\etde Unification}
+\subsection{\etde Unification}\label{sec:unification}
 Early versions of the tool may require the user
 to explicit every type at play. Successive versions may gradually include
 unification tools (meta-variables) of better quality to assist the user and
