@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://gitlab.crans.org/loutr/proost/-/raw/48-first-release-preparations/docs/media/logo.png" width="25%"/>
+  <img src="https://gitlab.crans.org/loutr/proost/-/raw/main/docs/media/logo.png" width="25%"/>
 </p>
 
 # Proost

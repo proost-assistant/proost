@@ -1,6 +1,4 @@
-#![doc(
-    html_logo_url = "https://gitlab.crans.org/loutr/proost/-/raw/48-first-release-preparations/docs/media/logo.png"
-)]
+#![doc(html_logo_url = "https://gitlab.crans.org/loutr/proost/-/raw/main/docs/media/logo.png")]
 #![feature(let_chains)]
 
 mod error;
