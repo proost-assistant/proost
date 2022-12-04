@@ -1,3 +1,5 @@
+#![doc(html_logo_url = "https://gitlab.crans.org/loutr/proost/-/raw/main/docs/media/logo.png")]
+
 //! A kernel for the calculus of constructions.
 //!
 //! Terms can be built with functions from the [`term`] module. This module also provides essential

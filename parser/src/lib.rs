@@ -1,3 +1,5 @@
+#![doc(html_logo_url = "https://gitlab.crans.org/loutr/proost/-/raw/main/docs/media/logo.png")]
+
 //! Fast parser for λ-terms and commands using pest.
 //! Provides functions to parse files and single commands.
 
