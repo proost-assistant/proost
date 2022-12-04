@@ -70,17 +70,20 @@
           commands = [{
             name = "coverage";
             command = let 
-              excl_line = "//!|///|#\\[|use|unreachable!";
-              excl_br_line = "#\\[|unreachable!|assert(_eq)?!|^(pub |pub(crate) )?(enum|struct)|^[[:space:]]*\\}(,)?$";
-              excl_br_start = "^(pub |pub(crate) )?(enum|struct) [[:alpha:]]+ \\{";
+              excl_line = "#\\[|use|unreachable!|^(pub |pub(crate) )?(enum|struct)";
+              excl_start = "^(pub |pub(crate) )?(enum|struct) ([[:alpha:]]|[[:space:]]|[<>',])+\\{";
+              excl_stop = "^\\}";
+              excl_br_line = "#\\[|assert(_eq)?!|^(pub |pub(crate) )?(enum|struct)|^[[:space:]]*\\}(,)?$";
+              excl_br_start = "#\\[no_coverage\\]|^mod tests \\{|^(pub |pub(crate) )?(enum|struct) ([[:alpha:]]|[[:space:]]|[<>',])+\\{";
               excl_br_stop = "^\\}";
               env = "CARGO_INCREMENTAL=0"
                   + " RUSTFLAGS=\"-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort\""
                   + " RUSTDOCFLAGS=\"-Cpanic=abort\"";
             in ''
               ${env} cargo test
-              grcov . -s . -b ./target/debug/ --branch --ignore '*cargo*' --ignore-not-existing \
-                  --excl-line "${excl_line}" --excl-br-line "${excl_br_line}" --excl-br-start "${excl_br_start}" --excl-br-stop "${excl_br_stop}" \
+              grcov . -s . -b ./target/debug/ --branch --llvm --ignore '*cargo*' --ignore-not-existing \
+                  --excl-line "${excl_line}" --excl-start "${excl_start}" --excl-stop "${excl_stop}" \
+                  --excl-br-line "${excl_br_line}" --excl-br-start "${excl_br_start}" --excl-br-stop "${excl_br_stop}" \
                   -o ./target/coverage.lcov --log /dev/null || true
               find target \( -name "*.gcda" -or -name "*.gcno" \) -delete
               genhtml --branch --no-function-coverage --precision 2 target/coverage.lcov -o coverage

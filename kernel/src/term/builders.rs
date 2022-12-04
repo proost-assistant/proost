@@ -95,6 +95,7 @@ pub const fn type_usize<'build, 'arena>(level: usize) -> impl BuilderTrait<'buil
 /// Returns a closure building the application of two terms built from the given closures `u1` and
 /// `u2`.
 #[inline]
+#[no_coverage]
 pub const fn app<
     'build,
     'arena,
@@ -114,6 +115,7 @@ pub const fn app<
 /// Returns a closure building the lambda-abstraction with a body built from `body` and an argument
 /// type from `arg_type`.
 #[inline]
+#[no_coverage]
 pub const fn abs<
     'build,
     'arena,
@@ -135,6 +137,7 @@ pub const fn abs<
 /// Returns a closure building the dependant product of a term built from `body` over all elements
 /// of the type built from `arg_type`.
 #[inline]
+#[no_coverage]
 pub const fn prod<
     'build,
     'arena,
