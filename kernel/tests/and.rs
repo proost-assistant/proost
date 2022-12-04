@@ -18,19 +18,7 @@ where
             .build(abs(
                 "A",
                 prop(),
-                abs(
-                    "B",
-                    prop(),
-                    prod(
-                        "C",
-                        prop(),
-                        prod(
-                            "_",
-                            prod("_", var("A"), prod("_", var("B"), var("C"))),
-                            var("C"),
-                        ),
-                    ),
-                ),
+                abs("B", prop(), prod("C", prop(), prod("_", prod("_", var("A"), prod("_", var("B"), var("C"))), var("C")))),
             ))
             .unwrap();
 
@@ -43,9 +31,7 @@ where
 #[test]
 fn and_true_true() {
     use_and_arena(|arena| {
-        let goal = arena
-            .build(app(app(var("and"), var("True")), var("True")))
-            .unwrap();
+        let goal = arena.build(app(app(var("and"), var("True")), var("True"))).unwrap();
 
         let hypothesis = arena.build(abs("x", var("False"), var("x"))).unwrap();
         let true_ = arena.build(var("True")).unwrap();
@@ -57,11 +43,7 @@ fn and_true_true() {
             .build(abs(
                 "a",
                 prop(),
-                abs(
-                    "b",
-                    prod("_", var("True"), prod("_", var("True"), var("a"))),
-                    app(app(var("b"), var("hyp")), var("hyp")),
-                ),
+                abs("b", prod("_", var("True"), prod("_", var("True"), var("a"))), app(app(var("b"), var("hyp")), var("hyp"))),
             ))
             .unwrap();
 
@@ -79,11 +61,7 @@ fn and_intro() {
                 prod(
                     "B", // B : prop()
                     prop(),
-                    prod(
-                        "_",
-                        var("A"),
-                        prod("_", var("B"), app(app(var("and"), var("A")), var("B"))),
-                    ),
+                    prod("_", var("A"), prod("_", var("B"), app(app(var("and"), var("A")), var("B")))),
                 ),
             ))
             .unwrap();

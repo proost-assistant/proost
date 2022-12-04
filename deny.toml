@@ -1,0 +1,33 @@
+all-features = true
+targets = [
+    { triple = "x86_64-unknown-linux-gnu" },
+]
+
+[advisories]
+notice = "deny"
+unmaintained = "deny"
+unsound = "deny"
+vulnerability = "deny"
+yanked = "deny"
+
+ignore = [
+    # atty: Dependency of `clap` and `colored`
+    "RUSTSEC-2021-0145"
+]
+
+[bans]
+multiple-versions = "deny"
+
+[licenses]
+allow-osi-fsf-free = "both"
+confidence-threshold = 1
+copyleft = "allow"
+default = "deny"
+unlicensed = "deny"
+
+exceptions = [
+    { allow = ["Unicode-DFS-2016"], name = "unicode-ident", version = "*" },
+]
+
+[sources]
+unknown-registry = "deny"

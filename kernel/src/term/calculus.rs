@@ -3,8 +3,9 @@
 //! This module consists of internal utility functions used by the type checker, and correspond to
 //! usual functions over lambda-terms. These functions interact appropriately with a given arena.
 
-use super::arena::{Arena, Payload, Term};
 use Payload::*;
+
+use super::arena::{Arena, Payload, Term};
 
 impl<'arena> Arena<'arena> {
     /// Apply one step of β-reduction, using the leftmost-outermost evaluation strategy.
@@ -20,16 +21,16 @@ impl<'arena> Arena<'arena> {
                     } else {
                         self.app(t1_new, t2)
                     }
-                }
+                },
             },
             Abs(arg_type, body) => {
                 let body = self.beta_reduction(body);
                 self.abs(arg_type, body)
-            }
+            },
             Prod(arg_type, body) => {
                 let body = self.beta_reduction(body);
                 self.prod(arg_type, body)
-            }
+            },
             _ => t,
         }
     }
@@ -43,29 +44,24 @@ impl<'arena> Arena<'arena> {
                 let t1 = self.shift(t1, offset, depth);
                 let t2 = self.shift(t2, offset, depth);
                 self.app(t1, t2)
-            }
+            },
             Abs(arg_type, body) => {
                 let arg_type = self.shift(arg_type, offset, depth);
                 let body = self.shift(body, offset, depth + 1);
                 self.abs(arg_type, body)
-            }
+            },
             Prod(arg_type, body) => {
                 let arg_type = self.shift(arg_type, offset, depth);
                 let body = self.shift(body, offset, depth + 1);
                 self.prod(arg_type, body)
-            }
+            },
             _ => t,
         }
     }
 
     /// Returns the term `t` where all instances of the variable tracked by `depth` are substituted
     /// with `sub`.
-    pub(crate) fn substitute(
-        &mut self,
-        t: Term<'arena>,
-        sub: Term<'arena>,
-        depth: usize,
-    ) -> Term<'arena> {
+    pub(crate) fn substitute(&mut self, t: Term<'arena>, sub: Term<'arena>, depth: usize) -> Term<'arena> {
         self.get_subst_or_init(&(t, sub, depth), |arena| match *t {
             Var(i, _) if i == depth.into() => arena.shift(sub, depth - 1, 0),
             Var(i, type_) if i > depth.into() => arena.var(i - 1.into(), type_),
@@ -73,17 +69,17 @@ impl<'arena> Arena<'arena> {
                 let l = arena.substitute(l, sub, depth);
                 let r = arena.substitute(r, sub, depth);
                 arena.app(l, r)
-            }
+            },
             Abs(arg_type, body) => {
                 let arg_type = arena.substitute(arg_type, sub, depth);
                 let body = arena.substitute(body, sub, depth + 1);
                 arena.abs(arg_type, body)
-            }
+            },
             Prod(arg_type, body) => {
                 let arg_type = arena.substitute(arg_type, sub, depth);
                 let body = arena.substitute(body, sub, depth + 1);
                 arena.prod(arg_type, body)
-            }
+            },
             _ => t,
         })
     }
@@ -112,10 +108,10 @@ impl<'arena> Arena<'arena> {
                         let t = self.app(t1, t2);
                         let t = self.beta_reduction(t);
                         self.whnf(t)
-                    }
+                    },
                     _ => t,
                 }
-            }
+            },
             _ => t,
         })
     }
@@ -131,18 +127,10 @@ mod tests {
     fn simple_subst() {
         use_arena(|arena| {
             // λx.(λy.x y) x
-            let term = arena.build_raw(abs(
-                prop(),
-                app(
-                    abs(prop(), app(var(2.into(), prop()), var(1.into(), prop()))),
-                    var(1.into(), prop()),
-                ),
-            ));
+            let term = arena
+                .build_raw(abs(prop(), app(abs(prop(), app(var(2.into(), prop()), var(1.into(), prop()))), var(1.into(), prop()))));
             // λx.x x
-            let reduced = arena.build_raw(abs(
-                prop(),
-                app(var(1.into(), prop()), var(1.into(), prop())),
-            ));
+            let reduced = arena.build_raw(abs(prop(), app(var(1.into(), prop()), var(1.into(), prop()))));
 
             assert_eq!(arena.beta_reduction(term), reduced);
         })
@@ -167,13 +155,7 @@ mod tests {
                                             prop(),
                                             abs(
                                                 prop(),
-                                                app(
-                                                    var(1.into(), prop()),
-                                                    app(
-                                                        var(2.into(), prop()),
-                                                        var(4.into(), prop()),
-                                                    ),
-                                                ),
+                                                app(var(1.into(), prop()), app(var(2.into(), prop()), var(4.into(), prop()))),
                                             ),
                                         ),
                                     ),
@@ -184,10 +166,7 @@ mod tests {
                         ),
                     ),
                 ),
-                abs(
-                    prop(),
-                    abs(prop(), app(var(2.into(), prop()), var(1.into(), prop()))),
-                ),
+                abs(prop(), abs(prop(), app(var(2.into(), prop()), var(1.into(), prop())))),
             ));
 
             let term_step_1 = arena.build_raw(abs(
@@ -197,19 +176,10 @@ mod tests {
                     app(
                         app(
                             app(
+                                abs(prop(), abs(prop(), app(var(2.into(), prop()), var(1.into(), prop())))),
                                 abs(
                                     prop(),
-                                    abs(prop(), app(var(2.into(), prop()), var(1.into(), prop()))),
-                                ),
-                                abs(
-                                    prop(),
-                                    abs(
-                                        prop(),
-                                        app(
-                                            var(1.into(), prop()),
-                                            app(var(2.into(), prop()), var(4.into(), prop())),
-                                        ),
-                                    ),
+                                    abs(prop(), app(var(1.into(), prop()), app(var(2.into(), prop()), var(4.into(), prop())))),
                                 ),
                             ),
                             abs(prop(), var(2.into(), prop())),
@@ -230,13 +200,7 @@ mod tests {
                                 app(
                                     abs(
                                         prop(),
-                                        abs(
-                                            prop(),
-                                            app(
-                                                var(1.into(), prop()),
-                                                app(var(2.into(), prop()), var(5.into(), prop())),
-                                            ),
-                                        ),
+                                        abs(prop(), app(var(1.into(), prop()), app(var(2.into(), prop()), var(5.into(), prop())))),
                                     ),
                                     var(1.into(), prop()),
                                 ),
@@ -254,16 +218,7 @@ mod tests {
                     prop(),
                     app(
                         app(
-                            abs(
-                                prop(),
-                                abs(
-                                    prop(),
-                                    app(
-                                        var(1.into(), prop()),
-                                        app(var(2.into(), prop()), var(4.into(), prop())),
-                                    ),
-                                ),
-                            ),
+                            abs(prop(), abs(prop(), app(var(1.into(), prop()), app(var(2.into(), prop()), var(4.into(), prop()))))),
                             abs(prop(), var(2.into(), prop())),
                         ),
                         abs(prop(), var(1.into(), prop())),
@@ -276,13 +231,7 @@ mod tests {
                 abs(
                     prop(),
                     app(
-                        abs(
-                            prop(),
-                            app(
-                                var(1.into(), prop()),
-                                app(abs(prop(), var(3.into(), prop())), var(3.into(), prop())),
-                            ),
-                        ),
+                        abs(prop(), app(var(1.into(), prop()), app(abs(prop(), var(3.into(), prop())), var(3.into(), prop())))),
                         abs(prop(), var(1.into(), prop())),
                     ),
                 ),
@@ -292,20 +241,12 @@ mod tests {
                 prop(),
                 abs(
                     prop(),
-                    app(
-                        abs(prop(), var(1.into(), prop())),
-                        app(abs(prop(), var(2.into(), prop())), var(2.into(), prop())),
-                    ),
+                    app(abs(prop(), var(1.into(), prop())), app(abs(prop(), var(2.into(), prop())), var(2.into(), prop()))),
                 ),
             ));
 
-            let term_step_6 = arena.build_raw(abs(
-                prop(),
-                abs(
-                    prop(),
-                    app(abs(prop(), var(2.into(), prop())), var(2.into(), prop())),
-                ),
-            ));
+            let term_step_6 =
+                arena.build_raw(abs(prop(), abs(prop(), app(abs(prop(), var(2.into(), prop())), var(2.into(), prop())))));
 
             // λa.λb.b
             let term_step_7 = arena.build_raw(abs(prop(), abs(prop(), var(1.into(), prop()))));
@@ -334,10 +275,7 @@ mod tests {
     #[test]
     fn prod_beta_red() {
         use_arena(|arena| {
-            let term = arena.build_raw(prod(
-                prop(),
-                app(abs(prop(), var(1.into(), prop())), var(1.into(), prop())),
-            ));
+            let term = arena.build_raw(prod(prop(), app(abs(prop(), var(1.into(), prop())), var(1.into(), prop()))));
             let reduced = arena.build_raw(prod(prop(), var(1.into(), prop())));
 
             assert_eq!(arena.beta_reduction(term), reduced);
@@ -347,17 +285,9 @@ mod tests {
     #[test]
     fn app_red_rhs() {
         use_arena(|arena| {
-            let term = arena.build_raw(abs(
-                prop(),
-                app(
-                    var(1.into(), prop()),
-                    app(abs(prop(), var(1.into(), prop())), var(1.into(), prop())),
-                ),
-            ));
-            let reduced = arena.build_raw(abs(
-                prop(),
-                app(var(1.into(), prop()), var(1.into(), prop())),
-            ));
+            let term = arena
+                .build_raw(abs(prop(), app(var(1.into(), prop()), app(abs(prop(), var(1.into(), prop())), var(1.into(), prop())))));
+            let reduced = arena.build_raw(abs(prop(), app(var(1.into(), prop()), var(1.into(), prop()))));
 
             assert_eq!(arena.beta_reduction(term), reduced);
         })

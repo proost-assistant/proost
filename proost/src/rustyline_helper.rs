@@ -1,3 +1,5 @@
+use std::borrow::Cow::{self, Borrowed, Owned};
+
 use colored::*;
 use rustyline::completion::{Completer, FilenameCompleter, Pair};
 use rustyline::highlight::Highlighter;
@@ -5,7 +7,6 @@ use rustyline::hint::HistoryHinter;
 use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::{Cmd, ConditionalEventHandler, Context, Event, EventContext, RepeatCount, Result};
 use rustyline_derive::{Helper, Hinter};
-use std::borrow::Cow::{self, Borrowed, Owned};
 
 /// Language keywords that should be highlighted
 const KEYWORDS: [&str; 5] = ["check", "def", "eval", "import", "search"];
@@ -48,11 +49,7 @@ impl Completer for RustyLineHelper {
     type Candidate = Pair;
 
     fn complete(&self, line: &str, pos: usize, _ctx: &Context<'_>) -> Result<(usize, Vec<Pair>)> {
-        if line.starts_with("import") {
-            self.completer.complete_path(line, pos)
-        } else {
-            Ok(Default::default())
-        }
+        if line.starts_with("import") { self.completer.complete_path(line, pos) } else { Ok(Default::default()) }
     }
 }
 
@@ -64,9 +61,7 @@ impl Validator for RustyLineHelper {
             return Ok(ValidationResult::Valid(None));
         }
 
-        Ok(validate_arrows(ctx.input())
-            .or_else(|| validate_brackets(ctx.input()))
-            .unwrap_or(ValidationResult::Valid(None)))
+        Ok(validate_arrows(ctx.input()).or_else(|| validate_brackets(ctx.input())).unwrap_or(ValidationResult::Valid(None)))
     }
 }
 
@@ -89,27 +84,17 @@ fn validate_brackets(input: &str) -> Option<ValidationResult> {
         match c {
             '(' => stack.push(c),
             ')' => match stack.pop() {
-                Some('(') => {}
+                Some('(') => {},
                 Some(_) => {
-                    return Some(ValidationResult::Invalid(Some(
-                        "\nMismatched brackets: ) is not properly closed".to_string(),
-                    )))
-                }
-                None => {
-                    return Some(ValidationResult::Invalid(Some(
-                        "\nMismatched brackets: ( is unpaired".to_string(),
-                    )))
-                }
+                    return Some(ValidationResult::Invalid(Some("\nMismatched brackets: ) is not properly closed".to_string())));
+                },
+                None => return Some(ValidationResult::Invalid(Some("\nMismatched brackets: ( is unpaired".to_string()))),
             },
-            _ => {}
+            _ => {},
         }
     }
 
-    if stack.is_empty() {
-        None
-    } else {
-        Some(ValidationResult::Incomplete)
-    }
+    if stack.is_empty() { None } else { Some(ValidationResult::Incomplete) }
 }
 
 /// A variation of MatchingBrackerHighlighter:
@@ -138,9 +123,7 @@ impl Highlighter for RustyLineHelper {
                 let s = String::from(matching as char);
                 copy.replace_range(pos..=pos, &format!("{}", s.blue().bold()));
             }
-        KEYWORDS.iter().for_each(|keyword| {
-            replace_inplace(&mut copy, keyword, &format!("{}", keyword.blue().bold()))
-        });
+        KEYWORDS.iter().for_each(|keyword| replace_inplace(&mut copy, keyword, &format!("{}", keyword.blue().bold())));
         Owned(copy)
     }
 }
@@ -150,10 +133,9 @@ pub fn replace_inplace(input: &mut String, from: &str, to: &str) {
     let mut offset = 0;
     while let Some(pos) = input[offset..].find(from) {
         if (pos == 0 || input.as_bytes()[offset + pos - 1].is_ascii_whitespace())
-            && (offset + pos + from.len() == input.len()
-                || input.as_bytes()[offset + pos + from.len()].is_ascii_whitespace())
+            && (offset + pos + from.len() == input.len() || input.as_bytes()[offset + pos + from.len()].is_ascii_whitespace())
         {
-            input.replace_range(offset + pos..offset + pos + from.len(), to);
+            input.replace_range((offset + pos)..(offset + pos + from.len()), to);
             offset += pos + to.len();
         } else {
             offset += pos + from.len()
@@ -176,17 +158,10 @@ fn find_matching_bracket(line: &str, pos: usize, bracket: u8) -> Option<(u8, usi
 
     if is_open_bracket(bracket) {
         // forward search
-        line[pos + 1..]
-            .bytes()
-            .position(match_bracket)
-            .map(|pos2| (matching_bracket, pos2 + pos + 1))
+        line[pos + 1..].bytes().position(match_bracket).map(|pos2| (matching_bracket, pos2 + pos + 1))
     } else {
         // backward search
-        line[..pos]
-            .bytes()
-            .rev()
-            .position(match_bracket)
-            .map(|pos2| (matching_bracket, pos - pos2 - 1))
+        line[..pos].bytes().rev().position(match_bracket).map(|pos2| (matching_bracket, pos - pos2 - 1))
     }
 }
 
