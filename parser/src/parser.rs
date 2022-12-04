@@ -240,7 +240,7 @@ mod tests {
     }
 
     #[test]
-    fn successful_definechecktype() {
+    fn successful_define_with_type_annotation() {
         assert_eq!(
             parse_line("def x : Type := Prop"),
             Ok(Define("x", Some(Type(0)), Prop))
