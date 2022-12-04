@@ -1,9 +1,17 @@
 use derive_more::{Display, From};
 
-#[derive(Clone, Debug, Display, From, Eq, PartialEq)]
+/// The type of errors encountered by Proost during an interactive session.
+///
+/// Please note that some traits like `Clone` or `PartialEq` cannot be implemented here because
+/// [`std::io::Error`] does not implement them.
+#[derive(Debug, Display, From)]
 pub enum Error<'arena> {
-    Parser(parser::error::Error<'arena>),
+    Parser(parser::error::Error),
     Kernel(kernel::error::Error<'arena>),
+    Toplevel(crate::evaluator::Error),
+
+    Io(std::io::Error),
+    RustyLine(rustyline::error::ReadlineError),
 }
 
 impl std::error::Error for Error<'_> {}

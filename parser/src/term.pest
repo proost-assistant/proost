@@ -1,6 +1,7 @@
 WHITESPACE = _{ WHITE_SPACE }
 COMMENT = _{ "//" ~ (!"\n" ~ ANY)* }
 number = @{ ASCII_DIGIT+ }
+filename = @{ ( ASCII_ALPHANUMERIC | PUNCTUATION )+ }
 string = @{ !keywords ~ ASCII_ALPHA ~ ( "_" | ASCII_ALPHANUMERIC )* }
 keywords = @{ ( "fun" | "def" | "check" | "Prop" | "Type" ) ~ !ASCII_ALPHANUMERIC }
 eoi = _{ !ANY }
@@ -26,11 +27,14 @@ Prop = { "Prop" }
 Type = { "Type(" ~ number ~ ")" | "Type" ~ number? }
 Var = { string }
 
-Command = _{ Define | CheckType | GetType | DefineCheckType }
+Command = _{ Define | CheckType | GetType | DefineCheckType | Eval | ImportFile | Search}
 Define = { "def" ~ string ~ ":=" ~ Term }
 DefineCheckType = { "def" ~ string ~ ":" ~ Term ~ ":=" ~ Term }
 CheckType = { "check" ~ Term ~ ":" ~ Term }
 GetType = { "check" ~ Term }
+Eval = { "eval" ~ Term }
+ImportFile = { "import" ~ filename* }
+Search = { "search" ~ string }
 
 command = _{SOI ~ Command ~ eoi }
 file = _{ SOI ~ Command* ~ eoi }

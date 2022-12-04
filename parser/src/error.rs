@@ -4,9 +4,9 @@ use kernel::location::Location;
 /// Type representing parser errors.
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 #[display(fmt = "{}", kind)]
-pub struct Error<'arena> {
+pub struct Error {
     /// The kind of form error that occurred.
-    pub kind: ErrorKind<'arena>,
+    pub kind: ErrorKind,
 
     /// The location of the error.
     pub location: Location,
@@ -14,12 +14,10 @@ pub struct Error<'arena> {
 
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
-pub enum ErrorKind<'arena> {
-    #[display(fmt = "cannot parse: {}", _0)]
+pub enum ErrorKind {
     CannotParse(String),
-    EarlyKernelError(kernel::error::Error<'arena>),
 }
 
-impl std::error::Error for Error<'_> {}
+impl std::error::Error for Error {}
 
-pub type Result<'arena, T> = std::result::Result<T, Error<'arena>>;
+pub type Result<T> = std::result::Result<T, Error>;

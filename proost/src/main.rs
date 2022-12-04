@@ -1,18 +1,20 @@
 #![feature(let_chains)]
 
 mod error;
-mod process;
+mod evaluator;
 mod rustyline_helper;
 
+use std::env::current_dir;
 use std::fs;
 
 use atty::Stream;
 use clap::Parser;
 use rustyline::error::ReadlineError;
-use rustyline::{Cmd, Editor, EventHandler, KeyCode, KeyEvent, Modifiers, Result};
+use rustyline::{Cmd, Config, Editor, EventHandler, KeyCode, KeyEvent, Modifiers};
 use rustyline_helper::*;
 
-use process::*;
+use crate::error::Result;
+use evaluator::Evaluator;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -22,25 +24,24 @@ struct Args {
     /// remove syntax highlighting
     #[arg(long)]
     no_color: bool,
+    /// print the content of imported files
+    #[arg(short, long)]
+    verbose: bool,
 }
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const NAME: &str = env!("CARGO_PKG_NAME");
 
-fn main() -> Result<()> {
+fn main() -> Result<'static, ()> {
     let args = Args::parse();
 
     // check if files are provided as command-line arguments
     if !args.files.is_empty() {
-        for path in args.files.iter() {
-            match fs::read_to_string(path) {
-                Ok(_contents) => (),
-                Err(_) => {
-                    println!("no such file or directory: {}", path);
-                }
-            }
-        }
-        return Ok(());
+        return args
+            .files
+            .iter()
+            .try_for_each(|path| fs::read_to_string(path).map(|_| ()))
+            .map_err(error::Error::from);
     }
 
     // check if we are in a terminal
@@ -49,7 +50,10 @@ fn main() -> Result<()> {
     }
 
     let helper = RustyLineHelper::new(!args.no_color);
-    let mut rl = Editor::<RustyLineHelper>::new()?;
+    let config = Config::builder()
+        .completion_type(rustyline::CompletionType::List)
+        .build();
+    let mut rl = Editor::with_config(config)?;
     rl.set_helper(Some(helper));
     rl.bind_sequence(
         KeyEvent::from('\t'),
@@ -61,21 +65,51 @@ fn main() -> Result<()> {
     );
 
     kernel::term::arena::use_arena(|arena| {
+        let current_path = current_dir()?;
+        let mut evaluator = Evaluator::new(current_path, args.verbose);
+
         println!("Welcome to {} {}", NAME, VERSION);
 
         loop {
             let readline = rl.readline("\u{00BB} ");
             match readline {
-                Ok(line) if !line.is_empty() => {
+                Ok(line) if is_command(&line) => {
                     rl.add_history_entry(line.as_str());
-                    print_repl(process_line(line.as_str(), arena));
+                    let result = evaluator.process_line(arena, line.as_str());
+                    evaluator.display(result);
                 }
                 Ok(_) => (),
                 Err(ReadlineError::Interrupted) => {}
                 Err(ReadlineError::Eof) => break,
-                Err(err) => return Err(err),
+                Err(err) => return Err(err.into()),
             }
         }
         Ok(())
     })
+}
+
+fn is_command(input: &str) -> bool {
+    input
+        .chars()
+        .position(|c| !c.is_whitespace())
+        .map(|pos| input[pos..pos + 2] != *"//")
+        .unwrap_or_else(|| false)
+}
+
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn is_command_false() {
+        assert!(!super::is_command("    "));
+        assert!(!super::is_command(" "));
+        assert!(!super::is_command("// comment"))
+    }
+
+    #[test]
+    fn is_command_true() {
+        assert!(super::is_command("     check x"));
+        assert!(super::is_command("  check x"));
+        assert!(super::is_command("check x // comment"))
+    }
 }

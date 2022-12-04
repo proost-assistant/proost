@@ -8,7 +8,7 @@ use rustyline_derive::{Helper, Hinter};
 use std::borrow::Cow::{self, Borrowed, Owned};
 
 /// Language keywords that should be highlighted
-const KEYWORDS: [&str; 4] = ["check", "def", "eval", "import"];
+const KEYWORDS: [&str; 5] = ["check", "def", "eval", "import", "search"];
 
 /// An Helper for a RustyLine Editor that implements:
 /// - a standard hinter
@@ -73,7 +73,7 @@ impl Validator for RustyLineHelper {
 fn validate_arrows(input: &str) -> Option<ValidationResult> {
     let mut iter = input.as_bytes().iter().rev();
 
-    if let Some(b) = iter.find(|b| **b != b' ') {
+    if let Some(b) = iter.find(|b| !(**b).is_ascii_whitespace()) {
         if *b == b'>' && let Some(b) = iter.next() && (*b == b'-' || *b == b'=') {
             return Some(ValidationResult::Incomplete)
         }
@@ -149,9 +149,9 @@ impl Highlighter for RustyLineHelper {
 pub fn replace_inplace(input: &mut String, from: &str, to: &str) {
     let mut offset = 0;
     while let Some(pos) = input[offset..].find(from) {
-        if (pos == 0 || input.as_bytes()[offset + pos - 1] == b' ')
+        if (pos == 0 || input.as_bytes()[offset + pos - 1].is_ascii_whitespace())
             && (offset + pos + from.len() == input.len()
-                || input.as_bytes()[offset + pos + from.len()] == b' ')
+                || input.as_bytes()[offset + pos + from.len()].is_ascii_whitespace())
         {
             input.replace_range(offset + pos..offset + pos + from.len(), to);
             offset += pos + to.len();
@@ -215,4 +215,58 @@ const fn is_bracket(bracket: u8) -> bool {
 
 const fn is_open_bracket(bracket: u8) -> bool {
     matches!(bracket, b'(')
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn get_bracket_empty() {
+        assert!(get_bracket("", 0).is_none())
+    }
+
+    #[test]
+    fn get_bracket_out_of_bound() {
+        assert!(get_bracket("(())", 4).is_none())
+    }
+
+    #[test]
+    fn get_bracket_none() {
+        assert!(get_bracket("a()[", 0).is_none());
+        assert!(get_bracket("a()[", 3).is_none())
+    }
+
+    #[test]
+    fn get_bracket_some() {
+        assert!(get_bracket("a()[", 1).is_some());
+        assert!(get_bracket("a()[", 2).is_some())
+    }
+
+    #[test]
+    fn find_matching_bracket_direction() {
+        assert!(find_matching_bracket("  )", 1, b')').is_none());
+        assert!(find_matching_bracket("  )", 1, b'(').is_some());
+        assert!(find_matching_bracket("(  ", 1, b')').is_some());
+        assert!(find_matching_bracket("(  ", 1, b'(').is_none())
+    }
+
+    #[test]
+    fn find_matching_bracket_matching() {
+        assert_eq!(find_matching_bracket("  )", 1, b'('), Some((b')', 2)));
+        assert_eq!(find_matching_bracket("(  ", 1, b')'), Some((b'(', 0)))
+    }
+
+    #[test]
+    fn find_matching_bracket_counter() {
+        assert_eq!(find_matching_bracket(" (())))", 0, b'('), Some((b')', 5)));
+        assert_eq!(find_matching_bracket("(((()) ", 6, b')'), Some((b'(', 1)));
+    }
+
+    #[test]
+    fn replace_inplace() {
+        let mut message = "mot motus et mots mot mot".to_string();
+        super::replace_inplace(&mut message, "mot", "mots");
+        assert_eq!(message, "mots motus et mots mots mots".to_string())
+    }
 }
