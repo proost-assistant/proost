@@ -9,12 +9,12 @@ use std::fs;
 
 use atty::Stream;
 use clap::Parser;
+use evaluator::Evaluator;
 use rustyline::error::ReadlineError;
 use rustyline::{Cmd, Config, Editor, EventHandler, KeyCode, KeyEvent, Modifiers};
 use rustyline_helper::*;
 
 use crate::error::Result;
-use evaluator::Evaluator;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -37,11 +37,7 @@ fn main() -> Result<'static, ()> {
 
     // check if files are provided as command-line arguments
     if !args.files.is_empty() {
-        return args
-            .files
-            .iter()
-            .try_for_each(|path| fs::read_to_string(path).map(|_| ()))
-            .map_err(error::Error::from);
+        return args.files.iter().try_for_each(|path| fs::read_to_string(path).map(|_| ())).map_err(error::Error::from);
     }
 
     // check if we are in a terminal
@@ -50,19 +46,11 @@ fn main() -> Result<'static, ()> {
     }
 
     let helper = RustyLineHelper::new(!args.no_color);
-    let config = Config::builder()
-        .completion_type(rustyline::CompletionType::List)
-        .build();
+    let config = Config::builder().completion_type(rustyline::CompletionType::List).build();
     let mut rl = Editor::with_config(config)?;
     rl.set_helper(Some(helper));
-    rl.bind_sequence(
-        KeyEvent::from('\t'),
-        EventHandler::Conditional(Box::new(TabEventHandler)),
-    );
-    rl.bind_sequence(
-        KeyEvent(KeyCode::Enter, Modifiers::ALT),
-        EventHandler::Simple(Cmd::Newline),
-    );
+    rl.bind_sequence(KeyEvent::from('\t'), EventHandler::Conditional(Box::new(TabEventHandler)));
+    rl.bind_sequence(KeyEvent(KeyCode::Enter, Modifiers::ALT), EventHandler::Simple(Cmd::Newline));
 
     kernel::term::arena::use_arena(|arena| {
         let current_path = current_dir()?;
@@ -77,9 +65,9 @@ fn main() -> Result<'static, ()> {
                     rl.add_history_entry(line.as_str());
                     let result = evaluator.process_line(arena, line.as_str());
                     evaluator.display(result);
-                }
+                },
                 Ok(_) => (),
-                Err(ReadlineError::Interrupted) => {}
+                Err(ReadlineError::Interrupted) => {},
                 Err(ReadlineError::Eof) => break,
                 Err(err) => return Err(err.into()),
             }
@@ -89,11 +77,7 @@ fn main() -> Result<'static, ()> {
 }
 
 fn is_command(input: &str) -> bool {
-    input
-        .chars()
-        .position(|c| !c.is_whitespace())
-        .map(|pos| input[pos..pos + 2] != *"//")
-        .unwrap_or_else(|| false)
+    input.chars().position(|c| !c.is_whitespace()).map(|pos| input[pos..pos + 2] != *"//").unwrap_or_else(|| false)
 }
 
 #[cfg(test)]

@@ -6,10 +6,10 @@ use std::cmp::max;
 
 use derive_more::Display;
 use num_bigint::BigUint;
+use Payload::*;
 
 use crate::error::{Error, Result, ResultTerm};
 use crate::term::arena::{Arena, Payload, Term};
-use Payload::*;
 
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 #[display(fmt = "{}: {}", _0, _1)]
@@ -54,9 +54,7 @@ impl<'arena> Arena<'arena> {
 
                 (Var(i, _), Var(j, _)) => i == j,
 
-                (&Prod(t1, u1), &Prod(t2, u2)) => {
-                    self.conversion(t1, t2) && self.conversion(u1, u2)
-                }
+                (&Prod(t1, u1), &Prod(t2, u2)) => self.conversion(t1, t2) && self.conversion(u1, u2),
 
                 // Since we assume that both values already have the same type,
                 // checking conversion over the argument type is useless.
@@ -121,7 +119,7 @@ impl<'arena> Arena<'arena> {
                     let univ_t = self.normal_form(univ_t);
                     let univ_u = self.normal_form(univ_u);
                     self.imax(univ_t, univ_u)
-                }
+                },
 
                 Abs(t, u) => {
                     let type_t = self.infer(t)?;
@@ -129,12 +127,12 @@ impl<'arena> Arena<'arena> {
                         Type(_) | Prop => {
                             let type_u = self.infer(u)?;
                             Ok(self.prod(t, type_u))
-                        }
+                        },
                         _ => Err(Error {
                             kind: TypeCheckerError::NotUniverse(type_t).into(),
                         }),
                     }
-                }
+                },
 
                 App(t, u) => {
                     let type_t = self.infer(t)?;
@@ -147,21 +145,16 @@ impl<'arena> Arena<'arena> {
                                 Ok(self.substitute(cls, u, 1))
                             } else {
                                 Err(Error {
-                                    kind: TypeCheckerError::WrongArgumentType(
-                                        t,
-                                        arg_type,
-                                        TypedTerm(u, type_u),
-                                    )
-                                    .into(),
+                                    kind: TypeCheckerError::WrongArgumentType(t, arg_type, TypedTerm(u, type_u)).into(),
                                 })
                             }
-                        }
+                        },
 
                         _ => Err(Error {
                             kind: TypeCheckerError::NotAFunction(TypedTerm(t, type_t), u).into(),
                         }),
                     }
-                }
+                },
             }
         })
     }
@@ -201,10 +194,7 @@ mod tests {
     fn def_eq_2() {
         use_arena(|arena| {
             let id = arena.build_raw(id());
-            let term = arena.build_raw(app(
-                abs(prop(), abs(prop(), var(2.into(), prop()))),
-                id.into(),
-            ));
+            let term = arena.build_raw(app(abs(prop(), abs(prop(), var(2.into(), prop()))), id.into()));
             let normal_form = arena.build_raw(abs(prop(), id.into()));
 
             assert!(arena.is_def_eq(term, normal_form).is_ok())
@@ -216,10 +206,7 @@ mod tests {
         use_arena(|arena| {
             let id = arena.build_raw(id());
             // λa.a (λx.x) (λx.x)
-            let term = arena.build_raw(abs(
-                prop(),
-                app(app(var(2.into(), prop()), id.into()), id.into()),
-            ));
+            let term = arena.build_raw(abs(prop(), app(app(var(2.into(), prop()), id.into()), id.into())));
 
             assert!(arena.is_def_eq(term, term).is_ok());
         })
@@ -261,15 +248,9 @@ mod tests {
     fn failed_app_head_conversion() {
         use_arena(|arena| {
             let type_0 = arena.type_usize(0);
-            let term_lhs = arena.build_raw(abs(
-                type_0.into(),
-                abs(type_0.into(), app(var(1.into(), prop()), prop())),
-            ));
+            let term_lhs = arena.build_raw(abs(type_0.into(), abs(type_0.into(), app(var(1.into(), prop()), prop()))));
 
-            let term_rhs = arena.build_raw(abs(
-                type_0.into(),
-                abs(type_0.into(), app(var(2.into(), prop()), prop())),
-            ));
+            let term_rhs = arena.build_raw(abs(type_0.into(), abs(type_0.into(), app(var(2.into(), prop()), prop()))));
 
             assert_eq!(
                 arena.is_def_eq(term_lhs, term_rhs),
@@ -284,10 +265,7 @@ mod tests {
     fn typed_reduction_app_1() {
         use_arena(|arena| {
             let type_0 = arena.type_usize(0);
-            let term = arena.build_raw(app(
-                abs(type_0.into(), var(1.into(), type_0.into())),
-                prop(),
-            ));
+            let term = arena.build_raw(app(abs(type_0.into(), var(1.into(), type_0.into())), prop()));
 
             let reduced = arena.build_raw(prop());
             assert!(arena.is_def_eq(term, reduced).is_ok());
@@ -342,11 +320,7 @@ mod tests {
                                             abs(
                                                 "d",
                                                 prod("_", prop(), prop()),
-                                                abs(
-                                                    "e",
-                                                    prod("_", prop(), prop()),
-                                                    app(var("e"), app(var("d"), var("b"))),
-                                                ),
+                                                abs("e", prod("_", prop(), prop()), app(var("e"), app(var("d"), var("b")))),
                                             ),
                                         ),
                                         // _ : P
@@ -361,11 +335,7 @@ mod tests {
                     // f: (P -> P) -> (P -> P) -> P
                     abs(
                         "f",
-                        prod(
-                            "_",
-                            prod("_", prop(), prop()),
-                            prod("_", prod("_", prop(), prop()), prop()),
-                        ),
+                        prod("_", prod("_", prop(), prop()), prod("_", prod("_", prop(), prop()), prop())),
                         abs(
                             "g",
                             // g: P -> P
@@ -377,15 +347,11 @@ mod tests {
                 .unwrap();
 
             // λa: P. λb: P. b
-            let reduced = arena
-                .build(abs("_", prop(), abs("x", prop(), var("x"))))
-                .unwrap();
+            let reduced = arena.build(abs("_", prop(), abs("x", prop(), var("x")))).unwrap();
             assert!(arena.is_def_eq(term, reduced).is_ok());
 
             let term_type = arena.infer(term).unwrap();
-            let expected_type = arena
-                .build(prod("_", prop(), prod("_", prop(), prop())))
-                .unwrap();
+            let expected_type = arena.build(prod("_", prop(), prod("_", prop(), prop()))).unwrap();
             assert_eq!(term_type, expected_type);
             assert!(arena.check(term, term_type).is_ok())
         })
@@ -397,10 +363,7 @@ mod tests {
             let type_0 = arena.type_usize(0);
             let type_1 = arena.type_usize(1);
 
-            let term = arena.build_raw(app(
-                abs(prop(), type_0.into()),
-                prod(prop(), var(1.into(), prop())),
-            ));
+            let term = arena.build_raw(app(abs(prop(), type_0.into()), prod(prop(), var(1.into(), prop()))));
 
             assert!(arena.is_def_eq(term, type_0).is_ok());
 
@@ -432,19 +395,13 @@ mod tests {
             let term = arena.build_raw(abs(
                 prod(prop(), prop()),
                 app(
-                    abs(
-                        prop(),
-                        app(var(2.into(), prod(prop(), prop())), var(1.into(), prop())),
-                    ),
+                    abs(prop(), app(var(2.into(), prod(prop(), prop())), var(1.into(), prop()))),
                     var(1.into(), prod(prop(), prop())),
                 ),
             ));
 
             // λx.x x
-            let reduced = arena.build_raw(abs(
-                prop(),
-                app(var(1.into(), prop()), var(1.into(), prop())),
-            ));
+            let reduced = arena.build_raw(abs(prop(), app(var(1.into(), prop()), var(1.into(), prop()))));
 
             assert!(arena.is_def_eq(term, reduced).is_ok())
         })
@@ -476,15 +433,9 @@ mod tests {
     #[test]
     fn typed_prod_3() {
         use_arena(|arena| {
-            let term = arena.build_raw(abs(
-                prop(),
-                abs(var(1.into(), prop()), var(1.into(), var(2.into(), prop()))),
-            ));
+            let term = arena.build_raw(abs(prop(), abs(var(1.into(), prop()), var(1.into(), var(2.into(), prop())))));
             let term_type = arena.infer(term).unwrap();
-            let expected_type = arena.build_raw(prod(
-                prop(),
-                prod(var(1.into(), prop()), var(2.into(), prop())),
-            ));
+            let expected_type = arena.build_raw(prod(prop(), prod(var(1.into(), prop()), var(2.into(), prop()))));
 
             assert_eq!(term_type, expected_type);
             assert!(arena.check(term, term_type).is_ok());
@@ -496,19 +447,12 @@ mod tests {
         use_arena(|arena| {
             let type_0 = arena.type_usize(0);
 
-            let identity = arena.build_raw(abs(
-                type_0.into(),
-                abs(
-                    var(1.into(), type_0.into()),
-                    var(1.into(), var(2.into(), type_0.into())),
-                ),
-            ));
+            let identity =
+                arena.build_raw(abs(type_0.into(), abs(var(1.into(), type_0.into()), var(1.into(), var(2.into(), type_0.into())))));
 
             let identity_type = arena.infer(identity).unwrap();
-            let expected_type = arena.build_raw(prod(
-                type_0.into(),
-                prod(var(1.into(), type_0.into()), var(2.into(), type_0.into())),
-            ));
+            let expected_type =
+                arena.build_raw(prod(type_0.into(), prod(var(1.into(), type_0.into()), var(2.into(), type_0.into()))));
 
             assert_eq!(identity_type, expected_type);
             assert!(arena.check(identity, identity_type).is_ok());
@@ -524,25 +468,13 @@ mod tests {
                     prop(),
                     abs(
                         prod(prop(), prod(prop(), prop())),
-                        app(
-                            app(
-                                var(1.into(), prod(prop(), prod(prop(), prop()))),
-                                var(3.into(), prop()),
-                            ),
-                            var(2.into(), prop()),
-                        ),
+                        app(app(var(1.into(), prod(prop(), prod(prop(), prop()))), var(3.into(), prop())), var(2.into(), prop())),
                     ),
                 ),
             ));
             let term_type = arena.infer(term).unwrap();
 
-            assert_eq!(
-                term_type,
-                arena.build_raw(prod(
-                    prop(),
-                    prod(prop(), prod(prod(prop(), prod(prop(), prop())), prop()))
-                ))
-            );
+            assert_eq!(term_type, arena.build_raw(prod(prop(), prod(prop(), prod(prod(prop(), prod(prop(), prop())), prop())))));
             assert!(arena.check(term, term_type).is_ok());
         })
     }
@@ -580,11 +512,7 @@ mod tests {
                 assert_eq!(
                     arena.infer(term),
                     Err(Error {
-                        kind: TypeCheckerError::NotAFunction(
-                            TypedTerm(arena.prop(), arena.type_usize(0)),
-                            arena.prop()
-                        )
-                        .into()
+                        kind: TypeCheckerError::NotAFunction(TypedTerm(arena.prop(), arena.type_usize(0)), arena.prop()).into()
                     })
                 );
             })
@@ -598,11 +526,7 @@ mod tests {
                 assert_eq!(
                     arena.infer(term),
                     Err(Error {
-                        kind: TypeCheckerError::NotAFunction(
-                            TypedTerm(arena.prop(), arena.type_usize(0)),
-                            arena.prop()
-                        )
-                        .into()
+                        kind: TypeCheckerError::NotAFunction(TypedTerm(arena.prop(), arena.type_usize(0)), arena.prop()).into()
                     })
                 );
             })
@@ -616,11 +540,7 @@ mod tests {
                 assert_eq!(
                     arena.infer(term),
                     Err(Error {
-                        kind: TypeCheckerError::NotAFunction(
-                            TypedTerm(arena.prop(), arena.type_usize(0)),
-                            arena.prop()
-                        )
-                        .into()
+                        kind: TypeCheckerError::NotAFunction(TypedTerm(arena.prop(), arena.type_usize(0)), arena.prop()).into()
                     })
                 );
             })
@@ -634,11 +554,7 @@ mod tests {
                 assert_eq!(
                     arena.infer(term),
                     Err(Error {
-                        kind: TypeCheckerError::NotAFunction(
-                            TypedTerm(arena.prop(), arena.type_usize(0)),
-                            arena.prop()
-                        )
-                        .into()
+                        kind: TypeCheckerError::NotAFunction(TypedTerm(arena.prop(), arena.type_usize(0)), arena.prop()).into()
                     })
                 );
             })
@@ -652,11 +568,7 @@ mod tests {
                 assert_eq!(
                     arena.infer(term),
                     Err(Error {
-                        kind: TypeCheckerError::NotAFunction(
-                            TypedTerm(arena.prop(), arena.type_usize(0)),
-                            arena.prop()
-                        )
-                        .into()
+                        kind: TypeCheckerError::NotAFunction(TypedTerm(arena.prop(), arena.type_usize(0)), arena.prop()).into()
                     })
                 );
             })
@@ -670,11 +582,7 @@ mod tests {
                 assert_eq!(
                     arena.infer(term),
                     Err(Error {
-                        kind: TypeCheckerError::NotAFunction(
-                            TypedTerm(arena.prop(), arena.type_usize(0)),
-                            arena.prop()
-                        )
-                        .into()
+                        kind: TypeCheckerError::NotAFunction(TypedTerm(arena.prop(), arena.type_usize(0)), arena.prop()).into()
                     })
                 );
             })
@@ -688,10 +596,7 @@ mod tests {
                 let term = arena.build_raw(abs(
                     prod(prop(), prop()),
                     app(
-                        abs(
-                            prop(),
-                            app(var(2.into(), prod(prop(), prop())), var(1.into(), prop())),
-                        ),
+                        abs(prop(), app(var(2.into(), prod(prop(), prop())), var(1.into(), prop()))),
                         var(1.into(), prod(prop(), prop())),
                     ),
                 ));
@@ -700,15 +605,9 @@ mod tests {
                     arena.infer(term),
                     Err(Error {
                         kind: TypeCheckerError::WrongArgumentType(
-                            arena.build_raw(abs(
-                                prop(),
-                                app(var(2.into(), prod(prop(), prop())), var(1.into(), prop()))
-                            )),
+                            arena.build_raw(abs(prop(), app(var(2.into(), prod(prop(), prop())), var(1.into(), prop())))),
                             arena.prop(),
-                            TypedTerm(
-                                arena.build_raw(var(1.into(), prod(prop(), prop()))),
-                                arena.build_raw(prod(prop(), prop()))
-                            )
+                            TypedTerm(arena.build_raw(var(1.into(), prod(prop(), prop()))), arena.build_raw(prod(prop(), prop())))
                         )
                         .into()
                     })
@@ -721,20 +620,13 @@ mod tests {
             use_arena(|arena| {
                 let term = arena.build_raw(abs(
                     prop(),
-                    abs(
-                        var(1.into(), prop()),
-                        abs(
-                            var(1.into(), var(2.into(), prop())),
-                            var(1.into(), var(2.into(), prop())),
-                        ),
-                    ),
+                    abs(var(1.into(), prop()), abs(var(1.into(), var(2.into(), prop())), var(1.into(), var(2.into(), prop())))),
                 ));
 
                 assert_eq!(
                     arena.infer(term),
                     Err(Error {
-                        kind: TypeCheckerError::NotUniverse(arena.build_raw(var(2.into(), prop())))
-                            .into()
+                        kind: TypeCheckerError::NotUniverse(arena.build_raw(var(2.into(), prop()))).into()
                     })
                 );
             })
@@ -748,8 +640,7 @@ mod tests {
                 assert_eq!(
                     arena.infer(term),
                     Err(Error {
-                        kind: TypeCheckerError::NotUniverse(arena.build_raw(prod(prop(), prop())))
-                            .into()
+                        kind: TypeCheckerError::NotUniverse(arena.build_raw(prod(prop(), prop()))).into()
                     })
                 );
             })
@@ -763,10 +654,8 @@ mod tests {
                 assert_eq!(
                     arena.infer(term),
                     Err(Error {
-                        kind: TypeCheckerError::NotUniverse(
-                            arena.build_raw(prod(prop(), type_(BigUint::from(0_u64).into())))
-                        )
-                        .into()
+                        kind: TypeCheckerError::NotUniverse(arena.build_raw(prod(prop(), type_(BigUint::from(0_u64).into()))))
+                            .into()
                     })
                 );
             })
@@ -781,11 +670,7 @@ mod tests {
                 assert_eq!(
                     arena.check(term, expected_type),
                     Err(Error {
-                        kind: TypeCheckerError::NotAFunction(
-                            TypedTerm(arena.prop(), arena.type_usize(0)),
-                            arena.prop(),
-                        )
-                        .into(),
+                        kind: TypeCheckerError::NotAFunction(TypedTerm(arena.prop(), arena.type_usize(0)), arena.prop()).into(),
                     })
                 );
             })

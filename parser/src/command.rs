@@ -46,7 +46,7 @@ impl<'build> fmt::Display for Command<'build> {
             Import(files) => {
                 write!(f, "imports")?;
                 files.iter().try_for_each(|file| write!(f, " {file}"))
-            }
+            },
 
             Search(name) => write!(f, "search {}", name),
         }

@@ -1,11 +1,11 @@
+use kernel::location::Location;
+use kernel::term::builders::Builder;
 use pest::error::LineColLocation;
 use pest::iterators::Pair;
 use pest::{Parser, Span};
 
 use crate::command::Command;
 use crate::error::{Error, ErrorKind};
-use kernel::location::Location;
-use kernel::term::builders::Builder;
 
 #[derive(Parser)]
 #[grammar = "term.pest"]
@@ -30,16 +30,13 @@ fn parse_term(pair: Pair<Rule>) -> Builder {
 
         Rule::Var => Var(pair.into_inner().as_str()),
 
-        Rule::Type => Type(
-            pair.into_inner()
-                .fold(0, |_, x| x.as_str().parse::<usize>().unwrap()),
-        ),
+        Rule::Type => Type(pair.into_inner().fold(0, |_, x| x.as_str().parse::<usize>().unwrap())),
 
         Rule::App => {
             let mut iter = pair.into_inner().map(parse_term);
             let t = iter.next().unwrap();
             iter.fold(t, |acc, x| App(Box::new(acc), Box::new(x)))
-        }
+        },
 
         Rule::Abs => {
             let mut iter = pair.into_inner();
@@ -51,7 +48,7 @@ fn parse_term(pair: Pair<Rule>) -> Builder {
             })
             .rev()
             .fold(body, |acc, (var, type_)| Abs(var, type_, Box::new(acc)))
-        }
+        },
 
         Rule::dProd => {
             let mut iter = pair.into_inner();
@@ -63,15 +60,13 @@ fn parse_term(pair: Pair<Rule>) -> Builder {
             })
             .rev()
             .fold(body, |acc, (var, type_)| Prod(var, type_, Box::new(acc)))
-        }
+        },
 
         Rule::Prod => {
             let mut iter = pair.into_inner();
             let ret = parse_term(iter.next_back().unwrap());
-            iter.map(parse_term).rev().fold(ret, |acc, argtype| {
-                Prod("_", Box::new(argtype), Box::new(acc))
-            })
-        }
+            iter.map(parse_term).rev().fold(ret, |acc, argtype| Prod("_", Box::new(argtype), Box::new(acc)))
+        },
 
         term => unreachable!("Unexpected term: {:?}", term),
     }
@@ -87,21 +82,21 @@ fn parse_expr<'build>(pair: Pair<'build, Rule>) -> Command<'build> {
             let mut iter = pair.into_inner();
             let t = parse_term(iter.next().unwrap());
             Command::GetType(t)
-        }
+        },
 
         Rule::CheckType => {
             let mut iter = pair.into_inner();
             let t1 = parse_term(iter.next().unwrap());
             let t2 = parse_term(iter.next().unwrap());
             Command::CheckType(t1, t2)
-        }
+        },
 
         Rule::Define => {
             let mut iter = pair.into_inner();
             let s: &'build str = iter.next().unwrap().as_str();
             let term = parse_term(iter.next().unwrap());
             Command::Define(s, None, term)
-        }
+        },
 
         Rule::DefineCheckType => {
             let mut iter = pair.into_inner();
@@ -109,22 +104,22 @@ fn parse_expr<'build>(pair: Pair<'build, Rule>) -> Command<'build> {
             let t = parse_term(iter.next().unwrap());
             let term = parse_term(iter.next().unwrap());
             Command::Define(s, Some(t), term)
-        }
+        },
 
         Rule::Eval => {
             let term = parse_term(pair.into_inner().next().unwrap());
             Command::Eval(term)
-        }
+        },
 
         Rule::ImportFile => {
             let files = pair.into_inner().map(|pair| pair.as_str()).collect();
             Command::Import(files)
-        }
+        },
 
         Rule::Search => {
             let s = pair.into_inner().next().unwrap().as_str();
             Command::Search(s)
-        }
+        },
 
         command => unreachable!("Unexpected command: {:?}", command),
     }
@@ -177,7 +172,7 @@ fn convert_error(err: pest::error::Error<Rule>) -> Error {
                 right = y;
             }
             Location::new((x, left).into(), (x, right).into())
-        }
+        },
 
         LineColLocation::Span(start, end) => Location::new(start.into(), end.into()),
     };
@@ -198,18 +193,14 @@ fn convert_error(err: pest::error::Error<Rule>) -> Error {
 ///
 /// if unsuccessful, a box containing the first error that was encountered is returned.
 pub fn parse_line(line: &str) -> crate::error::Result<Command> {
-    CommandParser::parse(Rule::command, line)
-        .map_err(convert_error)
-        .map(|mut pairs| parse_expr(pairs.next().unwrap()))
+    CommandParser::parse(Rule::command, line).map_err(convert_error).map(|mut pairs| parse_expr(pairs.next().unwrap()))
 }
 
 /// Parse a text input and try to convert it into a vector of commands.
 ///
 /// if unsuccessful, a box containing the first error that was encountered is returned.
 pub fn parse_file(file: &str) -> crate::error::Result<Vec<Command>> {
-    CommandParser::parse(Rule::file, file)
-        .map_err(convert_error)
-        .map(|pairs| pairs.into_iter().map(parse_expr).collect())
+    CommandParser::parse(Rule::file, file).map_err(convert_error).map(|pairs| pairs.into_iter().map(parse_expr).collect())
 }
 
 #[cfg(test)]
@@ -221,10 +212,8 @@ mod tests {
     use super::*;
 
     /// Error messages
-    const COMMAND_ERR: &str =
-        "expected def var := term, def var : term := term, check term : term, check term, eval term, import path_to_file, or search var";
-    const TERM_ERR: &str =
-        "expected variable, abstraction, dependent product, application, product, Prop, or Type";
+    const COMMAND_ERR: &str = "expected def var := term, def var : term := term, check term : term, check term, eval term, import path_to_file, or search var";
+    const TERM_ERR: &str = "expected variable, abstraction, dependent product, application, product, Prop, or Type";
     const SIMPLE_TERM_ERR: &str = "expected variable, abstraction, Prop, or Type";
     const UNIVERSE_ERR: &str = "expected universe level, variable, abstraction, Prop, or Type";
 
@@ -241,18 +230,12 @@ mod tests {
 
     #[test]
     fn successful_define_with_type_annotation() {
-        assert_eq!(
-            parse_line("def x : Type := Prop"),
-            Ok(Define("x", Some(Type(0)), Prop))
-        );
+        assert_eq!(parse_line("def x : Type := Prop"), Ok(Define("x", Some(Type(0)), Prop)));
     }
 
     #[test]
     fn successful_import() {
-        assert_eq!(
-            parse_line("import file1 dir/file2"),
-            Ok(Import(["file1", "dir/file2"].to_vec()))
-        );
+        assert_eq!(parse_line("import file1 dir/file2"), Ok(Import(["file1", "dir/file2"].to_vec())));
         assert_eq!(parse_line("import "), Ok(Import(Vec::new())))
     }
 
@@ -273,10 +256,7 @@ mod tests {
 
     #[test]
     fn successful_checktype() {
-        assert_eq!(
-            parse_line("check Prop : Type"),
-            Ok(CheckType(Prop, Type(0)))
-        );
+        assert_eq!(parse_line("check Prop : Type"), Ok(CheckType(Prop, Type(0))));
     }
 
     #[test]
@@ -286,10 +266,7 @@ mod tests {
 
     #[test]
     fn successful_var() {
-        assert_eq!(
-            parse_line("check fun A: Prop => A"),
-            Ok(GetType(Abs("A", Box::new(Prop), Box::new(Var("A")))))
-        );
+        assert_eq!(parse_line("check fun A: Prop => A"), Ok(GetType(Abs("A", Box::new(Prop), Box::new(Var("A"))))));
     }
 
     #[test]
@@ -301,14 +278,8 @@ mod tests {
 
     #[test]
     fn successful_app() {
-        let res_left = Ok(GetType(App(
-            Box::new(App(Box::new(Var("A")), Box::new(Var("B")))),
-            Box::new(Var("C")),
-        )));
-        let res_right = Ok(GetType(App(
-            Box::new(Var("A")),
-            Box::new(App(Box::new(Var("B")), Box::new(Var("C")))),
-        )));
+        let res_left = Ok(GetType(App(Box::new(App(Box::new(Var("A")), Box::new(Var("B")))), Box::new(Var("C")))));
+        let res_right = Ok(GetType(App(Box::new(Var("A")), Box::new(App(Box::new(Var("B")), Box::new(Var("C")))))));
         assert_eq!(parse_line("check A B C"), res_left);
         assert_eq!(parse_line("check (A B) C"), res_left);
         assert_eq!(parse_line("check A (B C)"), res_right);
@@ -316,16 +287,8 @@ mod tests {
 
     #[test]
     fn successful_prod() {
-        let res_left = Ok(GetType(Prod(
-            "_",
-            Box::new(Prod("_", Box::new(Var("A")), Box::new(Var("B")))),
-            Box::new(Var("C")),
-        )));
-        let res_right = Ok(GetType(Prod(
-            "_",
-            Box::new(Var("A")),
-            Box::new(Prod("_", Box::new(Var("B")), Box::new(Var("C")))),
-        )));
+        let res_left = Ok(GetType(Prod("_", Box::new(Prod("_", Box::new(Var("A")), Box::new(Var("B")))), Box::new(Var("C")))));
+        let res_right = Ok(GetType(Prod("_", Box::new(Var("A")), Box::new(Prod("_", Box::new(Var("B")), Box::new(Var("C")))))));
         assert_eq!(parse_line("check A -> B -> C"), res_right);
         assert_eq!(parse_line("check A -> (B -> C)"), res_right);
         assert_eq!(parse_line("check (A -> B) -> C"), res_left);
@@ -333,11 +296,7 @@ mod tests {
 
     #[test]
     fn successful_dprod() {
-        let res = Ok(GetType(Prod(
-            "x",
-            Box::new(Type(0)),
-            Box::new(Prod("y", Box::new(Type(1)), Box::new(Var("x")))),
-        )));
+        let res = Ok(GetType(Prod("x", Box::new(Type(0)), Box::new(Prod("y", Box::new(Type(1)), Box::new(Var("x")))))));
         assert_eq!(parse_line("check (x:Type) -> (y:Type 1) -> x"), res);
         assert_eq!(parse_line("check (x:Type) -> ((y:Type 1) -> x)"), res);
     }
@@ -350,17 +309,10 @@ mod tests {
             Box::new(Abs(
                 "x",
                 Box::new(Prop),
-                Box::new(Abs(
-                    "y",
-                    Box::new(Prop),
-                    Box::new(Abs("z", Box::new(Prop), Box::new(Var("x")))),
-                )),
+                Box::new(Abs("y", Box::new(Prop), Box::new(Abs("z", Box::new(Prop), Box::new(Var("x")))))),
             )),
         );
-        assert_eq!(
-            parse_line("check fun w x: Prop, y z: Prop => x"),
-            Ok(GetType(res))
-        );
+        assert_eq!(parse_line("check fun w x: Prop, y z: Prop => x"), Ok(GetType(res)));
     }
 
     #[test]
@@ -386,20 +338,12 @@ mod tests {
         let res = Ok(GetType(Abs(
             "x",
             Box::new(Prop),
-            Box::new(Abs(
-                "x",
-                Box::new(Var("x")),
-                Box::new(Abs("x", Box::new(Var("x")), Box::new(Var("x")))),
-            )),
+            Box::new(Abs("x", Box::new(Var("x")), Box::new(Abs("x", Box::new(Var("x")), Box::new(Var("x")))))),
         )));
         let res2 = Ok(GetType(Abs(
             "x",
             Box::new(Prop),
-            Box::new(Abs(
-                "y",
-                Box::new(Var("x")),
-                Box::new(Abs("z", Box::new(Var("x")), Box::new(Var("z")))),
-            )),
+            Box::new(Abs("y", Box::new(Var("x")), Box::new(Abs("z", Box::new(Var("x")), Box::new(Var("z")))))),
         )));
         assert_eq!(parse_line("check fun x : Prop, x : x, x : x => x"), res);
         assert_eq!(parse_line("check fun x : Prop, x x : x => x"), res);
@@ -411,20 +355,12 @@ mod tests {
         let res = Ok(GetType(Prod(
             "x",
             Box::new(Prop),
-            Box::new(Prod(
-                "x",
-                Box::new(Var("x")),
-                Box::new(Prod("x", Box::new(Var("x")), Box::new(Var("x")))),
-            )),
+            Box::new(Prod("x", Box::new(Var("x")), Box::new(Prod("x", Box::new(Var("x")), Box::new(Var("x")))))),
         )));
         let res2 = Ok(GetType(Prod(
             "x",
             Box::new(Prop),
-            Box::new(Prod(
-                "y",
-                Box::new(Var("x")),
-                Box::new(Prod("z", Box::new(Var("x")), Box::new(Var("z")))),
-            )),
+            Box::new(Prod("y", Box::new(Var("x")), Box::new(Prod("z", Box::new(Var("x")), Box::new(Var("z")))))),
         )));
         assert_eq!(parse_line("check (x : Prop, x : x, x : x) -> x"), res);
         assert_eq!(parse_line("check (x : Prop, x x : x) -> x"), res);
@@ -439,55 +375,28 @@ mod tests {
             Box::new(Abs(
                 "x",
                 Box::new(Prop),
-                Box::new(Abs(
-                    "y",
-                    Box::new(Prop),
-                    Box::new(Abs("z", Box::new(Prop), Box::new(Var("x")))),
-                )),
+                Box::new(Abs("y", Box::new(Prop), Box::new(Abs("z", Box::new(Prop), Box::new(Var("x")))))),
             )),
         );
-        assert_eq!(
-            parse_line("check fun (((w x : Prop))), y z : Prop => x"),
-            Ok(GetType(res))
-        );
+        assert_eq!(parse_line("check fun (((w x : Prop))), y z : Prop => x"), Ok(GetType(res)));
     }
 
     #[test]
     fn parenthesis_in_prod() {
-        let res = Prod(
-            "_",
-            Box::new(Type(0)),
-            Box::new(Prod("_", Box::new(Type(1)), Box::new(Type(2)))),
-        );
-        assert_eq!(
-            parse_line("check (((Type))) -> (((Type 1 -> Type 2)))"),
-            Ok(GetType(res))
-        );
+        let res = Prod("_", Box::new(Type(0)), Box::new(Prod("_", Box::new(Type(1)), Box::new(Type(2)))));
+        assert_eq!(parse_line("check (((Type))) -> (((Type 1 -> Type 2)))"), Ok(GetType(res)));
     }
 
     #[test]
     fn parenthesis_in_dprod() {
-        let res = Prod(
-            "x",
-            Box::new(Type(0)),
-            Box::new(Prod("y", Box::new(Type(1)), Box::new(Var("x")))),
-        );
-        assert_eq!(
-            parse_line("check (((x:Type))) -> ((((y:Type 1) -> x)))"),
-            Ok(GetType(res))
-        );
+        let res = Prod("x", Box::new(Type(0)), Box::new(Prod("y", Box::new(Type(1)), Box::new(Var("x")))));
+        assert_eq!(parse_line("check (((x:Type))) -> ((((y:Type 1) -> x)))"), Ok(GetType(res)));
     }
 
     #[test]
     fn parenthesis_in_app() {
-        let res = App(
-            Box::new(Var("A")),
-            Box::new(App(Box::new(Var("B")), Box::new(Var("C")))),
-        );
-        assert_eq!(
-            parse_line("check ((((((A))) (((B C))))))"),
-            Ok(GetType(res))
-        );
+        let res = App(Box::new(Var("A")), Box::new(App(Box::new(Var("B")), Box::new(Var("C")))));
+        assert_eq!(parse_line("check ((((((A))) (((B C))))))"), Ok(GetType(res)));
     }
 
     #[test]
@@ -499,14 +408,8 @@ mod tests {
             check fun x:Prop => x
         "#;
 
-        assert_eq!(
-            parse_file(file).unwrap()[0],
-            parse_line("def x := Prop -> Prop").unwrap()
-        );
-        assert_eq!(
-            parse_file(file).unwrap()[1],
-            parse_line("check fun x:Prop => x").unwrap()
-        );
+        assert_eq!(parse_file(file).unwrap()[0], parse_line("def x := Prop -> Prop").unwrap());
+        assert_eq!(parse_file(file).unwrap()[1], parse_line("check fun x:Prop => x").unwrap());
     }
 
     #[test]

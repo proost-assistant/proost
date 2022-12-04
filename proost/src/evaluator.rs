@@ -1,14 +1,17 @@
-use std::{collections::HashSet, fs::read_to_string, path::PathBuf};
+use std::collections::HashSet;
+use std::fs::read_to_string;
+use std::path::PathBuf;
 
 use colored::Colorize;
 use derive_more::Display;
-use path_absolutize::Absolutize;
-
-use crate::error::{Error::*, Result};
 use kernel::location::Location;
 use kernel::term::arena::{Arena, Term};
 use parser::command::Command;
 use parser::{parse_file, parse_line};
+use path_absolutize::Absolutize;
+
+use crate::error::Error::*;
+use crate::error::Result;
 
 /// Type representing parser errors.
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
@@ -50,12 +53,7 @@ impl<'arena> Evaluator {
     }
 
     /// Create a new path from a relative path
-    fn create_path(
-        &self,
-        location: Location,
-        relative_path: String,
-        importing: &[PathBuf],
-    ) -> Result<'arena, PathBuf> {
+    fn create_path(&self, location: Location, relative_path: String, importing: &[PathBuf]) -> Result<'arena, PathBuf> {
         let file_path = importing
             .last()
             .and_then(|path| path.parent())
@@ -91,11 +89,7 @@ impl<'arena> Evaluator {
         if let Some(i) = importing.iter().position(|path| path == &file_path) {
             return Err(Toplevel(Error {
                 kind: ErrorKind::CyclicDependencies(
-                    importing[i..]
-                        .iter()
-                        .map(|path| path.to_string_lossy())
-                        .collect::<Vec<_>>()
-                        .join(" \u{2192}\n"),
+                    importing[i..].iter().map(|path| path.to_string_lossy()).collect::<Vec<_>>().join(" \u{2192}\n"),
                 ),
                 location,
             }));
@@ -114,11 +108,7 @@ impl<'arena> Evaluator {
         Ok(())
     }
 
-    pub fn process_line(
-        &mut self,
-        arena: &mut Arena<'arena>,
-        line: &str,
-    ) -> Result<'arena, Option<Term<'arena>>> {
+    pub fn process_line(&mut self, arena: &mut Arena<'arena>, line: &str) -> Result<'arena, Option<Term<'arena>>> {
         let command = parse_line(line)?;
         self.process(arena, &command, &mut Vec::new())
     }
@@ -160,7 +150,7 @@ impl<'arena> Evaluator {
                         location: Location::default(), // TODO (see #38)
                     }))
                 }
-            }
+            },
 
             Command::Define(s, Some(t), term) => {
                 let term = term.realise(arena)?;
@@ -168,35 +158,31 @@ impl<'arena> Evaluator {
                 arena.check(term, t)?;
                 arena.bind(s, term);
                 Ok(None)
-            }
+            },
 
             Command::CheckType(t1, t2) => {
                 let t1 = t1.realise(arena)?;
                 let t2 = t2.realise(arena)?;
                 arena.check(t1, t2)?;
                 Ok(None)
-            }
+            },
 
             Command::GetType(t) => {
                 let t = t.realise(arena)?;
                 Ok(arena.infer(t).map(Some)?)
-            }
+            },
 
             Command::Eval(t) => {
                 let t = t.realise(arena)?;
                 Ok(Some(arena.normal_form(t)))
-            }
+            },
 
             Command::Search(s) => Ok(arena.get_binding(s)), // TODO (see #49)
 
             Command::Import(files) => files
                 .iter()
                 .try_for_each(|relative_path| {
-                    let file_path = self.create_path(
-                        Location::default(),
-                        relative_path.to_string(),
-                        importing,
-                    )?;
+                    let file_path = self.create_path(Location::default(), relative_path.to_string(), importing)?;
                     self.import_file(arena, Location::default(), file_path, importing)
                 })
                 .map(|_| None),
@@ -210,7 +196,7 @@ impl<'arena> Evaluator {
                 for line in t.to_string().lines() {
                     println!("{} {}", "\u{2713}".green(), line)
                 }
-            }
+            },
             Err(err) => {
                 let string = match err {
                     Parser(parser::error::Error {
@@ -229,7 +215,7 @@ impl<'arena> Evaluator {
                                 m = message
                             )
                         }
-                    }
+                    },
 
                     _ => err.to_string(),
                 };
@@ -237,7 +223,7 @@ impl<'arena> Evaluator {
                 for line in string.lines() {
                     println!("{} {}", "\u{2717}".red(), line)
                 }
-            }
+            },
         }
     }
 }

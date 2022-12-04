@@ -16,9 +16,7 @@ use num_bigint::BigUint;
 use crate::error::ResultTerm;
 
 /// An index used to designate bound variables.
-#[derive(
-    Add, Copy, Clone, Debug, Default, Display, Eq, PartialEq, From, Into, Sub, PartialOrd, Ord, Hash,
-)]
+#[derive(Add, Copy, Clone, Debug, Default, Display, PartialEq, Eq, Hash, From, Into, PartialOrd, Ord, Sub)]
 pub struct DeBruijnIndex(usize);
 
 /// A level of universe, used to build terms of the form `Type i`.
@@ -27,7 +25,7 @@ pub struct DeBruijnIndex(usize);
 /// of which is to give a hierarchy to these types, so as to preserve soundness against paradoxes
 /// akin to Russell's. Universe levels can be arbitrarily large, and, with good faith, they are
 /// represented with *big unsigned integers*, limited only by the memory of the operating computer.
-#[derive(Add, Clone, Debug, Default, Display, Eq, From, Sub, PartialEq, PartialOrd, Ord, Hash)]
+#[derive(Add, Clone, Debug, Default, Display, PartialEq, Eq, From, Hash, PartialOrd, Ord, Sub)]
 pub struct UniverseLevel(BigUint);
 
 /// A comprehensive memory management unit for terms.
@@ -199,7 +197,7 @@ impl<'arena> Arena<'arena> {
                 let addr = self.alloc.alloc(new_node);
                 self.hashcons.insert(addr);
                 Term(addr, PhantomData)
-            }
+            },
         }
     }
 
@@ -245,11 +243,7 @@ impl<'arena> Arena<'arena> {
     }
 
     /// Returns the result of the substitution described by the key, lazily computing the closure `f`.
-    pub(crate) fn get_subst_or_init<F>(
-        &mut self,
-        key: &(Term<'arena>, Term<'arena>, usize),
-        f: F,
-    ) -> Term<'arena>
+    pub(crate) fn get_subst_or_init<F>(&mut self, key: &(Term<'arena>, Term<'arena>, usize), f: F) -> Term<'arena>
     where
         F: FnOnce(&mut Self) -> Term<'arena>,
     {
@@ -259,7 +253,7 @@ impl<'arena> Arena<'arena> {
                 let res = f(self);
                 self.mem_subst.insert(*key, res);
                 res
-            }
+            },
         }
     }
 }
@@ -294,7 +288,7 @@ impl<'arena> Term<'arena> {
 /// match *t {
 ///     Abs(_, t2) => arena.beta_reduction(t2),
 ///     App(t1, _) => t1,
-///     _ => t
+///     _ => t,
 /// }
 /// # ;})
 /// ```
