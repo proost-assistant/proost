@@ -1,16 +1,27 @@
 use std::fmt::Display;
 use std::fmt::Formatter;
-use std::ops::Add;
+
 use std::marker::PhantomData;
 use std::cell::OnceCell;
 use derive_more::{Add, Display, From, Into, Sub};
 use std::hash::Hash;
-use super::arena::Arena;
+use super::Arena;
+use std::ops::Deref;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
-pub enum LevelPayload<'arena> {
-    #[default]
-    Zero, 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Level<'arena>(&'arena Node<'arena>, PhantomData<*mut &'arena ()>);
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct Node<'arena> {
+    payload: Payload<'arena>,
+
+    // put any lazy structure here
+    // normalized has been removed, because all levels are guaranteed to be reduced
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Payload<'arena> {
+    Zero,
 
     Succ(Level<'arena>),
 
@@ -20,17 +31,49 @@ pub enum LevelPayload<'arena> {
 
     Var(usize),
 }
+use Payload::*;
 
-#[derive(Clone, Copy ,Debug, PartialEq, Eq)]
-pub struct Level<'arena>(&'arena LevelNode<'arena>, PhantomData<*mut &'arena ()>);
+impl<'arena> super::arena::Arena<'arena> {
+    /// This function is the base low-level function for creating terms.
+    ///
+    /// It enforces the uniqueness property of terms in the arena.
+    fn hashcons_level(&mut self, payload: Payload<'arena>) -> Level<'arena> {
+        let new_node = Node { payload, };
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct LevelNode<'arena> {
-    payload: LevelPayload<'arena>,
-    normalized: OnceCell<Level<'arena>>,
+        match self.hashcons_terms.get(&new_node) {
+            Some(level) => level,
+            None => {
+                let reduced = Level(&new_node, PhantomData).reduce(self);
+                let reduced = Level(self.alloc.alloc(reduced.0), PhantomData);
+                self.hashcons_levels.insert(&new_node, reduced);
+                self.hashcons_levels.insert(&reduced, reduced);
+                reduced
+            }
+        }
+    }
+
+    /// Returns the term corresponding to a proposition
+    pub(crate) fn zero(&mut self) -> Level<'arena> {
+        self.hashcons_level(Zero)
+    }
+
+    pub(crate) fn succ(&mut self, level: Level<'arena>) -> Level<'arena> {
+        self.hashcons_level(Succ(level))
+    }
+
+    pub(crate) fn max(&mut self, l: Level<'arena>, r: Level<'arena>) -> Level<'arena> {
+        self.hashcons_level(Max(l, r))
+    }
+
+    pub(crate) fn imax_level(&mut self, l: Level<'arena>, r: Level<'arena>) -> Level<'arena> {
+        self.hashcons_level(IMax(l, r))
+    }
+
+    pub(crate) fn var_level(&mut self, id: usize) -> Level<'arena> {
+        self.hashcons_level(Var(id))
+    }
 }
 
-/// (TODO PRECISE DOCUMENTATION) make use of unicity invariant to speed up equality test
 impl<'arena> Hash for Level<'arena> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         std::ptr::hash(self.0, state)
@@ -43,98 +86,74 @@ impl<'arena> Hash for LevelNode<'arena> {
     }
 }
 
-use LevelPayload::*;
-
-impl Add<usize> for Level<'_> {
-    type Output = Self;
-
-    fn add(self, n: usize) -> Self {
+impl<'arena> Level<'arena> {
+    fn add(self, n: usize, arena: &mut Arena<'arena>) -> Self {
         if n == 0 {
             self
         } else {
-            Succ(self.add(n - 1))
+            let s = self.add(n - 1, arena);
+            arena.succ(s)
         }
     }
-}
 
-impl From<usize> for Level<'_> {
-    fn from(n: usize) -> Self {
-        if n == 0 {
-            Zero
-        } else {
-            Succ(box (n - 1).into())
-        }
+    fn from(n: usize, arena: &mut Arena<'arena>) -> Self {
+        let z = arena.zero();
+        z.add(n, arena)
     }
 }
 
 impl Display for Level<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.pretty_print())
+    fn fmt(self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self.to_numeral() { Some(n) => write!(f, "{n}"),
+            None => match self {
+                Zero => unreachable!("Zero is a numeral"),
+                Succ(_) => {
+                    let (u, n) = self.plus();
+                    write!(f, "{u} + {n}")
+                }
+                Max(n, m) => write!(f, "max ({n}) ({m})"),
+                IMax(n, m) => write!(f, "imax ({n}) ({m})"),
+                Var(n) => write!(f, "u{n}"),
+            },
+        }
     }
 }
 
 
 impl<'arena> Level<'arena> {
     /// Helper function for pretty printing, if universe doesn't contain any variable then it gets printed as a decimal number.
-    fn to_numeral(&self) -> Option<usize> {
-        match self {
+    fn to_numeral(self) -> Option<usize> {
+        match *self {
             Zero => Some(0),
-            Succ(box u) => u.to_numeral().map(|n| n + 1),
-            Max(box n, box m) => n
-                .to_numeral()
-                .and_then(|n| m.to_numeral().map(|m| n.max(m))),
-            IMax(box n, box m) => m.to_numeral().and_then(|m| {
-                if m == 0 {
-                    0.into()
-                } else {
-                    n.to_numeral().map(|n| m.max(n))
-                }
-            }),
+            Succ(u) => u.to_numeral().map(|n| n + 1),
+            Max(n, m) | IMax(n, m) => n .to_numeral() .and_then(|n| m.to_numeral().map(|m| n.max(m))),
+            // note: once uniqueness property is ensured with normalization, please remove the IMax case
             _ => None,
         }
     }
 
     /// Helper function for pretty printing, if universe is of the form Succ(Succ(...(Succ(u))...)) then it gets printed as u+n.
-    fn plus(&self) -> (UniverseLevel, usize) {
-        match self {
-            Succ(box u) => {
+    fn plus(self) -> (UniverseLevel, usize) {
+        match *self {
+            Succ(u) => {
                 let (u, n) = u.plus();
                 (u, n + 1)
             }
-            _ => (self.clone(), 0),
-        }
-    }
-    /// Pretty prints universe levels, used to impl Display for UniverseLevel.
-    fn pretty_print(&self) -> String {
-        match self.to_numeral() {
-            Some(n) => n.to_string(),
-            None => match self {
-                Zero => unreachable!("Zero is a numeral"),
-                Succ(_) => {
-                    let (u, n) = self.plus();
-                    format!("{} + {}", u.pretty_print(), n)
-                }
-                Max(box n, box m) => format!("max ({}) ({})", n.pretty_print(), m.pretty_print()),
-                IMax(box _, box Zero) => "Zero".into(),
-                IMax(box n, box m @ Succ(_)) => {
-                    format!("max ({}) ({})", n.pretty_print(), m.pretty_print())
-                }
-                IMax(box n, box m) => format!("imax ({}) ({})", n.pretty_print(), m.pretty_print()),
-                Var(n) => format!("u{}", n),
-            },
+            _ => (self, 0),
         }
     }
 
-    /// Is used to find the number of universe in a declaration.
-    pub fn univ_vars(self) -> usize {
-        match self {
-            Zero => 0,
-            Succ(n) => n.univ_vars(),
-            Max(n, m) => n.univ_vars().max(m.univ_vars()),
-            IMax(n, m) => n.univ_vars().max(m.univ_vars()),
-            Var(n) => n + 1,
-        }
-    }
+    // Is used to find the number of universe in a declaration.
+    // This function is no longer in use
+    // pub fn univ_vars(self) -> usize {
+    //     match self {
+    //         Zero => 0,
+    //         Succ(n) => n.univ_vars(),
+    //         Max(n, m) => n.univ_vars().max(m.univ_vars()),
+    //         IMax(n, m) => n.univ_vars().max(m.univ_vars()),
+    //         Var(n) => n + 1,
+    //     }
+    // }
 
     /// Helper function for equality checking, used to substitute Var(i) with Z and S(Var(i)).
     fn substitute_single(self, var: usize, u: UniverseLevel) -> UniverseLevel {
@@ -247,6 +266,60 @@ impl<'arena> Level<'arena> {
     }
 }
 
+/// A Level is arguably a smart pointer, and as such, can be directly dereferenced to its associated
+/// payload.
+///
+/// Please note that this trait has some limits. For instance, the notations used to match against
+/// a *pair* of terms still requires some convolution.
+impl<'arena> Deref for Level<'arena> {
+    type Target = Payload<'arena>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0.payload
+    }
+}
+
+/// Debug mode only prints the payload of a term.
+///
+/// Apart from enhancing the debug readability, this reimplementation is surprisingly necessary:
+/// because terms may refer to themselves in the payload, the default debug implementation
+/// recursively calls itself and provokes a stack overflow.
+impl<'arena> Debug for Term<'arena> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        self.0.payload.fmt(f)
+    }
+}
+
+/// Because terms are unique in the arena, it is sufficient to compare their locations in memory to
+/// test equality.
+impl<'arena> PartialEq<Level<'arena>> for Level<'arena> {
+    fn eq(&self, x: &Term<'arena>) -> bool {
+        std::ptr::eq(self.0, x.0)
+    }
+}
+
+/// Because terms are unique in the arena, it is sufficient to compare their locations in memory to
+/// test equality. In particular, hash can also be computed from the location.
+impl<'arena> Hash for Level<'arena> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.0, state)
+    }
+}
+
+impl<'arena> PartialEq<Node<'arena>> for Node<'arena> {
+    fn eq(&self, x: &Node<'arena>) -> bool {
+        self.payload == x.payload
+    }
+}
+
+/// Nodes are not guaranteed to be unique. Nonetheless, only the payload matters and characterises
+/// the value. Which means computing the hash for nodes can be restricted to hashing their
+/// payloads.
+impl<'arena> Hash for Node<'arena> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.payload.hash(state);
+    }
+}
 #[cfg(test)]
 mod tests {
     use crate::universe::UniverseLevel::*;

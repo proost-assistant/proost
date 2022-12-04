@@ -2,23 +2,15 @@
 //!
 //! This module defines the core functions used to manipulate an arena and its terms.
 
-use std::cell::OnceCell;
-use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::hash::Hash;
-use std::marker::PhantomData;
 use std::ops::Deref;
-use super::level::Level;
-use super::declaration::Declaration;
+use std::collections::{HashMap, HashSet};
+use std::marker::PhantomData;
 
 use bumpalo::Bump;
-use derive_more::{Add, Display, From, Into, Sub};
 
-use crate::error::ResultTerm;
-
-/// An index used to designate bound variables.
-#[derive(Add, Copy, Clone, Debug, Default, Display, PartialEq, Eq, Hash, From, Into, PartialOrd, Ord, Sub)]
-pub struct DeBruijnIndex(usize);
+use super::term::Term;
 
 /// A comprehensive memory management unit for terms.
 ///
@@ -37,85 +29,24 @@ pub struct DeBruijnIndex(usize);
 /// Early versions of this system are freely inspired by an assignment designed by
 /// [Jacques-Henri Jourdan](<https://jhjourdan.mketjh.fr>).
 pub struct Arena<'arena> {
-    alloc: &'arena Bump,
+    pub(super) alloc: &'arena Bump,
 
     // enforces invariances over lifetime parameter
     _phantom: PhantomData<*mut &'arena ()>,
 
     // Hashconsing of terms, levels and declarations, at the heart of the uniqueness property
-    hashcons_terms: HashSet<&'arena Node<'arena>>,
-    hashcons_levels: HashSet<&'arena Level<'arena>>,
-    hashcons_decls: HashSet<&'arena Declaration<'arena>>,
+    // Please note that [`Level`](super::level::Level) behave differently because it has an
+    // additional *reduced form* invariant.
+    pub(super) hashcons_terms: HashSet<&'arena super::term::Node<'arena>>,
+    pub(super) hashcons_decls: HashSet<&'arena super::declaration::Node<'arena>>,
+    pub(super) hashcons_levels: HashMap<&'arena super::level::Node<'arena>, super::level::Level<'arena>>,
+
     named_terms: HashMap<&'arena str, Term<'arena>>,
 
     // Hash maps used to speed up certain algorithms. See also `OnceCell`s in [`Term`]
     mem_subst: HashMap<(Term<'arena>, Term<'arena>, usize), Term<'arena>>,
     // TODO shift hashmap (see #45)
     // requires the design of an additional is_certainly_closed predicate in terms.
-}
-
-/// A term of the calculus of constructions.
-///
-/// This type is associated, through its lifetime argument, to an [`Arena`], where it lives. There,
-/// it is guaranteed to be unique, which accelerates many algorithms. It is fundamentally a pointer
-/// to an internal term structure, called a Node, which itself contains the core term, [`Payload`],
-/// which is what can be expected of a term.
-///
-/// Additionally, the Node contains lazy structures which indicate the result of certain
-/// transformation on the term, namely type checking and term reduction. Storing it directly here
-/// is both faster and takes overall less space than storing the result in a separate hash table.
-#[derive(Clone, Copy, Display, Eq)]
-#[display(fmt = "{}", "_0.payload")]
-pub struct Term<'arena>(
-    &'arena Node<'arena>,
-    // This marker ensures invariance over the 'arena lifetime.
-    PhantomData<*mut &'arena ()>,
-);
-
-#[derive(Debug, Eq)]
-struct Node<'arena> {
-    payload: Payload<'arena>,
-
-    // Lazy and aliasing-compatible structures for memoizing
-    head_normal_form: OnceCell<Term<'arena>>,
-    type_: OnceCell<Term<'arena>>,
-    // TODO is_certainly_closed: boolean underapproximation of whether a term is closed.
-    // This may greatly improve performance in shifting, along with a mem_shift hash map.
-}
-
-/// The essence of a term.
-///
-/// This enumeration has the same shape as the algebraic type of terms in the calculus of
-/// constructions.
-///
-/// There is one true exception, which is the variable (Var)[`Payload::Var`]. Along with its de
-/// Bruijn index, the variable also stores its type, which is unique, and also ensures two
-/// variables with a different type do not share the same term in memory.
-#[derive(Clone, Debug, Display, Eq, PartialEq, Hash)]
-pub enum Payload<'arena> {
-    /// A variable, with its de Bruijn index and its type
-    #[display(fmt = "{}", _0)]
-    Var(DeBruijnIndex, Term<'arena>),
-
-    /// The type of propositions
-    #[display(fmt = "Prop")]
-    Prop,
-
-    /// Type i, as described in [`UniverseLevel`]
-    #[display(fmt = "Type {}", _0)]
-    Type(Level<'arena>),
-
-    /// The application of two terms
-    #[display(fmt = "{} {}", _0, _1)]
-    App(Term<'arena>, Term<'arena>),
-
-    /// The lambda-abstraction of a term: the argument type is on the left, the body on the right.
-    #[display(fmt = "\u{003BB} {} \u{02192} {}", _0, _1)]
-    Abs(Term<'arena>, Term<'arena>),
-
-    /// The dependant product of the term on the right over all elements of the type on the left.
-    #[display(fmt = "\u{03A0} {} \u{02192} {}", _0, _1)]
-    Prod(Term<'arena>, Term<'arena>),
 }
 
 /// This function is the main function that the kernel exports. Most importantly, it is the only
@@ -137,8 +68,6 @@ where
     f(&mut arena)
 }
 
-use Payload::*;
-
 impl<'arena> Arena<'arena> {
     /// Allocates a new memory arena. As detailed in the [`use_arena`] function, it is necessary to
     /// externalise the generation of the [`bumpalo::Bump`] object.
@@ -150,6 +79,7 @@ impl<'arena> Arena<'arena> {
             hashcons_terms: HashSet::new(),
             hashcons_levels: HashSet::new(),
             hashcons_decls: HashSet::new(),
+
             named_terms: HashMap::new(),
 
             mem_subst: HashMap::new(),
@@ -173,108 +103,27 @@ impl<'arena> Arena<'arena> {
     pub fn get_binding(&self, name: &str) -> Option<Term<'arena>> {
         self.named_terms.get(name).copied()
     }
-
-    /// This function is the base low-level function for creating terms.
-    ///
-    /// It enforces the uniqueness property of terms in the arena.
-    fn hashcons(&mut self, n: Payload<'arena>) -> Term<'arena> {
-        // There are concurrent designs here. hashcons could also take a node, which gives
-        // subsequent function some liberty in providing the other objects of the header: WHNF,
-        // type_ (unlikely, because not always desirable), is_certainly_closed.
-        let new_node = Node {
-            payload: n,
-            head_normal_form: OnceCell::new(),
-            type_: OnceCell::new(),
-        };
-
-        match self.hashcons_terms.get(&new_node) {
-            Some(addr) => Term(addr, PhantomData),
-            None => {
-                let addr = self.alloc.alloc(new_node);
-                self.hashcons_terms.insert(addr);
-                Term(addr, PhantomData)
-            },
-        }
-    }
-
-    /// Returns a variable term with the given index and type
-    pub(crate) fn var(&mut self, index: DeBruijnIndex, type_: Term<'arena>) -> Term<'arena> {
-        self.hashcons(Var(index, type_))
-    }
-
-    /// Returns the term corresponding to a proposition
-    pub(crate) fn prop(&mut self) -> Term<'arena> {
-        self.hashcons(Prop)
-    }
-
-    pub(crate) fn type_(&mut self, level: Level<'arena>) -> Term<'arena> {
-        self.hashcons(Type(level))
-    }
-
-    /// Returns the term corresponding to Type(level), casting level appropriately first
-    pub(crate) fn type_usize(&mut self, level: usize) -> Term<'arena> {
-        self.hashcons(Type(BigUint::from(level).into()))
-    }
-
-    /// Returns the application of one term to the other
-    pub(crate) fn app(&mut self, func: Term<'arena>, arg: Term<'arena>) -> Term<'arena> {
-        self.hashcons(App(func, arg))
-    }
-
-    /// Returns the lambda-abstraction of the term `body`, with an argument of type `arg_type`.
-    ///
-    /// Please note that no verification is done that occurrences of this variable in `body` have
-    /// the same type.
-    pub(crate) fn abs(&mut self, arg_type: Term<'arena>, body: Term<'arena>) -> Term<'arena> {
-        self.hashcons(Abs(arg_type, body))
-    }
-
-    /// Returns the dependant product of the term `body`, over elements of `arg_type`.
-    ///
-    /// Please note that no verification is done that occurrences of this variable in `body` have
-    /// the same type.
-    pub(crate) fn prod(&mut self, arg_type: Term<'arena>, body: Term<'arena>) -> Term<'arena> {
-        self.hashcons(Prod(arg_type, body))
-    }
-
-    /// Returns the result of the substitution described by the key, lazily computing the closure `f`.
-    pub(crate) fn get_subst_or_init<F>(&mut self, key: &(Term<'arena>, Term<'arena>, usize), f: F) -> Term<'arena>
-    where
-        F: FnOnce(&mut Self) -> Term<'arena>,
-    {
-        match self.mem_subst.get(key) {
-            Some(res) => *res,
-            None => {
-                let res = f(self);
-                self.mem_subst.insert(*key, res);
-                res
-            },
-        }
-    }
 }
 
-impl<'arena> Term<'arena> {
-    /// Returns the weak head normal form of the term, lazily computing the closure `f`.
-    pub(crate) fn get_whnf_or_init<F>(self, f: F) -> Term<'arena>
-    where
-        F: FnOnce() -> Term<'arena>,
-    {
-        *self.0.head_normal_form.get_or_init(f)
-    }
+/// Trait of objects living in the arena.
+/// These objects are pointers to data, which have uniqueness properties.
+pub(super) trait ArenaDweller<'arena, Node, Payload>
+    where Self: Copy
+{
+    fn to_payload(&self) -> &Payload;
+    fn to_addr(self) -> &'arena Node;
 
-    /// Returns the type of the term, lazily computing the closure `f`.
-    pub(crate) fn get_type_or_try_init<F>(self, f: F) -> ResultTerm<'arena>
-    where
-        F: FnOnce() -> ResultTerm<'arena>,
-    {
-        self.0.type_.get_or_try_init(f).copied()
-    }
+    fn node_to_payload(n: &Node) -> &Payload;
 }
 
-/// A Term is arguably a smart pointer, and as such, can be directly dereferenced to its associated
+/// Arena dwellers are smart pointers, and as such, can be directly dereferenced to its associated
 /// payload.
 ///
 /// This is done for convenience, as it allows to manipulate the terms relatively seamlessly.
+///
+/// # Example
+///
+/// A [`Term`](super::term::Term) is an arena dweller, and it is possible to write:
 /// ```
 /// # use kernel::term::arena::{use_arena, Payload::*};
 /// # use kernel::term::builders::prop;
@@ -289,42 +138,50 @@ impl<'arena> Term<'arena> {
 /// ```
 /// Please note that this trait has some limits. For instance, the notations used to match against
 /// a *pair* of terms still requires some convolution.
-impl<'arena> Deref for Term<'arena> {
-    type Target = Payload<'arena>;
+impl<'arena, T, U, Payload> Deref for T
+    where T: ArenaDweller<'arena, U, Payload> {
+    type Target = Payload;
 
     fn deref(&self) -> &Self::Target {
-        &self.0.payload
+        self.to_payload()
     }
 }
 
-/// Debug mode only prints the payload of a term.
+/// Debug mode only prints the payload of a dweller
 ///
-/// Apart from enhancing the debug readability, this reimplementation is surprisingly necessary:
-/// because terms may refer to themselves in the payload, the default debug implementation
-/// recursively calls itself and provokes a stack overflow.
-impl<'arena> Debug for Term<'arena> {
+/// Apart from enhancing the debug readability, this reimplementation is surprisingly necessary: in
+/// the case of terms for instance, and because they may refer to themselves in the payload, the
+/// default debug implementation recursively calls itself until the stack overflows.
+impl<'arena, T, U, Payload> Debug for T
+    where T: ArenaDweller<'arena, U, Payload>
+{
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        self.0.payload.fmt(f)
+        self.to_payload().fmt(f)
     }
 }
-
-/// Because terms are unique in the arena, it is sufficient to compare their locations in memory to
+///
+/// Because dwellers are unique in the arena, it is sufficient to compare their locations in memory to
 /// test equality.
-impl<'arena> PartialEq<Term<'arena>> for Term<'arena> {
-    fn eq(&self, x: &Term<'arena>) -> bool {
-        std::ptr::eq(self.0, x.0)
+impl<'arena, T, U, V> PartialEq<T> for T
+where T: ArenaDweller<'arena, U, V> {
+    fn eq(&self, rhs: &T) -> bool {
+        std::ptr::eq(self.to_node(), rhs.to_node())
     }
 }
 
-/// Because terms are unique in the arena, it is sufficient to compare their locations in memory to
+/// Because dwellers are unique in the arena, it is sufficient to compare their locations in memory to
 /// test equality. In particular, hash can also be computed from the location.
-impl<'arena> Hash for Term<'arena> {
+impl<'arena, T, U, Payload> Hash for T
+    where T: ArenaDweller<'arena, U, Payload>
+{
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        std::ptr::hash(self.0, state)
+        std::ptr::hash(self.to_addr(), state)
     }
 }
 
-impl<'arena> PartialEq<Node<'arena>> for Node<'arena> {
+impl<'arena, T, Node, Payload> PartialEq<Node> for Node
+    where T: ArenaDweller<'arena, Node, Payload>
+{
     fn eq(&self, x: &Node<'arena>) -> bool {
         self.payload == x.payload
     }

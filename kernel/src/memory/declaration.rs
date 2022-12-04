@@ -1,4 +1,4 @@
-use super::arena::Term;
+use super::term::Term;
 use super::level::Level;
 
 /// Declarations constructed through commands. A declaration describes a constant in the environment, whether it's a definition with
@@ -14,6 +14,8 @@ use super::level::Level;
     term: Option<Term<'arena>>,
     univ_vars: usize,
 }
+
+pub struct InstantiatedDeclaration<'arena>(Declaration<'arena>, &'arena [Term<'arena>]);
 
 impl<'arena> Declaration<'arena> {
     pub fn make(term: Option<Term>, ty: Term) -> Self {
