@@ -1,13 +1,18 @@
+use std::cell::RefCell;
+
 use super::term::Term;
 use super::level::Level;
 
-/// Declarations constructed through commands. A declaration describes a constant in the environment, whether it's a definition with
-/// a corresponding term, or an axiom with only a type.
+/// Declarations constructed through commands.
+///
+/// A declaration describes a constant in the
+/// environment, whether it's a definition with a corresponding term, or an axiom with only a type.
 /// univ_vars corresponds to the number of universe variables bound to the declaration.
-/// No universe variable can be "free" in a term, meaning that for all Var(i) in ty or term, i<univ_vars.
-/// Additionally, ty and term *should* in theory always have the same number of universe variables, and as such, only a single method is needed.
-/// However, additional checks to ensure this invariant will have to be put in place. For now, when constructing declarations, only the number of
-/// universes in ty are counted.
+/// No universe variable can be "free" in a term, meaning that for all Var(i) in ty or term,
+/// i<univ_vars. Additionally, ty and term *should* in theory always have the same number of
+/// universe variables, and as such, only a single method is needed. However, additional checks to
+/// ensure this invariant will have to be put in place. For now, when constructing declarations,
+/// only the number of universes in ty are counted.
 #[derive(Clone, Debug, PartialEq, Eq)]
  pub struct Declaration<'arena> {
     ty: Term<'arena>,
@@ -15,7 +20,12 @@ use super::level::Level;
     univ_vars: usize,
 }
 
-pub struct InstantiatedDeclaration<'arena>(Declaration<'arena>, &'arena [Term<'arena>]);
+pub enum LazyInstance<'arena> {
+    Pending(Declaration<'arena>, Vec<Term<'arena>>),
+    Completed(Term<'arena>)
+}
+
+pub struct InstantiatedDeclaration<'arena>(RefCell<LazyInstance<'arena>>);
 
 impl<'arena> Declaration<'arena> {
     pub fn make(term: Option<Term>, ty: Term) -> Self {

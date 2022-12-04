@@ -2,7 +2,8 @@
 //!
 //! This module defines the core functions used to manipulate an arena and its terms.
 
-use std::fmt::{Debug, Display};
+use std::fmt::Display;
+use std::fmt::Debug;
 use std::hash::Hash;
 use std::ops::Deref;
 use std::collections::{HashMap, HashSet};
@@ -185,7 +186,7 @@ impl<Payload, Header> Eq for Dweller<'_, Node<Payload, Header>> {}
 impl<Payload, Header> Hash for Dweller<'_, Node<Payload, Header>>
 {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        std::ptr::hash(self.to_addr(), state)
+        std::ptr::hash(self.0, state)
     }
 }
 

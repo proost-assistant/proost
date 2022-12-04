@@ -119,7 +119,7 @@ impl<'arena> super::arena::Arena<'arena> {
 
     /// Returns the term corresponding to Type(level), casting level appropriately first
     pub(crate) fn type_usize(&mut self, level: usize) -> Term<'arena> {
-        let level = level.into(self);
+        let level = Level::from(level, self);
         self.hashcons_term(Sort(level.into()))
     }
 
