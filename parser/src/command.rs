@@ -32,6 +32,9 @@ pub enum Command<'build> {
 
     /// End a module
     EndModule(),
+
+    /// Open a module
+    UseModule(&'build str),
 }
 
 impl<'build> fmt::Display for Command<'build> {
@@ -63,6 +66,8 @@ impl<'build> fmt::Display for Command<'build> {
             BeginModule(name) => write!(f, "mod {}", name),
 
             EndModule() => write!(f, "end"),
+
+            UseModule(name) => write!(f, "use {}", name),
         }
     }
 }

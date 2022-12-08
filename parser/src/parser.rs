@@ -141,6 +141,11 @@ fn parse_expr<'build>(pair: Pair<'build, Rule>) -> Result<Command<'build>> {
 
         Rule::EndModule => Ok(Command::EndModule()),
 
+        Rule::UseModule => {
+            let s = pair.into_inner().next().unwrap().as_str();
+            Ok(Command::UseModule(s))
+        },
+
         command => unreachable!("Unexpected command: {:?}", command),
     }
 }
@@ -149,25 +154,27 @@ fn parse_expr<'build>(pair: Pair<'build, Rule>) -> Result<Command<'build>> {
 fn convert_error(err: pest::error::Error<Rule>) -> Error {
     // renaming error messages
     let err = err.renamed_rules(|rule| match *rule {
-        Rule::string | Rule::Var => "variable".to_owned(),
-        Rule::number => "universe level".to_owned(),
-        Rule::Define => "def var := term".to_owned(),
-        Rule::CheckType => "check term : term".to_owned(),
-        Rule::GetType => "check term".to_owned(),
-        Rule::DefineCheckType => "def var : term := term".to_owned(),
         Rule::Abs => "abstraction".to_owned(),
-        Rule::dProd => "dependent product".to_owned(),
-        Rule::Prod => "product".to_owned(),
         Rule::App => "application".to_owned(),
-        Rule::Prop => "Prop".to_owned(),
-        Rule::Type => "Type".to_owned(),
-        Rule::Eval => "eval term".to_owned(),
-        Rule::filename => "path_to_file".to_owned(),
-        Rule::ImportFile => "import path_to_file".to_owned(),
-        Rule::Search => "search var".to_owned(),
         Rule::BeginModule => "mod var".to_owned(),
+        Rule::CheckType => "check term : term".to_owned(),
+        Rule::Define => "def var := term".to_owned(),
+        Rule::DefineCheckType => "def var : term := term".to_owned(),
         Rule::EndModule => "end".to_owned(),
+        Rule::Eval => "eval term".to_owned(),
+        Rule::GetType => "check term".to_owned(),
+        Rule::ImportFile => "import path_to_file".to_owned(),
+        Rule::Prod => "product".to_owned(),
+        Rule::Prop => "Prop".to_owned(),
+        Rule::Search => "search var".to_owned(),
+        Rule::Type => "Type".to_owned(),
+        Rule::UseModule => "use (module::var)".to_owned(),
+        Rule::Var => "(module::)var".to_owned(),
+        Rule::dProd => "dependent product".to_owned(),
+        Rule::filename => "path_to_file".to_owned(),
+        Rule::number => "universe level".to_owned(),
         Rule::public => "(pub) def var := term, (pub) def var : term := term".to_owned(),
+        Rule::string => "var".to_owned(),
         _ => unreachable!("low level rules cannot appear in error messages"),
     });
 
@@ -235,11 +242,10 @@ mod tests {
     use super::*;
 
     /// Error messages
-    const COMMAND_ERR: &str = "expected (pub) def var := term, (pub) def var : term := term, check term : term, check term, eval term, import path_to_file, search var, mod var, or end";
-
-    const TERM_ERR: &str = "expected variable, abstraction, dependent product, application, product, Prop, or Type";
-    const SIMPLE_TERM_ERR: &str = "expected variable, abstraction, Prop, or Type";
-    const UNIVERSE_ERR: &str = "expected universe level, variable, abstraction, Prop, or Type";
+    const COMMAND_ERR: &str = "expected (pub) def var := term, (pub) def var : term := term, check term : term, check term, eval term, import path_to_file, search var, mod var, end, or use (module::var)";
+    const TERM_ERR: &str = "expected var, abstraction, dependent product, application, product, Prop, or Type";
+    const SIMPLE_TERM_ERR: &str = "expected var, abstraction, Prop, or Type";
+    const UNIVERSE_ERR: &str = "expected universe level, var, abstraction, Prop, or Type";
 
     #[test]
     fn failure_universe_level() {

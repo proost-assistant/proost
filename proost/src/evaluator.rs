@@ -214,6 +214,8 @@ impl<'arena> Evaluator {
                     }))
                 }
             },
+
+            Command::UseModule(_s) => Ok(None),
         }
     }
 

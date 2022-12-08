@@ -43,7 +43,7 @@ Type = { "Type(" ~ number ~ ")" | "Type" ~ number? }
 Var = { (string ~ "::" )* ~ string }
 
 // Commands
-Command = _{ Define | CheckType | GetType | DefineCheckType | Eval | ImportFile | Search | BeginModule | EndModule }
+Command = _{ Define | CheckType | GetType | DefineCheckType | Eval | ImportFile | Search | BeginModule | EndModule | UseModule }
 Define = { ( public? ) ~ "def" ~ string ~ ":=" ~ Term }
 DefineCheckType = { ( public? ) ~ "def" ~ string ~ ":" ~ Term ~ ":=" ~ Term }
 CheckType = { "check" ~ Term ~ ":" ~ Term }
@@ -53,6 +53,7 @@ ImportFile = { "import" ~ filename* }
 Search = { "search" ~ string }
 BeginModule = { "mod" ~ string }
 EndModule = { "end" }
+UseModule = { "use" ~ Var }
 
 // Definitions used to generate parsers for lines and files
 command = _{SOI ~ Command ~ eoi }
