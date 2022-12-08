@@ -28,10 +28,10 @@ pub enum Command<'build> {
     Search(&'build str),
 
     /// Begin a module
-    BeginModule(String),
+    BeginModule(&'build str),
 
     /// End a module
-    EndModule(String),
+    EndModule(),
 }
 
 impl<'build> fmt::Display for Command<'build> {
@@ -60,9 +60,9 @@ impl<'build> fmt::Display for Command<'build> {
 
             Search(name) => write!(f, "search {}", name),
 
-            BeginModule(name) => write!(f, "begin mod {}", name),
+            BeginModule(name) => write!(f, "mod {}", name),
 
-            EndModule(name) => write!(f, "end mod {}", name),
+            EndModule() => write!(f, "end"),
         }
     }
 }

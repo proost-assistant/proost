@@ -33,24 +33,28 @@ pub enum ErrorKind {
     CyclicDependencies(String),
     #[display(fmt = "identifier {} already defined", _0)]
     BoundVariable(String),
+    #[display(fmt = "no module to close")]
+    NoModuleToClose(),
 }
 
 impl std::error::Error for Error {}
 
 pub struct Evaluator {
     path: PathBuf,
-    imported: HashSet<PathBuf>,
+    imported_files: HashSet<PathBuf>,
     verbose: bool,
     module_stack: Vec<String>,
+    defined_modules: HashSet<String>,
 }
 
 impl<'arena> Evaluator {
     pub fn new(path: PathBuf, verbose: bool) -> Evaluator {
         Evaluator {
             path,
-            imported: HashSet::new(),
+            imported_files: HashSet::new(),
             verbose,
             module_stack: Vec::new(),
+            defined_modules: HashSet::new(),
         }
     }
 
@@ -84,7 +88,7 @@ impl<'arena> Evaluator {
         file_path: PathBuf,
         importing: &mut Vec<PathBuf>,
     ) -> Result<'arena, ()> {
-        if self.imported.contains(&file_path) {
+        if self.imported_files.contains(&file_path) {
             return Ok(());
         }
 
@@ -104,14 +108,14 @@ impl<'arena> Evaluator {
         let result = self.process_file(arena, &file, importing);
         // remove it from the list of files to import
         let file_path = importing.pop().unwrap();
-        // if importation failed, return error, else add file to imported files
+        // if importation failed, return error, else add file to imported_files files
         result?;
-        self.imported.insert(file_path);
+        self.imported_files.insert(file_path);
         Ok(())
     }
 
     pub fn process_line(&mut self, arena: &mut Arena<'arena>, line: &str) -> Result<'arena, Option<Term<'arena>>> {
-        let command = parse_line(line, &mut self.module_stack)?;
+        let command = parse_line(line)?;
         self.process(arena, &command, &mut Vec::new())
     }
 
@@ -191,9 +195,25 @@ impl<'arena> Evaluator {
                 })
                 .map(|_| None),
 
-            Command::BeginModule(_) => Ok(None),
+            Command::BeginModule(s) => {
+                self.module_stack.push(s.to_string());
+                println!("{:?}, {:?}", self.module_stack, self.defined_modules);
+                Ok(None)
+            },
 
-            Command::EndModule(_) => Ok(None),
+            Command::EndModule() => {
+                if let Some(suffix) = self.module_stack.pop() {
+                    let prefix = self.module_stack.join("::");
+                    let module = if prefix.is_empty() { suffix } else { prefix + "::" + &suffix };
+                    self.defined_modules.insert(module);
+                    Ok(None)
+                } else {
+                    Err(Toplevel(Error {
+                        kind: ErrorKind::NoModuleToClose(),
+                        location: Location::default(), // TODO (see #38)
+                    }))
+                }
+            },
         }
     }
 
