@@ -5,7 +5,7 @@ use pest::iterators::Pair;
 use pest::{Parser, Span};
 
 use crate::command::Command;
-use crate::error::{Error, ErrorKind};
+use crate::error::{Error, ErrorKind, Result};
 
 #[derive(Parser)]
 #[grammar = "term.pest"]
@@ -73,54 +73,83 @@ fn parse_term(pair: Pair<Rule>) -> Builder {
 }
 
 /// build commands from errorless pest's output
-fn parse_expr<'build>(pair: Pair<'build, Rule>) -> Command<'build> {
+fn parse_expr<'build>(pair: Pair<'build, Rule>, stack: &mut Vec<String>) -> Result<Command<'build>> {
     // location to be used in a future version
-    let _loc = convert_span(pair.as_span());
+    let loc = convert_span(pair.as_span());
 
     match pair.as_rule() {
         Rule::GetType => {
             let mut iter = pair.into_inner();
             let t = parse_term(iter.next().unwrap());
-            Command::GetType(t)
+            Ok(Command::GetType(t))
         },
 
         Rule::CheckType => {
             let mut iter = pair.into_inner();
             let t1 = parse_term(iter.next().unwrap());
             let t2 = parse_term(iter.next().unwrap());
-            Command::CheckType(t1, t2)
+            Ok(Command::CheckType(t1, t2))
         },
 
         Rule::Define => {
+            let mut public = false;
             let mut iter = pair.into_inner();
-            let s: &'build str = iter.next().unwrap().as_str();
+            let mut pair = iter.next().unwrap();
+            if pair.as_rule() == Rule::public {
+                public = true;
+                pair = iter.next().unwrap();
+            }
+            let s: &'build str = pair.as_str();
             let term = parse_term(iter.next().unwrap());
-            Command::Define(s, None, term)
+            Ok(Command::Define(public, s, None, term))
         },
 
         Rule::DefineCheckType => {
+            let mut public = false;
             let mut iter = pair.into_inner();
-            let s: &'build str = iter.next().unwrap().as_str();
+            let mut pair = iter.next().unwrap();
+            if pair.as_rule() == Rule::public {
+                public = true;
+                pair = iter.next().unwrap();
+            }
+            let s: &'build str = pair.as_str();
+
             let t = parse_term(iter.next().unwrap());
             let term = parse_term(iter.next().unwrap());
-            Command::Define(s, Some(t), term)
+            Ok(Command::Define(public, s, Some(t), term))
         },
 
         Rule::Eval => {
             let term = parse_term(pair.into_inner().next().unwrap());
-            Command::Eval(term)
+            Ok(Command::Eval(term))
         },
 
         Rule::ImportFile => {
             let files = pair.into_inner().map(|pair| pair.as_str()).collect();
-            Command::Import(files)
+            Ok(Command::Import(files))
         },
 
         Rule::Search => {
             let s = pair.into_inner().next().unwrap().as_str();
-            Command::Search(s)
+            Ok(Command::Search(s))
         },
 
+        Rule::BeginModule => {
+            let s = pair.into_inner().next().unwrap().as_str().to_string();
+            stack.push(s.clone());
+            Ok(Command::BeginModule(s))
+        },
+
+        Rule::EndModule => {
+            if let Some(s) = stack.pop() {
+                Ok(Command::EndModule(s))
+            } else {
+                Err(Error {
+                    kind: ErrorKind::MismatchModule,
+                    location: loc,
+                })
+            }
+        },
         command => unreachable!("Unexpected command: {:?}", command),
     }
 }
@@ -145,6 +174,9 @@ fn convert_error(err: pest::error::Error<Rule>) -> Error {
         Rule::filename => "path_to_file".to_owned(),
         Rule::ImportFile => "import path_to_file".to_owned(),
         Rule::Search => "search var".to_owned(),
+        Rule::BeginModule => "mod var".to_owned(),
+        Rule::EndModule => "end".to_owned(),
+        Rule::public => "(pub) def var := term, (pub) def var : term := term".to_owned(),
         _ => unreachable!("low level rules cannot appear in error messages"),
     });
 
@@ -192,15 +224,18 @@ fn convert_error(err: pest::error::Error<Rule>) -> Error {
 /// Parse a text input and try to convert it into a command.
 ///
 /// if unsuccessful, a box containing the first error that was encountered is returned.
-pub fn parse_line(line: &str) -> crate::error::Result<Command> {
-    CommandParser::parse(Rule::command, line).map_err(convert_error).map(|mut pairs| parse_expr(pairs.next().unwrap()))
+pub fn parse_line<'build>(line: &'build str, stack: &mut Vec<String>) -> Result<Command<'build>> {
+    CommandParser::parse(Rule::command, line).map_err(convert_error).and_then(|mut pairs| parse_expr(pairs.next().unwrap(), stack))
 }
 
 /// Parse a text input and try to convert it into a vector of commands.
 ///
 /// if unsuccessful, a box containing the first error that was encountered is returned.
-pub fn parse_file(file: &str) -> crate::error::Result<Vec<Command>> {
-    CommandParser::parse(Rule::file, file).map_err(convert_error).map(|pairs| pairs.into_iter().map(parse_expr).collect())
+pub fn parse_file(file: &str) -> Result<Vec<Command>> {
+    let mut stack = Vec::new();
+    CommandParser::parse(Rule::file, file)
+        .map_err(convert_error)
+        .and_then(|pairs| pairs.into_iter().map(|pair| parse_expr(pair, &mut stack)).collect())
 }
 
 #[cfg(test)]
@@ -212,7 +247,8 @@ mod tests {
     use super::*;
 
     /// Error messages
-    const COMMAND_ERR: &str = "expected def var := term, def var : term := term, check term : term, check term, eval term, import path_to_file, or search var";
+    const COMMAND_ERR: &str = "expected (pub) def var := term, (pub) def var : term := term, check term : term, check term, eval term, import path_to_file, search var, mod var, or end";
+
     const TERM_ERR: &str = "expected variable, abstraction, dependent product, application, product, Prop, or Type";
     const SIMPLE_TERM_ERR: &str = "expected variable, abstraction, Prop, or Type";
     const UNIVERSE_ERR: &str = "expected universe level, variable, abstraction, Prop, or Type";
@@ -220,7 +256,7 @@ mod tests {
     #[test]
     fn failure_universe_level() {
         assert_eq!(
-            parse_line("check fun x : Prop -> Type"),
+            parse_line("check fun x : Prop -> Type", &mut Vec::new()),
             Err(Error {
                 kind: ErrorKind::CannotParse(UNIVERSE_ERR.to_string()),
                 location: Location::new((1, 27).into(), (1, 27).into()),
@@ -230,75 +266,80 @@ mod tests {
 
     #[test]
     fn successful_define_with_type_annotation() {
-        assert_eq!(parse_line("def x : Type := Prop"), Ok(Define("x", Some(Type(0)), Prop)));
+        assert_eq!(parse_line("def x : Type := Prop", &mut Vec::new()), Ok(Define(false, "x", Some(Type(0)), Prop)));
+        assert_eq!(parse_line("pub def x : Type := Prop", &mut Vec::new()), Ok(Define(true, "x", Some(Type(0)), Prop)));
     }
 
     #[test]
     fn successful_import() {
-        assert_eq!(parse_line("import file1 dir/file2"), Ok(Import(["file1", "dir/file2"].to_vec())));
-        assert_eq!(parse_line("import "), Ok(Import(Vec::new())))
+        assert_eq!(parse_line("import file1 dir/file2", &mut Vec::new()), Ok(Import(["file1", "dir/file2"].to_vec())));
+        assert_eq!(parse_line("import ", &mut Vec::new()), Ok(Import(Vec::new())))
     }
 
     #[test]
     fn successful_search() {
-        assert_eq!(parse_line("search variable1"), Ok(Search("variable1")))
+        assert_eq!(parse_line("search variable1", &mut Vec::new()), Ok(Search("variable1")))
     }
 
     #[test]
     fn successful_eval() {
-        assert_eq!(parse_line("eval Prop"), Ok(Eval(Prop)))
+        assert_eq!(parse_line("eval Prop", &mut Vec::new()), Ok(Eval(Prop)))
     }
 
     #[test]
     fn successful_define() {
-        assert_eq!(parse_line("def x := Prop"), Ok(Define("x", None, Prop)));
+        assert_eq!(parse_line("def x := Prop", &mut Vec::new()), Ok(Define(false, "x", None, Prop)));
+        assert_eq!(parse_line("pub def x := Prop", &mut Vec::new()), Ok(Define(true, "x", None, Prop)));
     }
 
     #[test]
     fn successful_checktype() {
-        assert_eq!(parse_line("check Prop : Type"), Ok(CheckType(Prop, Type(0))));
+        assert_eq!(parse_line("check Prop : Type", &mut Vec::new()), Ok(CheckType(Prop, Type(0))));
     }
 
     #[test]
     fn successful_gettype_prop() {
-        assert_eq!(parse_line("check Prop"), Ok(GetType(Prop)));
+        assert_eq!(parse_line("check Prop", &mut Vec::new()), Ok(GetType(Prop)));
     }
 
     #[test]
     fn successful_var() {
-        assert_eq!(parse_line("check fun A: Prop => A"), Ok(GetType(Abs("A", Box::new(Prop), Box::new(Var("A"))))));
+        assert_eq!(
+            parse_line("check fun A: Prop => A", &mut Vec::new()),
+            Ok(GetType(Abs("A", Box::new(Prop), Box::new(Var("A")))))
+        );
     }
 
     #[test]
     fn successful_type() {
-        assert_eq!(parse_line("check Type"), Ok(GetType(Type(0))));
-        assert_eq!(parse_line("check Type 0"), Ok(GetType(Type(0))));
-        assert_eq!(parse_line("check Type 1"), Ok(GetType(Type(1))));
+        assert_eq!(parse_line("check Type", &mut Vec::new()), Ok(GetType(Type(0))));
+        assert_eq!(parse_line("check Type 0", &mut Vec::new()), Ok(GetType(Type(0))));
+        assert_eq!(parse_line("check Type 1", &mut Vec::new()), Ok(GetType(Type(1))));
     }
 
     #[test]
     fn successful_app() {
         let res_left = Ok(GetType(App(Box::new(App(Box::new(Var("A")), Box::new(Var("B")))), Box::new(Var("C")))));
         let res_right = Ok(GetType(App(Box::new(Var("A")), Box::new(App(Box::new(Var("B")), Box::new(Var("C")))))));
-        assert_eq!(parse_line("check A B C"), res_left);
-        assert_eq!(parse_line("check (A B) C"), res_left);
-        assert_eq!(parse_line("check A (B C)"), res_right);
+        assert_eq!(parse_line("check A B C", &mut Vec::new()), res_left);
+        assert_eq!(parse_line("check (A B) C", &mut Vec::new()), res_left);
+        assert_eq!(parse_line("check A (B C)", &mut Vec::new()), res_right);
     }
 
     #[test]
     fn successful_prod() {
         let res_left = Ok(GetType(Prod("_", Box::new(Prod("_", Box::new(Var("A")), Box::new(Var("B")))), Box::new(Var("C")))));
         let res_right = Ok(GetType(Prod("_", Box::new(Var("A")), Box::new(Prod("_", Box::new(Var("B")), Box::new(Var("C")))))));
-        assert_eq!(parse_line("check A -> B -> C"), res_right);
-        assert_eq!(parse_line("check A -> (B -> C)"), res_right);
-        assert_eq!(parse_line("check (A -> B) -> C"), res_left);
+        assert_eq!(parse_line("check A -> B -> C", &mut Vec::new()), res_right);
+        assert_eq!(parse_line("check A -> (B -> C)", &mut Vec::new()), res_right);
+        assert_eq!(parse_line("check (A -> B) -> C", &mut Vec::new()), res_left);
     }
 
     #[test]
     fn successful_dprod() {
         let res = Ok(GetType(Prod("x", Box::new(Type(0)), Box::new(Prod("y", Box::new(Type(1)), Box::new(Var("x")))))));
-        assert_eq!(parse_line("check (x:Type) -> (y:Type 1) -> x"), res);
-        assert_eq!(parse_line("check (x:Type) -> ((y:Type 1) -> x)"), res);
+        assert_eq!(parse_line("check (x:Type) -> (y:Type 1) -> x", &mut Vec::new()), res);
+        assert_eq!(parse_line("check (x:Type) -> ((y:Type 1) -> x)", &mut Vec::new()), res);
     }
 
     #[test]
@@ -312,20 +353,20 @@ mod tests {
                 Box::new(Abs("y", Box::new(Prop), Box::new(Abs("z", Box::new(Prop), Box::new(Var("x")))))),
             )),
         );
-        assert_eq!(parse_line("check fun w x: Prop, y z: Prop => x"), Ok(GetType(res)));
+        assert_eq!(parse_line("check fun w x: Prop, y z: Prop => x", &mut Vec::new()), Ok(GetType(res)));
     }
 
     #[test]
     fn failed_dprod() {
         assert_eq!(
-            parse_line("check (x:A)"),
+            parse_line("check (x:A)", &mut Vec::new()),
             Err(Error {
                 kind: ErrorKind::CannotParse(SIMPLE_TERM_ERR.to_string()),
                 location: Location::new((1, 7).into(), (1, 11).into()),
             })
         );
         assert_eq!(
-            parse_line("check (x:A) -> (y:B)"),
+            parse_line("check (x:A) -> (y:B)", &mut Vec::new()),
             Err(Error {
                 kind: ErrorKind::CannotParse(SIMPLE_TERM_ERR.to_string()),
                 location: Location::new((1, 16).into(), (1, 20).into()),
@@ -345,9 +386,9 @@ mod tests {
             Box::new(Prop),
             Box::new(Abs("y", Box::new(Var("x")), Box::new(Abs("z", Box::new(Var("x")), Box::new(Var("z")))))),
         )));
-        assert_eq!(parse_line("check fun x : Prop, x : x, x : x => x"), res);
-        assert_eq!(parse_line("check fun x : Prop, x x : x => x"), res);
-        assert_eq!(parse_line("check fun x : Prop, y z : x => z"), res2);
+        assert_eq!(parse_line("check fun x : Prop, x : x, x : x => x", &mut Vec::new()), res);
+        assert_eq!(parse_line("check fun x : Prop, x x : x => x", &mut Vec::new()), res);
+        assert_eq!(parse_line("check fun x : Prop, y z : x => z", &mut Vec::new()), res2);
     }
 
     #[test]
@@ -362,9 +403,9 @@ mod tests {
             Box::new(Prop),
             Box::new(Prod("y", Box::new(Var("x")), Box::new(Prod("z", Box::new(Var("x")), Box::new(Var("z")))))),
         )));
-        assert_eq!(parse_line("check (x : Prop, x : x, x : x) -> x"), res);
-        assert_eq!(parse_line("check (x : Prop, x x : x) -> x"), res);
-        assert_eq!(parse_line("check (x : Prop, y z : x) -> z"), res2);
+        assert_eq!(parse_line("check (x : Prop, x : x, x : x) -> x", &mut Vec::new()), res);
+        assert_eq!(parse_line("check (x : Prop, x x : x) -> x", &mut Vec::new()), res);
+        assert_eq!(parse_line("check (x : Prop, y z : x) -> z", &mut Vec::new()), res2);
     }
 
     #[test]
@@ -378,25 +419,25 @@ mod tests {
                 Box::new(Abs("y", Box::new(Prop), Box::new(Abs("z", Box::new(Prop), Box::new(Var("x")))))),
             )),
         );
-        assert_eq!(parse_line("check fun (((w x : Prop))), y z : Prop => x"), Ok(GetType(res)));
+        assert_eq!(parse_line("check fun (((w x : Prop))), y z : Prop => x", &mut Vec::new()), Ok(GetType(res)));
     }
 
     #[test]
     fn parenthesis_in_prod() {
         let res = Prod("_", Box::new(Type(0)), Box::new(Prod("_", Box::new(Type(1)), Box::new(Type(2)))));
-        assert_eq!(parse_line("check (((Type))) -> (((Type 1 -> Type 2)))"), Ok(GetType(res)));
+        assert_eq!(parse_line("check (((Type))) -> (((Type 1 -> Type 2)))", &mut Vec::new()), Ok(GetType(res)));
     }
 
     #[test]
     fn parenthesis_in_dprod() {
         let res = Prod("x", Box::new(Type(0)), Box::new(Prod("y", Box::new(Type(1)), Box::new(Var("x")))));
-        assert_eq!(parse_line("check (((x:Type))) -> ((((y:Type 1) -> x)))"), Ok(GetType(res)));
+        assert_eq!(parse_line("check (((x:Type))) -> ((((y:Type 1) -> x)))", &mut Vec::new()), Ok(GetType(res)));
     }
 
     #[test]
     fn parenthesis_in_app() {
         let res = App(Box::new(Var("A")), Box::new(App(Box::new(Var("B")), Box::new(Var("C")))));
-        assert_eq!(parse_line("check ((((((A))) (((B C))))))"), Ok(GetType(res)));
+        assert_eq!(parse_line("check ((((((A))) (((B C))))))", &mut Vec::new()), Ok(GetType(res)));
     }
 
     #[test]
@@ -408,28 +449,28 @@ mod tests {
             check fun x:Prop => x
         "#;
 
-        assert_eq!(parse_file(file).unwrap()[0], parse_line("def x := Prop -> Prop").unwrap());
-        assert_eq!(parse_file(file).unwrap()[1], parse_line("check fun x:Prop => x").unwrap());
+        assert_eq!(parse_file(file).unwrap()[0], parse_line("def x := Prop -> Prop", &mut Vec::new()).unwrap());
+        assert_eq!(parse_file(file).unwrap()[1], parse_line("check fun x:Prop => x", &mut Vec::new()).unwrap());
     }
 
     #[test]
     fn successful_convert_error() {
         assert_eq!(
-            parse_line("chehk 2x"),
+            parse_line("chehk 2x", &mut Vec::new()),
             Err(Error {
                 kind: ErrorKind::CannotParse(COMMAND_ERR.to_string()),
                 location: Location::new((1, 1).into(), (1, 5).into()),
             })
         );
         assert_eq!(
-            parse_line("check 2x"),
+            parse_line("check 2x", &mut Vec::new()),
             Err(Error {
                 kind: ErrorKind::CannotParse(TERM_ERR.to_string()),
                 location: Location::new((1, 7).into(), (1, 8).into()),
             })
         );
         assert_eq!(
-            parse_line("check x:"),
+            parse_line("check x:", &mut Vec::new()),
             Err(Error {
                 kind: ErrorKind::CannotParse(TERM_ERR.to_string()),
                 location: Location::new((1, 9).into(), (1, 9).into()),

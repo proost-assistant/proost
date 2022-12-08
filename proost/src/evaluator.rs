@@ -41,6 +41,7 @@ pub struct Evaluator {
     path: PathBuf,
     imported: HashSet<PathBuf>,
     verbose: bool,
+    module_stack: Vec<String>,
 }
 
 impl<'arena> Evaluator {
@@ -49,6 +50,7 @@ impl<'arena> Evaluator {
             path,
             imported: HashSet::new(),
             verbose,
+            module_stack: Vec::new(),
         }
     }
 
@@ -109,7 +111,7 @@ impl<'arena> Evaluator {
     }
 
     pub fn process_line(&mut self, arena: &mut Arena<'arena>, line: &str) -> Result<'arena, Option<Term<'arena>>> {
-        let command = parse_line(line)?;
+        let command = parse_line(line, &mut self.module_stack)?;
         self.process(arena, &command, &mut Vec::new())
     }
 
@@ -138,7 +140,8 @@ impl<'arena> Evaluator {
         importing: &mut Vec<PathBuf>,
     ) -> Result<'arena, Option<Term<'arena>>> {
         match command {
-            Command::Define(s, None, term) => {
+            Command::Define(_, s, None, term) => {
+                //TODO
                 let term = term.realise(arena)?;
                 if arena.get_binding(s).is_none() {
                     arena.infer(term)?;
@@ -152,7 +155,8 @@ impl<'arena> Evaluator {
                 }
             },
 
-            Command::Define(s, Some(t), term) => {
+            Command::Define(_, s, Some(t), term) => {
+                //TODO
                 let term = term.realise(arena)?;
                 let t = t.realise(arena)?;
                 arena.check(term, t)?;
@@ -186,6 +190,10 @@ impl<'arena> Evaluator {
                     self.import_file(arena, Location::default(), file_path, importing)
                 })
                 .map(|_| None),
+
+            Command::BeginModule(_) => Ok(None),
+
+            Command::EndModule(_) => Ok(None),
         }
     }
 

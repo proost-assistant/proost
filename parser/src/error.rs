@@ -16,6 +16,7 @@ pub struct Error {
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum ErrorKind {
     CannotParse(String),
+    MismatchModule,
 }
 
 impl std::error::Error for Error {}

@@ -10,7 +10,7 @@ use kernel::term::builders::Builder;
 #[derive(Debug, Eq, PartialEq)]
 pub enum Command<'build> {
     /// Define a new term and optionally check that it's type match the given one.
-    Define(&'build str, Option<Builder<'build>>, Builder<'build>),
+    Define(bool, &'build str, Option<Builder<'build>>, Builder<'build>),
 
     /// Infer the type of a term and check that it match the given one.
     CheckType(Builder<'build>, Builder<'build>),
@@ -26,6 +26,12 @@ pub enum Command<'build> {
 
     /// Search for a variable
     Search(&'build str),
+
+    /// Begin a module
+    BeginModule(String),
+
+    /// End a module
+    EndModule(String),
 }
 
 impl<'build> fmt::Display for Command<'build> {
@@ -33,9 +39,13 @@ impl<'build> fmt::Display for Command<'build> {
         use Command::*;
 
         match self {
-            Define(name, None, t) => write!(f, "def {} := {}", name, t),
+            Define(true, name, None, t) => write!(f, "pub def {} := {}", name, t),
 
-            Define(name, Some(ty), t) => write!(f, "def {}: {} := {}", name, ty, t),
+            Define(true, name, Some(ty), t) => write!(f, "pub def {}: {} := {}", name, ty, t),
+
+            Define(false, name, None, t) => write!(f, "def {} := {}", name, t),
+
+            Define(false, name, Some(ty), t) => write!(f, "def {}: {} := {}", name, ty, t),
 
             CheckType(t, ty) => write!(f, "check {}: {}", t, ty),
 
@@ -49,6 +59,10 @@ impl<'build> fmt::Display for Command<'build> {
             },
 
             Search(name) => write!(f, "search {}", name),
+
+            BeginModule(name) => write!(f, "begin mod {}", name),
+
+            EndModule(name) => write!(f, "end mod {}", name),
         }
     }
 }
