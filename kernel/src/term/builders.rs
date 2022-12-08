@@ -176,9 +176,9 @@ pub struct ModuleContext<'a> {
     /// Stack of currently opened module
     pub module_stack: &'a Vec<String>,
     /// Modules used in the context
-    pub used_modules: &'a Vec<HashSet<String>>,
+    pub used_modules: &'a Vec<HashSet<Vec<String>>>,
     /// Vars used in the context
-    pub used_vars: &'a Vec<HashSet<String>>,
+    pub used_vars: &'a Vec<HashSet<Vec<String>>>,
 }
 
 impl<'build> Builder<'build> {

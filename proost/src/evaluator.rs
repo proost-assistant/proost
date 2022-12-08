@@ -45,9 +45,9 @@ pub struct Evaluator {
     imported_files: HashSet<PathBuf>,
     verbose: bool,
     module_stack: Vec<String>,
-    defined_modules: HashSet<String>,
-    used_modules: Vec<HashSet<String>>,
-    used_vars: Vec<HashSet<String>>,
+    defined_modules: HashSet<Vec<String>>,
+    used_modules: Vec<HashSet<Vec<String>>>,
+    used_vars: Vec<HashSet<Vec<String>>>,
 }
 
 impl<'arena> Evaluator {
@@ -213,23 +213,20 @@ impl<'arena> Evaluator {
                 Ok(None)
             },
 
-            Command::EndModule() => {
-                if let Some(suffix) = self.module_stack.pop() {
-                    let prefix = self.module_stack.join("::");
-                    let module = if prefix.is_empty() { suffix } else { prefix + "::" + &suffix };
-                    self.defined_modules.insert(module);
-                    self.used_modules.pop();
-                    self.used_vars.pop();
-                    Ok(None)
-                } else {
-                    Err(Toplevel(Error {
-                        kind: ErrorKind::NoModuleToClose(),
-                        location: Location::default(), // TODO (see #38)
-                    }))
-                }
+            Command::EndModule() if self.module_stack.pop().is_some() => {
+                self.defined_modules.insert(self.module_stack.clone());
+                self.module_stack.pop();
+                self.used_modules.pop();
+                self.used_vars.pop();
+                Ok(None)
             },
 
-            Command::UseModule(_s) => Ok(None),
+            Command::EndModule() => Err(Toplevel(Error {
+                kind: ErrorKind::NoModuleToClose(),
+                location: Location::default(), // TODO (see #38)
+            })),
+
+            Command::UseModule(_name) => Ok(None), //TODO check in defined modules if it exists
         }
     }
 
