@@ -40,7 +40,7 @@ Prop = { "Prop" }
 // Type
 Type = { "Type(" ~ number ~ ")" | "Type" ~ number? }
 // Variable
-Var = { (string ~ "::" )* ~ string }
+Var = ${ (string ~ "::")* ~ string }
 
 // Commands
 Command = _{ Define | CheckType | GetType | DefineCheckType | Eval | ImportFile | Search | BeginModule | EndModule | UseModule }

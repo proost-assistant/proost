@@ -28,7 +28,7 @@ fn parse_term(pair: Pair<Rule>) -> Builder {
     match pair.as_rule() {
         Rule::Prop => Prop,
 
-        Rule::Var => Var(pair.into_inner().as_str()),
+        Rule::Var => Var(pair.into_inner().map(|pair| pair.as_str()).collect()),
 
         Rule::Type => Type(pair.into_inner().fold(0, |_, x| x.as_str().parse::<usize>().unwrap())),
 

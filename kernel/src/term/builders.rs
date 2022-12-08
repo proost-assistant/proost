@@ -57,22 +57,17 @@ impl<'arena> Arena<'arena> {
 
 /// Returns a closure building a variable associated to the name `name`
 #[inline]
-pub const fn var<'build, 'arena>(suffix: &'build str) -> impl BuilderTrait<'build, 'arena> {
-    move |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, depth, mod_ctx| {
-        let prefix = mod_ctx.module_stack.join("::");
-
-        let name = if prefix.is_empty() { suffix.to_string() } else { prefix + "::" + suffix };
-
-        mod_ctx.us
-
-        env.get(name.as_str())
+pub const fn var<'build, 'arena>(components: Vec<&'build str>) -> impl BuilderTrait<'build, 'arena> {
+    move |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, depth, _mod_ctx| {
+        let name = components[0];
+        env.get(name)
             .map(|(bind_depth, term)| {
                 // This is arguably an eager computation, it could be worth making it lazy,
                 // or at least memoizing it so as to not compute it again
                 let var_type = arena.shift(*term, usize::from(depth - *bind_depth), 0);
                 arena.var(depth - *bind_depth, var_type)
             })
-            .or_else(|| arena.get_binding(name.as_str()))
+            .or_else(|| arena.get_binding(name))
             .ok_or(Error {
                 kind: DefinitionError::ConstNotFound(arena.store_name(name)).into(),
             })
@@ -155,8 +150,8 @@ pub const fn prod<'build, 'arena, F1: BuilderTrait<'build, 'arena>, F2: BuilderT
 /// involved).
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
 pub enum Builder<'r> {
-    #[display(fmt = "{}", _0)]
-    Var(&'r str),
+    #[display(fmt = "{}", "_0.join(\"::\")")]
+    Var(Vec<&'r str>),
 
     #[display(fmt = "Prop")]
     Prop,
@@ -179,28 +174,17 @@ pub enum Builder<'r> {
 #[derive(Copy, Clone)]
 pub struct ModuleContext<'a> {
     /// Stack of currently opened module
-    module_stack: &'a Vec<String>,
+    pub module_stack: &'a Vec<String>,
     /// Modules used in the context
-    used_modules: &'a Vec<HashSet<String>>,
+    pub used_modules: &'a Vec<HashSet<String>>,
     /// Vars used in the context
-    used_vars: &'a HashSet<String>,
+    pub used_vars: &'a Vec<HashSet<String>>,
 }
 
 impl<'build> Builder<'build> {
     /// Build a terms from a [`Builder`]. This internally uses functions described in the
     /// [builders](`crate::term::builders`) module.
-    pub fn realise<'arena>(
-        &self,
-        arena: &mut Arena<'arena>,
-        module_stack: &Vec<String>,
-        used_modules: &Vec<HashSet<String>>,
-        used_vars: &HashSet<String>,
-    ) -> ResultTerm<'arena> {
-        let mod_ctx = ModuleContext {
-            module_stack,
-            used_modules,
-            used_vars,
-        };
+    pub fn realise<'arena>(&self, arena: &mut Arena<'arena>, mod_ctx: ModuleContext) -> ResultTerm<'arena> {
         arena.build(self.partial_application(), mod_ctx)
     }
 
@@ -218,9 +202,9 @@ impl<'build> Builder<'build> {
         mod_ctx: ModuleContext<'build>,
     ) -> ResultTerm<'arena> {
         use Builder::*;
-        match *self {
-            Var(s) => var(s)(arena, env, depth, mod_ctx),
-            Type(level) => type_usize(level)(arena, env, depth, mod_ctx),
+        match self {
+            Var(vec) => var(vec.to_vec())(arena, env, depth, mod_ctx),
+            Type(level) => type_usize(*level)(arena, env, depth, mod_ctx),
             Prop => prop()(arena, env, depth, mod_ctx),
             App(ref l, ref r) => app(l.partial_application(), r.partial_application())(arena, env, depth, mod_ctx),
             Abs(s, ref arg, ref body) => abs(s, arg.partial_application(), body.partial_application())(arena, env, depth, mod_ctx),

@@ -6,6 +6,7 @@ use colored::Colorize;
 use derive_more::Display;
 use kernel::location::Location;
 use kernel::term::arena::{Arena, Term};
+use kernel::term::builders::ModuleContext;
 use parser::command::Command;
 use parser::{parse_file, parse_line};
 use path_absolutize::Absolutize;
@@ -147,10 +148,16 @@ impl<'arena> Evaluator {
         command: &Command<'build>,
         importing: &mut Vec<PathBuf>,
     ) -> Result<'arena, Option<Term<'arena>>> {
+        let mod_ctx = ModuleContext {
+            module_stack: &self.module_stack,
+            used_modules: &self.used_modules,
+            used_vars: &self.used_vars,
+        };
+
         match command {
             Command::Define(_, s, None, term) => {
                 //TODO
-                let term = term.realise(arena)?;
+                let term = term.realise(arena, mod_ctx)?;
                 if arena.get_binding(s).is_none() {
                     arena.infer(term)?;
                     arena.bind(s, term);
@@ -165,27 +172,27 @@ impl<'arena> Evaluator {
 
             Command::Define(_, s, Some(t), term) => {
                 //TODO
-                let term = term.realise(arena)?;
-                let t = t.realise(arena)?;
+                let term = term.realise(arena, mod_ctx)?;
+                let t = t.realise(arena, mod_ctx)?;
                 arena.check(term, t)?;
                 arena.bind(s, term);
                 Ok(None)
             },
 
             Command::CheckType(t1, t2) => {
-                let t1 = t1.realise(arena)?;
-                let t2 = t2.realise(arena)?;
+                let t1 = t1.realise(arena, mod_ctx)?;
+                let t2 = t2.realise(arena, mod_ctx)?;
                 arena.check(t1, t2)?;
                 Ok(None)
             },
 
             Command::GetType(t) => {
-                let t = t.realise(arena)?;
+                let t = t.realise(arena, mod_ctx)?;
                 Ok(arena.infer(t).map(Some)?)
             },
 
             Command::Eval(t) => {
-                let t = t.realise(arena)?;
+                let t = t.realise(arena, mod_ctx)?;
                 Ok(Some(arena.normal_form(t)))
             },
 
