@@ -45,6 +45,8 @@ pub struct Evaluator {
     verbose: bool,
     module_stack: Vec<String>,
     defined_modules: HashSet<String>,
+    used_modules: Vec<HashSet<String>>,
+    used_vars: Vec<HashSet<String>>,
 }
 
 impl<'arena> Evaluator {
@@ -55,6 +57,8 @@ impl<'arena> Evaluator {
             verbose,
             module_stack: Vec::new(),
             defined_modules: HashSet::new(),
+            used_modules: Vec::new(),
+            used_vars: Vec::new(),
         }
     }
 
@@ -197,7 +201,8 @@ impl<'arena> Evaluator {
 
             Command::BeginModule(s) => {
                 self.module_stack.push(s.to_string());
-                println!("{:?}, {:?}", self.module_stack, self.defined_modules);
+                self.used_modules.push(HashSet::new());
+                self.used_vars.push(HashSet::new());
                 Ok(None)
             },
 
@@ -206,6 +211,8 @@ impl<'arena> Evaluator {
                     let prefix = self.module_stack.join("::");
                     let module = if prefix.is_empty() { suffix } else { prefix + "::" + &suffix };
                     self.defined_modules.insert(module);
+                    self.used_modules.pop();
+                    self.used_vars.pop();
                     Ok(None)
                 } else {
                     Err(Toplevel(Error {
