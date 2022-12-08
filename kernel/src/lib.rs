@@ -6,6 +6,7 @@
 //! manipulation functions from lambda-calculus, while the [`type_checker`] module provides typed
 //! interactions.
 
+#![feature(let_chains)]
 #![feature(no_coverage)]
 #![feature(once_cell)]
 #![feature(trait_alias)]

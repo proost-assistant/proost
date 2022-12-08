@@ -28,6 +28,12 @@ pub struct DeBruijnIndex(usize);
 #[derive(Add, Clone, Debug, Default, Display, PartialEq, Eq, From, Hash, PartialOrd, Ord, Sub)]
 pub struct UniverseLevel(BigUint);
 
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
+pub struct Namespace<'arena>(&'arena [&'arena str]);
+
+#[derive(Clone, PartialEq, Eq, Debug, From)]
+pub struct NamespaceSet<'arena>(Vec<Namespace<'arena>>);
+
 /// A comprehensive memory management unit for terms.
 ///
 /// An arena is a location in memory where a group of terms with several properties is stored. Most
@@ -52,7 +58,14 @@ pub struct Arena<'arena> {
 
     // Hashconsing of terms, at the heart of the uniqueness property
     hashcons: HashSet<&'arena Node<'arena>>,
-    named_terms: HashMap<&'arena str, Term<'arena>>,
+
+    // Hashconsing strings to prevent having duplicates in the arena. Unlike terms, this is only
+    // done for space-efficiency purposes. Further improvements might include an appropriate,
+    // arena-friendly, structure for namespaces (e.g. a list of strings living in the arena)
+    hashcons_strings: HashSet<&'arena str>,
+    // the values store the keys. This is due to a rather subtle lifetime issue that appears when
+    // functions like HashMap::get_key_value are needed.
+    named_terms: HashMap<&'arena [&'arena str], (Namespace<'arena>, Term<'arena>)>,
 
     // Hash maps used to speed up certain algorithms. See also `OnceCell`s in [`Term`]
     mem_subst: HashMap<(Term<'arena>, Term<'arena>, usize), Term<'arena>>,
@@ -154,6 +167,8 @@ impl<'arena> Arena<'arena> {
             _phantom: PhantomData,
 
             hashcons: HashSet::new(),
+
+            hashcons_strings: HashSet::new(),
             named_terms: HashMap::new(),
 
             mem_subst: HashMap::new(),
@@ -163,19 +178,49 @@ impl<'arena> Arena<'arena> {
     /// Stores a string in the arena.
     ///
     /// This is typically done to ensure strings live long enough when manipulating them.
-    pub(crate) fn store_name(&mut self, name: &str) -> &'arena str {
-        self.alloc.alloc_str(name)
+    /// It also ensures strings are unique in the arena.
+    pub(crate) fn store_string(&mut self, s: &str) -> &'arena str {
+        match self.hashcons_strings.get(s) {
+            Some(s) => s,
+            None => {
+                let s = self.alloc.alloc_str(s);
+                self.hashcons_strings.insert(s);
+                s
+            },
+        }
+    }
+
+    pub(crate) fn store_name<'a, T: IntoIterator<Item = &'a &'a str>, U: IntoIterator<Item = &'a &'a str>>(
+        &mut self,
+        prefix: T,
+        suffix: U,
+    ) -> Namespace<'arena> {
+        let name = prefix.into_iter().chain(suffix).map(|s| self.store_string(s)).collect::<Vec<&'arena str>>();
+        Namespace(self.alloc.alloc_slice_copy(&name))
+    }
+
+    pub(crate) fn store_name_1<'a, T: IntoIterator<Item = &'a &'a str>>(&mut self, name: T) -> Namespace<'arena> {
+        self.store_name([], name)
     }
 
     /// Binds a term to a certain name.
-    pub fn bind(&mut self, name: &str, t: Term<'arena>) {
-        let name = self.store_name(name);
-        self.named_terms.insert(name, t);
+    pub fn bind(&mut self, prefix: &[&str], suffix: &str, t: Term<'arena>) {
+        let name = self.store_name(prefix, &[suffix]);
+        self.named_terms.insert(name.0, (name, t));
+    }
+
+    pub fn bind_root(&mut self, name: &str, t: Term<'arena>) {
+        self.bind(&[], name, t)
     }
 
     /// Retrieves the binding of a certain name, if one exists.
-    pub fn get_binding(&self, name: &str) -> Option<Term<'arena>> {
-        self.named_terms.get(name).copied()
+    pub fn get_binding(&self, name: &[&str]) -> Option<Term<'arena>> {
+        self.named_terms.get(name).map(|(_, t)| t).copied()
+    }
+
+    /// Retrieves the binding of a certain name, if one exists.
+    pub fn get_binding_with_name(&self, name: &[&str]) -> Option<(Namespace<'arena>, Term<'arena>)> {
+        self.named_terms.get(name).map(|(key, value)| (*key, *value))
     }
 
     /// This function is the base low-level function for creating terms.
@@ -341,5 +386,21 @@ impl<'arena> PartialEq<Node<'arena>> for Node<'arena> {
 impl<'arena> Hash for Node<'arena> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.payload.hash(state);
+    }
+}
+
+impl std::fmt::Display for Namespace<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut namespace = self.0.into_iter();
+        write!(f, "{}", namespace.next().unwrap())?;
+        namespace.try_for_each(|s| write!(f, "::{s}"))
+    }
+}
+
+impl std::fmt::Display for NamespaceSet<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut set = self.0.iter();
+        write!(f, "\n\t{}", set.next().unwrap())?;
+        set.try_for_each(|namespace| write!(f, ",\n\t{namespace}"))
     }
 }

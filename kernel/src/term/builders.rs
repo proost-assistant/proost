@@ -18,19 +18,33 @@ use std::collections::HashSet;
 use derive_more::Display;
 use im_rc::hashmap::HashMap as ImHashMap;
 
-use super::arena::{Arena, DeBruijnIndex, Term, UniverseLevel};
+use super::arena::{Arena, DeBruijnIndex, Namespace, NamespaceSet, Term, UniverseLevel};
 use crate::error::{Error, ResultTerm};
 
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum DefinitionError<'arena> {
     #[display(fmt = "unknown identifier {}", _0)]
-    ConstNotFound(&'arena str),
+    ConstNotFound(Namespace<'arena>),
+    #[display(fmt = "identifier may ambiguously refer to: {}", _0)]
+    AmbiguousIdentifier(NamespaceSet<'arena>),
 }
 
 /// Local environment used to store correspondence between locally-bound variables and the pair
 /// (depth at which they were bound, their type)
 pub type Environment<'build, 'arena> = ImHashMap<&'build str, (DeBruijnIndex, Term<'arena>)>;
+
+/// Struct containing all the information needed to realize a Builder in a given module context
+/// This struct should not be used outside out of the kernel. It was made public not to leak private types.
+#[derive(Copy, Clone)]
+pub struct ModuleContext<'a> {
+    /// Stack of currently opened module
+    pub module_stack: &'a Vec<String>,
+    /// Modules used in the context
+    pub used_modules: &'a Vec<HashSet<Vec<String>>>,
+    /// Vars used in the context
+    pub used_vars: &'a Vec<HashSet<String>>,
+}
 
 /// The trait of closures which build terms with an adequate logic.
 ///
@@ -55,22 +69,51 @@ impl<'arena> Arena<'arena> {
     }
 }
 
+fn test_binding_in_module<'arena>(
+    arena: &mut Arena<'arena>,
+    module: &Vec<String>,
+    name: &Vec<&str>,
+) -> Option<(Namespace<'arena>, Term<'arena>)> {
+    let full_name = module.iter().map(String::as_str).chain(name.into_iter().copied()).collect::<Vec<&str>>();
+    arena.get_binding_with_name(&full_name)
+}
+
+// for the `super` keyword, you might want to use a function that takes (name, stack) and returns
+// (name without super:: prefixes, corresponding stack)
+
 /// Returns a closure building a variable associated to the name `name`
 #[inline]
-pub const fn var<'build, 'arena>(components: Vec<&'build str>) -> impl BuilderTrait<'build, 'arena> {
-    move |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, depth, _mod_ctx| {
-        let name = components[0];
-        env.get(name)
-            .map(|(bind_depth, term)| {
+pub const fn var<'build, 'arena>(name: &'build Vec<&'build str>) -> impl BuilderTrait<'build, 'arena> {
+    move |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, depth, mod_ctx| {
+        if name.len() == 1 && let Some((bind_depth, term)) = env.get(&name[0]) {
                 // This is arguably an eager computation, it could be worth making it lazy,
                 // or at least memoizing it so as to not compute it again
                 let var_type = arena.shift(*term, usize::from(depth - *bind_depth), 0);
-                arena.var(depth - *bind_depth, var_type)
+                return Ok(arena.var(depth - *bind_depth, var_type))
+        }
+
+        let candidates = mod_ctx.used_modules.last().into_iter().flatten().chain(std::iter::once(mod_ctx.module_stack));
+        let results = candidates.filter_map(|prefix| test_binding_in_module(arena, prefix, name)).collect::<Vec<_>>();
+
+        if results.len() == 0 {
+            Err(Error {
+                kind: DefinitionError::ConstNotFound(arena.store_name_1(name)).into(),
             })
-            .or_else(|| arena.get_binding(name))
-            .ok_or(Error {
-                kind: DefinitionError::ConstNotFound(arena.store_name(name)).into(),
+        } else if results.len() == 1 {
+            Ok(results[0].1)
+        } else {
+            let results: Vec<Namespace> = results.into_iter().map(|(n, _)| n).collect();
+            Err(Error {
+                kind: DefinitionError::AmbiguousIdentifier(results.into()).into(),
             })
+        }
+        // .or_else(|| test_binding_in_module(arena, mod_ctx.module_stack, name).into_iter().collect::<Option<Vec<Term<'arena>>>>())
+        // .or_else(|| {
+        //     mod_ctx.used_modules.iter().next_back()?.iter().map(|module| test_binding_in_module(arena, module,
+        // name)).collect::<Option<Vec<Term<'arena>>>>() })
+        // .ok_or(Error {
+        //     kind: DefinitionError::ConstNotFound(arena.store_name_1(name)).into(),
+        // })
     }
 }
 
@@ -169,18 +212,6 @@ pub enum Builder<'r> {
     Prod(&'r str, Box<Builder<'r>>, Box<Builder<'r>>),
 }
 
-/// Struct containing all the information needed to realize a Builder in a given module context
-/// This struct should not be used outside out of the kernel. It was made public not to leak private types.
-#[derive(Copy, Clone)]
-pub struct ModuleContext<'a> {
-    /// Stack of currently opened module
-    pub module_stack: &'a Vec<String>,
-    /// Modules used in the context
-    pub used_modules: &'a Vec<HashSet<Vec<String>>>,
-    /// Vars used in the context
-    pub used_vars: &'a Vec<HashSet<Vec<String>>>,
-}
-
 impl<'build> Builder<'build> {
     /// Build a terms from a [`Builder`]. This internally uses functions described in the
     /// [builders](`crate::term::builders`) module.
@@ -188,14 +219,14 @@ impl<'build> Builder<'build> {
         arena.build(self.partial_application(), mod_ctx)
     }
 
-    fn partial_application<'arena>(&self) -> impl BuilderTrait<'build, 'arena> + '_ {
+    fn partial_application<'arena>(&'build self) -> impl BuilderTrait<'build, 'arena> + '_ {
         |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, depth, mod_ctx: ModuleContext| {
             self.realise_in_context(arena, env, depth, mod_ctx)
         }
     }
 
     fn realise_in_context<'arena>(
-        &self,
+        &'build self,
         arena: &mut Arena<'arena>,
         env: &Environment<'build, 'arena>,
         depth: DeBruijnIndex,
@@ -203,7 +234,7 @@ impl<'build> Builder<'build> {
     ) -> ResultTerm<'arena> {
         use Builder::*;
         match self {
-            Var(vec) => var(vec.to_vec())(arena, env, depth, mod_ctx),
+            Var(vec) => var(vec)(arena, env, depth, mod_ctx),
             Type(level) => type_usize(*level)(arena, env, depth, mod_ctx),
             Prop => prop()(arena, env, depth, mod_ctx),
             App(ref l, ref r) => app(l.partial_application(), r.partial_application())(arena, env, depth, mod_ctx),
