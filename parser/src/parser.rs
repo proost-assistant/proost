@@ -215,7 +215,7 @@ fn convert_error(err: pest::error::Error<Rule>) -> Error {
 /// Parse a text input and try to convert it into a command.
 ///
 /// if unsuccessful, a box containing the first error that was encountered is returned.
-pub fn parse_line<'build>(line: &'build str) -> Result<Command<'build>> {
+pub fn parse_line(line: &str) -> Result<Command<'_>> {
     CommandParser::parse(Rule::command, line).map_err(convert_error).and_then(|mut pairs| parse_expr(pairs.next().unwrap()))
 }
 
