@@ -10,9 +10,10 @@ filename = @{ ( ASCII_ALPHANUMERIC | PUNCTUATION )+ }
 // String used in variable an module names
 string = @{ !keywords ~ ASCII_ALPHA ~ ( "_" | ASCII_ALPHANUMERIC )* }
 // Keywords that should be used by variable and module names
-keywords = @{ ( "fun" | "def" | "check" | "Prop" | "Type" ) ~ !ASCII_ALPHANUMERIC }
-// Public keyword
+keywords = @{ ( "super" | "use" | "end" | "mod" | "fun" | "def" | "check" | "Prop" | "Type" ) ~ !ASCII_ALPHANUMERIC }
+// Special keywords
 public = @{ "pub" }
+superkw = @{ "super" }
 
 // Lambda terms
 Term = _{ Abs | dProd | Prod | App | Var | Prop | Type | "(" ~ Term ~ ")" }
@@ -40,7 +41,7 @@ Prop = { "Prop" }
 // Type
 Type = { "Type(" ~ number ~ ")" | "Type" ~ number? }
 // Variable
-Var = ${ (string ~ "::")* ~ string }
+Var = ${ (superkw ~ "::")* ~ (string ~ "::")* ~ string }
 
 // Commands
 Command = _{ Define | CheckType | GetType | DefineCheckType | Eval | ImportFile | Search | BeginModule | EndModule | UseModule }

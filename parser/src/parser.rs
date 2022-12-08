@@ -141,10 +141,7 @@ fn parse_expr<'build>(pair: Pair<'build, Rule>) -> Result<Command<'build>> {
 
         Rule::EndModule => Ok(Command::EndModule()),
 
-        Rule::UseModule => {
-            let s = pair.into_inner().next().unwrap().as_str();
-            Ok(Command::UseModule(s))
-        },
+        Rule::UseModule => Ok(Command::UseModule(pair.into_inner().map(|pair| pair.as_str()).collect())),
 
         command => unreachable!("Unexpected command: {:?}", command),
     }
