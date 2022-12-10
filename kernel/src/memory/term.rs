@@ -2,16 +2,15 @@
 //!
 //! This module defines the core functions used to manipulate an arena and its terms.
 
+use core::fmt;
 use std::cell::OnceCell;
 use std::fmt::Debug;
-use std::hash::Hash;
 
-use derive_more::{From, Into, Add, Sub, Display};
+use derive_more::{Add, Display, From, Into, Sub};
 
-use crate::error::ResultTerm;
-use super::arena::{Arena, Dweller};
-use super::level::Level;
 use super::declaration::InstantiatedDeclaration;
+use super::level::Level;
+use crate::error::ResultTerm;
 
 /// An index used to designate bound variables.
 #[derive(
@@ -19,20 +18,7 @@ use super::declaration::InstantiatedDeclaration;
 )]
 pub struct DeBruijnIndex(usize);
 
-/// A term of the calculus of constructions.
-///
-/// This type is associated, through its lifetime argument, to an [`Arena`], where it lives. There,
-/// it is guaranteed to be unique, which accelerates many algorithms. It is fundamentally a pointer
-/// to an internal term structure, called a Node, which itself contains the core term, [`Payload`],
-/// which is what can be expected of a term.
-///
-/// Additionally, the Node contains lazy structures which indicate the result of certain
-/// transformation on the term, namely type checking and term reduction. Storing it directly here
-/// is both faster and takes overall less space than storing the result in a separate hash table.
-#[derive(Copy, Clone, Debug, Display, Eq, PartialEq, From, Into, Hash)]
-pub struct Term<'arena>(Dweller<'arena, Node<'arena>>);
-
-type Node<'arena> = super::arena::Node<Payload<'arena>, Header<'arena>>;
+super::arena::new_dweller!(Term, Header, Payload);
 
 struct Header<'arena> {
     // Lazy and aliasing-compatible structures for memoizing
@@ -72,7 +58,13 @@ pub enum Payload<'arena> {
     Prod(Term<'arena>, Term<'arena>),
 
     /// An instantiated universe-polymorphic declaration
-    Decl(InstantiatedDeclaration<'arena>)
+    Decl(InstantiatedDeclaration<'arena>),
+}
+
+impl<'arena> fmt::Display for Term<'arena> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0.payload)
+    }
 }
 
 use Payload::*;
@@ -88,16 +80,17 @@ impl<'arena> super::arena::Arena<'arena> {
         let new_node = Node {
             payload: n,
             header: Header {
-            head_normal_form: OnceCell::new(),
-            type_: OnceCell::new(), },
+                head_normal_form: OnceCell::new(),
+                type_: OnceCell::new(),
+            },
         };
 
         match self.hashcons_terms.get(&new_node) {
-            Some(addr) => Dweller::new(addr),
+            Some(addr) => Term::new(addr),
             None => {
                 let addr = self.alloc.alloc(new_node);
                 self.hashcons_terms.insert(addr);
-                Dweller::new(addr)
+                Term::new(addr)
             }
         }
     }
@@ -170,7 +163,7 @@ impl<'arena> Term<'arena> {
     where
         F: FnOnce() -> Term<'arena>,
     {
-        *self.0.head_normal_form.get_or_init(f)
+        *self.0.header.head_normal_form.get_or_init(f)
     }
 
     /// Returns the type of the term, lazily computing the closure `f`.
@@ -178,8 +171,6 @@ impl<'arena> Term<'arena> {
     where
         F: FnOnce() -> ResultTerm<'arena>,
     {
-        self.0.type_.get_or_try_init(f).copied()
+        self.0.header.type_.get_or_try_init(f).copied()
     }
 }
-
-

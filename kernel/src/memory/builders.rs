@@ -17,8 +17,8 @@ use derive_more::Display;
 use im_rc::hashmap::HashMap as ImHashMap;
 
 use super::arena::{Arena, DeBruijnIndex, Term};
-use crate::error::{Error, ResultTerm};
 use super::level::Level;
+use crate::error::{Error, ResultTerm};
 
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]

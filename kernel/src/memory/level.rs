@@ -1,23 +1,18 @@
 use std::fmt::Display;
 use std::fmt::Formatter;
 
-use std::marker::PhantomData;
+use super::arena::Arena;
 use std::cell::OnceCell;
 use std::hash::Hash;
-use super::Arena;
-use std::ops::Deref;
+use std::marker::PhantomData;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Level<'arena>(&'arena Node<'arena>, PhantomData<*mut &'arena ()>);
+super::arena::new_dweller!(Level, Header, Payload);
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(super) struct Node<'arena> {
-    payload: Payload<'arena>,
-
+struct Header<'arena> {
     // put any lazy structure here
     // normalized has been removed, because all levels are guaranteed to be reduced
     //
-    plus_form: OnceCell<(Level<'arena>, usize)>
+    plus_form: OnceCell<(Level<'arena>, usize)>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -26,9 +21,9 @@ pub enum Payload<'arena> {
 
     Succ(Level<'arena>),
 
-    Max(Level<'arena>,Level<'arena>),
+    Max(Level<'arena>, Level<'arena>),
 
-    IMax(Level<'arena>,Level<'arena>),
+    IMax(Level<'arena>, Level<'arena>),
 
     Var(usize),
 }
@@ -40,7 +35,10 @@ impl<'arena> super::arena::Arena<'arena> {
     /// It enforces the uniqueness property of levels in the arena, as well as the reduced-form
     /// invariant.
     fn hashcons_level(&mut self, payload: Payload<'arena>) -> Level<'arena> {
-        let new_node = Node { payload, plus_form: OnceCell::new() };
+        let new_node = Node {
+            payload,
+            header: Header {plus_form: OnceCell::new()}
+        };
 
         match self.hashcons_terms.get(&new_node) {
             Some(level) => level,
@@ -112,7 +110,9 @@ impl<'arena> Level<'arena> {
         match *self {
             Zero => Some(0),
             Succ(u) => u.to_numeral().map(|n| n + 1),
-            Max(n, m) | IMax(n, m) => n .to_numeral() .and_then(|n| m.to_numeral().map(|m| n.max(m))),
+            Max(n, m) | IMax(n, m) => n
+                .to_numeral()
+                .and_then(|n| m.to_numeral().map(|m| n.max(m))),
             // note: once uniqueness property is ensured with normalization, please remove the IMax case
             // (and that it has been verified this does not change anything)
             _ => None,
@@ -121,8 +121,7 @@ impl<'arena> Level<'arena> {
 
     /// Helper function for pretty printing, if universe is of the form Succ(Succ(...(Succ(u))...)) then it gets printed as u+n.
     fn init_plus_form(self, arena: &mut Arena<'arena>) {
-        self.0.plus_form.get_or_init(||
-        match *self {
+        self.0.plus_form.get_or_init(|| match *self {
             Succ(u) => {
                 let (u, n) = u.plus();
                 (u, n + 1)
@@ -170,7 +169,8 @@ impl<'arena> Level<'arena> {
 
 impl Display for Level<'_> {
     fn fmt(self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self.to_numeral() { Some(n) => write!(f, "{n}"),
+        match self.to_numeral() {
+            Some(n) => write!(f, "{n}"),
             None => match self {
                 Zero => unreachable!("Zero is a numeral"),
                 Succ(_) => {
@@ -184,7 +184,6 @@ impl Display for Level<'_> {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
