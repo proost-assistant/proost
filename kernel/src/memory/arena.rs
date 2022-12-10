@@ -2,7 +2,7 @@
 //!
 //! This module defines the core functions used to manipulate an arena and its terms.
 
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::hash::Hash;
 use std::ops::Deref;
 use std::collections::{HashMap, HashSet};
@@ -105,15 +105,20 @@ impl<'arena> Arena<'arena> {
     }
 }
 
-/// Trait of objects living in the arena.
-/// These objects are pointers to data, which have uniqueness properties.
-pub(super) trait ArenaDweller<'arena, Node, Payload>
-    where Self: Copy
-{
-    fn to_payload(&self) -> &Payload;
-    fn to_addr(self) -> &'arena Node;
+#[derive(Copy, Clone)]
+pub struct Dweller<'arena, Node>(&'arena Node, PhantomData<*mut &'arena ()>);
 
-    fn node_to_payload(n: &Node) -> &Payload;
+pub struct Node<Payload: Hash + Eq, Header> {
+    pub(super) payload: Payload,
+    pub(super) header: Header
+}
+
+pub type LightNode<Payload> = Node<Payload, ()>;
+
+impl<'arena, Payload, Header> Dweller<'arena, Node<Payload, Header>> {
+    pub(super) fn new(node: &'arena Node<Payload, Header>) -> Self {
+        Dweller(node, PhantomData)
+    }
 }
 
 /// Arena dwellers are smart pointers, and as such, can be directly dereferenced to its associated
@@ -138,13 +143,13 @@ pub(super) trait ArenaDweller<'arena, Node, Payload>
 /// ```
 /// Please note that this trait has some limits. For instance, the notations used to match against
 /// a *pair* of terms still requires some convolution.
-impl<'arena, T, U, Payload> Deref for T
-    where T: ArenaDweller<'arena, U, Payload> {
+impl<Payload, Header> Deref for Dweller<'_, Node<Payload, Header>> {
     type Target = Payload;
 
     fn deref(&self) -> &Self::Target {
-        self.to_payload()
+        &self.0.payload
     }
+
 }
 
 /// Debug mode only prints the payload of a dweller
@@ -152,46 +157,54 @@ impl<'arena, T, U, Payload> Deref for T
 /// Apart from enhancing the debug readability, this reimplementation is surprisingly necessary: in
 /// the case of terms for instance, and because they may refer to themselves in the payload, the
 /// default debug implementation recursively calls itself until the stack overflows.
-impl<'arena, T, U, Payload> Debug for T
-    where T: ArenaDweller<'arena, U, Payload>
+impl<Payload, Header> Debug for Dweller<'_, Node<Payload, Header>>
 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        self.to_payload().fmt(f)
+        self.0.payload.fmt(f)
     }
 }
-///
-/// Because dwellers are unique in the arena, it is sufficient to compare their locations in memory to
-/// test equality.
-impl<'arena, T, U, V> PartialEq<T> for T
-where T: ArenaDweller<'arena, U, V> {
-    fn eq(&self, rhs: &T) -> bool {
-        std::ptr::eq(self.to_node(), rhs.to_node())
+
+impl<Payload: Display, Header> Display for Dweller<'_, Node<Payload, Header>> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.payload.fmt(f)
     }
 }
 
 /// Because dwellers are unique in the arena, it is sufficient to compare their locations in memory to
+/// test equality.
+impl<Payload, Header> PartialEq<Dweller<'_, Node<Payload, Header>>> for Dweller<'_, Node<Payload, Header>> {
+    fn eq(&self, rhs: &Self) -> bool {
+        std::ptr::eq(self.0, rhs.0)
+    }
+}
+
+impl<Payload, Header> Eq for Dweller<'_, Node<Payload, Header>> {}
+
+/// Because dwellers are unique in the arena, it is sufficient to compare their locations in memory to
 /// test equality. In particular, hash can also be computed from the location.
-impl<'arena, T, U, Payload> Hash for T
-    where T: ArenaDweller<'arena, U, Payload>
+impl<Payload, Header> Hash for Dweller<'_, Node<Payload, Header>>
 {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         std::ptr::hash(self.to_addr(), state)
     }
 }
 
-impl<'arena, T, Node, Payload> PartialEq<Node> for Node
-    where T: ArenaDweller<'arena, Node, Payload>
-{
-    fn eq(&self, x: &Node<'arena>) -> bool {
+
+impl<Payload, Header> PartialEq<Node<Payload, Header>> for Node<Payload, Header> {
+    fn eq(&self, x: &Self) -> bool {
         self.payload == x.payload
     }
 }
 
+impl<Payload, Header> Eq for Node<Payload, Header> {}
+
 /// Nodes are not guaranteed to be unique. Nonetheless, only the payload matters and characterises
 /// the value. Which means computing the hash for nodes can be restricted to hashing their
 /// payloads.
-impl<'arena> Hash for Node<'arena> {
+impl<Payload, Header> Hash for Node<Payload, Header> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.payload.hash(state);
     }
 }
+
+

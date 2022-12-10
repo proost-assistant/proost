@@ -5,12 +5,11 @@
 use std::cell::OnceCell;
 use std::fmt::Debug;
 use std::hash::Hash;
-use std::marker::PhantomData;
-use std::ops::Deref;
 
-use derive_more::{Add, Display, From, Into, Sub};
+use derive_more::{From, Into, Add, Sub, Display};
 
 use crate::error::ResultTerm;
+use super::arena::{Arena, Dweller};
 use super::level::Level;
 use super::declaration::InstantiatedDeclaration;
 
@@ -30,18 +29,12 @@ pub struct DeBruijnIndex(usize);
 /// Additionally, the Node contains lazy structures which indicate the result of certain
 /// transformation on the term, namely type checking and term reduction. Storing it directly here
 /// is both faster and takes overall less space than storing the result in a separate hash table.
-#[derive(Clone, Copy, Display, Eq)]
-#[display(fmt = "{}", "_0.payload")]
-pub struct Term<'arena>(
-    &'arena Node<'arena>,
-    // This marker ensures invariance over the 'arena lifetime.
-    PhantomData<*mut &'arena ()>,
-);
+#[derive(Copy, Clone, Debug, Display, Eq, PartialEq, From, Into, Hash)]
+pub struct Term<'arena>(Dweller<'arena, Node<'arena>>);
 
-#[derive(Debug, Eq)]
-pub(super) struct Node<'arena> {
-    payload: Payload<'arena>,
+type Node<'arena> = super::arena::Node<Payload<'arena>, Header<'arena>>;
 
+struct Header<'arena> {
     // Lazy and aliasing-compatible structures for memoizing
     head_normal_form: OnceCell<Term<'arena>>,
     type_: OnceCell<Term<'arena>>,
@@ -94,16 +87,17 @@ impl<'arena> super::arena::Arena<'arena> {
         // type_ (unlikely, because not always desirable), is_certainly_closed.
         let new_node = Node {
             payload: n,
+            header: Header {
             head_normal_form: OnceCell::new(),
-            type_: OnceCell::new(),
+            type_: OnceCell::new(), },
         };
 
         match self.hashcons_terms.get(&new_node) {
-            Some(addr) => Term(addr, PhantomData),
+            Some(addr) => Dweller::new(addr),
             None => {
                 let addr = self.alloc.alloc(new_node);
                 self.hashcons_terms.insert(addr);
-                Term(addr, PhantomData)
+                Dweller::new(addr)
             }
         }
     }
@@ -115,7 +109,7 @@ impl<'arena> super::arena::Arena<'arena> {
 
     /// Returns the term corresponding to a proposition
     pub(crate) fn prop(&mut self) -> Term<'arena> {
-        let zero = arena.zero();
+        let zero = self.zero();
         self.hashcons_term(Sort(zero))
     }
 
