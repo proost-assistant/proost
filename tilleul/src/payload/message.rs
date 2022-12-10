@@ -1,7 +1,6 @@
 use std::io::{BufRead, Write};
 
 use anyhow::{bail, Result};
-use log::info;
 use lsp_types::notification;
 use serde::{Deserialize, Serialize};
 
@@ -15,6 +14,14 @@ pub enum Message {
     Request(Request),
     Response(Response),
     Notification(Notification),
+}
+
+#[derive(Serialize)]
+struct JsonRPC {
+    jsonrpc: &'static str,
+
+    #[serde(flatten)]
+    msg: Message,
 }
 
 impl Message {
@@ -42,7 +49,16 @@ impl Message {
         Ok(serde_json::from_str(&buffer)?)
     }
 
-    pub fn write(self, _writer: &mut dyn Write) {
-        info!("Write: {:?}", self);
+    pub fn write(self, writer: &mut dyn Write) {
+        let text = serde_json::to_string(&JsonRPC {
+            jsonrpc: "2.0",
+            msg: self,
+        })
+        .unwrap();
+
+        write!(writer, "Content-Length: {}\r\n\r\n", text.len()).unwrap();
+
+        writer.write_all(text.as_bytes()).unwrap();
+        writer.flush().unwrap();
     }
 }

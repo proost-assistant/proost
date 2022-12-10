@@ -1,9 +1,9 @@
 use std::{io, thread};
 
 use crossbeam_channel::{bounded, Receiver, Sender};
-use log::{error, info};
+use log::{debug, error, info};
 
-use crate::payload::Message;
+use crate::payload::message::Message;
 
 pub struct Connection {
     pub sender: Sender<Message>,
@@ -39,7 +39,11 @@ impl Connection {
         info!("Reader thread started");
 
         loop {
-            match Message::read(&mut stdin) {
+            let msg = Message::read(&mut stdin);
+
+            debug!("Received: {:?}", msg);
+
+            match msg {
                 Ok(Message::Notification(msg)) if msg.is_exit() => break,
                 Ok(msg) => sender.send(msg).unwrap(),
                 Err(err) => error!("{:?}", err),
@@ -54,7 +58,11 @@ impl Connection {
 
         info!("Writer thread started");
 
-        receiver.into_iter().for_each(|msg| msg.write(&mut stdout));
+        for msg in receiver {
+            debug!("Sending: {:?}", msg);
+
+            msg.write(&mut stdout);
+        }
 
         info!("Writer thread exited");
     }

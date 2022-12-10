@@ -1,10 +1,11 @@
-mod closing;
-mod dispatcher;
-mod initializing;
-mod instantiated;
-mod serving;
+pub mod closing;
+pub mod dispatcher;
+pub mod initializing;
+pub mod instantiated;
+pub mod serving;
 
 use derive_more::Deref;
+use threadpool::ThreadPool;
 
 use crate::connection::Connection;
 
@@ -42,9 +43,10 @@ phase!(Closing(Serve));
 pub struct LspServer<P: Phase>(pub P::State);
 
 pub struct Initialize {
-    pub connection: Connection,
+    connection: Connection,
+    thread_pool: ThreadPool,
 }
 
 pub struct Serve {
-    pub connection: Connection,
+    connection: Connection,
 }
