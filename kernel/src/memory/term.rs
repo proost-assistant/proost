@@ -21,6 +21,8 @@ pub struct DeBruijnIndex(usize);
 super::arena::new_dweller!(Term, Header, Payload);
 
 struct Header<'arena> {
+
+
     // Lazy and aliasing-compatible structures for memoizing
     head_normal_form: OnceCell<Term<'arena>>,
     type_: OnceCell<Term<'arena>>,
