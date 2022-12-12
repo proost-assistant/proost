@@ -190,15 +190,6 @@ impl<'arena> Arena<'arena> {
         }
     }
 
-    // pub(crate) fn store_name<'a, T: IntoIterator<Item = &'a &'a str>, U: IntoIterator<Item = &'a &'a str>>(
-    //     &mut self,
-    //     prefix: T,
-    //     suffix: U,
-    // ) -> Namespace<'arena> {
-    //     let name = prefix.into_iter().chain(suffix).map(|s| self.store_string(s)).collect::<Vec<&'arena str>>();
-    //     Namespace(self.alloc.alloc_slice_copy(&name))
-    // }
-
     pub(crate) fn store_name<'a, T: IntoIterator<Item = &'a &'a str>>(&mut self, name: T) -> Namespace<'arena> {
         let name = name.into_iter().map(|s| self.store_string(s)).collect::<Vec<&'arena str>>();
         Namespace(self.alloc.alloc_slice_copy(&name))
@@ -392,7 +383,7 @@ impl<'arena> Hash for Node<'arena> {
 
 impl std::fmt::Display for Namespace<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut namespace = self.0.into_iter();
+        let mut namespace = self.0.iter();
         write!(f, "{}", namespace.next().unwrap())?;
         namespace.try_for_each(|s| write!(f, "::{s}"))
     }

@@ -7,7 +7,7 @@ use colored::Colorize;
 use derive_more::Display;
 use kernel::location::Location;
 use kernel::term::arena::{Arena, Term};
-use kernel::term::builders::ModuleContext;
+use kernel::term::builders::NamespaceContext;
 use parser::command::Command;
 use parser::{parse_file, parse_line};
 use path_absolutize::Absolutize;
@@ -59,8 +59,8 @@ impl<'arena> Evaluator {
             verbose,
             module_stack: Vec::new(),
             defined_modules: HashSet::new(),
-            used_modules: Vec::new(),
-            used_vars: Vec::new(),
+            used_modules: vec![HashSet::new()],
+            used_vars: vec![HashSet::new()],
         }
     }
 
@@ -149,10 +149,10 @@ impl<'arena> Evaluator {
         command: &Command<'build>,
         importing: &mut Vec<PathBuf>,
     ) -> Result<'arena, Option<Term<'arena>>> {
-        let mod_ctx = ModuleContext {
+        let mod_ctx = NamespaceContext {
             module_stack: &self.module_stack,
-            used_modules: &self.used_modules,
-            used_vars: &self.used_vars,
+            used_modules: self.used_modules.last().unwrap(),
+            used_vars: self.used_vars.last().unwrap(),
         };
 
         match command {
@@ -200,12 +200,14 @@ impl<'arena> Evaluator {
             },
 
             Command::Eval(t) => {
+                print!("{:?}", mod_ctx);
                 let t = t.realise(arena, mod_ctx)?;
                 Ok(Some(arena.normal_form(t)))
             },
 
             Command::Search(s) => {
-                let name = self.module_stack.iter().map(String::as_str).chain(s.into_iter().copied()).collect::<Vec<&str>>();
+                let name = self.module_stack.iter().map(String::as_str).chain(s.iter().copied()).collect::<Vec<&str>>();
+                print!("{:?}", name);
                 Ok(arena.get_binding(&name)) // TODO (see #49)
             },
 
