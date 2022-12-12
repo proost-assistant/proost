@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::fs::read_to_string;
+use std::iter;
 use std::path::PathBuf;
 
 use colored::Colorize;
@@ -156,11 +157,11 @@ impl<'arena> Evaluator {
 
         match command {
             Command::Define(_, s, None, term) => {
-                //TODO
-                let term = term.realise(arena, mod_ctx)?;
-                if arena.get_binding(s).is_none() {
+                let name = self.module_stack.iter().map(String::as_str).chain(iter::once(*s)).collect::<Vec<&str>>();
+                if arena.get_binding(&name).is_none() {
+                    let term = term.realise(arena, mod_ctx)?;
                     arena.infer(term)?;
-                    arena.bind(s, term);
+                    arena.bind(&name, term);
                     Ok(None)
                 } else {
                     Err(Toplevel(Error {
@@ -171,12 +172,19 @@ impl<'arena> Evaluator {
             },
 
             Command::Define(_, s, Some(t), term) => {
-                //TODO
-                let term = term.realise(arena, mod_ctx)?;
-                let t = t.realise(arena, mod_ctx)?;
-                arena.check(term, t)?;
-                arena.bind(s, term);
-                Ok(None)
+                let name = self.module_stack.iter().map(String::as_str).chain(iter::once(*s)).collect::<Vec<&str>>();
+                if arena.get_binding(&name).is_none() {
+                    let term = term.realise(arena, mod_ctx)?;
+                    let t = t.realise(arena, mod_ctx)?;
+                    arena.check(term, t)?;
+                    arena.bind(&name, term);
+                    Ok(None)
+                } else {
+                    Err(Toplevel(Error {
+                        kind: ErrorKind::BoundVariable(s.to_string()),
+                        location: Location::default(), // TODO (see #38)
+                    }))
+                }
             },
 
             Command::CheckType(t1, t2) => {
@@ -196,7 +204,10 @@ impl<'arena> Evaluator {
                 Ok(Some(arena.normal_form(t)))
             },
 
-            Command::Search(s) => Ok(arena.get_binding(s)), // TODO (see #49)
+            Command::Search(s) => {
+                let name = self.module_stack.iter().map(String::as_str).chain(s.into_iter().copied()).collect::<Vec<&str>>();
+                Ok(arena.get_binding(&name)) // TODO (see #49)
+            },
 
             Command::Import(files) => files
                 .iter()

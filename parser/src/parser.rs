@@ -130,7 +130,7 @@ fn parse_expr<'build>(pair: Pair<'build, Rule>) -> Result<Command<'build>> {
         },
 
         Rule::Search => {
-            let s = pair.into_inner().next().unwrap().as_str();
+            let s = pair.into_inner().map(|pair| pair.as_str()).collect();
             Ok(Command::Search(s))
         },
 

@@ -190,27 +190,28 @@ impl<'arena> Arena<'arena> {
         }
     }
 
-    pub(crate) fn store_name<'a, T: IntoIterator<Item = &'a &'a str>, U: IntoIterator<Item = &'a &'a str>>(
-        &mut self,
-        prefix: T,
-        suffix: U,
-    ) -> Namespace<'arena> {
-        let name = prefix.into_iter().chain(suffix).map(|s| self.store_string(s)).collect::<Vec<&'arena str>>();
+    // pub(crate) fn store_name<'a, T: IntoIterator<Item = &'a &'a str>, U: IntoIterator<Item = &'a &'a str>>(
+    //     &mut self,
+    //     prefix: T,
+    //     suffix: U,
+    // ) -> Namespace<'arena> {
+    //     let name = prefix.into_iter().chain(suffix).map(|s| self.store_string(s)).collect::<Vec<&'arena str>>();
+    //     Namespace(self.alloc.alloc_slice_copy(&name))
+    // }
+
+    pub(crate) fn store_name<'a, T: IntoIterator<Item = &'a &'a str>>(&mut self, name: T) -> Namespace<'arena> {
+        let name = name.into_iter().map(|s| self.store_string(s)).collect::<Vec<&'arena str>>();
         Namespace(self.alloc.alloc_slice_copy(&name))
     }
 
-    pub(crate) fn store_name_1<'a, T: IntoIterator<Item = &'a &'a str>>(&mut self, name: T) -> Namespace<'arena> {
-        self.store_name([], name)
-    }
-
     /// Binds a term to a certain name.
-    pub fn bind(&mut self, prefix: &[&str], suffix: &str, t: Term<'arena>) {
-        let name = self.store_name(prefix, &[suffix]);
+    pub fn bind(&mut self, name: &[&str], t: Term<'arena>) {
+        let name = self.store_name(name);
         self.named_terms.insert(name.0, (name, t));
     }
 
     pub fn bind_root(&mut self, name: &str, t: Term<'arena>) {
-        self.bind(&[], name, t)
+        self.bind(&[name], t)
     }
 
     /// Retrieves the binding of a certain name, if one exists.

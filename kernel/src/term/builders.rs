@@ -43,7 +43,7 @@ pub struct ModuleContext<'a> {
     /// Modules used in the context
     pub used_modules: &'a Vec<HashSet<Vec<String>>>,
     /// Vars used in the context
-    pub used_vars: &'a Vec<HashSet<String>>,
+    pub used_vars: &'a Vec<HashSet<Vec<String>>>,
 }
 
 /// The trait of closures which build terms with an adequate logic.
@@ -97,7 +97,7 @@ pub const fn var<'build, 'arena>(name: &'build Vec<&'build str>) -> impl Builder
 
         if results.len() == 0 {
             Err(Error {
-                kind: DefinitionError::ConstNotFound(arena.store_name_1(name)).into(),
+                kind: DefinitionError::ConstNotFound(arena.store_name(name)).into(),
             })
         } else if results.len() == 1 {
             Ok(results[0].1)

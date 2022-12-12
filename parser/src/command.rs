@@ -25,7 +25,7 @@ pub enum Command<'build> {
     Import(Vec<&'build str>),
 
     /// Search for a variable
-    Search(&'build str),
+    Search(Vec<&'build str>),
 
     /// Begin a module
     BeginModule(&'build str),
@@ -61,7 +61,7 @@ impl<'build> fmt::Display for Command<'build> {
                 files.iter().try_for_each(|file| write!(f, " {file}"))
             },
 
-            Search(name) => write!(f, "search {}", name),
+            Search(name) => write!(f, "search {}", name.join("::")),
 
             BeginModule(name) => write!(f, "mod {}", name),
 
