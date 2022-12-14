@@ -51,9 +51,9 @@ impl<'arena> Arena<'arena> {
             let rhs = self.whnf(rhs);
             lhs == rhs
                 || match (&*lhs, &*rhs) {
-                    (Prop, Prop) => true,
-
-                    (Type(i), Type(j)) => *i == *j,
+                    //These two branches are unreachable for now, because they preserve pointer equality, and thus are already checked beforehand
+                    //(Prop, Prop) => true,
+                    //(Type(i), Type(j)) => *i == *j,
 
                     (Var(i, _), Var(j, _)) => i == j,
 
@@ -66,15 +66,6 @@ impl<'arena> Arena<'arena> {
                     (&Abs(_, t), &Abs(_, u)) => self.conversion(t, u),
 
                     (&App(t1, u1), &App(t2, u2)) => self.conversion(t1, t2) && self.conversion(u1, u2),
-
-                    (&App(t1, t2), _) | (_, &App(t1, t2)) => match &*self.whnf(t1) {
-                        &Abs(_, t1) => {
-                            let subst = self.substitute(t1, t2, 1);
-                            self.conversion(subst, rhs.to_owned())
-                        },
-
-                        _ => false,
-                    },
 
                     _ => false,
                 }
