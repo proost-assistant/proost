@@ -46,29 +46,35 @@ impl<'arena> Arena<'arena> {
     /// The conversion is untyped, meaning that it should **only** be called during type-checking
     /// when the two `Term`s are already known to be of the same type and in the same context.
     fn conversion(&mut self, lhs: Term<'arena>, rhs: Term<'arena>) -> bool {
-        lhs == rhs || {
-            let lhs = self.whnf(lhs);
-            let rhs = self.whnf(rhs);
-            lhs == rhs
-                || match (&*lhs, &*rhs) {
-                    // For universe conversion (Prop/Type), the equality of conversion is syntactical over the whnfs, as such,
-                    // they live in the same place in memory. This means we don't need to check for these cases here.
-                    // /!\ Once we have universe polymorphism, this won't be the case anymore and these cases will need to be added
-                    // again.
-                    (Var(i, _), Var(j, _)) => i == j,
+        if lhs == rhs {
+            return true;
+        }
 
-                    (&Prod(t1, u1), &Prod(t2, u2)) => self.conversion(t1, t2) && self.conversion(u1, u2),
+        let lhs = self.whnf(lhs);
+        let rhs = self.whnf(rhs);
 
-                    // Since we assume that both values already have the same type,
-                    // checking conversion over the argument type is useless.
-                    // However, this doesn't mean we can simply remove the arg type
-                    // from the type constructor in the enum, it is needed to quote back to terms.
-                    (&Abs(_, t), &Abs(_, u)) => self.conversion(t, u),
+        if lhs == rhs {
+            return true;
+        }
 
-                    (&App(t1, u1), &App(t2, u2)) => self.conversion(t1, t2) && self.conversion(u1, u2),
+        match (&*lhs, &*rhs) {
+            // For universe conversion (Prop/Type), the equality of conversion is syntactical over the whnfs, as such,
+            // they live in the same place in memory. This means we don't need to check for these cases here.
+            // /!\ Once we have universe polymorphism, this won't be the case anymore and these cases will need to be added
+            // again.
+            (Var(i, _), Var(j, _)) => i == j,
 
-                    _ => false,
-                }
+            (&Prod(t1, u1), &Prod(t2, u2)) => self.conversion(t1, t2) && self.conversion(u1, u2),
+
+            // Since we assume that both values already have the same type,
+            // checking conversion over the argument type is useless.
+            // However, this doesn't mean we can simply remove the arg type
+            // from the type constructor in the enum, it is needed to quote back to terms.
+            (&Abs(_, t), &Abs(_, u)) => self.conversion(t, u),
+
+            (&App(t1, u1), &App(t2, u2)) => self.conversion(t1, t2) && self.conversion(u1, u2),
+
+            _ => false,
         }
     }
 
