@@ -51,10 +51,11 @@ impl<'arena> Arena<'arena> {
             let rhs = self.whnf(rhs);
             lhs == rhs
                 || match (&*lhs, &*rhs) {
-                    //These two branches are unreachable for now, because they preserve pointer equality, and thus are already checked beforehand
+                    // These two branches are unreachable for now, because they preserve pointer equality, and thus are already
+                    // checked beforehand Though this won't be the case anymore once we have universe
+                    // polymorphism.
                     //(Prop, Prop) => true,
                     //(Type(i), Type(j)) => *i == *j,
-
                     (Var(i, _), Var(j, _)) => i == j,
 
                     (&Prod(t1, u1), &Prod(t2, u2)) => self.conversion(t1, t2) && self.conversion(u1, u2),
