@@ -288,4 +288,15 @@ mod tests {
             assert_eq!(arena.beta_reduction(term), reduced);
         })
     }
+
+    #[test]
+    fn normal_form() {
+        use_arena(|arena| {
+            let term = arena
+                .build_raw(app(app(app(abs(prop(), abs(prop(), abs(prop(), var(1.into(), prop())))), prop()), prop()), prop()));
+            let normal_form = arena.build_raw(prop());
+
+            assert_eq!(arena.normal_form(term), normal_form);
+        })
+    }
 }
