@@ -47,6 +47,7 @@ impl<'arena> Arena<'arena> {
     /// when the two `Term`s are already known to be of the same type and in the same context.
     fn conversion(&mut self, lhs: Term<'arena>, rhs: Term<'arena>) -> bool {
         lhs == rhs
+            || self.whnf(lhs) == self.whnf(rhs)
             || match (&*self.whnf(lhs), &*self.whnf(rhs)) {
                 (Prop, Prop) => true,
 
