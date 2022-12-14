@@ -101,16 +101,12 @@ impl<'arena> Arena<'arena> {
     /// Returns the weak-head normal form of a term.
     pub fn whnf(&mut self, t: Term<'arena>) -> Term<'arena> {
         t.get_whnf_or_init(|| match *t {
-            App(t1, t2) => {
-                let t1 = self.whnf(t1);
-                match *t1 {
-                    Abs(_, _) => {
-                        let t = self.app(t1, t2);
-                        let t = self.beta_reduction(t);
-                        self.whnf(t)
-                    },
-                    _ => t,
-                }
+            App(t1, t2) => match *self.whnf(t1) {
+                Abs(_, t1) => {
+                    let subst = self.substitute(t1, t2, 1);
+                    self.whnf(subst)
+                },
+                _ => t,
             },
             _ => t,
         })

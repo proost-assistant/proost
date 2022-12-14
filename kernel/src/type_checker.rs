@@ -64,13 +64,17 @@ impl<'arena> Arena<'arena> {
 
                 (&App(t1, u1), &App(t2, u2)) => self.conversion(t1, t2) && self.conversion(u1, u2),
 
+                (&App(t1, t2), _) | (_, &App(t1, t2)) => match &*self.whnf(t1) {
+                    &Abs(_, t1) => {
+                        let subst = self.substitute(t1, t2, 1);
+                        self.conversion(subst, rhs.to_owned())
+                    },
+
+                    _ => false,
+                },
+
                 _ => false,
             }
-
-        // TODO: Unused code (#34)
-        // (app @ App(Abs(_, _), _), u) | (u, app @ App(Abs(_, _), _)) => {
-        //     app.beta_reduction(env).conversion(&u, env)
-        // }
     }
 
     /// Checks whether two terms are definitionally equal.
