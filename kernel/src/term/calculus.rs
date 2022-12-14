@@ -101,16 +101,12 @@ impl<'arena> Arena<'arena> {
     /// Returns the weak-head normal form of a term.
     pub fn whnf(&mut self, t: Term<'arena>) -> Term<'arena> {
         t.get_whnf_or_init(|| match *t {
-            App(t1, t2) => {
-                let t1 = self.whnf(t1);
-                match *t1 {
-                    Abs(_, _) => {
-                        let t = self.app(t1, t2);
-                        let t = self.beta_reduction(t);
-                        self.whnf(t)
-                    },
-                    _ => t,
-                }
+            App(t1, t2) => match *self.whnf(t1) {
+                Abs(_, t1) => {
+                    let subst = self.substitute(t1, t2, 1);
+                    self.whnf(subst)
+                },
+                _ => t,
             },
             _ => t,
         })
@@ -290,6 +286,17 @@ mod tests {
             let reduced = arena.build_raw(abs(prop(), app(var(1.into(), prop()), var(1.into(), prop()))));
 
             assert_eq!(arena.beta_reduction(term), reduced);
+        })
+    }
+
+    #[test]
+    fn normal_form() {
+        use_arena(|arena| {
+            let term = arena
+                .build_raw(app(app(app(abs(prop(), abs(prop(), abs(prop(), var(1.into(), prop())))), prop()), prop()), prop()));
+            let normal_form = arena.build_raw(prop());
+
+            assert_eq!(arena.normal_form(term), normal_form);
         })
     }
 }
