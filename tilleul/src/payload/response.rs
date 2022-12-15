@@ -31,7 +31,10 @@ pub struct ResponseError {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum ErrorCode {
+    ServerNotInitialized = -32002,
+
     MethodNotFound = -32601,
+
     RequestCancelled = error_codes::REQUEST_CANCELLED as isize,
     ContentModified = error_codes::CONTENT_MODIFIED as isize,
 }

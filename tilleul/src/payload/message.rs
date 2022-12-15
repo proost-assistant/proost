@@ -50,15 +50,16 @@ impl Message {
     }
 
     pub fn write(self, writer: &mut dyn Write) {
-        let text = serde_json::to_string(&JsonRPC {
+        let response = JsonRPC {
             jsonrpc: "2.0",
             msg: self,
-        })
-        .unwrap();
+        };
 
-        write!(writer, "Content-Length: {}\r\n\r\n", text.len()).unwrap();
+        let payload = serde_json::to_string(&response).unwrap();
 
-        writer.write_all(text.as_bytes()).unwrap();
+        write!(writer, "Content-Length: {}\r\n\r\n", payload.len()).unwrap();
+
+        writer.write_all(payload.as_bytes()).unwrap();
         writer.flush().unwrap();
     }
 }

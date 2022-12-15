@@ -3,7 +3,7 @@ use log::warn;
 
 use crate::payload::message::Message;
 use crate::payload::request::Request;
-use crate::payload::response::{ErrorCode, Response, ResponseError};
+use crate::payload::response::{Response, ResponseError};
 
 pub struct RequestDispatcher {
     request: Option<Request>,
@@ -32,33 +32,31 @@ impl RequestDispatcher {
 
         let params = serde_json::from_value::<R::Params>(request.params.take()).unwrap();
 
-        self.sender
-            .send(Message::Response(Response {
-                id: request.id,
-                result: Some(serde_json::to_value(closure(params)).unwrap()),
-                error: None,
-            }))
-            .unwrap();
+        let result = closure(params);
+
+        let msg = Message::Response(Response {
+            id: request.id,
+            result: Some(serde_json::to_value(result).unwrap()),
+            error: None,
+        });
+
+        self.sender.send(msg).unwrap();
 
         self.request = None;
         self
     }
 
-    pub fn handle_fallthrough(&mut self) {
+    pub fn handle_fallthrough(&mut self, closure: impl FnOnce(&Request) -> ResponseError) {
         let Some(ref request) = self.request else { return; };
 
         warn!("Method {} not implemented", request.method);
 
-        self.sender
-            .send(Message::Response(Response {
-                id: request.id,
-                result: None,
-                error: Some(ResponseError {
-                    code: ErrorCode::MethodNotFound,
-                    message: format!("Method {} not implemented", request.method),
-                    data: None,
-                }),
-            }))
-            .unwrap();
+        let msg = Message::Response(Response {
+            id: request.id,
+            result: None,
+            error: Some(closure(request)),
+        });
+
+        self.sender.send(msg).unwrap();
     }
 }
