@@ -37,6 +37,8 @@ pub enum ErrorKind {
     BoundVariable(String),
     #[display(fmt = "no module to close")]
     NoModuleToClose(),
+    #[display(fmt = "{} is not a module", "_0.join(\"::\")")]
+    ModuleNotFound(Vec<String>),
 }
 
 impl std::error::Error for Error {}
@@ -200,14 +202,12 @@ impl<'arena> Evaluator {
             },
 
             Command::Eval(t) => {
-                print!("{:?}", mod_ctx);
                 let t = t.realise(arena, mod_ctx)?;
                 Ok(Some(arena.normal_form(t)))
             },
 
             Command::Search(s) => {
                 let name = self.module_stack.iter().map(String::as_str).chain(s.iter().copied()).collect::<Vec<&str>>();
-                print!("{:?}", name);
                 Ok(arena.get_binding(&name)) // TODO (see #49)
             },
 
@@ -239,7 +239,17 @@ impl<'arena> Evaluator {
                 location: Location::default(), // TODO (see #38)
             })),
 
-            Command::UseModule(_name) => Ok(None), //TODO check in defined modules if it exists
+            Command::UseModule(name) => {
+                let name = name.iter().map(|s| s.to_string()).collect::<Vec<String>>();
+                if self.defined_modules.contains(&name) {
+                    return Err(Toplevel(Error {
+                        kind: ErrorKind::ModuleNotFound(name),
+                        location: Location::default(), // TODO (see #38)
+                    }));
+                }
+
+                Ok(None)
+            }, //TODO check in defined modules if it exists
         }
     }
 

@@ -82,8 +82,6 @@ pub const fn var<'build, 'arena>(name: &'build Vec<&'build str>) -> impl Builder
                 return Ok(arena.var(depth - *bind_depth, var_type))
         }
 
-        print!("aerze");
-        //TODO deal with duplicates
         let mut results: Vec<_> = mod_ctx
             .used_modules
             .iter()
