@@ -58,6 +58,5 @@
 
 pub mod calculus;
 pub mod error;
-pub mod location;
 pub mod memory;
 pub mod type_checker;

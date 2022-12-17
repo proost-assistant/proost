@@ -1,4 +1,4 @@
-use kernel::location::Location;
+use kernel::error::location::Location;
 use kernel::memory::declaration::builder as declaration;
 use kernel::memory::level::builder as level;
 use kernel::memory::term::builder as term;

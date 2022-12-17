@@ -1,24 +1,31 @@
 //! Errors that can be yielded by the kernel
 
+pub mod location;
+pub mod trace;
+
 use derive_more::{Display, From};
+use trace::Trace;
 
 use crate::memory::{declaration, level, term};
 use crate::type_checker::TypeCheckerError;
 
 /// Type representing kernel errors.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Error<'arena> {
     /// The kind of form error that occurred.
     pub kind: Kind<'arena>,
 
     /// Trace that generated the error.
-    pub trace: Vec<i32>,
+    pub trace: Vec<Trace>,
 }
 
-impl<'a> Error<'a> {
+impl<'arena> Error<'arena> {
     /// Creates a new error from a kind and a trace.
-    pub fn new(kind: Kind<'a>) -> Self {
-        Self { kind, trace: Vec::new() }
+    pub fn new(kind: Kind<'arena>) -> Self {
+        Self {
+            kind,
+            trace: Vec::new(),
+        }
     }
 }
 

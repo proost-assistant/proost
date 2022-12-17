@@ -4,6 +4,7 @@
 
 use derive_more::Display;
 
+use crate::error::trace::{Trace, TraceableError};
 use crate::error::{Error, Result, ResultTerm};
 use crate::memory::arena::Arena;
 use crate::memory::declaration::Declaration;
@@ -108,8 +109,8 @@ impl<'arena> Term<'arena> {
             Var(_, type_) => Ok(type_),
 
             Prod(t, u) => {
-                let univ_t = t.infer(arena)?;
-                let univ_u = u.infer(arena)?;
+                let univ_t = t.infer(arena).trace_err(Trace::Left)?;
+                let univ_u = u.infer(arena).trace_err(Trace::Right)?;
 
                 let univ_t = univ_t.whnf(arena);
                 let univ_u = univ_u.whnf(arena);
@@ -117,19 +118,22 @@ impl<'arena> Term<'arena> {
             },
 
             Abs(t, u) => {
-                let type_t = t.infer(arena)?;
+                let type_t = t.infer(arena).trace_err(Trace::Left)?;
+
                 match *type_t {
                     Sort(_) => {
-                        let type_u = u.infer(arena)?;
+                        let type_u = u.infer(arena).trace_err(Trace::Right)?;
                         Ok(t.prod(type_u, arena))
                     },
-                    _ => Err(Error::new(TypeCheckerError::NotUniverse(type_t).into())),
+
+                    _ => Err(Error::new(TypeCheckerError::NotUniverse(type_t).into())).trace_err(Trace::Left),
                 }
             },
 
             App(t, u) => {
                 let type_t = t.infer(arena)?;
                 let type_t = type_t.whnf(arena);
+
                 match *type_t {
                     Prod(arg_type, cls) => {
                         let type_u = u.infer(arena)?;

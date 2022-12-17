@@ -1,5 +1,5 @@
 use derive_more::Display;
-use kernel::location::Location;
+use kernel::error::location::Location;
 
 /// Type representing parser errors.
 #[derive(Clone, Debug, Display, Eq, PartialEq)]

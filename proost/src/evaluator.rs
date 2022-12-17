@@ -3,7 +3,7 @@ use std::fs::read_to_string;
 use std::path::PathBuf;
 
 use derive_more::Display;
-use kernel::location::Location;
+use kernel::error::location::Location;
 use kernel::memory::arena::Arena;
 use kernel::memory::term::Term;
 use parser::command::{parse, Command};
