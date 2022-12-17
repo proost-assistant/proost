@@ -163,12 +163,13 @@ impl ModuleTree {
     }
 
     /// Create and move into a new (sub) module
-    pub fn begin_module(&mut self, name: String) {
+    pub fn begin_module(&mut self, name: String) -> Result<()> {
         let res = self.get_relative([name].into());
         let module_pos = {
             if res.is_ok() { res.unwrap().1 } else { self.add_node(ModuleNode::Mod(name, self.1, Vec::new())) }
         };
-        self.1 = module_pos
+        self.1 = module_pos;
+        Ok(())
     }
 
     /// Move out of the current module or raise an error if currently not in a module
@@ -182,6 +183,41 @@ impl ModuleTree {
     }
 
     /// Add a use in the current module of the tree
-    /// TODO manage duplicates
-    pub fn use_module(&mut self, _name: Vec<String>) {}
+    pub fn use_module(&mut self, name: Vec<String>) -> Result<()> {
+        let modtree = self.get_absolute(name.into())?;
+        let ModuleNode::Mod(_, _, children) = self.0.get(self.1).unwrap();
+        children.push(modtree.1);
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn get_path{}
+
+    #[test]
+    fn failed_relative_1{}
+
+    #[test]
+    fn failed_relative_2{}
+
+    #[test]
+    fn successful_variable{}
+
+    #[test]
+    fn failed_variable{}
+
+    #[test]
+    fn successful_modules{}
+
+    #[test]
+    fn failed_modules{}
+
+    #[test]
+    fn successful_use{}
+
+    #[test]
+    fn failed_use{}
 }
