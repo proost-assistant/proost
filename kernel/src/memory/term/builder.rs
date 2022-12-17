@@ -64,16 +64,14 @@ impl<'arena> Arena<'arena> {
 pub const fn var(name: &str) -> impl BuilderTrait<'_> {
     move |arena, env, _, depth| {
         env.get(name)
-            .map(|(bind_depth, term)| {
+            .map(|&(bind_depth, term)| {
                 // This is arguably an eager computation, it could be worth making it lazy,
                 // or at least memoizing it so as to not compute it again
-                let var_type = term.shift(usize::from(depth - *bind_depth), 0, arena);
-                Term::var(depth - *bind_depth, var_type, arena)
+                let var_type = term.shift(usize::from(depth - bind_depth), 0, arena);
+                Term::var(depth - bind_depth, var_type, arena)
             })
             .or_else(|| arena.get_binding(name))
-            .ok_or(Error {
-                kind: TermError::ConstNotFound(arena.store_name(name)).into(),
-            })
+            .ok_or(Error::new(TermError::ConstNotFound(arena.store_name(name)).into()))
     }
 }
 

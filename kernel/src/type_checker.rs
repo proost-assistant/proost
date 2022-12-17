@@ -82,26 +82,21 @@ impl<'arena> Term<'arena> {
     /// Checks whether two terms are definitionally equal.
     #[inline]
     pub fn is_def_eq(self, rhs: Self, arena: &mut Arena<'arena>) -> Result<'arena, ()> {
-        self.conversion(rhs, arena).then_some(()).ok_or(Error {
-            kind: TypeCheckerError::NotDefEq(self, rhs).into(),
-        })
+        self.conversion(rhs, arena)
+            .then_some(())
+            .ok_or(Error::new(TypeCheckerError::NotDefEq(self, rhs).into()))
     }
 
     /// Computes the universe in which `(x: A) -> B` lives when `A: lhs` and `B: rhs`.
     fn imax(self, rhs: Self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
-        match *self {
-            Sort(l1) => match *rhs {
-                Sort(l2) => {
-                    let lvl = l1.imax(l2, arena);
-                    Ok(Term::sort(lvl, arena))
-                },
-                _ => Err(Error {
-                    kind: TypeCheckerError::NotUniverse(rhs).into(),
-                }),
+        match (&*self, &*rhs) {
+            (&Sort(l1), &Sort(l2)) => {
+                let lvl = l1.imax(l2, arena);
+                Ok(Term::sort(lvl, arena))
             },
-            _ => Err(Error {
-                kind: TypeCheckerError::NotUniverse(self).into(),
-            }),
+
+            (&Sort(_), _) => Err(Error::new(TypeCheckerError::NotUniverse(rhs).into())),
+            (_, _) => Err(Error::new(TypeCheckerError::NotUniverse(self).into())),
         }
     }
 
@@ -128,9 +123,7 @@ impl<'arena> Term<'arena> {
                         let type_u = u.infer(arena)?;
                         Ok(t.prod(type_u, arena))
                     },
-                    _ => Err(Error {
-                        kind: TypeCheckerError::NotUniverse(type_t).into(),
-                    }),
+                    _ => Err(Error::new(TypeCheckerError::NotUniverse(type_t).into())),
                 }
             },
 
@@ -144,15 +137,11 @@ impl<'arena> Term<'arena> {
                         if type_u.conversion(arg_type, arena) {
                             Ok(cls.substitute(u, 1, arena))
                         } else {
-                            Err(Error {
-                                kind: TypeCheckerError::WrongArgumentType(t, arg_type, TypedTerm(u, type_u)).into(),
-                            })
+                            Err(Error::new(TypeCheckerError::WrongArgumentType(t, arg_type, TypedTerm(u, type_u)).into()))
                         }
                     },
 
-                    _ => Err(Error {
-                        kind: TypeCheckerError::NotAFunction(TypedTerm(t, type_t), u).into(),
-                    }),
+                    _ => Err(Error::new(TypeCheckerError::NotAFunction(TypedTerm(t, type_t), u).into())),
                 }
             },
 
@@ -171,9 +160,9 @@ impl<'arena> Term<'arena> {
     pub fn check(self, ty: Self, arena: &mut Arena<'arena>) -> Result<'arena, ()> {
         let tty = self.infer(arena)?;
 
-        tty.conversion(ty, arena).then_some(()).ok_or(Error {
-            kind: TypeCheckerError::TypeMismatch(tty, ty).into(),
-        })
+        tty.conversion(ty, arena)
+            .then_some(())
+            .ok_or(Error::new(TypeCheckerError::TypeMismatch(tty, ty).into()))
     }
 }
 

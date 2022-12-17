@@ -6,11 +6,26 @@ use crate::memory::{declaration, level, term};
 use crate::type_checker::TypeCheckerError;
 
 /// Type representing kernel errors.
-#[derive(Clone, Debug, Display, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Error<'arena> {
     /// The kind of form error that occurred.
     pub kind: Kind<'arena>,
-    // This struct might contains more fields in the future (waiting for #15)
+
+    /// Trace that generated the error.
+    pub trace: Vec<i32>,
+}
+
+impl<'a> Error<'a> {
+    /// Creates a new error from a kind and a trace.
+    pub fn new(kind: Kind<'a>) -> Self {
+        Self { kind, trace: Vec::new() }
+    }
+}
+
+impl core::fmt::Display for Error<'_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{:?}", self.kind)
+    }
 }
 
 /// The kind of the error. This disambiguate between the different sections of the kernel, where

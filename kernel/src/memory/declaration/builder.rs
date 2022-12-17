@@ -104,9 +104,7 @@ fn try_build_instance<'arena, 'build>(
     if decl.1 == levels.len() {
         Ok(InstantiatedDeclaration::instantiate(decl, levels.as_slice(), arena))
     } else {
-        Err(Error {
-            kind: DeclarationError::IncorrectVariableNumber(decl.1, levels.len()).into(),
-        })
+        Err(Error::new(DeclarationError::IncorrectVariableNumber(decl.1, levels.len()).into()))
     }
 }
 
@@ -130,9 +128,10 @@ pub fn instance<'build, F: BuilderTrait<'build>>(
 #[must_use]
 pub fn var<'build>(name: &'build str, levels: &'build [level::Builder<'build>]) -> impl InstantiatedBuilderTrait<'build> {
     move |arena, env| {
-        let decl = arena.get_binding_decl(name).ok_or(Error {
-            kind: DeclarationError::UnknownDeclaration(arena.store_name(name)).into(),
-        })?;
+        let decl = arena
+            .get_binding_decl(name)
+            .ok_or(Error::new(DeclarationError::UnknownDeclaration(arena.store_name(name)).into()))?;
+
         try_build_instance(decl, levels, arena, env)
     }
 }
