@@ -13,12 +13,10 @@
 //! *high-level term* or *template*, described by the public enumeration [`Builder`], and at any
 //! moment, [realise](Builder::realise) it.
 
-use std::collections::HashSet;
-
 use derive_more::Display;
 use im_rc::hashmap::HashMap as ImHashMap;
 
-use super::arena::{Arena, DeBruijnIndex, Namespace, NamespaceSet, Term, UniverseLevel};
+use super::arena::{Arena, DeBruijnIndex, Namespace, Term, UniverseLevel};
 use crate::error::{Error, ResultTerm};
 
 #[non_exhaustive]
@@ -26,25 +24,11 @@ use crate::error::{Error, ResultTerm};
 pub enum DefinitionError<'arena> {
     #[display(fmt = "unknown identifier {}", _0)]
     ConstNotFound(Namespace<'arena>),
-    #[display(fmt = "identifier may ambiguously refer to: {}", _0)]
-    AmbiguousIdentifier(NamespaceSet<'arena>),
 }
 
 /// Local environment used to store correspondence between locally-bound variables and the pair
 /// (depth at which they were bound, their type)
 pub type Environment<'build, 'arena> = ImHashMap<&'build str, (DeBruijnIndex, Term<'arena>)>;
-
-/// Struct containing all the information needed to realize a Builder in a given module context
-/// This struct should not be used outside out of the kernel. It was made public not to leak private types.
-#[derive(Copy, Clone, Debug)]
-pub struct NamespaceContext<'a> {
-    /// Stack of currently opened module
-    pub module_stack: &'a Vec<String>,
-    /// Modules used in the context
-    pub used_modules: &'a HashSet<Vec<String>>,
-    /// Vars used in the context
-    pub used_vars: &'a HashSet<Vec<String>>,
-}
 
 /// The trait of closures which build terms with an adequate logic.
 ///
@@ -56,84 +40,53 @@ pub struct NamespaceContext<'a> {
 /// functions in this module returning a closure with this trait are guaranteed to be sound, end
 /// users can also create their own closures satisfying `BuilderTrait`; this should be avoided.
 pub trait BuilderTrait<'build, 'arena> =
-    FnOnce(&mut Arena<'arena>, &Environment<'build, 'arena>, DeBruijnIndex, NamespaceContext<'build>) -> ResultTerm<'arena>;
+    FnOnce(&mut Arena<'arena>, &Environment<'build, 'arena>, DeBruijnIndex) -> ResultTerm<'arena>;
 
 impl<'arena> Arena<'arena> {
     /// Returns the term built from the given closure, provided with an empty context, at depth 0.
     #[inline]
-    pub fn build<'build, F: BuilderTrait<'build, 'arena>>(&mut self, f: F, mod_ctx: NamespaceContext<'build>) -> ResultTerm<'arena>
+    pub fn build<'build, F: BuilderTrait<'build, 'arena>>(&mut self, f: F) -> ResultTerm<'arena>
     where
         'arena: 'build,
     {
-        f(self, &Environment::new(), 0.into(), mod_ctx)
+        f(self, &Environment::new(), 0.into())
     }
 }
 
 /// Returns a closure building a variable associated to the name `name`
 #[inline]
 pub const fn var<'build, 'arena>(name: &'build Vec<&'build str>) -> impl BuilderTrait<'build, 'arena> {
-    move |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, depth, mod_ctx| {
-        print!("{:?}", name);
-
+    move |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, depth| {
         if name.len() == 1 && let Some((bind_depth, term)) = env.get(&name[0]) {
-                // This is arguably an eager computation, it could be worth making it lazy,
-                // or at least memoizing it so as to not compute it again
-                let var_type = arena.shift(*term, usize::from(depth - *bind_depth), 0);
-                return Ok(arena.var(depth - *bind_depth, var_type))
+            // This is arguably an eager computation, it could be worth making it lazy,
+            // or at least memoizing it so as to not compute it again
+            let var_type = arena.shift(*term, usize::from(depth - *bind_depth), 0);
+            return Ok(arena.var(depth - *bind_depth, var_type));
         }
 
-        let mut results: Vec<_> = mod_ctx
-            .used_modules
-            .iter()
-            .chain(std::iter::once(mod_ctx.module_stack))
-            .map(|prefix| prefix.iter().map(String::as_str).chain(name.iter().copied()).collect::<Vec<&str>>())
-            .filter_map(|name| arena.get_binding_with_name(&name))
-            .collect();
-
-        if name.len() == 1 {
-            let mut results_vars: Vec<_> = mod_ctx
-                .used_vars
-                .iter()
-                .filter(|suffix| suffix.last().unwrap() == name[0])
-                .map(|name| name.iter().map(String::as_str).collect::<Vec<&str>>())
-                .filter_map(|name| arena.get_binding_with_name(&name))
-                .collect();
-
-            results.append(&mut results_vars)
-        }
-
-        if results.is_empty() {
-            Err(Error {
-                kind: DefinitionError::ConstNotFound(arena.store_name(name)).into(),
-            })
-        } else if results.len() == 1 {
-            Ok(results[0].1)
-        } else {
-            let results: Vec<Namespace> = results.into_iter().map(|(n, _)| n).collect();
-            Err(Error {
-                kind: DefinitionError::AmbiguousIdentifier(results.into()).into(),
-            })
-        }
+        Err(Error {
+            kind: DefinitionError::ConstNotFound(arena.store_name(name)).into(),
+        })
     }
 }
 
 /// Returns a closure building the Prop term.
 #[inline]
 pub const fn prop<'build, 'arena>() -> impl BuilderTrait<'build, 'arena> {
-    |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _, _| Ok(arena.prop())
+    |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _| Ok(arena.prop())
 }
 
 /// Returns a closure building the Type `level` term.
 #[inline]
 pub const fn type_<'build, 'arena>(level: UniverseLevel) -> impl BuilderTrait<'build, 'arena> {
-    move |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _, _| Ok(arena.type_(level))
+    move |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _| Ok(arena.type_(level))
 }
 
 /// Returns a closure building the Type `level` term (indirection from `usize`).
 #[inline]
 pub const fn type_usize<'build, 'arena>(level: usize) -> impl BuilderTrait<'build, 'arena> {
     use num_bigint::BigUint;
-    move |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _, _| Ok(arena.type_(BigUint::from(level).into()))
+    move |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _| Ok(arena.type_(BigUint::from(level).into()))
 }
 
 /// Returns a closure building the application of two terms built from the given closures `u1` and
@@ -144,9 +97,9 @@ pub const fn app<'build, 'arena, F1: BuilderTrait<'build, 'arena>, F2: BuilderTr
     u1: F1,
     u2: F2,
 ) -> impl BuilderTrait<'build, 'arena> {
-    |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, depth, mod_ctx| {
-        let u1 = u1(arena, env, depth, mod_ctx)?;
-        let u2 = u2(arena, env, depth, mod_ctx)?;
+    |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, depth| {
+        let u1 = u1(arena, env, depth)?;
+        let u2 = u2(arena, env, depth)?;
         Ok(arena.app(u1, u2))
     }
 }
@@ -160,10 +113,10 @@ pub const fn abs<'build, 'arena, F1: BuilderTrait<'build, 'arena>, F2: BuilderTr
     arg_type: F1,
     body: F2,
 ) -> impl BuilderTrait<'build, 'arena> {
-    move |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, depth, mod_ctx: NamespaceContext| {
-        let arg_type = arg_type(arena, env, depth, mod_ctx)?;
+    move |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, depth| {
+        let arg_type = arg_type(arena, env, depth)?;
         let env = env.update(name, (depth, arg_type));
-        let body = body(arena, &env, depth + 1.into(), mod_ctx)?;
+        let body = body(arena, &env, depth + 1.into())?;
         Ok(arena.abs(arg_type, body))
     }
 }
@@ -177,10 +130,10 @@ pub const fn prod<'build, 'arena, F1: BuilderTrait<'build, 'arena>, F2: BuilderT
     arg_type: F1,
     body: F2,
 ) -> impl BuilderTrait<'build, 'arena> {
-    move |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, depth, mod_ctx: NamespaceContext| {
-        let arg_type = arg_type(arena, env, depth, mod_ctx)?;
+    move |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, depth| {
+        let arg_type = arg_type(arena, env, depth)?;
         let env = env.update(name, (depth, arg_type));
-        let body = body(arena, &env, depth + 1.into(), mod_ctx)?;
+        let body = body(arena, &env, depth + 1.into())?;
         Ok(arena.prod(arg_type, body))
     }
 }
@@ -215,14 +168,12 @@ pub enum Builder<'r> {
 impl<'build> Builder<'build> {
     /// Build a terms from a [`Builder`]. This internally uses functions described in the
     /// [builders](`crate::term::builders`) module.
-    pub fn realise<'arena>(&self, arena: &mut Arena<'arena>, mod_ctx: NamespaceContext) -> ResultTerm<'arena> {
-        arena.build(self.partial_application(), mod_ctx)
+    pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
+        arena.build(self.partial_application())
     }
 
     fn partial_application<'arena>(&'build self) -> impl BuilderTrait<'build, 'arena> + '_ {
-        |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, depth, mod_ctx: NamespaceContext| {
-            self.realise_in_context(arena, env, depth, mod_ctx)
-        }
+        |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, depth| self.realise_in_context(arena, env, depth)
     }
 
     fn realise_in_context<'arena>(
@@ -230,18 +181,15 @@ impl<'build> Builder<'build> {
         arena: &mut Arena<'arena>,
         env: &Environment<'build, 'arena>,
         depth: DeBruijnIndex,
-        mod_ctx: NamespaceContext<'build>,
     ) -> ResultTerm<'arena> {
         use Builder::*;
         match self {
-            Var(vec) => var(vec)(arena, env, depth, mod_ctx),
-            Type(level) => type_usize(*level)(arena, env, depth, mod_ctx),
-            Prop => prop()(arena, env, depth, mod_ctx),
-            App(ref l, ref r) => app(l.partial_application(), r.partial_application())(arena, env, depth, mod_ctx),
-            Abs(s, ref arg, ref body) => abs(s, arg.partial_application(), body.partial_application())(arena, env, depth, mod_ctx),
-            Prod(s, ref arg, ref body) => {
-                prod(s, arg.partial_application(), body.partial_application())(arena, env, depth, mod_ctx)
-            },
+            Var(vec) => var(vec)(arena, env, depth),
+            Type(level) => type_usize(*level)(arena, env, depth),
+            Prop => prop()(arena, env, depth),
+            App(ref l, ref r) => app(l.partial_application(), r.partial_application())(arena, env, depth),
+            Abs(s, ref arg, ref body) => abs(s, arg.partial_application(), body.partial_application())(arena, env, depth),
+            Prod(s, ref arg, ref body) => prod(s, arg.partial_application(), body.partial_application())(arena, env, depth),
         }
     }
 }

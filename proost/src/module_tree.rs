@@ -193,9 +193,14 @@ impl ModuleTree {
 
 #[cfg(test)]
 mod tests {
+use super::ModuleTree;
 
     #[test]
-    fn get_path{}
+    fn get_path{
+        let modtree = ModuleTree::new();
+        assert_eq!(modtree.get_path(), Vec::new());
+        //TODO
+    }
 
     #[test]
     fn failed_relative_1{}
