@@ -14,6 +14,7 @@ atty.workspace = true
 clap.workspace = true
 colored.workspace = true
 derive_more.workspace = true
+im-rc.workspace = true
 path-absolutize.workspace = true
 rustyline-derive.workspace = true
 rustyline.workspace = true

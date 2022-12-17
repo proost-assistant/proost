@@ -538,6 +538,7 @@ dependencies = [
  "clap",
  "colored",
  "derive_more",
+ "im-rc",
  "kernel",
  "parser",
  "path-absolutize",

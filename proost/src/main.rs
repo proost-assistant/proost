@@ -3,6 +3,7 @@
 
 mod error;
 mod evaluator;
+mod module_tree;
 mod rustyline_helper;
 
 use std::env::current_dir;

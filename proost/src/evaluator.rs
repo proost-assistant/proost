@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashSet};
 use std::fs::read_to_string;
 use std::iter;
 use std::path::PathBuf;
@@ -12,8 +12,10 @@ use parser::command::Command;
 use parser::{parse_file, parse_line};
 use path_absolutize::Absolutize;
 
+use crate::module_tree::ModuleTree;
 use crate::error::Error::*;
 use crate::error::Result;
+
 
 /// Type representing parser errors.
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
@@ -31,39 +33,50 @@ pub struct Error {
 pub enum ErrorKind {
     #[display(fmt = "{} is not a file", _0)]
     FileNotFound(String),
+
     #[display(fmt = "cyclic dependency:\n{}", _0)]
     CyclicDependencies(String),
+
     #[display(fmt = "identifier {} already defined", _0)]
     BoundVariable(String),
+
     #[display(fmt = "no module to close")]
     NoModuleToClose(),
+
     #[display(fmt = "{} is not a module", "_0.join(\"::\")")]
     ModuleNotFound(Vec<String>),
 }
 
 impl std::error::Error for Error {}
 
+
+
 pub struct Evaluator {
     path: PathBuf,
-    imported_files: HashSet<PathBuf>,
     verbose: bool,
-    module_stack: Vec<String>,
-    defined_modules: HashSet<Vec<String>>,
-    used_modules: Vec<HashSet<Vec<String>>>,
-    used_vars: Vec<HashSet<Vec<String>>>,
+    imported_files: HashSet<PathBuf>,
+    mod_tree: ModuleTree,
 }
 
 impl<'arena> Evaluator {
     pub fn new(path: PathBuf, verbose: bool) -> Evaluator {
         Evaluator {
             path,
-            imported_files: HashSet::new(),
             verbose,
-            module_stack: Vec::new(),
-            defined_modules: HashSet::new(),
-            used_modules: vec![HashSet::new()],
-            used_vars: vec![HashSet::new()],
+            imported_files: HashSet::new(),
+            mod_tree: ModuleTree::new(),
         }
+    }
+
+    /// Export the current open modules to be displayed
+    pub fn export_open_modules(&self) -> String {
+        let mut result = Vec::new();
+        while let ModuleTree::Mod(true, s, modtree2) = modtree {
+            result.push(*s);
+            if modtree2.is_empty() { break; };
+            modtree = modtree2.last().unwrap()
+        };
+        result.join("::")
     }
 
     /// Create a new path from a relative path
@@ -242,13 +255,13 @@ impl<'arena> Evaluator {
             Command::UseModule(name) => {
                 let name = name.iter().map(|s| s.to_string()).collect::<Vec<String>>();
                 if self.defined_modules.contains(&name) {
-                    return Err(Toplevel(Error {
-                        kind: ErrorKind::ModuleNotFound(name),
-                        location: Location::default(), // TODO (see #38)
-                    }));
+                    return Ok(None);
                 }
-
-                Ok(None)
+                if self.defined_vars
+                Err(Toplevel(Error {
+                    kind: ErrorKind::ModuleNotFound(name),
+                    location: Location::default(), // TODO (see #38)
+                }))
             }, //TODO check in defined modules if it exists
         }
     }
