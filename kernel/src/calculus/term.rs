@@ -3,9 +3,9 @@
 //! This module consists of internal utility functions used by the type checker, and correspond to
 //! usual functions over lambda-terms. These functions interact appropriately with a given arena.
 
+use crate::memory::arena::Arena;
+use crate::memory::term::{Payload, Term};
 use Payload::*;
-
-use super::arena::{Arena, Payload, Term};
 
 impl<'arena> Arena<'arena> {
     /// Apply one step of β-reduction, using the leftmost-outermost evaluation strategy.
@@ -116,8 +116,8 @@ impl<'arena> Arena<'arena> {
 #[cfg(test)]
 mod tests {
     // /!\ most terms used in these tests are ill-typed; they should not be used elsewhere
-    use super::super::arena::use_arena;
-    use super::super::builders::raw::*;
+    use crate::memory::arena::use_arena;
+    use crate::memory::builders::raw::*;
 
     #[test]
     fn simple_subst() {

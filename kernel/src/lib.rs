@@ -9,7 +9,9 @@
 #![feature(no_coverage)]
 #![feature(once_cell)]
 #![feature(trait_alias)]
+#![feature(if_let_guard)]
 
+pub mod calculus;
 pub mod error;
 pub mod location;
 pub mod memory;

@@ -21,8 +21,6 @@ pub struct DeBruijnIndex(usize);
 super::arena::new_dweller!(Term, Header, Payload);
 
 struct Header<'arena> {
-
-
     // Lazy and aliasing-compatible structures for memoizing
     head_normal_form: OnceCell<Term<'arena>>,
     type_: OnceCell<Term<'arena>>,
@@ -38,29 +36,47 @@ struct Header<'arena> {
 /// There is one true exception, which is the variable (Var)[`Payload::Var`]. Along with its de
 /// Bruijn index, the variable also stores its type, which is unique, and also ensures two
 /// variables with a different type do not share the same term in memory.
-#[derive(Clone, Debug, Display, Eq, PartialEq, Hash)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Payload<'arena> {
     /// A variable, with its de Bruijn index and its type
-    #[display(fmt = "{}", _0)]
+    //#[display(fmt = "{_0}")]
     Var(DeBruijnIndex, Term<'arena>),
 
     /// Sort i, the encoding of Prop and Type i type
     Sort(Level<'arena>),
 
     /// The application of two terms
-    #[display(fmt = "{} {}", _0, _1)]
+    //#[display(fmt = "{_0} {_1}")]
     App(Term<'arena>, Term<'arena>),
 
     /// The lambda-abstraction of a term: the argument type is on the left, the body on the right.
-    #[display(fmt = "\u{003BB} {} \u{02192} {}", _0, _1)]
     Abs(Term<'arena>, Term<'arena>),
 
     /// The dependant product of the term on the right over all elements of the type on the left.
-    #[display(fmt = "\u{03A0} {} \u{02192} {}", _0, _1)]
+    //#[display(fmt = "\u{03A0} {_0} \u{02192} {_1}")]
     Prod(Term<'arena>, Term<'arena>),
 
     /// An instantiated universe-polymorphic declaration
     Decl(InstantiatedDeclaration<'arena>),
+}
+
+impl<'arena> fmt::Display for Payload<'arena> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            Var(index, _) => write!(f, "{index}"),
+            Sort(level) => match level.to_numeral() {
+                Some(n) => match n {
+                    0 => write!(f, "Prop"),
+                    1 => write!(f, "Type"),
+                    _ => write!(f, "Type {n}"),
+                },
+                None => write!(f, "Type {{{level}}}"),
+            },
+            App(fun, arg) => write!(f, "{fun} {arg}"),
+            Abs(argtype, body) => write!(f, "\u{003BB} {argtype} \u{02192} {body}"),
+            Prod(argtype, body) => write!(f, "\u{003A0} {argtype} \u{02192} {body}"),
+        }
+    }
 }
 
 impl<'arena> fmt::Display for Term<'arena> {
@@ -115,7 +131,7 @@ impl<'arena> super::arena::Arena<'arena> {
     /// Returns the term corresponding to Type(level), casting level appropriately first
     pub(crate) fn type_usize(&mut self, level: usize) -> Term<'arena> {
         let level = Level::from(level, self);
-        self.hashcons_term(Sort(level.into()))
+        self.hashcons_term(Sort(level))
     }
 
     /// Returns the application of one term to the other

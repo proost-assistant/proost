@@ -10,11 +10,11 @@
 //! only the number of universes in ty are counted.
 
 use std::cell::OnceCell;
+use std::fmt;
 
-use super::term::Term;
-use super::level::Level;
 use super::arena::Arena;
-
+use super::level::Level;
+use super::term::Term;
 
 super::arena::new_dweller!(InstantiatedDeclaration, Header, Payload);
 
@@ -25,18 +25,42 @@ pub struct Payload<'arena> {
 }
 
 struct Header<'arena> {
-   term: OnceCell<Term<'arena>>
+    term: OnceCell<Term<'arena>>,
+}
+
+impl<'arena> fmt::Display for InstantiatedDeclaration<'arena> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.0.header.term.get() {
+            Some(term) => write!(f, "{term}"),
+            None => {
+                write!(f, "({}).{{", self.0.payload.decl)?;
+                self.0
+                    .payload
+                    .params
+                    .into_iter()
+                    .try_for_each(|level| write!(f, "{level}, "))?;
+                write!(f, "}}")
+            }
+        }
+    }
 }
 
 impl<'arena> InstantiatedDeclaration<'arena> {
     /// Creates a new instantiated declaration from its base components. It is not verified that
     /// the provided slice matches in length the number of expected Levels.
-    pub(crate) fn instantiate(decl: Term<'arena>, params: &[Level<'arena>], arena: &mut Arena<'arena>) -> Self {
+    pub(crate) fn instantiate(
+        decl: Term<'arena>,
+        params: &[Level<'arena>],
+        arena: &mut Arena<'arena>,
+    ) -> Self {
         let new_node = Node {
-            header: Header { term: OnceCell::new() },
+            header: Header {
+                term: OnceCell::new(),
+            },
             payload: Payload {
-            decl,
-            params: arena.store_level_slice(params) }
+                decl,
+                params: arena.store_level_slice(params),
+            },
         };
 
         match arena.hashcons_decls.get(&new_node) {
@@ -50,8 +74,7 @@ impl<'arena> InstantiatedDeclaration<'arena> {
     }
 
     /// Returns the term linked to a definition in a given environment.
-    pub fn get_term(&self) -> Term<'arena>
-    {
+    pub fn get_term(&self) -> Term<'arena> {
         *self.0.header.term.get_or_init(|| {})
     }
 

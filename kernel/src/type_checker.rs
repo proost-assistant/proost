@@ -8,7 +8,8 @@ use derive_more::Display;
 use num_bigint::BigUint;
 
 use crate::error::{Error, Result, ResultTerm};
-use crate::memory::arena::{Arena, Payload, Term};
+use crate::memory::arena::Arena;
+use crate::memory::term::{Payload, Term};
 use Payload::*;
 
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
@@ -282,7 +283,7 @@ mod tests {
     // this test uses more intricate terms. In order to preserve some readability,
     // switching to extern_build, which is clearer.
     fn typed_reduction_app_2() {
-        use crate::term::builders::*;
+        use crate::memory::builders::*;
         use_arena(|arena| {
             // (λa.λb.λc.a (λd.λe.e (d b)) (λ_.c) (λd.d)) (λf.λg.f g)
             let term = arena

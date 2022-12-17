@@ -3,14 +3,11 @@
 //! This module defines the core functions used to manipulate an arena and its terms.
 
 use std::collections::{HashMap, HashSet};
-use std::fmt::Debug;
-use std::fmt::Display;
-use std::hash::Hash;
 use std::marker::PhantomData;
-use std::ops::Deref;
 
 use bumpalo::Bump;
 
+use super::level::Level;
 use super::term::Term;
 
 /// A comprehensive memory management unit for terms.
@@ -88,6 +85,10 @@ impl<'arena> Arena<'arena> {
         }
     }
 
+    pub(crate) fn store_level_slice(&mut self, slice: &[Level<'arena>]) -> &'arena [Level<'arena>] {
+        self.alloc.alloc_slice_copy(slice)
+    }
+
     /// Stores a string in the arena.
     ///
     /// This is typically done to ensure strings live long enough when manipulating them.
@@ -111,21 +112,20 @@ impl<'arena> Arena<'arena> {
 /// associated to a set of traits that they are expected to have by living in an arena.
 macro_rules! new_dweller {
     ($dweller: ident, $header: ident, $payload: ident) => {
-
-/// A term of the calculus of constructions.
-///
-/// This type is associated, through its lifetime argument, to an [`Arena`], where it lives. There,
-/// it is guaranteed to be unique, which accelerates many algorithms. It is fundamentally a pointer
-/// to an internal term structure, called a Node, which itself contains the core term, [`Payload`],
-/// which is what can be expected of a term.
-///
-/// Additionally, the Node contains lazy structures which indicate the result of certain
-/// transformation on the term, namely type checking and term reduction. Storing it directly here
-/// is both faster and takes overall less space than storing the result in a separate hash table.
+        /// A term of the calculus of constructions.
+        ///
+        /// This type is associated, through its lifetime argument, to an [`Arena`], where it lives. There,
+        /// it is guaranteed to be unique, which accelerates many algorithms. It is fundamentally a pointer
+        /// to an internal term structure, called a Node, which itself contains the core term, [`Payload`],
+        /// which is what can be expected of a term.
+        ///
+        /// Additionally, the Node contains lazy structures which indicate the result of certain
+        /// transformation on the term, namely type checking and term reduction. Storing it directly here
+        /// is both faster and takes overall less space than storing the result in a separate hash table.
         #[derive(Clone, Copy)]
         pub struct $dweller<'arena>(
             &'arena Node<'arena>,
-            std::marker::PhantomData<*mut &'arena ()>
+            std::marker::PhantomData<*mut &'arena ()>,
         );
 
         pub(super) struct Node<'arena> {
@@ -218,4 +218,3 @@ macro_rules! new_dweller {
 }
 
 pub(super) use new_dweller;
-
