@@ -110,57 +110,54 @@ impl<'arena> Arena<'arena> {
 
     /// Infers the type of the term `t`, living in arena `self`.
     pub fn infer(&mut self, t: Term<'arena>) -> ResultTerm<'arena> {
-        t.get_type_or_try_init(|| {
-            match *t {
-                Prop => Ok(self.type_usize(0)),
-                Type(ref i) => Ok(self.type_(i.clone() + BigUint::from(1_u64).into())),
-                Var(_, type_) => Ok(type_),
+        t.get_type_or_try_init(|| match *t {
+            Prop => Ok(self.type_usize(0)),
+            Type(ref i) => Ok(self.type_(i.clone() + BigUint::from(1_u64).into())),
+            Var(_, type_) => Ok(type_),
 
-                Prod(t, u) => {
-                    let univ_t = self.infer(t)?;
-                    let univ_u = self.infer(u)?;
+            Prod(t, u) => {
+                let univ_t = self.infer(t)?;
+                let univ_u = self.infer(u)?;
 
-                    // TODO: relax normalization to whnf once it is itself relaxed (#34)
-                    let univ_t = self.normal_form(univ_t);
-                    let univ_u = self.normal_form(univ_u);
-                    self.imax(univ_t, univ_u)
-                },
+                let univ_t = self.whnf(univ_t);
+                let univ_u = self.whnf(univ_u);
+                self.imax(univ_t, univ_u)
+            },
 
-                Abs(t, u) => {
-                    let type_t = self.infer(t)?;
-                    match *type_t {
-                        Type(_) | Prop => {
-                            let type_u = self.infer(u)?;
-                            Ok(self.prod(t, type_u))
-                        },
-                        _ => Err(Error {
-                            kind: TypeCheckerError::NotUniverse(type_t).into(),
-                        }),
-                    }
-                },
+            Abs(t, u) => {
+                let type_t = self.infer(t)?;
+                match *type_t {
+                    Type(_) | Prop => {
+                        let type_u = self.infer(u)?;
+                        Ok(self.prod(t, type_u))
+                    },
+                    _ => Err(Error {
+                        kind: TypeCheckerError::NotUniverse(type_t).into(),
+                    }),
+                }
+            },
 
-                App(t, u) => {
-                    let type_t = self.infer(t)?;
-                    let type_t = self.whnf(type_t);
-                    match *type_t {
-                        Prod(arg_type, cls) => {
-                            let type_u = self.infer(u)?;
+            App(t, u) => {
+                let type_t = self.infer(t)?;
+                let type_t = self.whnf(type_t);
+                match *type_t {
+                    Prod(arg_type, cls) => {
+                        let type_u = self.infer(u)?;
 
-                            if self.conversion(type_u, arg_type) {
-                                Ok(self.substitute(cls, u, 1))
-                            } else {
-                                Err(Error {
-                                    kind: TypeCheckerError::WrongArgumentType(t, arg_type, TypedTerm(u, type_u)).into(),
-                                })
-                            }
-                        },
+                        if self.conversion(type_u, arg_type) {
+                            Ok(self.substitute(cls, u, 1))
+                        } else {
+                            Err(Error {
+                                kind: TypeCheckerError::WrongArgumentType(t, arg_type, TypedTerm(u, type_u)).into(),
+                            })
+                        }
+                    },
 
-                        _ => Err(Error {
-                            kind: TypeCheckerError::NotAFunction(TypedTerm(t, type_t), u).into(),
-                        }),
-                    }
-                },
-            }
+                    _ => Err(Error {
+                        kind: TypeCheckerError::NotAFunction(TypedTerm(t, type_t), u).into(),
+                    }),
+                }
+            },
         })
     }
 
