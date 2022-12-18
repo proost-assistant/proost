@@ -1,4 +1,5 @@
 #![doc(html_logo_url = "https://gitlab.crans.org/loutr/proost/-/raw/main/docs/media/logo.png")]
+#![feature(box_syntax)]
 #![feature(let_chains)]
 #![deny(
     clippy::complexity,
@@ -86,7 +87,7 @@ struct Args {
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const NAME: &str = env!("CARGO_PKG_NAME");
 
-fn main() -> Result<'static, ()> {
+fn main() -> Result<'static, 'static, ()> {
     let args = Args::parse();
 
     // check if files are provided as command-line arguments
@@ -95,7 +96,7 @@ fn main() -> Result<'static, ()> {
             .files
             .iter()
             .try_for_each(|path| fs::read_to_string(path).map(|_| ()))
-            .map_err(error::Error::from);
+            .map_err(Error::from);
     }
 
     // check if we are in a terminal
@@ -135,39 +136,34 @@ fn main() -> Result<'static, ()> {
     })
 }
 
-pub fn display<'arena>(res: Result<'arena, Option<Term<'arena>>>) {
+pub fn display<'arena, 'build>(res: Result<'arena, 'build, Option<Term<'arena>>>) {
     match res {
         Ok(None) => println!("{}", "\u{2713}".green()),
+
         Ok(Some(t)) => {
             for line in t.to_string().lines() {
                 println!("{} {line}", "\u{2713}".green());
             }
         },
-        Err(err) => {
-            let string = match err {
-                Error::Parser(parser::error::Error {
-                    kind: parser::error::Kind::CannotParse(message),
-                    location: loc,
-                }) => {
-                    if loc.start.column == loc.end.column {
-                        format!("{:0w1$}^\n{message}", "", w1 = loc.start.column - 1)
-                    } else {
-                        format!(
-                            "{:0w1$}^{:-<w2$}^\n{message}",
-                            "",
-                            "",
-                            w1 = loc.start.column - 1,
-                            w2 = loc.end.column - loc.start.column - 1
-                        )
-                    }
-                },
 
-                _ => err.to_string(),
+        Err(err) => {
+            let location = match err {
+                Error::Parser(ref err) => Some(&err.location),
+
+                _ => None,
             };
 
-            for line in string.lines() {
-                println!("{} {line}", "\u{2717}".red());
-            }
+            location.map(|loc| {
+                let indicator = if loc.start.column == loc.end.column {
+                    format!("{:0w1$}^", "", w1 = loc.start.column - 1)
+                } else {
+                    format!("{:0w1$}^{:-<w2$}^", "", "", w1 = loc.start.column - 1, w2 = loc.end.column - loc.start.column - 1)
+                };
+
+                println!("{} {}", "\u{2717}".red(), indicator)
+            });
+
+            println!("{} {}", "\u{2717}".red(), err.to_string())
         },
     }
 }

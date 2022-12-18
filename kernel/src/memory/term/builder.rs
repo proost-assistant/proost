@@ -196,6 +196,8 @@ pub enum Builder<'build> {
     Decl(Box<declaration::InstantiatedBuilder<'build>>),
 }
 
+impl<'build> super::super::Builder<'build> for Builder<'build> {}
+
 impl<'build> Builder<'build> {
     /// Realise a builder into a [`Term`]. This internally uses functions described in
     /// the [builder](`crate::memory::term::builder`) module.

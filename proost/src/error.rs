@@ -4,16 +4,26 @@ use derive_more::{Display, From};
 ///
 /// Please note that some traits like `Clone` or `PartialEq` cannot be implemented here because
 /// [`std::io::Error`] does not implement them.
-#[derive(Debug, Display, From)]
-pub enum Error<'arena> {
+#[derive(Display, From)]
+pub enum Error<'arena, 'build> {
+    #[display(fmt = "{}", _1)]
+    Kernel(Box<dyn kernel::memory::Builder<'build> + 'build>, kernel::error::Error<'arena>),
+
     Parser(parser::error::Error),
-    Kernel(kernel::error::Error<'arena>),
+
     Toplevel(crate::evaluator::Error),
 
     Io(std::io::Error),
+
     RustyLine(rustyline::error::ReadlineError),
 }
 
-impl std::error::Error for Error<'_> {}
+impl core::fmt::Debug for Error<'_, '_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Display::fmt(self, f)
+    }
+}
 
-pub type Result<'arena, T> = core::result::Result<T, Error<'arena>>;
+impl std::error::Error for Error<'_, '_> {}
+
+pub type Result<'arena, 'build, T> = core::result::Result<T, Error<'arena, 'build>>;
