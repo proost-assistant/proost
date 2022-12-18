@@ -70,7 +70,7 @@ impl<'arena> Level<'arena> {
                 arena.hashcons_levels.insert(&new_node, reduced);
                 arena.hashcons_levels.insert(reduced.0, reduced);
 
-                reduced.init_plus_form(arena);
+                reduced.init_plus_form();
                 reduced
             },
         }
@@ -131,7 +131,7 @@ impl<'arena> Level<'arena> {
         //}
     }
 
-    fn init_plus_form(self, arena: &mut Arena<'arena>) {
+    fn init_plus_form(self) {
         self.0.header.plus_form.get_or_init(|| match *self {
             Succ(u) => {
                 let (u, n) = u.plus();
@@ -160,18 +160,18 @@ impl<'arena> Level<'arena> {
     fn normalize(self, arena: &mut Arena<'arena>) -> Self {
         match *self {
             IMax(z, u) if *z == Zero => u,
-            IMax(u, v) => match *v {
+            IMax(u, v) => match &*v {
                 Zero => v,
                 Succ(_) => u.max(v, arena),
-                IMax(vv, vw) => Level::max(u.imax(vw, arena), v, arena),
-                Max(vv, vw) => Level::max(u.imax(vv, arena), u.imax(vw, arena), arena),
+                IMax(_, vw) => Level::max(u.imax(*vw, arena), v, arena),
+                Max(vv, vw) => Level::max(u.imax(*vv, arena), u.imax(*vw, arena), arena),
                 _ => self,
             },
 
-            Max(u, v) => match (*u, *v) {
+            Max(u, v) => match (&*u, &*v) {
                 (Zero, _) => v,
                 (_, Zero) => u,
-                (Succ(uu), Succ(vv)) => Level::max(uu, vv, arena).succ(arena),
+                (Succ(uu), Succ(vv)) => Level::max(*uu, *vv, arena).succ(arena),
                 _ => self,
             },
             _ => self,

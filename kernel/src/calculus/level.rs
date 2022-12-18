@@ -45,20 +45,20 @@ impl<'arena> Level<'arena> {
     // - (false,0) if !(u1 <= u2 + n),
     // - (false,i+1) if Var(i) needs to be substituted to unstuck the comparison.
     fn geq_no_subst(self, u2: Self, n: i64) -> (bool, usize) {
-        match (*self, *u2) {
+        match (&*self,&*u2) {
             (Zero, _) if n >= 0 => (true, 0),
             (_, _) if self == u2 && n >= 0 => (true, 0),
             (Succ(l), _) if l.geq_no_subst(u2, n - 1).0 => (true, 0),
-            (_, Succ(l)) if self.geq_no_subst(l, n + 1).0 => (true, 0),
+            (_, Succ(l)) if self.geq_no_subst(*l, n + 1).0 => (true, 0),
             (_, Max(l1, l2))
-                if self.geq_no_subst(l1, n).0 || self.geq_no_subst(l2, n).0 =>
+                if self.geq_no_subst(*l1, n).0 || self.geq_no_subst(*l2, n).0 =>
             {
                 (true, 0)
             }
             (Max(l1, l2), _) if l1.geq_no_subst(u2, n).0 && l2.geq_no_subst(u2, n).0 => {
                 (true, 0)
             }
-            (_, IMax(_, v)) | (IMax(_, v), _) if let Var(i) = *v => (false, i + 1),
+            (_, IMax(_, v)) | (IMax(_, v), _) if let Var(i) = **v => (false, i + 1),
             _ => (false, 0),
         }
     }

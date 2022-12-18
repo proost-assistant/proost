@@ -85,17 +85,18 @@ impl<'arena> Arena<'arena> {
 
     /// Computes the universe in which `(x: A) -> B` lives when `A: lhs` and `B: rhs`.
     fn imax(&mut self, lhs: Term<'arena>, rhs: Term<'arena>) -> ResultTerm<'arena> {
-        match (*lhs, *rhs) {
-            (Sort(l1), Sort(l2)) => {
-                let lvl = l1.imax(l2, self);
-                Ok(self.sort(lvl))
+        match *lhs {
+            Sort(l1) => match *rhs {
+                Sort(l2) => {
+                    let lvl = l1.imax(l2, self);
+                    Ok(self.sort(lvl))
+                },
+                _ => Err(Error {
+                    kind: TypeCheckerError::NotUniverse(rhs).into(),
+                }),
             },
-
-            (_, Sort(l2)) => Err(Error {
+            _ => Err(Error {
                 kind: TypeCheckerError::NotUniverse(lhs).into(),
-            }),
-            (_, _) => Err(Error {
-                kind: TypeCheckerError::NotUniverse(rhs).into(),
             }),
         }
     }
@@ -121,7 +122,7 @@ impl<'arena> Arena<'arena> {
             Abs(t, u) => {
                 let type_t = self.infer(t)?;
                 match *type_t {
-                    Sort(lvl) => {
+                    Sort(_) => {
                         let type_u = self.infer(u)?;
                         Ok(self.prod(t, type_u))
                     },
@@ -646,14 +647,15 @@ mod tests {
 
         #[test]
         fn not_universe_prod_2() {
-            use crate::memory::builders::type_usize;
             use_arena(|arena| {
                 let term = arena.build_raw(prod(prop(), abs(prop(), prop())));
 
+                let prop = arena.prop();
+                let type_ = arena.type_usize(0);
                 assert_eq!(
                     arena.infer(term),
                     Err(Error {
-                        kind: TypeCheckerError::NotUniverse(arena.prod(arena.prop(), arena.type_usize(0))).into()
+                        kind: TypeCheckerError::NotUniverse(arena.prod(prop, type_)).into()
                     })
                 );
             })

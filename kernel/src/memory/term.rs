@@ -66,9 +66,9 @@ impl<'arena> fmt::Display for Payload<'arena> {
                 Some(n) => match n {
                     0 => write!(f, "Prop"),
                     1 => write!(f, "Type"),
-                    _ => write!(f, "Type {n}"),
+                    _ => write!(f, "Type {}", n - 1),
                 },
-                None => write!(f, "Type {{{level}}}"),
+                None => write!(f, "Sort {{{level}}}"),
             },
             App(fun, arg) => write!(f, "{fun} {arg}"),
             Abs(argtype, body) => write!(f, "\u{003BB} {argtype} \u{02192} {body}"),
