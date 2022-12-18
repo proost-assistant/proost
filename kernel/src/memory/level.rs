@@ -49,7 +49,7 @@ impl<'arena> Level<'arena> {
     /// This function is the base low-level function for creating levels.
     ///
     /// It enforces the uniqueness property of levels in the arena, as well as the reduced-form
-    /// invariant, and the existence of its plus-form.
+    /// invariant.
     fn hashcons(payload: Payload<'arena>, arena: &mut Arena<'arena>) -> Self {
         let new_node = Node {
             payload,
@@ -61,16 +61,18 @@ impl<'arena> Level<'arena> {
         match arena.hashcons_levels.get(&new_node) {
             Some(level) => *level,
             None => {
-                // note that this implies that an non-reduced version of the term will still live
-                // in the arena, it will only be unreachable.
-                let level_unreduced = Level::new(&*arena.alloc.alloc(new_node));
-                arena.hashcons_levels.insert(&new_node, level_unreduced);
+                // add the unreduced node to the arena
+                let node_unreduced = &*arena.alloc.alloc(new_node);
+                let level_unreduced = Level::new(node_unreduced);
+                arena.hashcons_levels.insert(node_unreduced, level_unreduced);
 
+                // compute its reduced form
                 let reduced = level_unreduced.normalize(arena);
-                arena.hashcons_levels.insert(&new_node, reduced);
+
+                // supersede the previous correspondence
+                arena.hashcons_levels.insert(node_unreduced, reduced);
                 arena.hashcons_levels.insert(reduced.0, reduced);
 
-                reduced.init_plus_form();
                 reduced
             },
         }
@@ -119,6 +121,9 @@ impl<'arena> Level<'arena> {
     pub fn to_numeral(self) -> Option<usize> {
         let (u, n) = self.plus();
         (*u == Zero).then_some(n)
+        // This previous version of the code should be useless, keeping for testing the
+        // well-functioning of the normalize function.
+        //
         //match *self {
         //    Zero => Some(0),
         //    Succ(u) => u.to_numeral().map(|n| n + 1),
@@ -131,19 +136,15 @@ impl<'arena> Level<'arena> {
         //}
     }
 
-    fn init_plus_form(self) {
-        self.0.header.plus_form.get_or_init(|| match *self {
+    /// Helper function for pretty printing, if universe is of the form Succ(Succ(...(Succ(u))...)) then it gets printed as u+n.
+    pub fn plus(self) -> (Self, usize) {
+        *self.0.header.plus_form.get_or_init(|| match *self {
             Succ(u) => {
                 let (u, n) = u.plus();
                 (u, n + 1)
             },
             _ => (self, 0),
-        });
-    }
-
-    /// Helper function for pretty printing, if universe is of the form Succ(Succ(...(Succ(u))...)) then it gets printed as u+n.
-    pub fn plus(self) -> (Self, usize) {
-        *self.0.header.plus_form.get().unwrap()
+        })
     }
 
     /// Helper function for universe comparison. normalizes imax(es) as follows:
