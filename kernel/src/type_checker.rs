@@ -38,18 +38,18 @@ pub enum TypeCheckerError<'arena> {
     TypeMismatch(Term<'arena>, Term<'arena>),
 }
 
-impl<'arena> Arena<'arena> {
+impl<'arena> Term<'arena> {
     /// Conversion function, checks whether two terms are definitionally equal.
     ///
     /// The conversion is untyped, meaning that it should **only** be called during type-checking
     /// when the two `Term`s are already known to be of the same type and in the same context.
-    fn conversion(&mut self, lhs: Term<'arena>, rhs: Term<'arena>) -> bool {
-        if lhs == rhs {
+    fn conversion(self, rhs: Self, arena: &mut Arena<'arena>) -> bool {
+        if self == rhs {
             return true;
         }
 
-        let lhs = self.whnf(lhs);
-        let rhs = self.whnf(rhs);
+        let lhs = self.whnf(arena);
+        let rhs = rhs.whnf(arena);
 
         if lhs == rhs {
             return true;
@@ -62,69 +62,69 @@ impl<'arena> Arena<'arena> {
             // again.
             (Var(i, _), Var(j, _)) => i == j,
 
-            (&Prod(t1, u1), &Prod(t2, u2)) => self.conversion(t1, t2) && self.conversion(u1, u2),
+            (&Prod(t1, u1), &Prod(t2, u2)) => t1.conversion(t2, arena) && u1.conversion(u2, arena),
 
             // Since we assume that both values already have the same type,
             // checking conversion over the argument type is useless.
             // However, this doesn't mean we can simply remove the arg type
             // from the type constructor in the enum, it is needed to quote back to terms.
-            (&Abs(_, t), &Abs(_, u)) => self.conversion(t, u),
+            (&Abs(_, t), &Abs(_, u)) => t.conversion(u, arena),
 
-            (&App(t1, u1), &App(t2, u2)) => self.conversion(t1, t2) && self.conversion(u1, u2),
+            (&App(t1, u1), &App(t2, u2)) => t1.conversion(t2, arena) && u1.conversion(u2, arena),
 
             _ => false,
         }
     }
 
     /// Checks whether two terms are definitionally equal.
-    pub fn is_def_eq(&mut self, lhs: Term<'arena>, rhs: Term<'arena>) -> Result<'arena, ()> {
-        self.conversion(lhs, rhs).then_some(()).ok_or(Error {
-            kind: TypeCheckerError::NotDefEq(lhs, rhs).into(),
+    pub fn is_def_eq(self, rhs: Self, arena: &mut Arena<'arena>) -> Result<'arena, ()> {
+        self.conversion(rhs, arena).then_some(()).ok_or(Error {
+            kind: TypeCheckerError::NotDefEq(self, rhs).into(),
         })
     }
 
     /// Computes the universe in which `(x: A) -> B` lives when `A: lhs` and `B: rhs`.
-    fn imax(&mut self, lhs: Term<'arena>, rhs: Term<'arena>) -> ResultTerm<'arena> {
-        match *lhs {
+    fn imax(self, rhs: Self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
+        match *self {
             Sort(l1) => match *rhs {
                 Sort(l2) => {
-                    let lvl = l1.imax(l2, self);
-                    Ok(self.sort(lvl))
+                    let lvl = l1.imax(l2, arena);
+                    Ok(Term::sort(lvl, arena))
                 },
                 _ => Err(Error {
                     kind: TypeCheckerError::NotUniverse(rhs).into(),
                 }),
             },
             _ => Err(Error {
-                kind: TypeCheckerError::NotUniverse(lhs).into(),
+                kind: TypeCheckerError::NotUniverse(self).into(),
             }),
         }
     }
 
-    /// Infers the type of the term `t`, living in arena `self`.
-    pub fn infer(&mut self, t: Term<'arena>) -> ResultTerm<'arena> {
-        t.get_type_or_try_init(|| match *t {
+    /// Infers the type of the term `t`, living in arena `arena`.
+    pub fn infer(self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
+        self.get_type_or_try_init(|| match *self {
             Sort(lvl) => {
-                let lvl = lvl.succ(self);
-                Ok(self.sort(lvl))
+                let lvl = lvl.succ(arena);
+                Ok(Term::sort(lvl, arena))
             },
             Var(_, type_) => Ok(type_),
 
             Prod(t, u) => {
-                let univ_t = self.infer(t)?;
-                let univ_u = self.infer(u)?;
+                let univ_t = t.infer(arena)?;
+                let univ_u = u.infer(arena)?;
 
-                let univ_t = self.whnf(univ_t);
-                let univ_u = self.whnf(univ_u);
-                self.imax(univ_t, univ_u)
+                let univ_t = univ_t.whnf(arena);
+                let univ_u = univ_u.whnf(arena);
+                univ_t.imax(univ_u, arena)
             },
 
             Abs(t, u) => {
-                let type_t = self.infer(t)?;
+                let type_t = t.infer(arena)?;
                 match *type_t {
                     Sort(_) => {
-                        let type_u = self.infer(u)?;
-                        Ok(self.prod(t, type_u))
+                        let type_u = u.infer(arena)?;
+                        Ok(t.prod(type_u, arena))
                     },
                     _ => Err(Error {
                         kind: TypeCheckerError::NotUniverse(type_t).into(),
@@ -133,14 +133,14 @@ impl<'arena> Arena<'arena> {
             },
 
             App(t, u) => {
-                let type_t = self.infer(t)?;
-                let type_t = self.whnf(type_t);
+                let type_t = t.infer(arena)?;
+                let type_t = type_t.whnf(arena);
                 match *type_t {
                     Prod(arg_type, cls) => {
-                        let type_u = self.infer(u)?;
+                        let type_u = u.infer(arena)?;
 
-                        if self.conversion(type_u, arg_type) {
-                            Ok(self.substitute(cls, u, 1))
+                        if type_u.conversion(arg_type, arena) {
+                            Ok(cls.substitute(u, 1, arena))
                         } else {
                             Err(Error {
                                 kind: TypeCheckerError::WrongArgumentType(t, arg_type, TypedTerm(u, type_u)).into(),
@@ -158,11 +158,11 @@ impl<'arena> Arena<'arena> {
         })
     }
 
-    /// Checks whether the term `t` living in `self` is of type `ty`.
-    pub fn check(&mut self, t: Term<'arena>, ty: Term<'arena>) -> Result<'arena, ()> {
-        let tty = self.infer(t)?;
+    /// Checks whether the term `t` living in `arena` is of type `ty`.
+    pub fn check(self, ty: Self, arena: &mut Arena<'arena>) -> Result<'arena, ()> {
+        let tty = self.infer(arena)?;
 
-        self.conversion(tty, ty).then_some(()).ok_or(Error {
+        tty.conversion(ty, arena).then_some(()).ok_or(Error {
             kind: TypeCheckerError::TypeMismatch(tty, ty).into(),
         })
     }
@@ -185,7 +185,7 @@ mod tests {
             let term = arena.build_term_raw(app(abs(prop(), id.into()), id.into()));
             let normal_form = arena.build_term_raw(abs(prop(), var(1.into(), prop())));
 
-            assert!(arena.is_def_eq(term, normal_form).is_ok())
+            assert!(term.is_def_eq(normal_form, arena).is_ok())
         })
     }
 
@@ -196,7 +196,7 @@ mod tests {
             let term = arena.build_term_raw(app(abs(prop(), abs(prop(), var(2.into(), prop()))), id.into()));
             let normal_form = arena.build_term_raw(abs(prop(), id.into()));
 
-            assert!(arena.is_def_eq(term, normal_form).is_ok())
+            assert!(term.is_def_eq(normal_form, arena).is_ok())
         })
     }
 
@@ -207,18 +207,18 @@ mod tests {
             // λa.a (λx.x) (λx.x)
             let term = arena.build_term_raw(abs(prop(), app(app(var(2.into(), prop()), id.into()), id.into())));
 
-            assert!(arena.is_def_eq(term, term).is_ok());
+            assert!(term.is_def_eq(term, arena).is_ok());
         })
     }
 
     #[test]
     fn failed_def_equal() {
         use_arena(|arena| {
-            let term_lhs = arena.prop();
-            let term_rhs = arena.type_usize(0);
+            let term_lhs = Term::prop(arena);
+            let term_rhs = Term::type_usize(0, arena);
 
             assert_eq!(
-                arena.is_def_eq(term_lhs, term_rhs),
+                term_lhs.is_def_eq(term_rhs, arena),
                 Err(Error {
                     kind: TypeCheckerError::NotDefEq(term_lhs, term_rhs).into()
                 })
@@ -229,13 +229,13 @@ mod tests {
     #[test]
     fn failed_prod_binder_conversion() {
         use_arena(|arena| {
-            let type_0 = arena.type_usize(0);
+            let type_0 = Term::type_usize(0, arena);
 
             let term_lhs = arena.build_term_raw(prod(prop(), prop()));
             let term_rhs = arena.build_term_raw(prod(type_0.into(), prop()));
 
             assert_eq!(
-                arena.is_def_eq(term_lhs, term_rhs),
+                term_lhs.is_def_eq(term_rhs, arena),
                 Err(Error {
                     kind: TypeCheckerError::NotDefEq(term_lhs, term_rhs).into()
                 })
@@ -246,13 +246,13 @@ mod tests {
     #[test]
     fn failed_app_head_conversion() {
         use_arena(|arena| {
-            let type_0 = arena.type_usize(0);
+            let type_0 = Term::type_usize(0, arena);
             let term_lhs = arena.build_term_raw(abs(type_0.into(), abs(type_0.into(), app(var(1.into(), prop()), prop()))));
 
             let term_rhs = arena.build_term_raw(abs(type_0.into(), abs(type_0.into(), app(var(2.into(), prop()), prop()))));
 
             assert_eq!(
-                arena.is_def_eq(term_lhs, term_rhs),
+                term_lhs.is_def_eq(term_rhs, arena),
                 Err(Error {
                     kind: TypeCheckerError::NotDefEq(term_lhs, term_rhs).into()
                 })
@@ -263,15 +263,15 @@ mod tests {
     #[test]
     fn typed_reduction_app_1() {
         use_arena(|arena| {
-            let type_0 = arena.type_usize(0);
+            let type_0 = Term::type_usize(0, arena);
             let term = arena.build_term_raw(app(abs(type_0.into(), var(1.into(), type_0.into())), prop()));
 
             let reduced = arena.build_term_raw(prop());
-            assert!(arena.is_def_eq(term, reduced).is_ok());
+            assert!(term.is_def_eq(reduced, arena).is_ok());
 
-            let term_type = arena.infer(term).unwrap();
+            let term_type = term.infer(arena).unwrap();
             assert_eq!(term_type, type_0);
-            assert!(arena.check(term, term_type).is_ok())
+            assert!(term.check(term_type, arena).is_ok())
         })
     }
 
@@ -347,42 +347,42 @@ mod tests {
 
             // λa: P. λb: P. b
             let reduced = arena.build(abs("_", prop(), abs("x", prop(), var("x")))).unwrap();
-            assert!(arena.is_def_eq(term, reduced).is_ok());
+            assert!(term.is_def_eq(reduced, arena).is_ok());
 
-            let term_type = arena.infer(term).unwrap();
+            let term_type = term.infer(arena).unwrap();
             let expected_type = arena.build(prod("_", prop(), prod("_", prop(), prop()))).unwrap();
             assert_eq!(term_type, expected_type);
-            assert!(arena.check(term, term_type).is_ok())
+            assert!(term.check(term_type, arena).is_ok())
         })
     }
 
     #[test]
     fn typed_reduction_universe() {
         use_arena(|arena| {
-            let type_0 = arena.type_usize(0);
-            let type_1 = arena.type_usize(1);
+            let type_0 = Term::type_usize(0, arena);
+            let type_1 = Term::type_usize(1, arena);
 
             let term = arena.build_term_raw(app(abs(prop(), type_0.into()), prod(prop(), var(1.into(), prop()))));
 
-            assert!(arena.is_def_eq(term, type_0).is_ok());
+            assert!(term.is_def_eq(type_0, arena).is_ok());
 
-            let term_type = arena.infer(term).unwrap();
+            let term_type = term.infer(arena).unwrap();
             assert_eq!(term_type, type_1);
-            assert!(arena.check(term, term_type).is_ok())
+            assert!(term.check(term_type, arena).is_ok())
         })
     }
 
     #[test]
     fn escape_from_prop() {
         use_arena(|arena| {
-            let type_0 = arena.type_usize(0);
-            let type_1 = arena.type_usize(1);
+            let type_0 = Term::type_usize(0, arena);
+            let type_1 = Term::type_usize(1, arena);
             let term = arena.build_term_raw(abs(prop(), prod(var(1.into(), prop()), type_0.into())));
 
-            let term_type = arena.infer(term).unwrap();
+            let term_type = term.infer(arena).unwrap();
             let expected_type = arena.build_term_raw(prod(prop(), type_1.into()));
             assert_eq!(term_type, expected_type);
-            assert!(arena.check(term, term_type).is_ok())
+            assert!(term.check(term_type, arena).is_ok())
         })
     }
 
@@ -402,19 +402,19 @@ mod tests {
             // λx.x x
             let reduced = arena.build_term_raw(abs(prop(), app(var(1.into(), prop()), var(1.into(), prop()))));
 
-            assert!(arena.is_def_eq(term, reduced).is_ok())
+            assert!(term.is_def_eq(reduced, arena).is_ok())
         })
     }
 
     #[test]
     fn typed_prod_1() {
         use_arena(|arena| {
-            let type_0 = arena.type_usize(0);
+            let type_0 = Term::type_usize(0, arena);
             let term = arena.build_term_raw(prod(prop(), prop()));
-            let term_type = arena.infer(term).unwrap();
+            let term_type = term.infer(arena).unwrap();
 
             assert_eq!(term_type, type_0);
-            assert!(arena.check(term, term_type).is_ok())
+            assert!(term.check(term_type, arena).is_ok())
         })
     }
 
@@ -422,10 +422,10 @@ mod tests {
     fn typed_prod_2() {
         use_arena(|arena| {
             let term = arena.build_term_raw(prod(prop(), var(1.into(), prop())));
-            let term_type = arena.infer(term).unwrap();
+            let term_type = term.infer(arena).unwrap();
 
-            assert_eq!(term_type, arena.prop());
-            assert!(arena.check(term, term_type).is_ok());
+            assert_eq!(term_type, Term::prop(arena));
+            assert!(term.check(term_type, arena).is_ok());
         })
     }
 
@@ -433,28 +433,28 @@ mod tests {
     fn typed_prod_3() {
         use_arena(|arena| {
             let term = arena.build_term_raw(abs(prop(), abs(var(1.into(), prop()), var(1.into(), var(2.into(), prop())))));
-            let term_type = arena.infer(term).unwrap();
+            let term_type = term.infer(arena).unwrap();
             let expected_type = arena.build_term_raw(prod(prop(), prod(var(1.into(), prop()), var(2.into(), prop()))));
 
             assert_eq!(term_type, expected_type);
-            assert!(arena.check(term, term_type).is_ok());
+            assert!(term.check(term_type, arena).is_ok());
         })
     }
 
     #[test]
     fn typed_polymorphism() {
         use_arena(|arena| {
-            let type_0 = arena.type_usize(0);
+            let type_0 = Term::type_usize(0, arena);
 
             let identity =
                 arena.build_term_raw(abs(type_0.into(), abs(var(1.into(), type_0.into()), var(1.into(), var(2.into(), type_0.into())))));
 
-            let identity_type = arena.infer(identity).unwrap();
+            let identity_type = identity.infer(arena).unwrap();
             let expected_type =
                 arena.build_term_raw(prod(type_0.into(), prod(var(1.into(), type_0.into()), var(2.into(), type_0.into()))));
 
             assert_eq!(identity_type, expected_type);
-            assert!(arena.check(identity, identity_type).is_ok());
+            assert!(identity.check(identity_type, arena).is_ok());
         })
     }
 
@@ -471,32 +471,32 @@ mod tests {
                     ),
                 ),
             ));
-            let term_type = arena.infer(term).unwrap();
+            let term_type = term.infer(arena).unwrap();
 
             assert_eq!(term_type, arena.build_term_raw(prod(prop(), prod(prop(), prod(prod(prop(), prod(prop(), prop())), prop())))));
-            assert!(arena.check(term, term_type).is_ok());
+            assert!(term.check(term_type, arena).is_ok());
         })
     }
 
     #[test]
     fn type_hierarchy_prop() {
         use_arena(|arena| {
-            let term = arena.prop();
-            let term_type = arena.infer(term).unwrap();
+            let term = Term::prop(arena);
+            let term_type = term.infer(arena).unwrap();
 
-            assert_eq!(term_type, arena.type_usize(0));
-            assert!(arena.check(term, term_type).is_ok());
+            assert_eq!(term_type, Term::type_usize(0, arena));
+            assert!(term.check(term_type, arena).is_ok());
         })
     }
 
     #[test]
     fn type_hierarchy_type() {
         use_arena(|arena| {
-            let term = arena.type_usize(0);
-            let term_type = arena.infer(term).unwrap();
+            let term = Term::type_usize(0, arena);
+            let term_type = term.infer(arena).unwrap();
 
-            assert_eq!(term_type, arena.type_usize(1));
-            assert!(arena.check(term, term_type).is_ok());
+            assert_eq!(term_type, Term::type_usize(1, arena));
+            assert!(term.check(term_type, arena).is_ok());
         })
     }
 
@@ -509,9 +509,9 @@ mod tests {
                 let term = arena.build_term_raw(abs(app(prop(), prop()), prop()));
 
                 assert_eq!(
-                    arena.infer(term),
+                    term.infer(arena),
                     Err(Error {
-                        kind: TypeCheckerError::NotAFunction(TypedTerm(arena.prop(), arena.type_usize(0)), arena.prop()).into()
+                        kind: TypeCheckerError::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena)).into()
                     })
                 );
             })
@@ -523,9 +523,9 @@ mod tests {
                 let term = arena.build_term_raw(prod(prop(), app(prop(), prop())));
 
                 assert_eq!(
-                    arena.infer(term),
+                    term.infer(arena),
                     Err(Error {
-                        kind: TypeCheckerError::NotAFunction(TypedTerm(arena.prop(), arena.type_usize(0)), arena.prop()).into()
+                        kind: TypeCheckerError::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena)).into()
                     })
                 );
             })
@@ -537,9 +537,9 @@ mod tests {
                 let term = arena.build_term_raw(prod(app(prop(), prop()), prop()));
 
                 assert_eq!(
-                    arena.infer(term),
+                    term.infer(arena),
                     Err(Error {
-                        kind: TypeCheckerError::NotAFunction(TypedTerm(arena.prop(), arena.type_usize(0)), arena.prop()).into()
+                        kind: TypeCheckerError::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena)).into()
                     })
                 );
             })
@@ -551,9 +551,9 @@ mod tests {
                 let term = arena.build_term_raw(app(prop(), prop()));
 
                 assert_eq!(
-                    arena.infer(term),
+                    term.infer(arena),
                     Err(Error {
-                        kind: TypeCheckerError::NotAFunction(TypedTerm(arena.prop(), arena.type_usize(0)), arena.prop()).into()
+                        kind: TypeCheckerError::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena)).into()
                     })
                 );
             })
@@ -565,9 +565,9 @@ mod tests {
                 let term = arena.build_term_raw(app(app(prop(), prop()), prop()));
 
                 assert_eq!(
-                    arena.infer(term),
+                    term.infer(arena),
                     Err(Error {
-                        kind: TypeCheckerError::NotAFunction(TypedTerm(arena.prop(), arena.type_usize(0)), arena.prop()).into()
+                        kind: TypeCheckerError::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena)).into()
                     })
                 );
             })
@@ -579,9 +579,9 @@ mod tests {
                 let term = arena.build_term_raw(app(abs(prop(), prop()), app(prop(), prop())));
 
                 assert_eq!(
-                    arena.infer(term),
+                    term.infer(arena),
                     Err(Error {
-                        kind: TypeCheckerError::NotAFunction(TypedTerm(arena.prop(), arena.type_usize(0)), arena.prop()).into()
+                        kind: TypeCheckerError::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena)).into()
                     })
                 );
             })
@@ -601,11 +601,11 @@ mod tests {
                 ));
 
                 assert_eq!(
-                    arena.infer(term),
+                    term.infer(arena),
                     Err(Error {
                         kind: TypeCheckerError::WrongArgumentType(
                             arena.build_term_raw(abs(prop(), app(var(2.into(), prod(prop(), prop())), var(1.into(), prop())))),
-                            arena.prop(),
+                            Term::prop(arena),
                             TypedTerm(arena.build_term_raw(var(1.into(), prod(prop(), prop()))), arena.build_term_raw(prod(prop(), prop())))
                         )
                         .into()
@@ -623,7 +623,7 @@ mod tests {
                 ));
 
                 assert_eq!(
-                    arena.infer(term),
+                    term.infer(arena),
                     Err(Error {
                         kind: TypeCheckerError::NotUniverse(arena.build_term_raw(var(2.into(), prop()))).into()
                     })
@@ -637,7 +637,7 @@ mod tests {
                 let term = arena.build_term_raw(prod(id(), prop()));
 
                 assert_eq!(
-                    arena.infer(term),
+                    term.infer(arena),
                     Err(Error {
                         kind: TypeCheckerError::NotUniverse(arena.build_term_raw(prod(prop(), prop()))).into()
                     })
@@ -650,12 +650,12 @@ mod tests {
             use_arena(|arena| {
                 let term = arena.build_term_raw(prod(prop(), abs(prop(), prop())));
 
-                let prop = arena.prop();
-                let type_ = arena.type_usize(0);
+                let prop = Term::prop(arena);
+                let type_ = Term::type_usize(0, arena);
                 assert_eq!(
-                    arena.infer(term),
+                    term.infer(arena),
                     Err(Error {
-                        kind: TypeCheckerError::NotUniverse(arena.prod(prop, type_)).into()
+                        kind: TypeCheckerError::NotUniverse(prop.prod(type_, arena)).into()
                     })
                 );
             })
@@ -665,12 +665,12 @@ mod tests {
         fn check_fail_1() {
             use_arena(|arena| {
                 let term = arena.build_term_raw(app(prop(), prop()));
-                let expected_type = arena.prop();
+                let expected_type = Term::prop(arena);
 
                 assert_eq!(
-                    arena.check(term, expected_type),
+                    term.check(expected_type, arena),
                     Err(Error {
-                        kind: TypeCheckerError::NotAFunction(TypedTerm(arena.prop(), arena.type_usize(0)), arena.prop()).into(),
+                        kind: TypeCheckerError::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena)).into(),
                     })
                 );
             })
@@ -679,11 +679,11 @@ mod tests {
         #[test]
         fn check_fail_2() {
             use_arena(|arena| {
-                let prop = arena.prop();
+                let prop = Term::prop(arena);
                 assert_eq!(
-                    arena.check(prop, prop),
+                    prop.check(prop, arena),
                     Err(Error {
-                        kind: TypeCheckerError::TypeMismatch(arena.type_usize(0), prop).into(),
+                        kind: TypeCheckerError::TypeMismatch(Term::type_usize(0, arena), prop).into(),
                     })
                 );
             })

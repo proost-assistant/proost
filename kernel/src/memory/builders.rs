@@ -64,8 +64,8 @@ pub const fn var<'build, 'arena>(name: &'build str) -> impl BuilderTrait<'build,
             .map(|(bind_depth, term)| {
                 // This is arguably an eager computation, it could be worth making it lazy,
                 // or at least memoizing it so as to not compute it again
-                let var_type = arena.shift(*term, usize::from(depth - *bind_depth), 0);
-                arena.var(depth - *bind_depth, var_type)
+                let var_type = term.shift(usize::from(depth - *bind_depth), 0, arena);
+                Term::var(depth - *bind_depth, var_type, arena)
             })
             .or_else(|| arena.get_binding(name))
             .ok_or(Error {
@@ -77,36 +77,28 @@ pub const fn var<'build, 'arena>(name: &'build str) -> impl BuilderTrait<'build,
 /// Returns a closure building the Prop term.
 #[inline]
 pub const fn prop<'build, 'arena>() -> impl BuilderTrait<'build, 'arena> {
-    |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _| Ok(arena.prop())
+    |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _| Ok(Term::prop(arena))
 }
 
-/// Returns a closure building the Type `level` term.
-#[inline]
-pub const fn type_<'build, 'arena>(level: Level<'arena>) -> impl BuilderTrait<'build, 'arena> {
-    move |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _| Ok(arena.type_(level))
-}
-
-/// Returns a closure building the Type `level` term (indirection from `usize`).
+/// Returns a closure building the Type `i` term, where `i` is an integer
 #[inline]
 pub const fn type_usize<'build, 'arena>(level: usize) -> impl BuilderTrait<'build, 'arena> {
     move |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _| {
-        let lvl = Level::from(level, arena);
-        Ok(arena.type_(lvl))
+        Ok(Term::type_usize(level, arena))
     }
 }
 
-/// Returns a closure building the Type `level` term.
+/// Returns a closure building the Sort `level` term.
 #[inline]
 pub const fn sort<'build, 'arena>(level: Level<'arena>) -> impl BuilderTrait<'build, 'arena> {
-    move |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _| Ok(arena.sort(level))
+    move |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _| Ok(Term::sort(level, arena))
 }
 
-/// Returns a closure building the Type `level` term (indirection from `usize`).
+/// Returns a closure building the Sort `level` term (indirection from `usize`).
 #[inline]
 pub const fn sort_usize<'build, 'arena>(level: usize) -> impl BuilderTrait<'build, 'arena> {
     move |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _| {
-        let lvl = Level::from(level, arena);
-        Ok(arena.sort(lvl))
+        Ok(Term::sort_usize(level, arena))
     }
 }
 
@@ -121,7 +113,7 @@ pub const fn app<'build, 'arena, F1: BuilderTrait<'build, 'arena>, F2: BuilderTr
     |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, depth| {
         let u1 = u1(arena, env, depth)?;
         let u2 = u2(arena, env, depth)?;
-        Ok(arena.app(u1, u2))
+        Ok(u1.app(u2, arena))
     }
 }
 
@@ -138,7 +130,7 @@ pub const fn abs<'build, 'arena, F1: BuilderTrait<'build, 'arena>, F2: BuilderTr
         let arg_type = arg_type(arena, env, depth)?;
         let env = env.update(name, (depth, arg_type));
         let body = body(arena, &env, depth + 1.into())?;
-        Ok(arena.abs(arg_type, body))
+        Ok(arg_type.abs(body, arena))
     }
 }
 
@@ -155,7 +147,7 @@ pub const fn prod<'build, 'arena, F1: BuilderTrait<'build, 'arena>, F2: BuilderT
         let arg_type = arg_type(arena, env, depth)?;
         let env = env.update(name, (depth, arg_type));
         let body = body(arena, &env, depth + 1.into())?;
-        Ok(arena.prod(arg_type, body))
+        Ok(arg_type.prod(body, arena))
     }
 }
 
@@ -231,41 +223,41 @@ pub(crate) mod raw {
     }
 
     pub const fn var<'arena, F: BuilderTrait<'arena>>(index: DeBruijnIndex, type_: F) -> impl BuilderTrait<'arena> {
-        move |env: &mut Arena<'arena>| {
-            let ty = type_(env);
-            env.var(index, ty)
+        move |arena: &mut Arena<'arena>| {
+            let ty = type_(arena);
+            Term::var(index, ty, arena)
         }
     }
 
     pub const fn prop<'arena>() -> impl BuilderTrait<'arena> {
-        |env: &mut Arena<'arena>| env.prop()
+        |arena: &mut Arena<'arena>| Term::prop(arena)
     }
 
-    pub const fn type_<'arena>(level: Level<'arena>) -> impl BuilderTrait<'arena> {
-        move |env: &mut Arena<'arena>| env.type_(level)
+    pub const fn sort_<'arena>(level: Level<'arena>) -> impl BuilderTrait<'arena> {
+        move |arena: &mut Arena<'arena>| Term::sort(level, arena)
     }
 
     pub const fn app<'arena, F1: BuilderTrait<'arena>, F2: BuilderTrait<'arena>>(u1: F1, u2: F2) -> impl BuilderTrait<'arena> {
-        |env: &mut Arena<'arena>| {
-            let u1 = u1(env);
-            let u2 = u2(env);
-            env.app(u1, u2)
+        |arena: &mut Arena<'arena>| {
+            let u1 = u1(arena);
+            let u2 = u2(arena);
+            u1.app(u1, arena)
         }
     }
 
     pub const fn abs<'arena, F1: BuilderTrait<'arena>, F2: BuilderTrait<'arena>>(u1: F1, u2: F2) -> impl BuilderTrait<'arena> {
-        |env: &mut Arena<'arena>| {
-            let u1 = u1(env);
-            let u2 = u2(env);
-            env.abs(u1, u2)
+        |arena: &mut Arena<'arena>| {
+            let u1 = u1(arena);
+            let u2 = u2(arena);
+            u1.abs(u2, arena)
         }
     }
 
     pub const fn prod<'arena, F1: BuilderTrait<'arena>, F2: BuilderTrait<'arena>>(u1: F1, u2: F2) -> impl BuilderTrait<'arena> {
-        |env: &mut Arena<'arena>| {
-            let u1 = u1(env);
-            let u2 = u2(env);
-            env.prod(u1, u2)
+        |arena: &mut Arena<'arena>| {
+            let u1 = u1(arena);
+            let u2 = u2(arena);
+            u1.prod(u2, arena)
         }
     }
 }

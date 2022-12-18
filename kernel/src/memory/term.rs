@@ -10,6 +10,7 @@ use derive_more::{Add, Display, From, Into, Sub};
 
 use super::declaration::InstantiatedDeclaration;
 use super::level::Level;
+use crate::memory::arena::Arena;
 use crate::error::ResultTerm;
 
 /// An index used to designate bound variables.
@@ -86,92 +87,101 @@ impl<'arena> fmt::Display for Term<'arena> {
 
 use Payload::*;
 
-// TODO make this a Term-impl. This will impact most files from the project, but should not be so
-// hard.
-impl<'arena> super::arena::Arena<'arena> {
+impl<'arena> Term<'arena> {
     /// This function is the base low-level function for creating terms.
     ///
     /// It enforces the uniqueness property of terms in the arena.
-    fn hashcons_term(&mut self, n: Payload<'arena>) -> Term<'arena> {
+    fn hashcons(payload: Payload<'arena>, arena: &mut Arena<'arena>) -> Self {
         // There are concurrent designs here. hashcons could also take a node, which gives
         // subsequent function some liberty in providing the other objects of the header: WHNF,
         // type_ (unlikely, because not always desirable), is_certainly_closed.
         let new_node = Node {
-            payload: n,
+            payload,
             header: Header {
                 head_normal_form: OnceCell::new(),
                 type_: OnceCell::new(),
             },
         };
 
-        match self.hashcons_terms.get(&new_node) {
+        match arena.hashcons_terms.get(&new_node) {
             Some(addr) => Term::new(addr),
             None => {
-                let addr = self.alloc.alloc(new_node);
-                self.hashcons_terms.insert(addr);
+                let addr = arena.alloc.alloc(new_node);
+                arena.hashcons_terms.insert(addr);
                 Term::new(addr)
             },
         }
     }
 
     /// Returns a variable term with the given index and type
-    pub(crate) fn var(&mut self, index: DeBruijnIndex, type_: Term<'arena>) -> Term<'arena> {
-        self.hashcons_term(Var(index, type_))
+    pub(crate) fn var(index: DeBruijnIndex, type_: Term<'arena>, arena: &mut Arena<'arena>) -> Self {
+        Self::hashcons(Var(index, type_), arena)
     }
 
     /// Returns the term corresponding to a proposition
-    pub(crate) fn prop(&mut self) -> Term<'arena> {
-        let zero = Level::zero(self);
-        self.hashcons_term(Sort(zero))
+    pub(crate) fn prop(arena: &mut Arena<'arena>) -> Self {
+        Self::hashcons(Sort(Level::zero(arena)), arena)
     }
 
-    pub(crate) fn type_(&mut self, level: Level<'arena>) -> Term<'arena> {
-        let succ = level.succ(self);
-        self.hashcons_term(Sort(succ))
-    }
-
-    pub(crate) fn sort(&mut self, level: Level<'arena>) -> Term<'arena> {
-        self.hashcons_term(Sort(level))
+    /// Returns the term associated to the sort of the given level
+    pub(crate) fn sort(level: Level<'arena>, arena: &mut Arena<'arena>) -> Self {
+        Self::hashcons(Sort(level), arena)
     }
 
     /// Returns the term corresponding to Type(level), casting level appropriately first
-    pub(crate) fn type_usize(&mut self, level: usize) -> Term<'arena> {
-        let level = Level::from(level + 1, self);
-        self.hashcons_term(Sort(level))
+    pub(crate) fn type_usize(level: usize, arena: &mut Arena<'arena>) -> Self {
+        Self::hashcons(Sort(Level::from(level + 1, arena)), arena)
     }
 
-    /// Returns the term corresponding to Type(level), casting level appropriately first
-    pub(crate) fn sort_usize(&mut self, level: usize) -> Term<'arena> {
-        let level = Level::from(level, self);
-        self.hashcons_term(Sort(level))
+    /// Returns the term corresponding to Sort(level), casting level appropriately first
+    pub(crate) fn sort_usize(level: usize, arena: &mut Arena<'arena>) -> Self {
+        Self::hashcons(Sort(Level::from(level, arena)), arena)
     }
 
     /// Returns the application of one term to the other
-    pub(crate) fn app(&mut self, func: Term<'arena>, arg: Term<'arena>) -> Term<'arena> {
-        self.hashcons_term(App(func, arg))
+    pub(crate) fn app(self, arg: Self, arena: &mut Arena<'arena>) -> Self {
+        Self::hashcons(App(self, arg), arena)
     }
 
     /// Returns the lambda-abstraction of the term `body`, with an argument of type `arg_type`.
     ///
     /// Please note that no verification is done that occurrences of this variable in `body` have
     /// the same type.
-    pub(crate) fn abs(&mut self, arg_type: Term<'arena>, body: Term<'arena>) -> Term<'arena> {
-        self.hashcons_term(Abs(arg_type, body))
+    pub(crate) fn abs(self, body: Self, arena: &mut Arena<'arena>) -> Self {
+        Self::hashcons(Abs(self, body), arena)
     }
 
     /// Returns the dependant product of the term `body`, over elements of `arg_type`.
     ///
     /// Please note that no verification is done that occurrences of this variable in `body` have
     /// the same type.
-    pub(crate) fn prod(&mut self, arg_type: Term<'arena>, body: Term<'arena>) -> Term<'arena> {
-        self.hashcons_term(Prod(arg_type, body))
+    pub(crate) fn prod(self, body: Self, arena: &mut Arena<'arena>) -> Self {
+        Self::hashcons(Prod(self, body), arena)
     }
 
-    /// TODO(doc)
-    pub(crate) fn decl(&mut self, decl: InstantiatedDeclaration<'arena>) -> Term<'arena> {
-        self.hashcons_term(Decl(decl))
+    /// Returns the term associated to the given instantiated declaration.
+    pub(crate) fn decl(decl: InstantiatedDeclaration<'arena>, arena: &mut Arena<'arena>) -> Self {
+        Self::hashcons(Decl(decl), arena)
     }
 
+    /// Returns the weak head normal form of the term, lazily computing the closure `f`.
+    pub(crate) fn get_whnf_or_init<F>(self, f: F) -> Self
+    where
+        F: FnOnce() -> Self,
+    {
+        *self.0.header.head_normal_form.get_or_init(f)
+    }
+
+    /// Returns the type of the term, lazily computing the closure `f`.
+    pub(crate) fn get_type_or_try_init<F>(self, f: F) -> ResultTerm<'arena>
+    where
+        F: FnOnce() -> ResultTerm<'arena>,
+    {
+        self.0.header.type_.get_or_try_init(f).copied()
+    }
+}
+
+impl<'arena> Arena<'arena> {
     /// Returns the result of the substitution described by the key, lazily computing the closure `f`.
     pub(crate) fn get_subst_or_init<F>(&mut self, key: &(Term<'arena>, Term<'arena>, usize), f: F) -> Term<'arena>
     where
@@ -185,23 +195,5 @@ impl<'arena> super::arena::Arena<'arena> {
                 res
             },
         }
-    }
-}
-
-impl<'arena> Term<'arena> {
-    /// Returns the weak head normal form of the term, lazily computing the closure `f`.
-    pub(crate) fn get_whnf_or_init<F>(self, f: F) -> Term<'arena>
-    where
-        F: FnOnce() -> Term<'arena>,
-    {
-        *self.0.header.head_normal_form.get_or_init(f)
-    }
-
-    /// Returns the type of the term, lazily computing the closure `f`.
-    pub(crate) fn get_type_or_try_init<F>(self, f: F) -> ResultTerm<'arena>
-    where
-        F: FnOnce() -> ResultTerm<'arena>,
-    {
-        self.0.header.type_.get_or_try_init(f).copied()
     }
 }
