@@ -96,8 +96,8 @@ impl<'arena> Term<'arena> {
                 Ok(Term::sort(lvl, arena))
             },
 
-            (&Sort(_), _) => Err(Error::new(TypeCheckerError::NotUniverse(rhs).into())),
-            (_, _) => Err(Error::new(TypeCheckerError::NotUniverse(self).into())),
+            (&Sort(_), _) => Err(Error::new(TypeCheckerError::NotUniverse(rhs).into())).trace_err(Trace::Right),
+            (_, _) => Err(Error::new(TypeCheckerError::NotUniverse(self).into())).trace_err(Trace::Left),
         }
     }
 
@@ -131,12 +131,12 @@ impl<'arena> Term<'arena> {
             },
 
             App(t, u) => {
-                let type_t = t.infer(arena)?;
+                let type_t = t.infer(arena).trace_err(Trace::Left)?;
                 let type_t = type_t.whnf(arena);
 
                 match *type_t {
                     Prod(arg_type, cls) => {
-                        let type_u = u.infer(arena)?;
+                        let type_u = u.infer(arena).trace_err(Trace::Right)?;
 
                         if type_u.conversion(arg_type, arena) {
                             Ok(cls.substitute(u, 1, arena))
@@ -145,7 +145,7 @@ impl<'arena> Term<'arena> {
                         }
                     },
 
-                    _ => Err(Error::new(TypeCheckerError::NotAFunction(TypedTerm(t, type_t), u).into())),
+                    _ => Err(Error::new(TypeCheckerError::NotAFunction(TypedTerm(t, type_t), u).into())).trace_err(Trace::Left),
                 }
             },
 
@@ -276,7 +276,8 @@ mod tests {
             assert_eq!(
                 term_lhs.is_def_eq(term_rhs, arena),
                 Err(Error {
-                    kind: TypeCheckerError::NotDefEq(term_lhs, term_rhs).into()
+                    kind: TypeCheckerError::NotDefEq(term_lhs, term_rhs).into(),
+                    trace: vec![]
                 })
             );
         });
@@ -291,7 +292,8 @@ mod tests {
             assert_eq!(
                 term_lhs.is_def_eq(term_rhs, arena),
                 Err(Error {
-                    kind: TypeCheckerError::NotDefEq(term_lhs, term_rhs).into()
+                    kind: TypeCheckerError::NotDefEq(term_lhs, term_rhs).into(),
+                    trace: vec![]
                 })
             );
         });
@@ -306,7 +308,8 @@ mod tests {
             assert_eq!(
                 term_lhs.is_def_eq(term_rhs, arena),
                 Err(Error {
-                    kind: TypeCheckerError::NotDefEq(term_lhs, term_rhs).into()
+                    kind: TypeCheckerError::NotDefEq(term_lhs, term_rhs).into(),
+                    trace: vec![]
                 })
             );
         });
@@ -567,6 +570,7 @@ mod tests {
                             Term::prop(arena)
                         )
                         .into()
+                        trace: vec![Trace::Left, Trace::Left]
                     })
                 );
             });
@@ -585,6 +589,7 @@ mod tests {
                             Term::prop(arena)
                         )
                         .into()
+                        trace: vec![Trace::Left, Trace::Right]
                     })
                 );
             });
@@ -603,6 +608,7 @@ mod tests {
                             Term::prop(arena)
                         )
                         .into()
+                        trace: vec![Trace::Left, Trace::Left]
                     })
                 );
             });
@@ -621,6 +627,7 @@ mod tests {
                             Term::prop(arena)
                         )
                         .into()
+                        trace: vec![Trace::Left]
                     })
                 );
             });
@@ -639,6 +646,7 @@ mod tests {
                             Term::prop(arena)
                         )
                         .into()
+                        trace: vec![Trace::Left, Trace::Left]
                     })
                 );
             });
@@ -657,6 +665,7 @@ mod tests {
                             Term::prop(arena)
                         )
                         .into()
+                        trace: vec![Trace::Left, Trace::Right]
                     })
                 );
             });
@@ -686,7 +695,8 @@ mod tests {
                                 arena.build_term_raw(prod(prop(), prop()))
                             )
                         )
-                        .into()
+                        .into(),
+                        trace: vec![Trace::Right]
                     })
                 );
             });
@@ -704,6 +714,7 @@ mod tests {
                     term.infer(arena),
                     Err(Error {
                         kind: TypeCheckerError::NotUniverse(arena.build_term_raw(var(2.into(), prop()))).into()
+                        trace: vec![Trace::Left, Trace::Right, Trace::Right]
                     })
                 );
             });
@@ -718,6 +729,7 @@ mod tests {
                     term.infer(arena),
                     Err(Error {
                         kind: TypeCheckerError::NotUniverse(arena.build_term_raw(prod(prop(), prop()))).into()
+                        trace: vec![Trace::Left]
                     })
                 );
             });
@@ -734,6 +746,7 @@ mod tests {
                     term.infer(arena),
                     Err(Error {
                         kind: TypeCheckerError::NotUniverse(prop.prod(type_, arena)).into()
+                        trace: vec![Trace::Right]
                     })
                 );
             });
@@ -753,6 +766,7 @@ mod tests {
                             Term::prop(arena)
                         )
                         .into(),
+                        trace: vec![Trace::Left]
                     })
                 );
             });
@@ -766,6 +780,7 @@ mod tests {
                     prop.check(prop, arena),
                     Err(Error {
                         kind: TypeCheckerError::TypeMismatch(Term::type_usize(0, arena), prop).into(),
+                        trace: vec![]
                     })
                 );
             });
