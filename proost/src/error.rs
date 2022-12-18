@@ -9,7 +9,7 @@ pub enum Error<'arena> {
     Parser(parser::error::Error),
     Kernel(kernel::error::Error<'arena>),
     Toplevel(crate::evaluator::Error),
-
+    ModuleTree(crate::module_tree::Error),
     Io(std::io::Error),
     RustyLine(rustyline::error::ReadlineError),
 }

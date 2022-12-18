@@ -64,7 +64,7 @@ pub const fn var<'build, 'arena>(name: &'build Vec<&'build str>) -> impl Builder
             return Ok(arena.var(depth - *bind_depth, var_type));
         }
 
-        Err(Error {
+        arena.get_binding(name).ok_or(Error {
             kind: DefinitionError::ConstNotFound(arena.store_name(name)).into(),
         })
     }

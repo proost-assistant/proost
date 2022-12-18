@@ -1,18 +1,17 @@
-use std::collections::{HashSet};
+use std::collections::HashSet;
 use std::fs::read_to_string;
 use std::iter;
 use std::path::PathBuf;
 
 use colored::Colorize;
-use derive_more::Display;
+use derive_more::{Display, From};
 use kernel::location::Location;
 use kernel::term::arena::{Arena, Term};
-use kernel::term::builders::NamespaceContext;
 use parser::command::Command;
 use parser::{parse_file, parse_line};
 use path_absolutize::Absolutize;
 
-use crate::module_tree::ModuleTree;
+use crate::module_tree::{ModuleTree, self};
 use crate::error::Error::*;
 use crate::error::Result;
 
@@ -36,26 +35,15 @@ pub enum ErrorKind {
 
     #[display(fmt = "cyclic dependency:\n{}", _0)]
     CyclicDependencies(String),
-
-    #[display(fmt = "identifier {} already defined", _0)]
-    BoundVariable(String),
-
-    #[display(fmt = "no module to close")]
-    NoModuleToClose(),
-
-    #[display(fmt = "{} is not a module", "_0.join(\"::\")")]
-    ModuleNotFound(Vec<String>),
 }
 
 impl std::error::Error for Error {}
-
-
 
 pub struct Evaluator {
     path: PathBuf,
     verbose: bool,
     imported_files: HashSet<PathBuf>,
-    mod_tree: ModuleTree,
+    modtree: ModuleTree,
 }
 
 impl<'arena> Evaluator {
@@ -64,19 +52,13 @@ impl<'arena> Evaluator {
             path,
             verbose,
             imported_files: HashSet::new(),
-            mod_tree: ModuleTree::new(),
+            modtree: ModuleTree::new(),
         }
     }
 
-    /// Export the current open modules to be displayed
-    pub fn export_open_modules(&self) -> String {
-        let mut result = Vec::new();
-        while let ModuleTree::Mod(true, s, modtree2) = modtree {
-            result.push(*s);
-            if modtree2.is_empty() { break; };
-            modtree = modtree2.last().unwrap()
-        };
-        result.join("::")
+    /// Export the current open modules
+    pub fn open_modules(&self) -> String {
+        self.modtree.get_path().join("::")
     }
 
     /// Create a new path from a relative path
@@ -99,9 +81,7 @@ impl<'arena> Evaluator {
         }
     }
 
-    /// Begin a new file importation.
-    ///
-    /// file_path must be absolute
+    /// Begin a new file importation. file_path must be absolute
     fn import_file(
         &mut self,
         arena: &mut Arena<'arena>,
@@ -164,14 +144,14 @@ impl<'arena> Evaluator {
         command: &Command<'build>,
         importing: &mut Vec<PathBuf>,
     ) -> Result<'arena, Option<Term<'arena>>> {
-        let mod_ctx = NamespaceContext {
-            module_stack: &self.module_stack,
-            used_modules: self.used_modules.last().unwrap(),
-            used_vars: self.used_vars.last().unwrap(),
-        };
 
         match command {
-            Command::Define(_, s, None, term) => {
+            Command::Define(public, name, None, term) => {
+
+                let term = self.modtree.contextualize(term);
+                let path = self.modtree.define(name.to_string(), *public);
+
+
                 let name = self.module_stack.iter().map(String::as_str).chain(iter::once(*s)).collect::<Vec<&str>>();
                 if arena.get_binding(&name).is_none() {
                     let term = term.realise(arena, mod_ctx)?;

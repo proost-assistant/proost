@@ -93,8 +93,16 @@ impl ModuleTree {
     /// Return the name of a node.
     fn name(&self) -> String {
         match self.0.get(self.1).unwrap() {
-            ModuleNode::Def(name, ..) => *name,
+            ModuleNode::Def(name, _) => *name,
             ModuleNode::Mod(name, ..) => *name,
+        }
+    }
+
+    /// Return the public status of a node.
+    fn public(&self) -> bool {
+        match self.0.get(self.1).unwrap() {
+            ModuleNode::Def(_, public) => *public,
+            ModuleNode::Mod(..) => true,
         }
     }
 
@@ -126,10 +134,12 @@ impl ModuleTree {
             return self.parent().get_relative(path);
         }
 
+        let filter = if path.is_empty() { |_: &ModuleTree| true } else { |modtree: &ModuleTree| modtree.public() };
+
         let candidates: Vec<ModuleTree> = self
             .children()
             .iter()
-            .filter_map(|modtree| (modtree.name() == module).then(|| modtree.get_relative(path).ok()).flatten())
+            .filter_map(|modtree| (modtree.name() == module && filter(modtree)).then(|| modtree.get_relative(path).ok()).flatten())
             .collect();
 
         if candidates.is_empty() {
@@ -144,31 +154,31 @@ impl ModuleTree {
     }
 
     /// Add a node in the current module of the tree
-    fn add_node(&mut self, node: ModuleNode) -> usize {
+    fn add_node(&mut self, node: ModuleNode) -> ModuleTree {
         let pos = self.0.len();
         let ModuleNode::Mod(_, _, children) = self.0.get(self.1).unwrap();
         children.push(pos);
         self.0.push(node);
-        pos
+        ModuleTree(self.0, pos)
     }
 
     /// Add a definition in the current module of the tree
-    pub fn define(&mut self, name: String, public: bool) -> Result<()> {
+    pub fn define(&mut self, name: String, public: bool) -> Result<Vec<String>> {
         let res = self.get_relative([name].into());
         if res.is_ok() {
             return Err(Error::BoundVariable(res.unwrap().get_path()));
         }
-        self.add_node(ModuleNode::Def(name, public));
-        Ok(())
+        let modtree = self.add_node(ModuleNode::Def(name, public));
+        Ok(modtree.get_path())
     }
 
     /// Create and move into a new (sub) module
     pub fn begin_module(&mut self, name: String) -> Result<()> {
         let res = self.get_relative([name].into());
-        let module_pos = {
-            if res.is_ok() { res.unwrap().1 } else { self.add_node(ModuleNode::Mod(name, self.1, Vec::new())) }
+        let module = {
+            if res.is_ok() { res.unwrap() } else { self.add_node(ModuleNode::Mod(name, self.1, Vec::new())) }
         };
-        self.1 = module_pos;
+        *self = module;
         Ok(())
     }
 
@@ -186,43 +196,50 @@ impl ModuleTree {
     pub fn use_module(&mut self, name: Vec<String>) -> Result<()> {
         let modtree = self.get_absolute(name.into())?;
         let ModuleNode::Mod(_, _, children) = self.0.get(self.1).unwrap();
-        children.push(modtree.1);
+        children.extend(modtree.children().iter().filter_map(|modtree| {
+            if let ModuleNode::Def(_, false) = self.0.get(modtree.1).unwrap() {
+                return None;
+            }
+            Some(modtree.1)
+        }));
         Ok(())
     }
+
+    pub fn get_
 }
 
 #[cfg(test)]
 mod tests {
-use super::ModuleTree;
+    use super::ModuleTree;
 
     #[test]
-    fn get_path{
+    fn get_empty_path() {
         let modtree = ModuleTree::new();
-        assert_eq!(modtree.get_path(), Vec::new());
-        //TODO
+        let res: Vec<String> = Vec::new();
+        assert_eq!(modtree.get_path(), res);
     }
 
-    #[test]
-    fn failed_relative_1{}
+    // #[test]
+    // fn failed_relative_1{}
 
-    #[test]
-    fn failed_relative_2{}
+    // #[test]
+    // fn failed_relative_2{}
 
-    #[test]
-    fn successful_variable{}
+    // #[test]
+    // fn successful_variable{}
 
-    #[test]
-    fn failed_variable{}
+    // #[test]
+    // fn failed_variable{}
 
-    #[test]
-    fn successful_modules{}
+    // #[test]
+    // fn successful_modules{}
 
-    #[test]
-    fn failed_modules{}
+    // #[test]
+    // fn failed_modules{}
 
-    #[test]
-    fn successful_use{}
+    // #[test]
+    // fn successful_use{}
 
-    #[test]
-    fn failed_use{}
+    // #[test]
+    // fn failed_use{}
 }
