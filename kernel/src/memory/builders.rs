@@ -18,6 +18,7 @@ use im_rc::hashmap::HashMap as ImHashMap;
 
 use super::arena::Arena;
 use super::level::Level;
+use super::levelBuilders::{LevelBuilder, LevelEnvironment};
 use super::term::{DeBruijnIndex, Term};
 use crate::error::{Error, ResultTerm};
 
@@ -42,7 +43,7 @@ pub type Environment<'build, 'arena> = ImHashMap<&'build str, (DeBruijnIndex, Te
 /// functions in this module returning a closure with this trait are guaranteed to be sound, end
 /// users can also create their own closures satisfying `BuilderTrait`; this should be avoided.
 pub trait BuilderTrait<'build, 'arena> =
-    FnOnce(&mut Arena<'arena>, &Environment<'build, 'arena>, DeBruijnIndex) -> ResultTerm<'arena>;
+    FnOnce(&mut Arena<'arena>, &Environment<'build, 'arena>, &LevelEnvironment<'build,'arena>, DeBruijnIndex) -> ResultTerm<'arena>;
 
 impl<'arena> Arena<'arena> {
     /// Returns the term built from the given closure, provided with an empty context, at depth 0.
@@ -58,7 +59,7 @@ impl<'arena> Arena<'arena> {
 /// Returns a closure building a variable associated to the name `name`
 #[inline]
 pub const fn var<'build, 'arena>(name: &'build str) -> impl BuilderTrait<'build, 'arena> {
-    move |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, depth| {
+    move |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, lvl_env: &LevelEnvironment<'build, 'arena>, depth| {
         env.get(name)
             .map(|(bind_depth, term)| {
                 // This is arguably an eager computation, it could be worth making it lazy,
@@ -165,27 +166,24 @@ pub const fn prod<'build, 'arena, F1: BuilderTrait<'build, 'arena>, F2: BuilderT
 /// include a name, as in the classic way of writing lambda-terms (i.e. no de Bruijn indices
 /// involved).
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
-pub enum Builder<'r> {
+pub enum TermBuilder<'r> {
     #[display(fmt = "{}", _0)]
     Var(&'r str),
 
-    #[display(fmt = "Prop")]
-    Prop,
-
-    #[display(fmt = "Type {}", _0)]
-    Type(usize),
+    #[display(fmt = "Sort {}", _0)]
+    Sort(LevelBuilder<'r>),
 
     #[display(fmt = "{} {}", _0, _1)]
-    App(Box<Builder<'r>>, Box<Builder<'r>>),
+    App(Box<TermBuilder<'r>>, Box<TermBuilder<'r>>),
 
     #[display(fmt = "\u{003BB} {}: {} \u{02192} {}", _0, _1, _2)]
-    Abs(&'r str, Box<Builder<'r>>, Box<Builder<'r>>),
+    Abs(&'r str, Box<TermBuilder<'r>>, Box<TermBuilder<'r>>),
 
     #[display(fmt = "\u{03A0} {}: {} \u{02192} {}", _0, _1, _2)]
-    Prod(&'r str, Box<Builder<'r>>, Box<Builder<'r>>),
+    Prod(&'r str, Box<TermBuilder<'r>>, Box<TermBuilder<'r>>),
 }
 
-impl<'build> Builder<'build> {
+impl<'build> TermBuilder<'build> {
     /// Build a terms from a [`Builder`]. This internally uses functions described in the
     /// [builders](`crate::term::builders`) module.
     pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
@@ -200,13 +198,13 @@ impl<'build> Builder<'build> {
         &self,
         arena: &mut Arena<'arena>,
         env: &Environment<'build, 'arena>,
+        lvl_env : &LevelEnvironment<'build,'arena>,
         depth: DeBruijnIndex,
     ) -> ResultTerm<'arena> {
-        use Builder::*;
+        use TermBuilder::*;
         match *self {
             Var(s) => var(s)(arena, env, depth),
-            Type(level) => type_usize(level)(arena, env, depth),
-            Prop => prop()(arena, env, depth),
+            Sort(level) => sort(LevelBuilder::partial_application(level)(arena,lvl_env))(arena, env, depth),
             App(ref l, ref r) => app(l.partial_application(), r.partial_application())(arena, env, depth),
             Abs(s, ref arg, ref body) => abs(s, arg.partial_application(), body.partial_application())(arena, env, depth),
             Prod(s, ref arg, ref body) => prod(s, arg.partial_application(), body.partial_application())(arena, env, depth),
@@ -221,7 +219,7 @@ pub(crate) mod raw {
     pub trait BuilderTrait<'arena> = FnOnce(&mut Arena<'arena>) -> Term<'arena>;
 
     impl<'arena> Arena<'arena> {
-        pub(crate) fn build_raw<F: BuilderTrait<'arena>>(&mut self, f: F) -> Term<'arena> {
+        pub(crate) fn build_term_raw<F: BuilderTrait<'arena>>(&mut self, f: F) -> Term<'arena> {
             f(self)
         }
     }

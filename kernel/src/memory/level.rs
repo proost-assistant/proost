@@ -51,7 +51,7 @@ impl<'arena> Level<'arena> {
     /// It enforces the uniqueness property of levels in the arena, as well as the reduced-form
     /// invariant.
     fn hashcons(payload: Payload<'arena>, arena: &mut Arena<'arena>) -> Self {
-        let new_node = Node {
+        let new_node: Node<'arena> = Node {
             payload,
             header: Header {
                 plus_form: OnceCell::new(),

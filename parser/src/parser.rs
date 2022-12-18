@@ -1,5 +1,5 @@
 use kernel::location::Location;
-use kernel::term::builders::Builder;
+use kernel::term::builders::TermBuilder;
 use pest::error::LineColLocation;
 use pest::iterators::Pair;
 use pest::{Parser, Span};
@@ -19,8 +19,8 @@ fn convert_span(span: Span) -> Location {
 }
 
 /// Returns a kernel term builder from pest output
-fn parse_term(pair: Pair<Rule>) -> Builder {
-    use Builder::*;
+fn parse_term(pair: Pair<Rule>) -> TermBuilder {
+    use TermBuilder::*;
 
     // location to be used in a future version
     let _loc = convert_span(pair.as_span());
@@ -206,7 +206,7 @@ pub fn parse_file(file: &str) -> crate::error::Result<Vec<Command>> {
 #[cfg(test)]
 mod tests {
     use kernel::term::builders::*;
-    use Builder::*;
+    use TermBuilder::*;
 
     use super::Command::*;
     use super::*;
