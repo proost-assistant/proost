@@ -3,14 +3,16 @@ COMMENT = _{ "//" ~ (!"\n" ~ ANY)* }
 number = @{ ASCII_DIGIT+ }
 filename = @{ ( ASCII_ALPHANUMERIC | PUNCTUATION )+ }
 string = @{ !keywords ~ ASCII_ALPHA ~ ( "_" | ASCII_ALPHANUMERIC )* }
-keywords = @{ ( "fun" | "def" | "check" | "Prop" | "Type" ) ~ !ASCII_ALPHANUMERIC }
+keywords = @{ ( "fun" | "def" | "check" | "Prop" | "Type" | "Sort" ) ~ !ASCII_ALPHANUMERIC }
 eoi = _{ !ANY }
 
-Term = _{ Abs | dProd | Prod | App | Var | Prop | Type | "(" ~ Term ~ ")" }
-term_prod = _{ App | Abs | dProd | Var | Prop | Type | "(" ~ Prod ~ ")" | "(" ~ term_prod ~ ")" }
-term_app = _{ Abs | Var | Prop | Type | "(" ~ App ~ ")" | "(" ~ Prod ~ ")" | "(" ~ dProd ~ ")" | "(" ~ term_app ~ ")" } 
-term_dprod = _{ App | Abs | Prod | dProd | Var | Prop | Type | "(" ~ term_dprod ~ ")" }
-term_abs = _{ App | Abs | Prod | dProd | Var | Prop | Type | "(" ~ term_abs ~ ")" }
+
+
+Term = _{ Abs | dProd | Prod | App | Var | Prop | Type | Sort | "(" ~ Term ~ ")" }
+term_prod = _{ App | Abs | dProd | Var | Prop | Type | Sort | "(" ~ Prod ~ ")" | "(" ~ term_prod ~ ")" }
+term_app = _{ Abs | Var | Prop | Type | Sort | "(" ~ App ~ ")" | "(" ~ Prod ~ ")" | "(" ~ dProd ~ ")" | "(" ~ term_app ~ ")" } 
+term_dprod = _{ App | Abs | Prod | dProd | Var | Prop | Type | Sort | "(" ~ term_dprod ~ ")" }
+term_abs = _{ App | Abs | Prod | dProd | Var | Prop | Type | Sort | "(" ~ term_abs ~ ")" }
 
 Abs = { ( "fun" ~ ( arg_abs_par ~ ( "," ~ arg_abs_par )* ) ~ "=>" ~ Term ) }
 arg_abs_par = _{ arg_abs | "(" ~ arg_abs_par ~ ")" }
@@ -22,19 +24,28 @@ arg_dprod = { string+ ~ ":" ~ term_dprod }
 
 App = { term_app ~ term_app+ }
 Prod = { term_prod ~ ( "->" ~ term_prod )+ }
-
 Prop = { "Prop" }
-Type = { "Type(" ~ number ~ ")" | "Type" ~ number? }
-Var = { string }
+
+Type = { "Type" ~ univ? }
+Sort = { "Sort" ~ univ? }
+univ = _{ Plus | Max | Num | string | "(" ~ univ ~ ")" }
+univ_plus = _{ Max | Num | string | "(" ~ univ ~ ")" }
+Num = { number }
+Plus = { univ_plus ~ ( "+" ~ number )+ }
+Max = { ( "max" ~ "(" ~ univ ~ "," ~ univ ~ ")" ) | ( "max" ~ univ ~ univ ) }
+
+Var = { string ~ arg_univ? }
+arg_univ = {".{" ~ (univ ~ ("," ~ univ)*)? ~ "}"}
+
+univ_decl = {".{" ~ (string ~ ("," ~ string)* )? ~ "}"}
 
 Command = _{ Define | CheckType | GetType | DefineCheckType | Eval | ImportFile | Search}
-Define = { "def" ~ string ~ ":=" ~ Term }
-DefineCheckType = { "def" ~ string ~ ":" ~ Term ~ ":=" ~ Term }
+Define = { "def" ~ string ~ univ_decl? ~ ":=" ~ Term }
+DefineCheckType = { "def" ~ string ~ univ_decl? ~ ":" ~ Term ~ ":=" ~ Term }
 CheckType = { "check" ~ Term ~ ":" ~ Term }
 GetType = { "check" ~ Term }
 Eval = { "eval" ~ Term }
 ImportFile = { "import" ~ filename* }
 Search = { "search" ~ string }
-
 command = _{SOI ~ Command ~ eoi }
 file = _{ SOI ~ Command* ~ eoi }
