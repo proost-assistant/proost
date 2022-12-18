@@ -4,22 +4,22 @@
 
 use core::fmt;
 
-use kernel::term::builders::Builder;
+use kernel::memory::builders::TermBuilder;
 
 /// The type of commands that can be received by the kernel.
 #[derive(Debug, Eq, PartialEq)]
 pub enum Command<'build> {
     /// Define a new term and optionally check that it's type match the given one.
-    Define(&'build str, Option<Builder<'build>>, Builder<'build>),
+    Define(&'build str, Option<TermBuilder<'build>>, TermBuilder<'build>),
 
     /// Infer the type of a term and check that it match the given one.
-    CheckType(Builder<'build>, Builder<'build>),
+    CheckType(TermBuilder<'build>,TermBuilder<'build>),
 
     /// Infer the type of a term.
-    GetType(Builder<'build>),
+    GetType(TermBuilder<'build>),
 
     /// Evaluate a term.
-    Eval(Builder<'build>),
+    Eval(TermBuilder<'build>),
 
     /// Import a (series of) file(s).
     Import(Vec<&'build str>),

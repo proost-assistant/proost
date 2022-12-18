@@ -1,5 +1,6 @@
 use kernel::location::Location;
-use kernel::term::builders::TermBuilder;
+use kernel::memory::builders::TermBuilder;
+use kernel::memory::level_builders::LevelBuilder;
 use pest::error::LineColLocation;
 use pest::iterators::Pair;
 use pest::{Parser, Span};
@@ -18,6 +19,54 @@ fn convert_span(span: Span) -> Location {
     ((x1, y1), (x2, y2)).into()
 }
 
+/// build universe level from errorless pest's output
+fn parse_level(pair: Pair<Rule>) -> LevelBuilder {
+    use LevelBuilder::*;
+
+    // location to be used in a future version
+    let _loc = convert_span(pair.as_span());
+
+    match pair.as_rule() {
+        Rule::Num => {
+            let n = pair.into_inner().as_str().parse().unwrap();
+            let mut univ = Zero;
+            for _ in 0..n {
+                univ = Succ(box univ);
+            }
+            univ
+        }
+        Rule::Max => {
+            let mut iter = pair.into_inner();
+            let univ1 = parse_level(iter.next().unwrap());
+            let univ2 = parse_level(iter.next().unwrap());
+            IMax(box univ1, box univ2)
+        }
+        Rule::IMax => {
+            let mut iter = pair.into_inner();
+            let univ1 = parse_level(iter.next().unwrap());
+            let univ2 = parse_level(iter.next().unwrap());
+            IMax(box univ1, box univ2)
+        }
+        Rule::Plus => {
+            let mut iter = pair.into_inner();
+            let mut univ = parse_level(iter.next().unwrap());
+            let n = iter.map(|x| x.as_str().parse::<u64>().unwrap()).sum();
+            for _ in 0..n {
+                univ = Succ(box univ);
+            }
+            univ
+        }
+        Rule::string => {
+            let name = pair.as_str();
+            Var(name)
+        
+        }
+        univ => unreachable!("Unexpected universe level: {:?}", univ),
+    }
+}
+
+
+
 /// Returns a kernel term builder from pest output
 fn parse_term(pair: Pair<Rule>) -> TermBuilder {
     use TermBuilder::*;
@@ -26,11 +75,13 @@ fn parse_term(pair: Pair<Rule>) -> TermBuilder {
     let _loc = convert_span(pair.as_span());
 
     match pair.as_rule() {
-        Rule::Prop => Prop,
+        Rule::Prop => Sort(LevelBuilder::Zero),
 
         Rule::Var => Var(pair.into_inner().as_str()),
 
-        Rule::Type => Type(pair.into_inner().fold(0, |_, x| x.as_str().parse::<usize>().unwrap())),
+        Rule::Type => Sort(LevelBuilder::Succ(box parse_level(pair.into_inner().next_back().unwrap()))),
+
+        Rule::Sort => Sort(parse_level(pair.into_inner().next_back().unwrap())),
 
         Rule::App => {
             let mut iter = pair.into_inner().map(parse_term);
