@@ -95,17 +95,34 @@ impl<'arena> Arena<'arena> {
                 self.var(i, ty)
             },
 
-            Sort(level) => self.sort(level.substitute(univs, self)),
-            App(u1, u2) => self.app(self.substitute_univs(u1, univs), self.substitute_univs(u2, univs)),
-            Abs(u1, u2) => self.abs(self.substitute_univs(u1, univs), self.substitute_univs(u2, univs)),
-            Prod(u1, u2) => self.prod(self.substitute_univs(u1, univs), self.substitute_univs(u2, univs)),
+            Sort(level) => {
+                let subst = level.substitute(univs, self);
+                self.sort(subst)
+            },
+            App(u1, u2) => {
+                let u1 = self.substitute_univs(u1, univs);
+                let u2 = self.substitute_univs(u2, univs);
+                self.app(u1, u2)
+            },
+            Abs(u1, u2) => {
+                let u1 = self.substitute_univs(u1, univs);
+                let u2 = self.substitute_univs(u2, univs);
+                self.abs(u1, u2)
+            },
+
+            Prod(u1, u2) => {
+                let u1 = self.substitute_univs(u1, univs);
+                let u2 = self.substitute_univs(u2, univs);
+                self.prod(u1, u2)
+            },
             Decl(decl) => {
                 // TODO this can be slightly optimised. Certainly the substitute mapping can be
                 // performed in place while allocating the slice with store_level_slice. This
                 // function thus has to be made with templates.
                 let params = &*decl.params.into_iter().map(|level| level.substitute(univs, self)).collect::<Vec<Level>>();
                 let params = self.store_level_slice(params);
-                self.decl(InstantiatedDeclaration::instantiate((*decl).decl, params, self))
+                let inst = InstantiatedDeclaration::instantiate((*decl).decl, params, self);
+                self.decl(inst)
             },
         }
     }

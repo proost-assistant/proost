@@ -2,10 +2,7 @@
 //!
 //! The logical core of the kernel.
 
-use std::cmp::max;
-
 use derive_more::Display;
-use num_bigint::BigUint;
 use Payload::*;
 
 use crate::error::{Error, Result, ResultTerm};
@@ -88,22 +85,16 @@ impl<'arena> Arena<'arena> {
 
     /// Computes the universe in which `(x: A) -> B` lives when `A: lhs` and `B: rhs`.
     fn imax(&mut self, lhs: Term<'arena>, rhs: Term<'arena>) -> ResultTerm<'arena> {
-        match *rhs {
-            // Because Prop is impredicative, if B : Prop, then (x : A) -> B : Prop
-            Prop => Ok(self.prop()),
-
-            Type(ref i) => match *lhs {
-                Prop => Ok(self.type_(i.clone())),
-
-                // else if u1 = Type(i) and u2 = Type(j), then (x : A) -> B : Type(max(i,j))
-                Type(ref j) => Ok(self.type_(max(i, j).clone())),
-
-                _ => Err(Error {
-                    kind: TypeCheckerError::NotUniverse(lhs).into(),
-                }),
+        match (*lhs, *rhs) {
+            (Sort(l1), Sort(l2)) => {
+                let lvl = l1.imax(l2, self);
+                Ok(self.sort(lvl))
             },
 
-            _ => Err(Error {
+            (_, Sort(l2)) => Err(Error {
+                kind: TypeCheckerError::NotUniverse(lhs).into(),
+            }),
+            (_, _) => Err(Error {
                 kind: TypeCheckerError::NotUniverse(rhs).into(),
             }),
         }
@@ -112,8 +103,10 @@ impl<'arena> Arena<'arena> {
     /// Infers the type of the term `t`, living in arena `self`.
     pub fn infer(&mut self, t: Term<'arena>) -> ResultTerm<'arena> {
         t.get_type_or_try_init(|| match *t {
-            Prop => Ok(self.type_usize(0)),
-            Type(ref i) => Ok(self.type_(i.clone() + BigUint::from(1_u64).into())),
+            Sort(lvl) => {
+                let lvl = lvl.succ(self);
+                Ok(self.sort(lvl))
+            },
             Var(_, type_) => Ok(type_),
 
             Prod(t, u) => {
@@ -128,7 +121,7 @@ impl<'arena> Arena<'arena> {
             Abs(t, u) => {
                 let type_t = self.infer(t)?;
                 match *type_t {
-                    Type(_) | Prop => {
+                    Sort(lvl) => {
                         let type_u = self.infer(u)?;
                         Ok(self.prod(t, type_u))
                     },
@@ -159,6 +152,8 @@ impl<'arena> Arena<'arena> {
                     }),
                 }
             },
+
+            Decl(_) => unreachable!("Todo"),
         })
     }
 
@@ -651,14 +646,14 @@ mod tests {
 
         #[test]
         fn not_universe_prod_2() {
+            use crate::memory::builders::type_usize;
             use_arena(|arena| {
                 let term = arena.build_raw(prod(prop(), abs(prop(), prop())));
 
                 assert_eq!(
                     arena.infer(term),
                     Err(Error {
-                        kind: TypeCheckerError::NotUniverse(arena.build_raw(prod(prop(), type_(BigUint::from(0_u64).into()))))
-                            .into()
+                        kind: TypeCheckerError::NotUniverse(arena.prod(arena.prop(), arena.type_usize(0))).into()
                     })
                 );
             })

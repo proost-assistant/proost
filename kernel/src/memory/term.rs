@@ -125,6 +125,11 @@ impl<'arena> super::arena::Arena<'arena> {
         self.hashcons_term(Sort(zero))
     }
 
+    pub(crate) fn type_(&mut self, level: Level<'arena>) -> Term<'arena> {
+        let succ = level.succ(self);
+        self.hashcons_term(Sort(succ))
+    }
+
     pub(crate) fn sort(&mut self, level: Level<'arena>) -> Term<'arena> {
         self.hashcons_term(Sort(level))
     }
@@ -132,6 +137,12 @@ impl<'arena> super::arena::Arena<'arena> {
     /// Returns the term corresponding to Type(level), casting level appropriately first
     pub(crate) fn type_usize(&mut self, level: usize) -> Term<'arena> {
         let level = Level::from(level + 1, self);
+        self.hashcons_term(Sort(level))
+    }
+
+    /// Returns the term corresponding to Type(level), casting level appropriately first
+    pub(crate) fn sort_usize(&mut self, level: usize) -> Term<'arena> {
+        let level = Level::from(level, self);
         self.hashcons_term(Sort(level))
     }
 

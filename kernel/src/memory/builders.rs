@@ -88,8 +88,25 @@ pub const fn type_<'build, 'arena>(level: Level<'arena>) -> impl BuilderTrait<'b
 /// Returns a closure building the Type `level` term (indirection from `usize`).
 #[inline]
 pub const fn type_usize<'build, 'arena>(level: usize) -> impl BuilderTrait<'build, 'arena> {
-    use num_bigint::BigUint;
-    move |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _| Ok(arena.type_(BigUint::from(level).into()))
+    move |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _| {
+        let lvl = Level::from(level, arena);
+        Ok(arena.type_(lvl))
+    }
+}
+
+/// Returns a closure building the Type `level` term.
+#[inline]
+pub const fn sort<'build, 'arena>(level: Level<'arena>) -> impl BuilderTrait<'build, 'arena> {
+    move |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _| Ok(arena.sort(level))
+}
+
+/// Returns a closure building the Type `level` term (indirection from `usize`).
+#[inline]
+pub const fn sort_usize<'build, 'arena>(level: usize) -> impl BuilderTrait<'build, 'arena> {
+    move |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _| {
+        let lvl = Level::from(level, arena);
+        Ok(arena.sort(lvl))
+    }
 }
 
 /// Returns a closure building the application of two terms built from the given closures `u1` and
