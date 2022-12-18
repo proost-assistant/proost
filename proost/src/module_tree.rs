@@ -1,20 +1,22 @@
 use std::collections::VecDeque;
 use std::fmt::Display;
 
+use kernel::term::builders::Builder;
+
 /// Type representing module tree errors.
 #[non_exhaustive]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Error {
+pub enum Error<'a> {
     NoModuleToClose(),
 
     PathNotFound(Vec<String>),
 
-    AmbigiousPath(Vec<String>, Vec<ModuleTree>),
+    AmbigiousPath(Vec<String>, Vec<ModuleTree<'a>>),
 
     BoundVariable(Vec<String>),
 }
 
-impl Display for Error {
+impl<'a> Display for Error<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use Error::*;
 
@@ -26,7 +28,7 @@ impl Display for Error {
             AmbigiousPath(path, candidates) => {
                 let res = write!(f, "{} is ambigious and could mean ", path.join("::"));
 
-                let iter = candidates.iter().map(|modtree| (*modtree).get_path().join("::"));
+                let mut iter = candidates.iter().map(|modtree| (*modtree).get_path().join("::"));
                 let first = iter.next();
                 let last = iter.next_back();
 
@@ -43,18 +45,18 @@ impl Display for Error {
     }
 }
 
-impl std::error::Error for Error {}
+impl<'a> std::error::Error for Error<'a> {}
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<'a, T> = std::result::Result<T, Error<'a>>;
 
 /// Module tree node.
 #[derive(Clone, Debug, PartialEq, Eq)]
-enum ModuleNode {
+enum ModuleNode<'a> {
     /// A module with it's parent and children positions
-    Mod(String, usize, Vec<usize>),
+    Mod(&'a str, usize, Vec<usize>),
 
     /// A variable with it's public status
-    Def(String, bool),
+    Def(&'a str, bool),
 }
 
 /// Module tree: a tree representing module inclusions and variable private or public memberships
@@ -63,12 +65,12 @@ enum ModuleNode {
 /// A tree is made up of a vector of nodes and an indice of the vector rather than a recursive struct
 /// to allow both up and down traversal of the tree.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ModuleTree(Vec<ModuleNode>, usize);
+pub struct ModuleTree<'a>(&'a Vec<ModuleNode<'a>>, usize);
 
-impl ModuleTree {
-    pub fn new() -> ModuleTree {
-        let node = ModuleNode::Mod(String::new(), 0, Vec::new());
-        ModuleTree([node].to_vec(), 0)
+impl<'a> ModuleTree<'a> {
+    pub fn new() -> ModuleTree<'a> {
+        let node = ModuleNode::Mod("", 0, Vec::new());
+        ModuleTree(&[node].to_vec(), 0)
     }
 
     /// Return the root of the tree.
@@ -91,7 +93,7 @@ impl ModuleTree {
     }
 
     /// Return the name of a node.
-    fn name(&self) -> String {
+    fn name(&self) -> &str {
         match self.0.get(self.1).unwrap() {
             ModuleNode::Def(name, _) => *name,
             ModuleNode::Mod(name, ..) => *name,
@@ -107,7 +109,7 @@ impl ModuleTree {
     }
 
     /// Return the path from the root of the tree to the current module.
-    pub fn get_path(&self) -> Vec<String> {
+    pub fn get_path(&self) -> Vec<&str> {
         let ModuleNode::Mod(name, pos, _) = self.0.get(self.1).unwrap();
         if *pos == 0_usize {
             Vec::new()
@@ -205,7 +207,22 @@ impl ModuleTree {
         Ok(())
     }
 
-    pub fn get_
+    pub fn search(&self, name: &[&str]) -> Result<Vec<String>> {
+        let path = name.iter().map(|s| s.to_string()).collect();
+        Ok(self.get_relative(path).or_else(|_| self.get_absolute(path))?.get_path())
+    }
+
+    /// Return a contextualizef version of the builder where variables names have been expended according to the given module tree
+    pub fn contextualize(&self, term: &Builder) -> Result<Builder> {
+        use Builder::*;
+        Ok(match term {
+            Prop | Type(_) => *term,
+            App(box t1, box t2) => App(box self.contextualize(t1)?, box self.contextualize(t2)?),
+            Abs(name, box t1, box t2) => Abs(name, box self.contextualize(t1)?, box self.contextualize(t2)?),
+            Prod(name, box t1, box t2) => Prod(name, box self.contextualize(t1)?, box self.contextualize(t2)?),
+            Var(name) => Var(self.search(name)?.iter().map(|s| &s[..]).collect()),
+        })
+    }
 }
 
 #[cfg(test)]

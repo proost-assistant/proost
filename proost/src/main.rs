@@ -1,5 +1,5 @@
 #![doc(html_logo_url = "https://gitlab.crans.org/loutr/proost/-/raw/main/docs/media/logo.png")]
-#![feature(let_chains)]
+#![feature(let_chains, box_syntax, box_patterns)]
 
 mod error;
 mod evaluator;

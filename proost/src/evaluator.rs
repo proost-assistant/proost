@@ -1,20 +1,18 @@
 use std::collections::HashSet;
 use std::fs::read_to_string;
-use std::iter;
 use std::path::PathBuf;
 
 use colored::Colorize;
-use derive_more::{Display, From};
+use derive_more::Display;
 use kernel::location::Location;
 use kernel::term::arena::{Arena, Term};
 use parser::command::Command;
 use parser::{parse_file, parse_line};
 use path_absolutize::Absolutize;
 
-use crate::module_tree::{ModuleTree, self};
 use crate::error::Error::*;
 use crate::error::Result;
-
+use crate::module_tree::ModuleTree;
 
 /// Type representing parser errors.
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
@@ -144,64 +142,51 @@ impl<'arena> Evaluator {
         command: &Command<'build>,
         importing: &mut Vec<PathBuf>,
     ) -> Result<'arena, Option<Term<'arena>>> {
-
         match command {
             Command::Define(public, name, None, term) => {
+                let term = self.modtree.contextualize(term)?;
+                let path: Vec<&str> = self.modtree.define(name.to_string(), *public)?.iter().map(|s| &s[..]).collect();
 
-                let term = self.modtree.contextualize(term);
-                let path = self.modtree.define(name.to_string(), *public);
+                let term = term.realise(arena)?;
+                arena.infer(term)?;
+                arena.bind(&path[..], term);
 
-
-                let name = self.module_stack.iter().map(String::as_str).chain(iter::once(*s)).collect::<Vec<&str>>();
-                if arena.get_binding(&name).is_none() {
-                    let term = term.realise(arena, mod_ctx)?;
-                    arena.infer(term)?;
-                    arena.bind(&name, term);
-                    Ok(None)
-                } else {
-                    Err(Toplevel(Error {
-                        kind: ErrorKind::BoundVariable(s.to_string()),
-                        location: Location::default(), // TODO (see #38)
-                    }))
-                }
+                Ok(None)
             },
 
-            Command::Define(_, s, Some(t), term) => {
-                let name = self.module_stack.iter().map(String::as_str).chain(iter::once(*s)).collect::<Vec<&str>>();
-                if arena.get_binding(&name).is_none() {
-                    let term = term.realise(arena, mod_ctx)?;
-                    let t = t.realise(arena, mod_ctx)?;
-                    arena.check(term, t)?;
-                    arena.bind(&name, term);
-                    Ok(None)
-                } else {
-                    Err(Toplevel(Error {
-                        kind: ErrorKind::BoundVariable(s.to_string()),
-                        location: Location::default(), // TODO (see #38)
-                    }))
-                }
+            Command::Define(public, name, Some(t), term) => {
+                let term = self.modtree.contextualize(term)?;
+                let t = self.modtree.contextualize(t)?;
+                let path: Vec<&str> = self.modtree.define(name.to_string(), *public)?.iter().map(|s| &s[..]).collect();
+
+                let term = term.realise(arena)?;
+                let t = t.realise(arena)?;
+                arena.check(term, t)?;
+                arena.bind(&path[..], term);
+
+                Ok(None)
             },
 
             Command::CheckType(t1, t2) => {
-                let t1 = t1.realise(arena, mod_ctx)?;
-                let t2 = t2.realise(arena, mod_ctx)?;
+                let t1 = self.modtree.contextualize(t1)?.realise(arena)?;
+                let t2 = self.modtree.contextualize(t2)?.realise(arena)?;
                 arena.check(t1, t2)?;
                 Ok(None)
             },
 
             Command::GetType(t) => {
-                let t = t.realise(arena, mod_ctx)?;
+                let t = self.modtree.contextualize(t)?.realise(arena)?;
                 Ok(arena.infer(t).map(Some)?)
             },
 
             Command::Eval(t) => {
-                let t = t.realise(arena, mod_ctx)?;
+                let t = self.modtree.contextualize(t)?.realise(arena)?;
                 Ok(Some(arena.normal_form(t)))
             },
 
-            Command::Search(s) => {
-                let name = self.module_stack.iter().map(String::as_str).chain(s.iter().copied()).collect::<Vec<&str>>();
-                Ok(arena.get_binding(&name)) // TODO (see #49)
+            Command::Search(name) => {
+                let path: Vec<&str> = self.modtree.search(name)?.iter().map(|s| &s[..]).collect();
+                Ok(arena.get_binding(&path)) // TODO (see #49)
             },
 
             Command::Import(files) => files
@@ -212,37 +197,20 @@ impl<'arena> Evaluator {
                 })
                 .map(|_| None),
 
-            Command::BeginModule(s) => {
-                self.module_stack.push(s.to_string());
-                self.used_modules.push(HashSet::new());
-                self.used_vars.push(HashSet::new());
+            Command::BeginModule(name) => {
+                self.modtree.begin_module(name.to_string())?;
                 Ok(None)
             },
 
-            Command::EndModule() if self.module_stack.pop().is_some() => {
-                self.defined_modules.insert(self.module_stack.clone());
-                self.module_stack.pop();
-                self.used_modules.pop();
-                self.used_vars.pop();
+            Command::EndModule() => {
+                self.modtree.end_module()?;
                 Ok(None)
             },
-
-            Command::EndModule() => Err(Toplevel(Error {
-                kind: ErrorKind::NoModuleToClose(),
-                location: Location::default(), // TODO (see #38)
-            })),
 
             Command::UseModule(name) => {
-                let name = name.iter().map(|s| s.to_string()).collect::<Vec<String>>();
-                if self.defined_modules.contains(&name) {
-                    return Ok(None);
-                }
-                if self.defined_vars
-                Err(Toplevel(Error {
-                    kind: ErrorKind::ModuleNotFound(name),
-                    location: Location::default(), // TODO (see #38)
-                }))
-            }, //TODO check in defined modules if it exists
+                self.modtree.use_module(name.iter().map(|s| s.to_string()).collect())?;
+                Ok(None)
+            },
         }
     }
 
