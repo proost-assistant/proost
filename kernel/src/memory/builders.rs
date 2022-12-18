@@ -16,8 +16,9 @@
 use derive_more::Display;
 use im_rc::hashmap::HashMap as ImHashMap;
 
-use super::arena::{Arena, DeBruijnIndex, Term};
+use super::arena::Arena;
 use super::level::Level;
+use super::term::{DeBruijnIndex, Term};
 use crate::error::{Error, ResultTerm};
 
 #[non_exhaustive]

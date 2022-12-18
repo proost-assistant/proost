@@ -3,9 +3,12 @@
 //! This module consists of internal utility functions used by the type checker, and correspond to
 //! usual functions over lambda-terms. These functions interact appropriately with a given arena.
 
-use crate::memory::arena::Arena;
-use crate::memory::term::{Payload, Term};
 use Payload::*;
+
+use crate::memory::arena::Arena;
+use crate::memory::declaration::InstantiatedDeclaration;
+use crate::memory::level::Level;
+use crate::memory::term::{Payload, Term};
 
 impl<'arena> Arena<'arena> {
     /// Apply one step of β-reduction, using the leftmost-outermost evaluation strategy.
@@ -82,6 +85,29 @@ impl<'arena> Arena<'arena> {
             },
             _ => t,
         })
+    }
+
+    /// TODO(docs)
+    pub(crate) fn substitute_univs(&mut self, t: Term<'arena>, univs: &[Level<'arena>]) -> Term<'arena> {
+        match *t {
+            Var(i, ty) => {
+                let ty = self.substitute_univs(ty, univs);
+                self.var(i, ty)
+            },
+
+            Sort(level) => self.sort(level.substitute(univs, self)),
+            App(u1, u2) => self.app(self.substitute_univs(u1, univs), self.substitute_univs(u2, univs)),
+            Abs(u1, u2) => self.abs(self.substitute_univs(u1, univs), self.substitute_univs(u2, univs)),
+            Prod(u1, u2) => self.prod(self.substitute_univs(u1, univs), self.substitute_univs(u2, univs)),
+            Decl(decl) => {
+                // TODO this can be slightly optimised. Certainly the substitute mapping can be
+                // performed in place while allocating the slice with store_level_slice. This
+                // function thus has to be made with templates.
+                let params = &*decl.params.into_iter().map(|level| level.substitute(univs, self)).collect::<Vec<Level>>();
+                let params = self.store_level_slice(params);
+                self.decl(InstantiatedDeclaration::instantiate((*decl).decl, params, self))
+            },
+        }
     }
 
     /// Returns the normal form of a term.

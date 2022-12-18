@@ -1,16 +1,14 @@
-use std::fmt::Display;
-use std::fmt::Formatter;
+use std::cell::OnceCell;
+use std::fmt::{Display, Formatter};
+use std::hash::Hash;
 
 use super::arena::Arena;
-use std::cell::OnceCell;
-use std::hash::Hash;
 
 super::arena::new_dweller!(Level, Header, Payload);
 
 struct Header<'arena> {
     // put any lazy structure here
     // normalized has been removed, because all levels are guaranteed to be reduced
-    //
     plus_form: OnceCell<(Level<'arena>, usize)>,
 }
 
@@ -36,7 +34,7 @@ impl Display for Level<'_> {
                 Succ(_) => {
                     let (u, n) = self.plus();
                     write!(f, "{u} + {n}")
-                }
+                },
                 Max(n, m) => write!(f, "max ({n}) ({m})"),
                 IMax(n, m) => write!(f, "imax ({n}) ({m})"),
                 Var(n) => write!(f, "u{n}"),
@@ -74,7 +72,7 @@ impl<'arena> Level<'arena> {
 
                 reduced.init_plus_form(arena);
                 reduced
-            }
+            },
         }
     }
 
@@ -138,7 +136,7 @@ impl<'arena> Level<'arena> {
             Succ(u) => {
                 let (u, n) = u.plus();
                 (u, n + 1)
-            }
+            },
             _ => (self, 0),
         });
     }
@@ -157,8 +155,8 @@ impl<'arena> Level<'arena> {
     ///
     /// The function also reduces max. This is further helpful when trying to print the type.
     ///
-    /// Here, the imax normalization pushes imaxes to all have a Var(i) as the second argument. To solve this last case, one needs to substitute
-    /// Var(i) with 0 and S(Var(i)). This gives us a consistent way to unstuck the geq-checking.
+    /// Here, the imax normalization pushes imaxes to all have a Var(i) as the second argument. To solve this last case, one needs
+    /// to substitute Var(i) with 0 and S(Var(i)). This gives us a consistent way to unstuck the geq-checking.
     fn normalize(self, arena: &mut Arena<'arena>) -> Self {
         match *self {
             IMax(z, u) if *z == Zero => u,

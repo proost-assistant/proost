@@ -37,9 +37,9 @@ pub struct Arena<'arena> {
     // additional *reduced form* invariant.
     pub(super) hashcons_terms: HashSet<&'arena super::term::Node<'arena>>,
     pub(super) hashcons_decls: HashSet<&'arena super::declaration::Node<'arena>>,
-    pub(super) hashcons_levels:
-        HashMap<&'arena super::level::Node<'arena>, super::level::Level<'arena>>,
+    pub(super) hashcons_levels: HashMap<&'arena super::level::Node<'arena>, super::level::Level<'arena>>,
 
+    named_decls: HashMap<&'arena str, (Term<'arena>, usize)>,
     named_terms: HashMap<&'arena str, Term<'arena>>,
 
     // Hash maps used to speed up certain algorithms. See also `OnceCell`s in [`Term`]
@@ -79,6 +79,7 @@ impl<'arena> Arena<'arena> {
             hashcons_decls: HashSet::new(),
             hashcons_levels: HashMap::new(),
 
+            named_decls: HashMap::new(),
             named_terms: HashMap::new(),
 
             mem_subst: HashMap::new(),
@@ -123,10 +124,7 @@ macro_rules! new_dweller {
         /// transformation on the term, namely type checking and term reduction. Storing it directly here
         /// is both faster and takes overall less space than storing the result in a separate hash table.
         #[derive(Clone, Copy)]
-        pub struct $dweller<'arena>(
-            &'arena Node<'arena>,
-            std::marker::PhantomData<*mut &'arena ()>,
-        );
+        pub struct $dweller<'arena>(&'arena Node<'arena>, std::marker::PhantomData<*mut &'arena ()>);
 
         pub(super) struct Node<'arena> {
             header: $header<'arena>,
@@ -155,7 +153,7 @@ macro_rules! new_dweller {
         /// match *t {
         ///     Abs(_, t2) => arena.beta_reduction(t2),
         ///     App(t1, _) => t1,
-        ///     _ => t
+        ///     _ => t,
         /// }
         /// # ;})
         /// ```

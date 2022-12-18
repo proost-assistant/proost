@@ -13,9 +13,7 @@ use super::level::Level;
 use crate::error::ResultTerm;
 
 /// An index used to designate bound variables.
-#[derive(
-    Add, Copy, Clone, Debug, Default, Display, Eq, PartialEq, From, Into, Sub, PartialOrd, Ord, Hash,
-)]
+#[derive(Add, Copy, Clone, Debug, Default, Display, Eq, PartialEq, From, Into, Sub, PartialOrd, Ord, Hash)]
 pub struct DeBruijnIndex(usize);
 
 super::arena::new_dweller!(Term, Header, Payload);
@@ -75,6 +73,7 @@ impl<'arena> fmt::Display for Payload<'arena> {
             App(fun, arg) => write!(f, "{fun} {arg}"),
             Abs(argtype, body) => write!(f, "\u{003BB} {argtype} \u{02192} {body}"),
             Prod(argtype, body) => write!(f, "\u{003A0} {argtype} \u{02192} {body}"),
+            Decl(decl) => write!(f, "{decl}"),
         }
     }
 }
@@ -87,6 +86,8 @@ impl<'arena> fmt::Display for Term<'arena> {
 
 use Payload::*;
 
+// TODO make this a Term-impl. This will impact most files from the project, but should not be so
+// hard.
 impl<'arena> super::arena::Arena<'arena> {
     /// This function is the base low-level function for creating terms.
     ///
@@ -109,7 +110,7 @@ impl<'arena> super::arena::Arena<'arena> {
                 let addr = self.alloc.alloc(new_node);
                 self.hashcons_terms.insert(addr);
                 Term::new(addr)
-            }
+            },
         }
     }
 
@@ -120,17 +121,17 @@ impl<'arena> super::arena::Arena<'arena> {
 
     /// Returns the term corresponding to a proposition
     pub(crate) fn prop(&mut self) -> Term<'arena> {
-        let zero = self.zero();
+        let zero = Level::zero(self);
         self.hashcons_term(Sort(zero))
     }
 
-    pub(crate) fn type_(&mut self, level: Level<'arena>) -> Term<'arena> {
+    pub(crate) fn sort(&mut self, level: Level<'arena>) -> Term<'arena> {
         self.hashcons_term(Sort(level))
     }
 
     /// Returns the term corresponding to Type(level), casting level appropriately first
     pub(crate) fn type_usize(&mut self, level: usize) -> Term<'arena> {
-        let level = Level::from(level, self);
+        let level = Level::from(level + 1, self);
         self.hashcons_term(Sort(level))
     }
 
@@ -155,12 +156,13 @@ impl<'arena> super::arena::Arena<'arena> {
         self.hashcons_term(Prod(arg_type, body))
     }
 
+    /// TODO(doc)
+    pub(crate) fn decl(&mut self, decl: InstantiatedDeclaration<'arena>) -> Term<'arena> {
+        self.hashcons_term(Decl(decl))
+    }
+
     /// Returns the result of the substitution described by the key, lazily computing the closure `f`.
-    pub(crate) fn get_subst_or_init<F>(
-        &mut self,
-        key: &(Term<'arena>, Term<'arena>, usize),
-        f: F,
-    ) -> Term<'arena>
+    pub(crate) fn get_subst_or_init<F>(&mut self, key: &(Term<'arena>, Term<'arena>, usize), f: F) -> Term<'arena>
     where
         F: FnOnce(&mut Self) -> Term<'arena>,
     {
@@ -170,7 +172,7 @@ impl<'arena> super::arena::Arena<'arena> {
                 let res = f(self);
                 self.mem_subst.insert(*key, res);
                 res
-            }
+            },
         }
     }
 }

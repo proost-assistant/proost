@@ -6,11 +6,11 @@ use std::cmp::max;
 
 use derive_more::Display;
 use num_bigint::BigUint;
+use Payload::*;
 
 use crate::error::{Error, Result, ResultTerm};
 use crate::memory::arena::Arena;
 use crate::memory::term::{Payload, Term};
-use Payload::*;
 
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 #[display(fmt = "{}: {}", _0, _1)]

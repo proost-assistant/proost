@@ -1,7 +1,7 @@
+use Payload::*;
+
 use crate::memory::arena::Arena;
 use crate::memory::level::{Level, Payload};
-
-use Payload::*;
 
 impl<'arena> Level<'arena> {
     // Is used to find the number of universe in a declaration.
@@ -20,45 +20,30 @@ impl<'arena> Level<'arena> {
     fn substitute_single(self, var: usize, u: Self, arena: &mut Arena<'arena>) -> Self {
         match *self {
             Succ(n) => n.substitute_single(var, u, arena).succ(arena),
-            Max(n, m) => Level::max(
-                n.substitute_single(var, u, arena),
-                m.substitute_single(var, u, arena),
-                arena,
-            ),
-            IMax(n, m) => Level::imax(
-                n.substitute_single(var, u, arena),
-                m.substitute_single(var, u, arena),
-                arena,
-            ),
+            Max(n, m) => Level::max(n.substitute_single(var, u, arena), m.substitute_single(var, u, arena), arena),
+            IMax(n, m) => Level::imax(n.substitute_single(var, u, arena), m.substitute_single(var, u, arena), arena),
             Var(n) if n == var => u,
             _ => self,
         }
     }
 
-    /// General universe substitution, given a vector of universe levels, it substitutes each Var(i) with the i-th element of the vector.
+    /// General universe substitution, given a vector of universe levels, it substitutes each Var(i) with the i-th element of the
+    /// vector.
     pub fn substitute(self, univs: &[Self], arena: &mut Arena<'arena>) -> Self {
         match *self {
             Zero => self,
             Succ(n) => n.substitute(univs, arena).succ(arena),
-            Max(n, m) => Level::max(
-                n.substitute(univs, arena),
-                m.substitute(univs, arena),
-                arena,
-            ),
-            IMax(n, m) => Level::imax(
-                n.substitute(univs, arena),
-                m.substitute(univs, arena),
-                arena,
-            ),
+            Max(n, m) => Level::max(n.substitute(univs, arena), m.substitute(univs, arena), arena),
+            IMax(n, m) => Level::imax(n.substitute(univs, arena), m.substitute(univs, arena), arena),
             Var(var) => univs[var],
         }
     }
 
     // checks whether u1 <= u2 + n
     // returns:
-    // -   (true,0) if u1 <= u2 + n,
-    // -   (false,0) if !(u1 <= u2 + n),
-    // -   (false,i+1) if Var(i) needs to be substituted to unstuck the comparison.
+    // - (true,0) if u1 <= u2 + n,
+    // - (false,0) if !(u1 <= u2 + n),
+    // - (false,i+1) if Var(i) needs to be substituted to unstuck the comparison.
     fn geq_no_subst(self, u2: Self, n: i64) -> (bool, usize) {
         match (*self, *u2) {
             (Zero, _) if n >= 0 => (true, 0),
@@ -79,25 +64,18 @@ impl<'arena> Level<'arena> {
     }
 
     /// Checks whether u1 <= u2 + n
-    // In a case where comparison is stuck because of a variable Var(i), it checks whether the test is correct when Var(i) is substituted for
-    // 0 and S(Var(i)).
-    fn geq(self, u2: Self, n: i64, arena: &mut Arena<'arena>) -> bool {
+    // In a case where comparison is stuck because of a variable Var(i), it checks whether the test is correct when Var(i) is
+    // substituted for 0 and S(Var(i)).
+    pub fn geq(self, u2: Self, n: i64, arena: &mut Arena<'arena>) -> bool {
         match self.geq_no_subst(u2, n) {
             (true, _) => true,
             (false, 0) => false,
             (false, i) => {
                 let zero = Level::zero(arena);
                 let vv = Level::var(i - 1, arena).succ(arena);
-                self.substitute_single(i - 1, zero, arena).geq(
-                    u2.substitute_single(i - 1, zero, arena),
-                    n,
-                    arena,
-                ) && self.substitute_single(i - 1, vv, arena).geq(
-                    u2.substitute_single(i - 1, vv, arena),
-                    n,
-                    arena,
-                )
-            }
+                self.substitute_single(i - 1, zero, arena).geq(u2.substitute_single(i - 1, zero, arena), n, arena)
+                    && self.substitute_single(i - 1, vv, arena).geq(u2.substitute_single(i - 1, vv, arena), n, arena)
+            },
         }
     }
 

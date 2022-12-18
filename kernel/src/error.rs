@@ -2,8 +2,8 @@
 
 use derive_more::{Display, From};
 
-use crate::memory::arena::Term;
 use crate::memory::builders::DefinitionError;
+use crate::memory::term::Term;
 use crate::type_checker::TypeCheckerError;
 
 /// Type representing kernel errors.

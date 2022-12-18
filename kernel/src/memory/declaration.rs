@@ -20,8 +20,8 @@ super::arena::new_dweller!(InstantiatedDeclaration, Header, Payload);
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Payload<'arena> {
-    decl: Term<'arena>,
-    params: &'arena [Level<'arena>],
+    pub decl: Term<'arena>,
+    pub params: &'arena [Level<'arena>],
 }
 
 struct Header<'arena> {
@@ -34,13 +34,9 @@ impl<'arena> fmt::Display for InstantiatedDeclaration<'arena> {
             Some(term) => write!(f, "{term}"),
             None => {
                 write!(f, "({}).{{", self.0.payload.decl)?;
-                self.0
-                    .payload
-                    .params
-                    .into_iter()
-                    .try_for_each(|level| write!(f, "{level}, "))?;
+                self.0.payload.params.into_iter().try_for_each(|level| write!(f, "{level}, "))?;
                 write!(f, "}}")
-            }
+            },
         }
     }
 }
@@ -48,11 +44,7 @@ impl<'arena> fmt::Display for InstantiatedDeclaration<'arena> {
 impl<'arena> InstantiatedDeclaration<'arena> {
     /// Creates a new instantiated declaration from its base components. It is not verified that
     /// the provided slice matches in length the number of expected Levels.
-    pub(crate) fn instantiate(
-        decl: Term<'arena>,
-        params: &[Level<'arena>],
-        arena: &mut Arena<'arena>,
-    ) -> Self {
+    pub(crate) fn instantiate(decl: Term<'arena>, params: &[Level<'arena>], arena: &mut Arena<'arena>) -> Self {
         let new_node = Node {
             header: Header {
                 term: OnceCell::new(),
@@ -69,13 +61,13 @@ impl<'arena> InstantiatedDeclaration<'arena> {
                 let addr = arena.alloc.alloc(new_node);
                 arena.hashcons_decls.insert(addr);
                 InstantiatedDeclaration::new(addr)
-            }
+            },
         }
     }
 
     /// Returns the term linked to a definition in a given environment.
-    pub fn get_term(&self) -> Term<'arena> {
-        *self.0.header.term.get_or_init(|| {})
+    pub fn get_term(self, arena: &mut Arena<'arena>) -> Term<'arena> {
+        *self.0.header.term.get_or_init(|| arena.substitute_univs(self.0.payload.decl, self.0.payload.params))
     }
 
     // Returns the type linked to a definition in a given environment.
