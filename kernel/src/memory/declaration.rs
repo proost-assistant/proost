@@ -67,7 +67,7 @@ impl<'arena> InstantiatedDeclaration<'arena> {
 
     /// Returns the term linked to a definition in a given environment.
     pub fn get_term(self, arena: &mut Arena<'arena>) -> Term<'arena> {
-        *self.0.header.term.get_or_init(|| arena.substitute_univs(self.0.payload.decl, self.0.payload.params))
+        *self.0.header.term.get_or_init(|| self.0.payload.decl.substitute_univs(self.0.payload.params,arena))
     }
 
     // Returns the type linked to a definition in a given environment.

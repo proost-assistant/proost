@@ -10,8 +10,8 @@ use derive_more::{Add, Display, From, Into, Sub};
 
 use super::declaration::InstantiatedDeclaration;
 use super::level::Level;
-use crate::memory::arena::Arena;
 use crate::error::ResultTerm;
+use crate::memory::arena::Arena;
 
 /// An index used to designate bound variables.
 #[derive(Add, Copy, Clone, Debug, Default, Display, Eq, PartialEq, From, Into, Sub, PartialOrd, Ord, Hash)]

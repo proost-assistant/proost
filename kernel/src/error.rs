@@ -3,9 +3,9 @@
 use derive_more::{Display, From};
 
 use crate::memory::builders::DefinitionError;
-use crate::memory::levelBuilders::LevelError;
-use crate::memory::term::Term;
 use crate::memory::level::Level;
+use crate::memory::level_builders::LevelError;
+use crate::memory::term::Term;
 use crate::type_checker::TypeCheckerError;
 
 /// Type representing kernel errors.
@@ -23,7 +23,7 @@ pub struct Error<'arena> {
 pub enum ErrorKind<'arena> {
     TypeChecker(TypeCheckerError<'arena>),
     Definition(DefinitionError<'arena>),
-    Level(LevelError<'arena>)
+    Level(LevelError<'arena>),
 }
 
 impl<'arena> std::error::Error for Error<'arena> {}
