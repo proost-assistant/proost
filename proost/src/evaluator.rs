@@ -29,6 +29,9 @@ pub enum ErrorKind {
     #[display(fmt = "{_0} is not a file")]
     FileNotFound(String),
 
+    #[display(fmt = "errors occurred while reading file")]
+    FileError,
+
     #[display(fmt = "cyclic dependency:\n{}", _0)]
     CyclicDependencies(String),
 
@@ -113,9 +116,17 @@ impl<'arena> Evaluator {
         let result = self.process_file(arena, &file, importing);
         // remove it from the list of files to import
         let file_path = importing.pop().unwrap_or_else(|| unreachable!());
-        // if importation failed, return error, else add file to imported files
 
-        // TODO: result?;
+        // if importation failed, display the associated errors now (the imported file is discarded
+        // right after, and errors may depend on it), and return an error about the command itself.
+        result.map_err(|err| {
+            crate::display(Err(err));
+
+            Error {
+                kind: ErrorKind::FileError,
+                location,
+            }
+        })?;
 
         self.imported.insert(file_path);
 
