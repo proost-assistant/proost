@@ -34,6 +34,8 @@ impl<'arena> Term<'arena> {
                 let body = body.beta_reduction(arena);
                 arg_type.prod(body, arena)
             },
+
+            Decl(decl) => decl.get_term(arena),
             _ => self,
         }
     }
@@ -166,8 +168,10 @@ mod tests {
     fn simple_subst() {
         use_arena(|arena| {
             // λx.(λy.x y) x
-            let term = arena
-                .build_term_raw(abs(prop(), app(abs(prop(), app(var(2.into(), prop()), var(1.into(), prop()))), var(1.into(), prop()))));
+            let term = arena.build_term_raw(abs(
+                prop(),
+                app(abs(prop(), app(var(2.into(), prop()), var(1.into(), prop()))), var(1.into(), prop())),
+            ));
             // λx.x x
             let reduced = arena.build_term_raw(abs(prop(), app(var(1.into(), prop()), var(1.into(), prop()))));
 
@@ -324,8 +328,10 @@ mod tests {
     #[test]
     fn app_red_rhs() {
         use_arena(|arena| {
-            let term = arena
-                .build_term_raw(abs(prop(), app(var(1.into(), prop()), app(abs(prop(), var(1.into(), prop())), var(1.into(), prop())))));
+            let term = arena.build_term_raw(abs(
+                prop(),
+                app(var(1.into(), prop()), app(abs(prop(), var(1.into(), prop())), var(1.into(), prop()))),
+            ));
             let reduced = arena.build_term_raw(abs(prop(), app(var(1.into(), prop()), var(1.into(), prop()))));
 
             assert_eq!(term.beta_reduction(arena), reduced);
@@ -335,8 +341,10 @@ mod tests {
     #[test]
     fn normal_form() {
         use_arena(|arena| {
-            let term = arena
-                .build_term_raw(app(app(app(abs(prop(), abs(prop(), abs(prop(), var(1.into(), prop())))), prop()), prop()), prop()));
+            let term = arena.build_term_raw(app(
+                app(app(abs(prop(), abs(prop(), abs(prop(), var(1.into(), prop())))), prop()), prop()),
+                prop(),
+            ));
             let normal_form = arena.build_term_raw(prop());
 
             assert_eq!(term.normal_form(arena), normal_form);

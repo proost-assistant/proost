@@ -72,6 +72,12 @@ impl<'arena> Term<'arena> {
 
             (&App(t1, u1), &App(t2, u2)) => t1.conversion(t2, arena) && u1.conversion(u2, arena),
 
+
+            // We don't automatically unfold definitions during normalisation because of how costly it is. 
+            // Instead, when the same declaration is met on both terms, they're also equal in memory.
+            // Otherwise, either one of them is not a decl, or they're two different decls. In both case, we unfold decls to check equality.
+            (&Decl(decl),_) => decl.get_term(arena).conversion(rhs, arena),
+            (_,&Decl(decl)) => decl.get_term(arena).conversion(lhs, arena),
             _ => false,
         }
     }
@@ -170,6 +176,8 @@ impl<'arena> Term<'arena> {
 
 #[cfg(test)]
 mod tests {
+    use std::default;
+
     use super::*;
     use crate::memory::arena::use_arena;
     use crate::memory::builders::raw::*;
@@ -280,10 +288,11 @@ mod tests {
     // switching to extern_build, which is clearer.
     fn typed_reduction_app_2() {
         use crate::memory::builders::*;
+        use crate::memory::level_builders::LevelEnvironment;
         use_arena(|arena| {
             // (λa.λb.λc.a (λd.λe.e (d b)) (λ_.c) (λd.d)) (λf.λg.f g)
             let term = arena
-                .build(app(
+                .build(&LevelEnvironment::new(),app(
                     abs(
                         "a",
                         // a: ((P → P) → (P → P) → P) → ((P → P) → ((P → P) → P))
@@ -346,11 +355,11 @@ mod tests {
                 .unwrap();
 
             // λa: P. λb: P. b
-            let reduced = arena.build(abs("_", prop(), abs("x", prop(), var("x")))).unwrap();
+            let reduced = arena.build(&LevelEnvironment::new(),abs("_", prop(), abs("x", prop(), var("x")))).unwrap();
             assert!(term.is_def_eq(reduced, arena).is_ok());
 
             let term_type = term.infer(arena).unwrap();
-            let expected_type = arena.build(prod("_", prop(), prod("_", prop(), prop()))).unwrap();
+            let expected_type = arena.build(&LevelEnvironment::new(),prod("_", prop(), prod("_", prop(), prop()))).unwrap();
             assert_eq!(term_type, expected_type);
             assert!(term.check(term_type, arena).is_ok())
         })
@@ -446,8 +455,8 @@ mod tests {
         use_arena(|arena| {
             let type_0 = Term::type_usize(0, arena);
 
-            let identity =
-                arena.build_term_raw(abs(type_0.into(), abs(var(1.into(), type_0.into()), var(1.into(), var(2.into(), type_0.into())))));
+            let identity = arena
+                .build_term_raw(abs(type_0.into(), abs(var(1.into(), type_0.into()), var(1.into(), var(2.into(), type_0.into())))));
 
             let identity_type = identity.infer(arena).unwrap();
             let expected_type =
@@ -473,7 +482,10 @@ mod tests {
             ));
             let term_type = term.infer(arena).unwrap();
 
-            assert_eq!(term_type, arena.build_term_raw(prod(prop(), prod(prop(), prod(prod(prop(), prod(prop(), prop())), prop())))));
+            assert_eq!(
+                term_type,
+                arena.build_term_raw(prod(prop(), prod(prop(), prod(prod(prop(), prod(prop(), prop())), prop()))))
+            );
             assert!(term.check(term_type, arena).is_ok());
         })
     }
@@ -511,7 +523,11 @@ mod tests {
                 assert_eq!(
                     term.infer(arena),
                     Err(Error {
-                        kind: TypeCheckerError::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena)).into()
+                        kind: TypeCheckerError::NotAFunction(
+                            TypedTerm(Term::prop(arena), Term::type_usize(0, arena)),
+                            Term::prop(arena)
+                        )
+                        .into()
                     })
                 );
             })
@@ -525,7 +541,11 @@ mod tests {
                 assert_eq!(
                     term.infer(arena),
                     Err(Error {
-                        kind: TypeCheckerError::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena)).into()
+                        kind: TypeCheckerError::NotAFunction(
+                            TypedTerm(Term::prop(arena), Term::type_usize(0, arena)),
+                            Term::prop(arena)
+                        )
+                        .into()
                     })
                 );
             })
@@ -539,7 +559,11 @@ mod tests {
                 assert_eq!(
                     term.infer(arena),
                     Err(Error {
-                        kind: TypeCheckerError::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena)).into()
+                        kind: TypeCheckerError::NotAFunction(
+                            TypedTerm(Term::prop(arena), Term::type_usize(0, arena)),
+                            Term::prop(arena)
+                        )
+                        .into()
                     })
                 );
             })
@@ -553,7 +577,11 @@ mod tests {
                 assert_eq!(
                     term.infer(arena),
                     Err(Error {
-                        kind: TypeCheckerError::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena)).into()
+                        kind: TypeCheckerError::NotAFunction(
+                            TypedTerm(Term::prop(arena), Term::type_usize(0, arena)),
+                            Term::prop(arena)
+                        )
+                        .into()
                     })
                 );
             })
@@ -567,7 +595,11 @@ mod tests {
                 assert_eq!(
                     term.infer(arena),
                     Err(Error {
-                        kind: TypeCheckerError::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena)).into()
+                        kind: TypeCheckerError::NotAFunction(
+                            TypedTerm(Term::prop(arena), Term::type_usize(0, arena)),
+                            Term::prop(arena)
+                        )
+                        .into()
                     })
                 );
             })
@@ -581,7 +613,11 @@ mod tests {
                 assert_eq!(
                     term.infer(arena),
                     Err(Error {
-                        kind: TypeCheckerError::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena)).into()
+                        kind: TypeCheckerError::NotAFunction(
+                            TypedTerm(Term::prop(arena), Term::type_usize(0, arena)),
+                            Term::prop(arena)
+                        )
+                        .into()
                     })
                 );
             })
@@ -606,7 +642,10 @@ mod tests {
                         kind: TypeCheckerError::WrongArgumentType(
                             arena.build_term_raw(abs(prop(), app(var(2.into(), prod(prop(), prop())), var(1.into(), prop())))),
                             Term::prop(arena),
-                            TypedTerm(arena.build_term_raw(var(1.into(), prod(prop(), prop()))), arena.build_term_raw(prod(prop(), prop())))
+                            TypedTerm(
+                                arena.build_term_raw(var(1.into(), prod(prop(), prop()))),
+                                arena.build_term_raw(prod(prop(), prop()))
+                            )
                         )
                         .into()
                     })
@@ -670,7 +709,11 @@ mod tests {
                 assert_eq!(
                     term.check(expected_type, arena),
                     Err(Error {
-                        kind: TypeCheckerError::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena)).into(),
+                        kind: TypeCheckerError::NotAFunction(
+                            TypedTerm(Term::prop(arena), Term::type_usize(0, arena)),
+                            Term::prop(arena)
+                        )
+                        .into(),
                     })
                 );
             })
