@@ -160,7 +160,7 @@ impl<'arena> Term<'arena> {
                 }
             },
 
-            Decl(_) => unreachable!("Todo"),
+            Decl(decl) => decl.get_term(arena).infer(arena),
         })
     }
 
