@@ -182,34 +182,47 @@ impl<'arena> Level<'arena> {
 }
 
 #[cfg(test)]
-mod tests {
-    mod pretty_printing {
-        //#[test]
-        //fn to_num() {
-        //    assert_eq!(Max( Succ( Zero),  Zero).to_numeral(), Some(1));
-        //    assert_eq!(
-        //        Max( Succ( Zero),  Succ( Var(0))).to_numeral(),
-        //        None
-        //    );
-        //    assert_eq!(IMax( Var(0),  Zero).to_numeral(), Some(0));
-        //    assert_eq!(IMax( Zero,  Succ( Zero)).to_numeral(), Some(1))
-        //}
+mod pretty_printing {
 
-        //#[test]
-        //fn to_plus() {
-        //    assert_eq!(Succ( Zero).plus(), (Zero, 1));
-        //}
+    use crate::memory::arena::use_arena;
+    use crate::memory::level_builders::raw::*;
+    use crate::memory::level::Level;
 
-        //#[test]
-        //fn to_pretty_print() {
-        //    assert_eq!(
-        //        Max(
-        //             Succ( Zero),
-        //             IMax( Max( Zero,  Var(0)),  Succ( Var(0)))
-        //        )
-        //        .pretty_print(),
-        //        "max (1) (imax (max (0) (u0)) (u0 + 1))"
-        //    );
-        //}
+    #[test]
+    fn to_num() {
+        use_arena(|arena| {
+            let var0 = Level::var(0,arena);
+
+            assert_eq!(arena.build_level_raw(max( succ( zero()),  zero())).to_numeral(), Some(1));
+            assert_eq!(
+                arena.build_level_raw(max( succ( zero()),  succ(var0.into()))).to_numeral(),
+                None
+            );
+            assert_eq!(arena.build_level_raw(imax( var0.into(),  zero())).to_numeral(), Some(0));
+            assert_eq!(arena.build_level_raw(imax( zero(),  succ( zero()))).to_numeral(), Some(1))
+        })
     }
+
+    #[test]
+    fn to_plus() {
+        use_arena(|arena| {
+            assert_eq!(arena.build_level_raw(succ( zero())).plus(), (Level::zero(arena), 1));
+        })
+    }
+
+    #[test]
+    fn to_pretty_print() {
+        use_arena(|arena| {
+            let var0 = Level::var(0,arena);
+            assert_eq!(format!("{}",
+                arena.build_level_raw(max(
+                     succ( zero()),
+                     imax( max( zero(),  var0.into()),  succ( var0.into()))
+                ))),
+                "max (1) (max (u0) (u0 + 1))"
+            )
+        })
+    }
+
 }
+

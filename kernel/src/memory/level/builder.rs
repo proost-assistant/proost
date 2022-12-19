@@ -167,34 +167,34 @@ pub(crate) mod raw {
         }
     }
 
-    pub const fn var<'arena, F: BuilderTrait>(lvl: F) -> impl BuilderTrait {
-        move |env| lvl(env)
+    pub const fn var(id: usize) -> impl BuilderTrait {
+        move |arena| Level::var(id, arena)
     }
 
     pub const fn zero<'arena>() -> impl BuilderTrait {
-        |env| Level::zero(env)
+        |arena| Level::zero(arena)
     }
 
     pub const fn succ<'arena, F1: BuilderTrait>(u1: F1) -> impl BuilderTrait {
-        |env| {
-            let u1 = u1(env);
-            u1.succ(env)
+        |arena| {
+            let u1 = u1(arena);
+            u1.succ(arena)
         }
     }
 
     pub const fn max<'arena, F1: BuilderTrait, F2: BuilderTrait>(u1: F1, u2: F2) -> impl BuilderTrait {
-        |env| {
-            let u1 = u1(env);
-            let u2 = u2(env);
-            u1.max(u2, env)
+        |arena| {
+            let u1 = u1(arena);
+            let u2 = u2(arena);
+            u1.max(u2, arena)
         }
     }
 
     pub const fn imax<'arena, F1: BuilderTrait, F2: BuilderTrait>(u1: F1, u2: F2) -> impl BuilderTrait {
-        |env| {
-            let u1 = u1(env);
-            let u2 = u2(env);
-            u1.imax(u2, env)
+        |arena| {
+            let u1 = u1(arena);
+            let u2 = u2(arena);
+            u1.imax(u2, arena)
         }
     }
 }

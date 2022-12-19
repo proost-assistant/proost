@@ -86,7 +86,6 @@ impl<'arena> Level<'arena> {
 
 #[cfg(test)]
 mod tests {
-
     use crate::memory::arena::use_arena;
     use crate::memory::level::builder::raw::*;
     use crate::memory::level::Level;
@@ -94,7 +93,6 @@ mod tests {
     #[test]
     fn univ_eq() {
         use_arena(|arena| {
-            // λx.(λy.x y) x
             let one = arena.build_level_raw(succ(zero()));
             let zero_ = arena.build_level_raw(zero());
             let var0 = Level::var(0, arena);
@@ -104,7 +102,7 @@ mod tests {
             let max_var1_var0 = Level::max(var1, var0, arena);
             let max_var1_var1 = Level::max(var1, var1, arena);
             let succ_max_var0_var1 = Level::succ(max_var0_var1, arena);
-            let max_succ_var0_succ_var1 = arena.build_level_raw(max(succ(var0.into()), succ(var1.into())));
+            let max_succ_var0_succ_var1 = arena.build_level_raw(max(succ(var(0)), succ(var(1))));
 
             assert!(!zero_.is_eq(one, arena));
             assert!(!one.is_eq(zero_, arena));
@@ -123,7 +121,6 @@ mod tests {
             )
         });
     }
-}
 
 // #[test]
 // fn univ_vars_count() {
@@ -137,27 +134,28 @@ mod tests {
 //     )
 // }
 //
-// #[test]
-// fn subst() {
-//     let lvl = IMax(
-//         box Zero,
-//         box Max(box Succ(box Zero), box Max(box Var(0), box Var(1))),
-//     );
-//     let subst = vec![Succ(box Zero), Zero];
-//     assert_eq!(
-//         lvl.substitute(&subst),
-//         IMax(
-//             box Zero,
-//             box Max(box Succ(box Zero), box Max(box Succ(box Zero), box Zero))
-//         )
-//     )
-// }
-//
-// #[test]
-// fn single_subst() {
-//     let lvl = IMax(box Max(box Succ(box Zero), box Var(0)), box Var(0));
-//     assert_eq!(
-//         lvl.substitute_single(0, Zero),
-//         IMax(box Max(box Succ(box Zero), box Zero), box Zero)
-//     )
-// }
+    #[test]
+    fn subst() {
+        use_arena(|arena| {
+            let lvl = arena.build_level_raw(imax(
+                zero(),
+                max(succ(zero()), max(var(0), var(1))),
+            ));
+            let subst = vec![ arena.build_level_raw(succ(zero())),  arena.build_level_raw(zero())];
+            assert_eq!(
+                lvl.substitute(&subst,arena),
+                arena.build_level_raw(imax(zero(),max(succ(zero()),max(succ(zero()),zero()))))
+            )
+        })
+    }
+    #[test]
+    fn single_subst() {
+        use_arena(|arena| {
+            let lvl = arena.build_level_raw(imax(max(succ(zero()),var(0)),var(0)));
+            assert_eq!(
+                lvl.substitute_single(0, Level::zero(arena),arena),
+                arena.build_level_raw(imax(max(succ(zero()),zero()),zero()))
+            )
+        })
+    }
+}
