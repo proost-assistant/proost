@@ -9,8 +9,7 @@ super::arena::new_dweller!(Level, Header, Payload);
 pub mod builder;
 
 struct Header<'arena> {
-    // put any lazy structure here
-    // normalized has been removed, because all levels are guaranteed to be reduced
+    /// normalized has been removed, because all levels are guaranteed to be reduced
     plus_form: OnceCell<(Level<'arena>, usize)>,
     univ_vars: OnceCell<usize>,
 }
