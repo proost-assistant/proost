@@ -1,9 +1,11 @@
+
 use kernel::location::Location;
 use kernel::memory::builders::TermBuilder;
 use kernel::memory::level_builders::LevelBuilder;
 use pest::error::LineColLocation;
 use pest::iterators::Pair;
 use pest::{Parser, Span};
+
 
 use crate::command::Command;
 use crate::error::{Error, ErrorKind};
@@ -77,7 +79,7 @@ fn parse_term(pair: Pair<Rule>) -> TermBuilder {
     match pair.as_rule() {
         Rule::Prop => Sort(LevelBuilder::Zero),
 
-        Rule::Var => Var(pair.into_inner().as_str()),
+        Rule::Var => Var(pair.into_inner().as_str()), // TODO manage universe vars
 
         Rule::Type => Sort(LevelBuilder::Succ(box parse_level(pair.into_inner().next_back().unwrap()))),
 
@@ -123,6 +125,16 @@ fn parse_term(pair: Pair<Rule>) -> TermBuilder {
     }
 }
 
+fn parse_univ_vars(pair: Pair<Rule>) -> Box<[String]> {
+    let iter = pair.into_inner();
+    let mut vec = Vec::new();
+    for (_, pair) in iter.enumerate() {
+        let str = pair.as_str();
+        vec.push(str.to_string())
+    }
+    box *vec.as_slice()
+}
+
 /// build commands from errorless pest's output
 fn parse_expr<'build>(pair: Pair<'build, Rule>) -> Command<'build> {
     // location to be used in a future version
@@ -145,16 +157,38 @@ fn parse_expr<'build>(pair: Pair<'build, Rule>) -> Command<'build> {
         Rule::Define => {
             let mut iter = pair.into_inner();
             let s: &'build str = iter.next().unwrap().as_str();
-            let term = parse_term(iter.next().unwrap());
-            Command::Define(s, None, term)
+            let next = iter.next();
+            let (univs,term) = {
+                if matches!(
+                    next.clone().map(|x| x.as_rule()),
+                    None | Some(Rule::univ_decl)
+                ) {
+                    let univs = next.map(parse_univ_vars).unwrap_or_default();
+                    (box univs,parse_term(iter.next().unwrap()))
+                } else {
+                    (box Vec::new().as_slice() ,parse_term(next.unwrap()))
+                }
+            };
+            Command::Define(s,univs, None, term)
         },
 
         Rule::DefineCheckType => {
             let mut iter = pair.into_inner();
             let s: &'build str = iter.next().unwrap().as_str();
             let t = parse_term(iter.next().unwrap());
-            let term = parse_term(iter.next().unwrap());
-            Command::Define(s, Some(t), term)
+            let next = iter.next();
+            let (univs,term) = {
+                if matches!(
+                    next.clone().map(|x| x.as_rule()),
+                    None | Some(Rule::univ_decl)
+                ) {
+                    let univs = next.map(parse_univ_vars).unwrap_or_default();
+                    (box univs,parse_term(iter.next().unwrap()))
+                } else {
+                    (box Vec::new().as_slice(),parse_term(next.unwrap()))
+                }
+            };
+            Command::Define(s, univs, Some(t), term)
         },
 
         Rule::Eval => {
@@ -281,7 +315,7 @@ mod tests {
 
     #[test]
     fn successful_define_with_type_annotation() {
-        assert_eq!(parse_line("def x : Type := Prop"), Ok(Define("x", Some(Type(0)), Prop)));
+        assert_eq!(parse_line("def x : Type := Prop"), Ok(Define("x",&[], Some(Type(0)), Prop)));
     }
 
     #[test]
@@ -302,7 +336,7 @@ mod tests {
 
     #[test]
     fn successful_define() {
-        assert_eq!(parse_line("def x := Prop"), Ok(Define("x", None, Prop)));
+        assert_eq!(parse_line("def x := Prop"), Ok(Define("x",&[], None, Prop)));
     }
 
     #[test]

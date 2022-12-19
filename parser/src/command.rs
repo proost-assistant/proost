@@ -10,7 +10,7 @@ use kernel::memory::builders::TermBuilder;
 #[derive(Debug, Eq, PartialEq)]
 pub enum Command<'build> {
     /// Define a new term and optionally check that it's type match the given one.
-    Define(&'build str, Option<TermBuilder<'build>>, TermBuilder<'build>),
+    Define(&'build str, Box<[String]>, Option<TermBuilder<'build>>, TermBuilder<'build>),
 
     /// Infer the type of a term and check that it match the given one.
     CheckType(TermBuilder<'build>,TermBuilder<'build>),
@@ -33,9 +33,9 @@ impl<'build> fmt::Display for Command<'build> {
         use Command::*;
 
         match self {
-            Define(name, None, t) => write!(f, "def {} := {}", name, t),
+            Define(name,_, None, t) => write!(f, "def {} := {}", name, t),
 
-            Define(name, Some(ty), t) => write!(f, "def {}: {} := {}", name, ty, t),
+            Define(name,_,  Some(ty), t) => write!(f, "def {} : {} := {}", name, ty, t),
 
             CheckType(t, ty) => write!(f, "check {}: {}", t, ty),
 
