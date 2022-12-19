@@ -29,7 +29,7 @@ pub enum LevelError<'arena> {
 
 /// Local environment used to store correspondence between locally-bound variables and the pair
 /// (depth at which they were bound, their type)
-pub type LevelEnvironment<'build, 'arena> = ImHashMap<&'build str, Level<'arena>>;
+pub type LevelEnvironment<'build> = ImHashMap<&'build str, usize>;
 
 /// The trait of closures which build terms with an adequate logic.
 ///
@@ -40,7 +40,7 @@ pub type LevelEnvironment<'build, 'arena> = ImHashMap<&'build str, Level<'arena>
 /// Please note that this is just a trait alias, meaning it enforces very little constraints: while
 /// functions in this module returning a closure with this trait are guaranteed to be sound, end
 /// users can also create their own closures satisfying `BuilderTrait`; this should be avoided.
-pub trait LevelBuilderTrait<'build, 'arena> = FnOnce(&mut Arena<'arena>, &LevelEnvironment<'build, 'arena>) -> ResultLevel<'arena>;
+pub trait LevelBuilderTrait<'build, 'arena> = FnOnce(&mut Arena<'arena>, &LevelEnvironment<'build>) -> ResultLevel<'arena>;
 
 impl<'arena> Arena<'arena> {
     /// Returns the term built from the given closure, provided with an empty context, at depth 0.
@@ -56,8 +56,8 @@ impl<'arena> Arena<'arena> {
 /// Returns a closure building a variable associated to the name `name`
 #[inline]
 pub const fn var<'build, 'arena>(name: &'build str) -> impl LevelBuilderTrait<'build, 'arena> {
-    move |arena: &mut Arena<'arena>, env: &LevelEnvironment<'build, 'arena>| {
-        env.get(name).map(|lvl| *lvl).ok_or(Error {
+    move |arena: &mut Arena<'arena>, env: &LevelEnvironment<'build>| {
+        env.get(name).map(|lvl| Level::var(*lvl,arena)).ok_or(Error {
             kind: LevelError::VarNotFound(arena.store_name(name)).into(),
         })
     }
@@ -66,7 +66,7 @@ pub const fn var<'build, 'arena>(name: &'build str) -> impl LevelBuilderTrait<'b
 /// Returns a closure building the 0 level.
 #[inline]
 pub const fn zero<'build, 'arena>() -> impl LevelBuilderTrait<'build, 'arena> {
-    |arena: &mut Arena<'arena>, _: &LevelEnvironment<'build, 'arena>| Ok(Level::zero(arena))
+    |arena: &mut Arena<'arena>, _: &LevelEnvironment<'build>| Ok(Level::zero(arena))
 }
 
 /// Returns a closure building the application of two terms built from the given closures `u1` and
@@ -74,7 +74,7 @@ pub const fn zero<'build, 'arena>() -> impl LevelBuilderTrait<'build, 'arena> {
 #[inline]
 #[no_coverage]
 pub const fn succ<'build, 'arena, F1: LevelBuilderTrait<'build, 'arena>>(u1: F1) -> impl LevelBuilderTrait<'build, 'arena> {
-    |arena: &mut Arena<'arena>, env: &LevelEnvironment<'build, 'arena>| {
+    |arena: &mut Arena<'arena>, env: &LevelEnvironment<'build>| {
         let u1 = u1(arena, env)?;
         Ok(u1.succ(arena))
     }
@@ -88,7 +88,7 @@ pub const fn max<'build, 'arena, F1: LevelBuilderTrait<'build, 'arena>, F2: Leve
     u1: F1,
     u2: F2,
 ) -> impl LevelBuilderTrait<'build, 'arena> {
-    |arena: &mut Arena<'arena>, env: &LevelEnvironment<'build, 'arena>| {
+    |arena: &mut Arena<'arena>, env: &LevelEnvironment<'build>| {
         let u1 = u1(arena, env)?;
         let u2 = u2(arena, env)?;
         Ok(u1.max(u2, arena))
@@ -101,7 +101,7 @@ pub const fn imax<'build, 'arena, F1: LevelBuilderTrait<'build, 'arena>, F2: Lev
     u1: F1,
     u2: F2,
 ) -> impl LevelBuilderTrait<'build, 'arena> {
-    |arena: &mut Arena<'arena>, env: &LevelEnvironment<'build, 'arena>| {
+    |arena: &mut Arena<'arena>, env: &LevelEnvironment<'build>| {
         let u1 = u1(arena, env)?;
         let u2 = u2(arena, env)?;
         Ok(u1.imax(u2, arena))
@@ -139,10 +139,10 @@ impl<'build> LevelBuilder<'build> {
     }
 
     pub fn partial_application<'arena>(&self) -> impl LevelBuilderTrait<'build, 'arena> + '_ {
-        |arena: &mut Arena<'arena>, env: &LevelEnvironment<'build, 'arena>| self.realise_in_context(arena, env)
+        |arena: &mut Arena<'arena>, env: &LevelEnvironment<'build>| self.realise_in_context(arena, env)
     }
 
-    fn realise_in_context<'arena>(&self, arena: &mut Arena<'arena>, env: &LevelEnvironment<'build, 'arena>) -> ResultLevel<'arena> {
+    fn realise_in_context<'arena>(&self, arena: &mut Arena<'arena>, env: &LevelEnvironment<'build>) -> ResultLevel<'arena> {
         use LevelBuilder::*;
         match *self {
             Var(s) => var(s)(arena, env),

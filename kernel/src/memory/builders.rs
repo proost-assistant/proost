@@ -45,7 +45,7 @@ pub type Environment<'build, 'arena> = ImHashMap<&'build str, (DeBruijnIndex, Te
 pub trait BuilderTrait<'build, 'arena> = FnOnce(
     &mut Arena<'arena>,
     &Environment<'build, 'arena>,
-    &LevelEnvironment<'build, 'arena>,
+    &LevelEnvironment<'build>,
     DeBruijnIndex,
 ) -> ResultTerm<'arena>;
 
@@ -54,7 +54,7 @@ impl<'arena> Arena<'arena> {
     #[inline]
     pub fn build<'build, F: BuilderTrait<'build, 'arena>>(
         &mut self,
-        lvl_env: &LevelEnvironment<'build, 'arena>,
+        lvl_env: &LevelEnvironment<'build>,
         f: F,
     ) -> ResultTerm<'arena>
     where
@@ -67,7 +67,7 @@ impl<'arena> Arena<'arena> {
 /// Returns a closure building a variable associated to the name `name`
 #[inline]
 pub const fn var<'build, 'arena>(name: &'build str) -> impl BuilderTrait<'build, 'arena> {
-    move |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, _ : &LevelEnvironment<'build, 'arena>, depth| {
+    move |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, _ : &LevelEnvironment<'build>, depth| {
         env.get(name)
             .map(|(bind_depth, term)| {
                 // This is arguably an eager computation, it could be worth making it lazy,
@@ -85,13 +85,13 @@ pub const fn var<'build, 'arena>(name: &'build str) -> impl BuilderTrait<'build,
 /// Returns a closure building the Prop term.
 #[inline]
 pub const fn prop<'build, 'arena>() -> impl BuilderTrait<'build, 'arena> {
-    |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _: &LevelEnvironment<'build, 'arena>, _| Ok(Term::prop(arena))
+    |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _: &LevelEnvironment<'build>, _| Ok(Term::prop(arena))
 }
 
 /// Returns a closure building the Type `i` term, where `i` is an integer
 #[inline]
 pub const fn type_usize<'build, 'arena>(level: usize) -> impl BuilderTrait<'build, 'arena> {
-    move |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _: &LevelEnvironment<'build, 'arena>, _| {
+    move |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _: &LevelEnvironment<'build>, _| {
         Ok(Term::type_usize(level, arena))
     }
 }
@@ -99,7 +99,7 @@ pub const fn type_usize<'build, 'arena>(level: usize) -> impl BuilderTrait<'buil
 /// Returns a closure building the Sort `level` term.
 #[inline]
 pub const fn sort<'build, 'arena>(level: Level<'arena>) -> impl BuilderTrait<'build, 'arena> {
-    move |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _: &LevelEnvironment<'build, 'arena>, _| {
+    move |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _: &LevelEnvironment<'build>, _| {
         Ok(Term::sort(level, arena))
     }
 }
@@ -107,7 +107,7 @@ pub const fn sort<'build, 'arena>(level: Level<'arena>) -> impl BuilderTrait<'bu
 /// Returns a closure building the Sort `level` term (indirection from `usize`).
 #[inline]
 pub const fn sort_usize<'build, 'arena>(level: usize) -> impl BuilderTrait<'build, 'arena> {
-    move |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _: &LevelEnvironment<'build, 'arena>, _| {
+    move |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _: &LevelEnvironment<'build>, _| {
         Ok(Term::sort_usize(level, arena))
     }
 }
@@ -120,7 +120,7 @@ pub const fn app<'build, 'arena, F1: BuilderTrait<'build, 'arena>, F2: BuilderTr
     u1: F1,
     u2: F2,
 ) -> impl BuilderTrait<'build, 'arena> {
-    |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, lvl_env: &LevelEnvironment<'build, 'arena>, depth| {
+    |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, lvl_env: &LevelEnvironment<'build>, depth| {
         let u1 = u1(arena, env, lvl_env, depth)?;
         let u2 = u2(arena, env, lvl_env, depth)?;
         Ok(u1.app(u2, arena))
@@ -136,7 +136,7 @@ pub const fn abs<'build, 'arena, F1: BuilderTrait<'build, 'arena>, F2: BuilderTr
     arg_type: F1,
     body: F2,
 ) -> impl BuilderTrait<'build, 'arena> {
-    move |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, lvl_env: &LevelEnvironment<'build, 'arena>, depth| {
+    move |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, lvl_env: &LevelEnvironment<'build>, depth| {
         let arg_type = arg_type(arena, env, lvl_env, depth)?;
         let env = env.update(name, (depth, arg_type));
         let body = body(arena, &env, lvl_env, depth + 1.into())?;
@@ -153,7 +153,7 @@ pub const fn prod<'build, 'arena, F1: BuilderTrait<'build, 'arena>, F2: BuilderT
     arg_type: F1,
     body: F2,
 ) -> impl BuilderTrait<'build, 'arena> {
-    move |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, lvl_env: &LevelEnvironment<'build, 'arena>, depth| {
+    move |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, lvl_env: &LevelEnvironment<'build>, depth| {
         let arg_type = arg_type(arena, env, lvl_env, depth)?;
         let env = env.update(name, (depth, arg_type));
         let body = body(arena, &env, lvl_env, depth + 1.into())?;
@@ -188,13 +188,13 @@ pub enum TermBuilder<'r> {
 impl<'build> TermBuilder<'build> {
     /// Build a terms from a [`Builder`]. This internally uses functions described in the
     /// [builders](`crate::term::builders`) module.
-    pub fn realise<'arena>(&self, lvl_env: &LevelEnvironment<'build, 'arena>, arena: &mut Arena<'arena>) -> ResultTerm<'arena> where
+    pub fn realise<'arena>(&self, lvl_env: &LevelEnvironment<'build>, arena: &mut Arena<'arena>) -> ResultTerm<'arena> where
     'arena: 'build{
         arena.build(lvl_env, self.partial_application())
     }
 
     fn partial_application<'arena>(&self) -> impl BuilderTrait<'build, 'arena> + '_ {
-        |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, lvl_env: &LevelEnvironment<'build, 'arena>, depth| {
+        |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, lvl_env: &LevelEnvironment<'build>, depth| {
             self.realise_in_context(arena, env, lvl_env, depth)
         }
     }
@@ -203,7 +203,7 @@ impl<'build> TermBuilder<'build> {
         &self,
         arena: &mut Arena<'arena>,
         env: &Environment<'build, 'arena>,
-        lvl_env: &LevelEnvironment<'build, 'arena>,
+        lvl_env: &LevelEnvironment<'build>,
         depth: DeBruijnIndex,
     ) -> ResultTerm<'arena> {
         use TermBuilder::*;
