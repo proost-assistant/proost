@@ -2,9 +2,9 @@
 
 use derive_more::{Display, From};
 
-use crate::memory::builders::DefinitionError;
+use crate::memory::level::builder::LevelError;
 use crate::memory::level::Level;
-use crate::memory::level_builders::LevelError;
+use crate::memory::term::builder::TermError;
 use crate::memory::term::Term;
 use crate::type_checker::TypeCheckerError;
 
@@ -22,7 +22,7 @@ pub struct Error<'arena> {
 #[derive(Clone, Debug, Display, Eq, PartialEq, From)]
 pub enum ErrorKind<'arena> {
     TypeChecker(TypeCheckerError<'arena>),
-    Definition(DefinitionError<'arena>),
+    Term(TermError<'arena>),
     Level(LevelError<'arena>),
 }
 

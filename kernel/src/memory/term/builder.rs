@@ -16,15 +16,14 @@
 use derive_more::Display;
 use im_rc::hashmap::HashMap as ImHashMap;
 
-use super::arena::Arena;
-use super::level::Level;
-use super::level_builders::{LevelBuilder, LevelEnvironment};
-use super::term::{DeBruijnIndex, Term};
+use super::super::arena::Arena;
+use super::super::level::builder as level;
+use super::{DeBruijnIndex, Term};
 use crate::error::{Error, ResultTerm};
 
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
-pub enum DefinitionError<'arena> {
+pub enum TermError<'arena> {
     #[display(fmt = "unknown identifier {}", _0)]
     ConstNotFound(&'arena str),
 }
@@ -42,32 +41,32 @@ pub type Environment<'build, 'arena> = ImHashMap<&'build str, (DeBruijnIndex, Te
 /// Please note that this is just a trait alias, meaning it enforces very little constraints: while
 /// functions in this module returning a closure with this trait are guaranteed to be sound, end
 /// users can also create their own closures satisfying `BuilderTrait`; this should be avoided.
-pub trait BuilderTrait<'build, 'arena> = FnOnce(
+pub trait BuilderTrait<'build> = for<'arena> FnOnce(
     &mut Arena<'arena>,
     &Environment<'build, 'arena>,
-    &LevelEnvironment<'build>,
+    &level::Environment<'build>,
     DeBruijnIndex,
 ) -> ResultTerm<'arena>;
 
 impl<'arena> Arena<'arena> {
     /// Returns the term built from the given closure, provided with an empty context, at depth 0.
     #[inline]
-    pub fn build<'build, F: BuilderTrait<'build, 'arena>>(
+    pub fn build<'build, F: BuilderTrait<'build>>(
         &mut self,
-        lvl_env: &LevelEnvironment<'build>,
+        //lvl_env: &level::Environment<'build>,
         f: F,
     ) -> ResultTerm<'arena>
     where
         'arena: 'build,
     {
-        f(self, &Environment::new(), lvl_env, 0.into())
+        f(self, &Environment::new(), &level::Environment::new(), 0.into())
     }
 }
 
 /// Returns a closure building a variable associated to the name `name`
 #[inline]
-pub const fn var<'build, 'arena>(name: &'build str) -> impl BuilderTrait<'build, 'arena> {
-    move |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, _ : &LevelEnvironment<'build>, depth| {
+pub const fn var(name: &str) -> impl BuilderTrait<'_> {
+    move |arena, env, _, depth| {
         env.get(name)
             .map(|(bind_depth, term)| {
                 // This is arguably an eager computation, it could be worth making it lazy,
@@ -77,50 +76,41 @@ pub const fn var<'build, 'arena>(name: &'build str) -> impl BuilderTrait<'build,
             })
             .or_else(|| arena.get_binding(name))
             .ok_or(Error {
-                kind: DefinitionError::ConstNotFound(arena.store_name(name)).into(),
+                kind: TermError::ConstNotFound(arena.store_name(name)).into(),
             })
     }
 }
 
 /// Returns a closure building the Prop term.
 #[inline]
-pub const fn prop<'build, 'arena>() -> impl BuilderTrait<'build, 'arena> {
-    |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _: &LevelEnvironment<'build>, _| Ok(Term::prop(arena))
+pub const fn prop<'build>() -> impl BuilderTrait<'build> {
+    |arena, _, _, _| Ok(Term::prop(arena))
 }
 
 /// Returns a closure building the Type `i` term, where `i` is an integer
 #[inline]
-pub const fn type_usize<'build, 'arena>(level: usize) -> impl BuilderTrait<'build, 'arena> {
-    move |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _: &LevelEnvironment<'build>, _| {
-        Ok(Term::type_usize(level, arena))
-    }
+pub const fn type_usize<'build>(level: usize) -> impl BuilderTrait<'build> {
+    move |arena, _, _, _| Ok(Term::type_usize(level, arena))
 }
 
 /// Returns a closure building the Sort `level` term.
 #[inline]
-pub const fn sort<'build, 'arena>(level: Level<'arena>) -> impl BuilderTrait<'build, 'arena> {
-    move |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _: &LevelEnvironment<'build>, _| {
-        Ok(Term::sort(level, arena))
-    }
+pub const fn sort<'build, F: level::BuilderTrait<'build>>(level: F) -> impl BuilderTrait<'build> {
+    move |arena, _, lvl_env, _| Ok(Term::sort(level(arena, lvl_env)?, arena))
 }
 
 /// Returns a closure building the Sort `level` term (indirection from `usize`).
 #[inline]
-pub const fn sort_usize<'build, 'arena>(level: usize) -> impl BuilderTrait<'build, 'arena> {
-    move |arena: &mut Arena<'arena>, _: &Environment<'build, 'arena>, _: &LevelEnvironment<'build>, _| {
-        Ok(Term::sort_usize(level, arena))
-    }
+pub const fn sort_usize<'build>(level: usize) -> impl BuilderTrait<'build> {
+    move |arena, _, _, _| Ok(Term::sort_usize(level, arena))
 }
 
 /// Returns a closure building the application of two terms built from the given closures `u1` and
 /// `u2`.
 #[inline]
 #[no_coverage]
-pub const fn app<'build, 'arena, F1: BuilderTrait<'build, 'arena>, F2: BuilderTrait<'build, 'arena>>(
-    u1: F1,
-    u2: F2,
-) -> impl BuilderTrait<'build, 'arena> {
-    |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, lvl_env: &LevelEnvironment<'build>, depth| {
+pub const fn app<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(u1: F1, u2: F2) -> impl BuilderTrait<'build> {
+    |arena, env, lvl_env, depth| {
         let u1 = u1(arena, env, lvl_env, depth)?;
         let u2 = u2(arena, env, lvl_env, depth)?;
         Ok(u1.app(u2, arena))
@@ -131,12 +121,12 @@ pub const fn app<'build, 'arena, F1: BuilderTrait<'build, 'arena>, F2: BuilderTr
 /// type from `arg_type`.
 #[inline]
 #[no_coverage]
-pub const fn abs<'build, 'arena, F1: BuilderTrait<'build, 'arena>, F2: BuilderTrait<'build, 'arena>>(
+pub const fn abs<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(
     name: &'build str,
     arg_type: F1,
     body: F2,
-) -> impl BuilderTrait<'build, 'arena> {
-    move |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, lvl_env: &LevelEnvironment<'build>, depth| {
+) -> impl BuilderTrait<'build> {
+    move |arena, env, lvl_env, depth| {
         let arg_type = arg_type(arena, env, lvl_env, depth)?;
         let env = env.update(name, (depth, arg_type));
         let body = body(arena, &env, lvl_env, depth + 1.into())?;
@@ -148,12 +138,12 @@ pub const fn abs<'build, 'arena, F1: BuilderTrait<'build, 'arena>, F2: BuilderTr
 /// of the type built from `arg_type`.
 #[inline]
 #[no_coverage]
-pub const fn prod<'build, 'arena, F1: BuilderTrait<'build, 'arena>, F2: BuilderTrait<'build, 'arena>>(
+pub const fn prod<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(
     name: &'build str,
     arg_type: F1,
     body: F2,
-) -> impl BuilderTrait<'build, 'arena> {
-    move |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, lvl_env: &LevelEnvironment<'build>, depth| {
+) -> impl BuilderTrait<'build> {
+    move |arena, env, lvl_env, depth| {
         let arg_type = arg_type(arena, env, lvl_env, depth)?;
         let env = env.update(name, (depth, arg_type));
         let body = body(arena, &env, lvl_env, depth + 1.into())?;
@@ -168,48 +158,45 @@ pub const fn prod<'build, 'arena, F1: BuilderTrait<'build, 'arena>, F2: BuilderT
 /// include a name, as in the classic way of writing lambda-terms (i.e. no de Bruijn indices
 /// involved).
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
-pub enum TermBuilder<'r> {
-    #[display(fmt = "{}", _0)]
-    Var(&'r str), // TODO add universe variables to vars
+pub enum Builder<'build> {
+    #[display(fmt = "{_0}")]
+    Var(&'build str), // TODO add universe variables to vars
 
-    #[display(fmt = "Sort {}", _0)]
-    Sort(LevelBuilder<'r>),
+    #[display(fmt = "Sort {_0}")]
+    Sort(Box<level::Builder<'build>>),
 
-    #[display(fmt = "{} {}", _0, _1)]
-    App(Box<TermBuilder<'r>>, Box<TermBuilder<'r>>),
+    #[display(fmt = "{_0} {_1}")]
+    App(Box<Builder<'build>>, Box<Builder<'build>>),
 
-    #[display(fmt = "\u{003BB} {}: {} \u{02192} {}", _0, _1, _2)]
-    Abs(&'r str, Box<TermBuilder<'r>>, Box<TermBuilder<'r>>),
+    #[display(fmt = "\u{003BB} {_0}: {_1} \u{02192} {_2}")]
+    Abs(&'build str, Box<Builder<'build>>, Box<Builder<'build>>),
 
-    #[display(fmt = "\u{03A0} {}: {} \u{02192} {}", _0, _1, _2)]
-    Prod(&'r str, Box<TermBuilder<'r>>, Box<TermBuilder<'r>>),
+    #[display(fmt = "\u{03A0} {_0}: {_1} \u{02192} {_2}")]
+    Prod(&'build str, Box<Builder<'build>>, Box<Builder<'build>>),
 }
 
-impl<'build> TermBuilder<'build> {
+impl<'build> Builder<'build> {
     /// Build a terms from a [`Builder`]. This internally uses functions described in the
     /// [builders](`crate::term::builders`) module.
-    pub fn realise<'arena>(&self, lvl_env: &LevelEnvironment<'build>, arena: &mut Arena<'arena>) -> ResultTerm<'arena> where
-    'arena: 'build{
-        arena.build(lvl_env, self.partial_application())
+    pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
+        arena.build(self.partial_application())
     }
 
-    fn partial_application<'arena>(&self) -> impl BuilderTrait<'build, 'arena> + '_ {
-        |arena: &mut Arena<'arena>, env: &Environment<'build, 'arena>, lvl_env: &LevelEnvironment<'build>, depth| {
-            self.realise_in_context(arena, env, lvl_env, depth)
-        }
+    fn partial_application(&self) -> impl BuilderTrait<'build> + '_ {
+        |arena, env, lvl_env, depth| self.realise_in_context(arena, env, lvl_env, depth)
     }
 
     fn realise_in_context<'arena>(
         &self,
         arena: &mut Arena<'arena>,
         env: &Environment<'build, 'arena>,
-        lvl_env: &LevelEnvironment<'build>,
+        lvl_env: &level::Environment<'build>,
         depth: DeBruijnIndex,
     ) -> ResultTerm<'arena> {
-        use TermBuilder::*;
-        match &*self {
+        use Builder::*;
+        match self {
             Var(s) => var(s)(arena, env, lvl_env, depth),
-            Sort(level) => sort(LevelBuilder::partial_application(&level)(arena, lvl_env)?)(arena, env, lvl_env, depth),
+            Sort(ref level) => sort(level.partial_application())(arena, env, lvl_env, depth),
             App(ref l, ref r) => app(l.partial_application(), r.partial_application())(arena, env, lvl_env, depth),
             Abs(s, ref arg, ref body) => abs(s, arg.partial_application(), body.partial_application())(arena, env, lvl_env, depth),
             Prod(s, ref arg, ref body) => {
@@ -223,53 +210,51 @@ impl<'build> TermBuilder<'build> {
 pub(crate) mod raw {
     use super::*;
 
-    pub trait BuilderTrait<'arena> = FnOnce(&mut Arena<'arena>) -> Term<'arena>;
+    pub trait BuilderTrait = for<'arena> FnOnce(&mut Arena<'arena>) -> Term<'arena>;
 
     impl<'arena> Arena<'arena> {
-        pub(crate) fn build_term_raw<F: BuilderTrait<'arena>>(&mut self, f: F) -> Term<'arena> {
+        pub(crate) fn build_term_raw<F: BuilderTrait>(&mut self, f: F) -> Term<'arena> {
             f(self)
         }
     }
 
-    impl<'arena> Term<'arena> {
-        pub(crate) const fn into(self) -> impl BuilderTrait<'arena> {
-            move |_: &mut Arena<'arena>| self
-        }
-    }
-
-    pub const fn var<'arena, F: BuilderTrait<'arena>>(index: DeBruijnIndex, type_: F) -> impl BuilderTrait<'arena> {
-        move |arena: &mut Arena<'arena>| {
+    pub const fn var<F: BuilderTrait>(index: DeBruijnIndex, type_: F) -> impl BuilderTrait {
+        move |arena| {
             let ty = type_(arena);
             Term::var(index, ty, arena)
         }
     }
 
-    pub const fn prop<'arena>() -> impl BuilderTrait<'arena> {
-        |arena: &mut Arena<'arena>| Term::prop(arena)
+    pub const fn prop() -> impl BuilderTrait {
+        |arena| Term::prop(arena)
     }
 
-    pub const fn sort_<'arena>(level: Level<'arena>) -> impl BuilderTrait<'arena> {
-        move |arena: &mut Arena<'arena>| Term::sort(level, arena)
+    pub const fn type_usize(level: usize) -> impl BuilderTrait {
+        move |arena| Term::type_usize(level, arena)
     }
 
-    pub const fn app<'arena, F1: BuilderTrait<'arena>, F2: BuilderTrait<'arena>>(u1: F1, u2: F2) -> impl BuilderTrait<'arena> {
-        |arena: &mut Arena<'arena>| {
+    pub const fn sort_<F: level::raw::BuilderTrait>(level: F) -> impl BuilderTrait {
+        move |arena| Term::sort(level(arena), arena)
+    }
+
+    pub const fn app<F1: BuilderTrait, F2: BuilderTrait>(u1: F1, u2: F2) -> impl BuilderTrait {
+        |arena| {
             let u1 = u1(arena);
             let u2 = u2(arena);
             u1.app(u1, arena)
         }
     }
 
-    pub const fn abs<'arena, F1: BuilderTrait<'arena>, F2: BuilderTrait<'arena>>(u1: F1, u2: F2) -> impl BuilderTrait<'arena> {
-        |arena: &mut Arena<'arena>| {
+    pub const fn abs<F1: BuilderTrait, F2: BuilderTrait>(u1: F1, u2: F2) -> impl BuilderTrait {
+        |arena| {
             let u1 = u1(arena);
             let u2 = u2(arena);
             u1.abs(u2, arena)
         }
     }
 
-    pub const fn prod<'arena, F1: BuilderTrait<'arena>, F2: BuilderTrait<'arena>>(u1: F1, u2: F2) -> impl BuilderTrait<'arena> {
-        |arena: &mut Arena<'arena>| {
+    pub const fn prod<F1: BuilderTrait, F2: BuilderTrait>(u1: F1, u2: F2) -> impl BuilderTrait {
+        |arena| {
             let u1 = u1(arena);
             let u2 = u2(arena);
             u1.prod(u2, arena)

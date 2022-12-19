@@ -34,7 +34,7 @@ impl<'arena> fmt::Display for InstantiatedDeclaration<'arena> {
             Some(term) => write!(f, "{term}"),
             None => {
                 write!(f, "({}).{{", self.0.payload.decl)?;
-                self.0.payload.params.into_iter().try_for_each(|level| write!(f, "{level}, "))?;
+                self.0.payload.params.iter().try_for_each(|level| write!(f, "{level}, "))?;
                 write!(f, "}}")
             },
         }

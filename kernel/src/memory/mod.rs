@@ -5,8 +5,6 @@
 //! structures like
 
 pub mod arena;
-pub mod builders;
 pub mod declaration;
 pub mod level;
-pub mod level_builders;
 pub mod term;

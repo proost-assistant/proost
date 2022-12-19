@@ -13,6 +13,8 @@ use super::level::Level;
 use crate::error::ResultTerm;
 use crate::memory::arena::Arena;
 
+pub mod builder;
+
 /// An index used to designate bound variables.
 #[derive(Add, Copy, Clone, Debug, Default, Display, Eq, PartialEq, From, Into, Sub, PartialOrd, Ord, Hash)]
 pub struct DeBruijnIndex(usize);

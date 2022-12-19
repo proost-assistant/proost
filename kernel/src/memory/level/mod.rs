@@ -6,6 +6,8 @@ use super::arena::Arena;
 
 super::arena::new_dweller!(Level, Header, Payload);
 
+pub mod builder;
+
 struct Header<'arena> {
     // put any lazy structure here
     // normalized has been removed, because all levels are guaranteed to be reduced
@@ -113,8 +115,7 @@ impl<'arena> Level<'arena> {
     }
 
     pub fn from(n: usize, arena: &mut Arena<'arena>) -> Self {
-        let z = Level::zero(arena);
-        z.add(n, arena)
+        Level::zero(arena).add(n, arena)
     }
 
     /// Helper function for pretty printing, if universe doesn't contain any variable then it gets printed as a decimal number.

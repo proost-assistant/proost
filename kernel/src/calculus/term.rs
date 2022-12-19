@@ -121,9 +121,9 @@ impl<'arena> Term<'arena> {
                 // TODO this can be slightly optimised. Certainly the substitute mapping can be
                 // performed in place while allocating the slice with store_level_slice. This
                 // function thus has to be made with templates.
-                let params = &*decl.params.into_iter().map(|level| level.substitute(univs, arena)).collect::<Vec<Level>>();
+                let params = &*decl.params.iter().map(|level| level.substitute(univs, arena)).collect::<Vec<Level>>();
                 let params = arena.store_level_slice(params);
-                let inst = InstantiatedDeclaration::instantiate((*decl).decl, params, arena);
+                let inst = InstantiatedDeclaration::instantiate(decl.decl, params, arena);
                 Term::decl(inst, arena)
             },
         }
@@ -162,7 +162,7 @@ impl<'arena> Term<'arena> {
 mod tests {
     // /!\ most terms used in these tests are ill-typed; they should not be used elsewhere
     use crate::memory::arena::use_arena;
-    use crate::memory::builders::raw::*;
+    use crate::memory::term::builder::raw::*;
 
     #[test]
     fn simple_subst() {
@@ -308,9 +308,10 @@ mod tests {
     #[test]
     fn shift_prod() {
         use_arena(|arena| {
-            let reduced = arena.build_term_raw(prod(prop(), var(1.into(), prop())));
-            let term = arena.build_term_raw(app(abs(prop(), reduced.into()), prop()));
+            let reduced = prod(prop(), var(1.into(), prop()));
+            let term = arena.build_term_raw(app(abs(prop(), reduced), prop()));
 
+            let reduced = arena.build_term_raw(prod(prop(), var(1.into(), prop())));
             assert_eq!(term.beta_reduction(arena), reduced)
         })
     }
