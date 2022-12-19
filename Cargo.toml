@@ -12,7 +12,6 @@ clap = { version = "4.0.10", features = ["derive"] }
 colored = "2"
 derive_more = "0.99.17"
 im-rc = "15.1.0"
-num-bigint = "0.4"
 path-absolutize = "3.0.14"
 pest = "2.5"
 pest_derive = "2.5"
