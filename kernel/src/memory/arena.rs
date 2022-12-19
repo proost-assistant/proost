@@ -158,12 +158,13 @@ macro_rules! new_dweller {
         ///
         /// For a [`Term`](super::term::Term), it is possible to write:
         /// ```
-        /// # use kernel::term::arena::{use_arena, Payload::*};
-        /// # use kernel::term::builders::prop;
+        /// # use kernel::memory::arena::use_arena;
+        /// # use kernel::memory::term::Payload::*;
+        /// # use kernel::memory::term::builder::prop;
         /// # use_arena(|arena| {
         /// # let t = arena.build(prop()).unwrap();
         /// match *t {
-        ///     Abs(_, t2) => arena.beta_reduction(t2),
+        ///     Abs(_, t2) => t2.beta_reduction(arena),
         ///     App(t1, _) => t1,
         ///     _ => t,
         /// }

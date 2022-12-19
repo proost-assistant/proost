@@ -73,7 +73,7 @@ impl<'arena> fmt::Display for Payload<'arena> {
                 },
                 None => write!(f, "Sort {{{level}}}"),
             },
-            App(fun, arg) => write!(f, "{fun} {arg}"),
+            App(fun, arg) => write!(f, "({fun}) ({arg})"),
             Abs(argtype, body) => write!(f, "\u{003BB} {argtype} \u{02192} {body}"),
             Prod(argtype, body) => write!(f, "\u{003A0} {argtype} \u{02192} {body}"),
             Decl(decl) => write!(f, "{decl}"),

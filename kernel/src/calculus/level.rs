@@ -84,65 +84,85 @@ impl<'arena> Level<'arena> {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     #[test]
-//     fn univ_eq() {
-//         assert!(!&Zero.is_eq(&Succ(box Zero)));
-//         assert!(!&Succ(box Zero).is_eq(&Zero));
-//         assert!(&Var(0).is_eq(&Max(box Zero, box Var(0))));
-//         assert!(&Max(box Zero, box Var(0)).is_eq(&Var(0)));
-//         assert!(&Max(box Var(1), box Var(0)).is_eq(&Max(box Var(0), box Var(1))));
-//         assert!(!&Max(box Var(1), box Var(1)).is_eq(&Max(box Var(0), box Var(1))));
-//         assert!(&Succ(box Max(box Var(1), box Var(0)))
-//             .is_eq(&Max(box Succ(box Var(0)), box Succ(box Var(1)))));
-//         assert!(&Max(
-//             box Zero,
-//             box IMax(box Zero, box Max(box Succ(box Zero), box Zero))
-//         )
-//         .is_eq(&IMax(
-//             box Succ(box Zero),
-//             box IMax(box Succ(box Zero), box Succ(box Zero))
-//         )));
-//         assert!(&Var(0).is_eq(&IMax(box Var(0), box Var(0))));
-//         assert!(&IMax(box Succ(box Zero), box Max(box Zero, box Zero)).is_eq(&Zero));
-//         assert!(!&IMax(box Var(0), box Var(1)).is_eq(&IMax(box Var(1), box Var(0))))
-//     }
+ #[cfg(test)]
+ mod tests {
+
+    use crate::memory::arena::use_arena;
+    use crate::memory::level::builder::raw::*;
+    use crate::memory::level::Level;
+
+     #[test]
+     fn univ_eq() {
+        use_arena(|arena| {
+            // λx.(λy.x y) x
+            let one  = arena.build_level_raw(succ(zero()));
+            let zero = arena.build_level_raw(zero());
+            let var0 = Level::var(0,arena);
+            let var1 = Level::var(1,arena);
+            let max0_var0 = Level::max(zero,var0,arena);
+            let max_var0_var1 = Level::max(var0,var1,arena);
+            let max_var1_var0 = Level::max(var1,var0,arena);
+            let max_var1_var1 = Level::max(var1,var1,arena);
+            let succ_max_var0_var1 = Level::succ(max_var0_var1, arena);
+            assert!(!zero.is_eq(one, arena));
+            assert!(!one.is_eq(zero, arena));
+            assert!(var0.is_eq(max0_var0, arena));
+            assert!(max0_var0.is_eq(var0, arena));
+            assert!(max_var0_var1.is_eq(max_var1_var0, arena));
+            assert!(!max_var1_var1.is_eq(max_var1_var0, arena));
+
+        });
+        }
+        //
+        // assert!(&Succ(box Max(box Var(1), box Var(0)))
+        //     .is_eq(&Max(box Succ(box Var(0)), box Succ(box Var(1)))));
+        // assert!(&Max(
+        //     box Zero,
+        //     box IMax(box Zero, box Max(box Succ(box Zero), box Zero))
+        // )
+        // .is_eq(&IMax(
+        //     box Succ(box Zero),
+        //     box IMax(box Succ(box Zero), box Succ(box Zero))
+        // )));
+        // assert!(&Var(0).is_eq(&IMax(box Var(0), box Var(0))));
+        // assert!(&IMax(box Succ(box Zero), box Max(box Zero, box Zero)).is_eq(&Zero));
+        // assert!(!&IMax(box Var(0), box Var(1)).is_eq(&IMax(box Var(1), box Var(0))))
+     }
+
+    // #[test]
+    // fn univ_vars_count() {
+    //     assert_eq!(
+    //         IMax(
+    //             box Zero,
+    //             box Max(box Succ(box Zero), box Max(box Var(0), box Var(1)))
+    //         )
+    //         .univ_vars(),
+    //         2
+    //     )
+    // }
 //
-//     #[test]
-//     fn univ_vars_count() {
-//         assert_eq!(
-//             IMax(
-//                 box Zero,
-//                 box Max(box Succ(box Zero), box Max(box Var(0), box Var(1)))
-//             )
-//             .univ_vars(),
-//             2
-//         )
-//     }
+    // #[test]
+    // fn subst() {
+    //     let lvl = IMax(
+    //         box Zero,
+    //         box Max(box Succ(box Zero), box Max(box Var(0), box Var(1))),
+    //     );
+    //     let subst = vec![Succ(box Zero), Zero];
+    //     assert_eq!(
+    //         lvl.substitute(&subst),
+    //         IMax(
+    //             box Zero,
+    //             box Max(box Succ(box Zero), box Max(box Succ(box Zero), box Zero))
+    //         )
+    //     )
+    // }
 //
-//     #[test]
-//     fn subst() {
-//         let lvl = IMax(
-//             box Zero,
-//             box Max(box Succ(box Zero), box Max(box Var(0), box Var(1))),
-//         );
-//         let subst = vec![Succ(box Zero), Zero];
-//         assert_eq!(
-//             lvl.substitute(&subst),
-//             IMax(
-//                 box Zero,
-//                 box Max(box Succ(box Zero), box Max(box Succ(box Zero), box Zero))
-//             )
-//         )
-//     }
-//
-//     #[test]
-//     fn single_subst() {
-//         let lvl = IMax(box Max(box Succ(box Zero), box Var(0)), box Var(0));
-//         assert_eq!(
-//             lvl.substitute_single(0, Zero),
-//             IMax(box Max(box Succ(box Zero), box Zero), box Zero)
-//         )
-//     }
-// }
+    // #[test]
+    // fn single_subst() {
+    //     let lvl = IMax(box Max(box Succ(box Zero), box Var(0)), box Var(0));
+    //     assert_eq!(
+    //         lvl.substitute_single(0, Zero),
+    //         IMax(box Max(box Succ(box Zero), box Zero), box Zero)
+    //     )
+    // }
+ //

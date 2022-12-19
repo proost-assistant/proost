@@ -56,10 +56,9 @@ impl<'arena> Term<'arena> {
         }
 
         match (&*lhs, &*rhs) {
-            // For universe conversion (Prop/Type), the equality of conversion is syntactical over the whnfs, as such,
-            // they live in the same place in memory. This means we don't need to check for these cases here.
-            // /!\ Once we have universe polymorphism, this won't be the case anymore and these cases will need to be added
-            // again.
+            
+            (Sort(l1),Sort(l2)) => l1.is_eq(*l2,arena),
+
             (Var(i, _), Var(j, _)) => i == j,
 
             (&Prod(t1, u1), &Prod(t2, u2)) => t1.conversion(t2, arena) && u1.conversion(u2, arena),
