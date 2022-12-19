@@ -170,7 +170,7 @@ pub const fn prod<'build, 'arena, F1: BuilderTrait<'build, 'arena>, F2: BuilderT
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
 pub enum TermBuilder<'r> {
     #[display(fmt = "{}", _0)]
-    Var(&'r str),
+    Var(&'r str), // TODO add universe variables to vars
 
     #[display(fmt = "Sort {}", _0)]
     Sort(LevelBuilder<'r>),
