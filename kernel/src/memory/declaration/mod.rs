@@ -12,15 +12,23 @@
 use std::cell::OnceCell;
 use std::fmt;
 
+use derive_more::Display;
+
 use super::arena::Arena;
 use super::level::Level;
 use super::term::Term;
+
+pub mod builder;
+
+#[derive(Copy, Clone, Debug, Display, Eq, PartialEq, Hash)]
+#[display(fmt = "{_0}")]
+pub struct Declaration<'arena>(Term<'arena>, usize);
 
 super::arena::new_dweller!(InstantiatedDeclaration, Header, Payload);
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Payload<'arena> {
-    pub decl: Term<'arena>,
+    pub decl: Declaration<'arena>,
     pub params: &'arena [Level<'arena>],
 }
 
@@ -41,10 +49,16 @@ impl<'arena> fmt::Display for InstantiatedDeclaration<'arena> {
     }
 }
 
+impl<'arena> Declaration<'arena> {
+    pub(crate) fn new(term: Term<'arena>, vars: usize) -> Self {
+        Self(term, vars)
+    }
+}
+
 impl<'arena> InstantiatedDeclaration<'arena> {
     /// Creates a new instantiated declaration from its base components. It is not verified that
     /// the provided slice matches in length the number of expected Levels.
-    pub(crate) fn instantiate(decl: Term<'arena>, params: &[Level<'arena>], arena: &mut Arena<'arena>) -> Self {
+    pub(crate) fn instantiate(decl: Declaration<'arena>, params: &[Level<'arena>], arena: &mut Arena<'arena>) -> Self {
         let new_node = Node {
             header: Header {
                 term: OnceCell::new(),
@@ -56,18 +70,18 @@ impl<'arena> InstantiatedDeclaration<'arena> {
         };
 
         match arena.hashcons_decls.get(&new_node) {
-            Some(addr) => InstantiatedDeclaration::new(addr),
+            Some(addr) => Self::new(addr),
             None => {
                 let addr = arena.alloc.alloc(new_node);
                 arena.hashcons_decls.insert(addr);
-                InstantiatedDeclaration::new(addr)
+                Self::new(addr)
             },
         }
     }
 
     /// Returns the term linked to a definition in a given environment.
     pub fn get_term(self, arena: &mut Arena<'arena>) -> Term<'arena> {
-        *self.0.header.term.get_or_init(|| self.0.payload.decl.substitute_univs(self.0.payload.params,arena))
+        *self.0.header.term.get_or_init(|| self.0.payload.decl.0.substitute_univs(self.0.payload.params, arena))
     }
 
     // Returns the type linked to a definition in a given environment.

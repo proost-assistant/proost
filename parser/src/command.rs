@@ -4,22 +4,22 @@
 
 use core::fmt;
 
-use kernel::memory::builders::TermBuilder;
+use kernel::memory::term::builder::Builder;
 
 /// The type of commands that can be received by the kernel.
 #[derive(Debug, Eq, PartialEq)]
 pub enum Command<'build> {
-    /// Define a new term and optionally check that it's type match the given one.
-    Define(&'build str, Box<[String]>, Option<TermBuilder<'build>>, TermBuilder<'build>),
+    /// Define a new term and optionally check that its type matches the given one.
+    Define(&'build str, Vec<&'build str>, Option<Builder<'build>>, Builder<'build>),
 
     /// Infer the type of a term and check that it match the given one.
-    CheckType(TermBuilder<'build>,TermBuilder<'build>),
+    CheckType(Builder<'build>,Builder<'build>),
 
     /// Infer the type of a term.
-    GetType(TermBuilder<'build>),
+    GetType(Builder<'build>),
 
     /// Evaluate a term.
-    Eval(TermBuilder<'build>),
+    Eval(Builder<'build>),
 
     /// Import a (series of) file(s).
     Import(Vec<&'build str>),
@@ -33,9 +33,9 @@ impl<'build> fmt::Display for Command<'build> {
         use Command::*;
 
         match self {
-            Define(name,_, None, t) => write!(f, "def {} := {}", name, t),
+            Define(name, _, None, t) => write!(f, "def {} := {}", name, t),
 
-            Define(name,_,  Some(ty), t) => write!(f, "def {} : {} := {}", name, ty, t),
+            Define(name, _, Some(ty), t) => write!(f, "def {}: {} := {}", name, ty, t),
 
             CheckType(t, ty) => write!(f, "check {}: {}", t, ty),
 

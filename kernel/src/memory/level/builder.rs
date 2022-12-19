@@ -140,7 +140,11 @@ impl<'build> Builder<'build> {
         |arena, env| self.realise_in_context(arena, env)
     }
 
-    fn realise_in_context<'arena>(&self, arena: &mut Arena<'arena>, env: &Environment<'build>) -> ResultLevel<'arena> {
+    pub(in super::super) fn realise_in_context<'arena>(
+        &self,
+        arena: &mut Arena<'arena>,
+        env: &Environment<'build>,
+    ) -> ResultLevel<'arena> {
         use Builder::*;
         match *self {
             Zero => zero()(arena, env),

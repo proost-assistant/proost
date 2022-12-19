@@ -7,6 +7,7 @@ use std::marker::PhantomData;
 
 use bumpalo::Bump;
 
+use super::declaration::Declaration;
 use super::level::Level;
 use super::term::Term;
 
@@ -39,7 +40,7 @@ pub struct Arena<'arena> {
     pub(super) hashcons_decls: HashSet<&'arena super::declaration::Node<'arena>>,
     pub(super) hashcons_levels: HashMap<&'arena super::level::Node<'arena>, super::level::Level<'arena>>,
 
-    named_decls: HashMap<&'arena str, (Term<'arena>, usize)>,
+    named_decls: HashMap<&'arena str, Declaration<'arena>>,
     named_terms: HashMap<&'arena str, Term<'arena>>,
 
     // Hash maps used to speed up certain algorithms. See also `OnceCell`s in [`Term`]
@@ -97,15 +98,26 @@ impl<'arena> Arena<'arena> {
         self.alloc.alloc_str(name)
     }
 
-    /// Binds a term to a certain name.
+    /// Binds a term to a given name.
     pub fn bind(&mut self, name: &str, t: Term<'arena>) {
         let name = self.store_name(name);
         self.named_terms.insert(name, t);
     }
 
-    /// Retrieves the binding of a certain name, if one exists.
+    /// Binds a declaration to a given name.
+    pub fn bind_decl(&mut self, name: &str, t: Declaration<'arena>) {
+        let name = self.store_name(name);
+        self.named_decls.insert(name, t);
+    }
+
+    /// Retrieves the binding of a given name, if one exists.
     pub fn get_binding(&self, name: &str) -> Option<Term<'arena>> {
         self.named_terms.get(name).copied()
+    }
+
+    /// Retrieves the declaration binding of a given name, if one exists.
+    pub fn get_binding_decl(&self, name: &str) -> Option<Declaration<'arena>> {
+        self.named_decls.get(name).copied()
     }
 }
 

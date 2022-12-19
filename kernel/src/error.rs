@@ -2,10 +2,7 @@
 
 use derive_more::{Display, From};
 
-use crate::memory::level::builder::LevelError;
-use crate::memory::level::Level;
-use crate::memory::term::builder::TermError;
-use crate::memory::term::Term;
+use crate::memory::*;
 use crate::type_checker::TypeCheckerError;
 
 /// Type representing kernel errors.
@@ -22,12 +19,15 @@ pub struct Error<'arena> {
 #[derive(Clone, Debug, Display, Eq, PartialEq, From)]
 pub enum ErrorKind<'arena> {
     TypeChecker(TypeCheckerError<'arena>),
-    Term(TermError<'arena>),
-    Level(LevelError<'arena>),
+    Term(term::builder::TermError<'arena>),
+    Level(level::builder::LevelError<'arena>),
+    Declaration(declaration::builder::DeclarationError<'arena>),
 }
 
 impl<'arena> std::error::Error for Error<'arena> {}
 
 pub type Result<'arena, T> = std::result::Result<T, Error<'arena>>;
-pub type ResultTerm<'arena> = Result<'arena, Term<'arena>>;
-pub type ResultLevel<'arena> = Result<'arena, Level<'arena>>;
+pub type ResultTerm<'arena> = Result<'arena, term::Term<'arena>>;
+pub type ResultLevel<'arena> = Result<'arena, level::Level<'arena>>;
+pub type ResultDecl<'arena> = Result<'arena, declaration::Declaration<'arena>>;
+pub type ResultInstantiatedDecl<'arena> = Result<'arena, declaration::InstantiatedDeclaration<'arena>>;
