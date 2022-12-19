@@ -4,18 +4,6 @@ use crate::memory::arena::Arena;
 use crate::memory::level::{Level, Payload};
 
 impl<'arena> Level<'arena> {
-    // Is used to find the number of universe in a declaration.
-    // This function is no longer in use
-    // pub fn univ_vars(self) -> usize {
-    //     match self {
-    //         Zero => 0,
-    //         Succ(n) => n.univ_vars(),
-    //         Max(n, m) => n.univ_vars().max(m.univ_vars()),
-    //         IMax(n, m) => n.univ_vars().max(m.univ_vars()),
-    //         Var(n) => n + 1,
-    //     }
-    // }
-
     /// Helper function for equality checking, used to substitute Var(i) with Z and S(Var(i)).
     fn substitute_single(self, var: usize, u: Self, arena: &mut Arena<'arena>) -> Self {
         match *self {

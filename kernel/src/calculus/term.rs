@@ -89,6 +89,24 @@ impl<'arena> Term<'arena> {
         })
     }
 
+    pub(crate) fn univ_vars(self) -> usize {
+        use std::cmp::max;
+        self.get_univ_vars_or_init(|| 
+        match *self {
+            Sort(level) => level.univ_vars(),
+
+            Var(_,_) | Decl(_) => 0,
+
+            App(u1, u2) |
+            Abs(u1, u2) |
+            Prod(u1, u2) => {
+                let n1 = u1.univ_vars();
+                let n2 = u2.univ_vars();
+                max(n1,n2)
+            },
+        })
+    }
+
     /// TODO(docs)
     pub(crate) fn substitute_univs(self, univs: &[Level<'arena>], arena: &mut Arena<'arena>) -> Self {
         match *self {

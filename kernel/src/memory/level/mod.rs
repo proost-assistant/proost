@@ -12,6 +12,7 @@ struct Header<'arena> {
     // put any lazy structure here
     // normalized has been removed, because all levels are guaranteed to be reduced
     plus_form: OnceCell<(Level<'arena>, usize)>,
+    univ_vars: OnceCell<usize>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -57,6 +58,7 @@ impl<'arena> Level<'arena> {
             payload,
             header: Header {
                 plus_form: OnceCell::new(),
+                univ_vars: OnceCell::new(),
             },
         };
 
@@ -145,6 +147,17 @@ impl<'arena> Level<'arena> {
                 (u, n + 1)
             },
             _ => (self, 0),
+        })
+    }
+
+    /// Helper function to count the number of universe variables un a universe level.
+    pub fn univ_vars(self) -> usize {
+        *self.0.header.univ_vars.get_or_init(|| match *self {
+            Zero => 0,
+            Succ(n) => n.univ_vars(),
+            Max(n, m) => n.univ_vars().max(m.univ_vars()),
+            IMax(n, m) => n.univ_vars().max(m.univ_vars()),
+            Var(n) => n + 1,
         })
     }
 

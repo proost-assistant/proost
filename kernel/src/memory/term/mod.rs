@@ -25,6 +25,7 @@ struct Header<'arena> {
     // Lazy and aliasing-compatible structures for memoizing
     head_normal_form: OnceCell<Term<'arena>>,
     type_: OnceCell<Term<'arena>>,
+    univ_vars : OnceCell<usize>,
     // TODO is_certainly_closed: boolean underapproximation of whether a term is closed.
     // This may greatly improve performance in shifting, along with a mem_shift hash map.
 }
@@ -102,6 +103,7 @@ impl<'arena> Term<'arena> {
             header: Header {
                 head_normal_form: OnceCell::new(),
                 type_: OnceCell::new(),
+                univ_vars : OnceCell::new(),
             },
         };
 
@@ -180,6 +182,14 @@ impl<'arena> Term<'arena> {
         F: FnOnce() -> ResultTerm<'arena>,
     {
         self.0.header.type_.get_or_try_init(f).copied()
+    }
+
+        /// Returns the weak head normal form of the term, lazily computing the closure `f`.
+    pub(crate) fn get_univ_vars_or_init<F>(self, f: F) -> usize
+    where
+        F: FnOnce() -> usize,
+    {
+        *self.0.header.univ_vars.get_or_init(f)
     }
 }
 
