@@ -5,8 +5,9 @@ use std::path::PathBuf;
 use colored::Colorize;
 use derive_more::Display;
 use kernel::location::Location;
-use kernel::memory::term::Term;
 use kernel::memory::arena::Arena;
+use kernel::memory::term::Term;
+use kernel::memory::level_builders::LevelEnvironment;
 use parser::command::Command;
 use parser::{parse_file, parse_line};
 use path_absolutize::Absolutize;
@@ -139,10 +140,10 @@ impl<'arena> Evaluator {
         importing: &mut Vec<PathBuf>,
     ) -> Result<'arena, Option<Term<'arena>>> {
         match command {
-            Command::Define(s, None, term) => {
-                let term = term.realise(arena)?;
+            Command::Define(s,vec, None, term) => {
+                let term = term.realise(&LevelEnvironment::new(),arena)?;// TODO use right env
                 if arena.get_binding(s).is_none() {
-                    arena.infer(term)?;
+                    term.infer(arena)?;
                     arena.bind(s, term);
                     Ok(None)
                 } else {
@@ -153,29 +154,29 @@ impl<'arena> Evaluator {
                 }
             },
 
-            Command::Define(s, Some(t), term) => {
-                let term = term.realise(arena)?;
-                let t = t.realise(arena)?;
-                arena.check(term, t)?;
+            Command::Define(s,vec, Some(t), term) => {
+                let term = term.realise(&LevelEnvironment::new(),arena)?; // TODO use right env
+                let t = t.realise(&LevelEnvironment::new(),arena)?;
+                term.check(t,arena)?;
                 arena.bind(s, term);
                 Ok(None)
             },
 
             Command::CheckType(t1, t2) => {
-                let t1 = t1.realise(arena)?;
-                let t2 = t2.realise(arena)?;
-                arena.check(t1, t2)?;
+                let t1 = t1.realise(&LevelEnvironment::new(),arena)?;
+                let t2 = t2.realise(&LevelEnvironment::new(),arena)?;
+                t1.check(t2,arena)?;
                 Ok(None)
             },
 
             Command::GetType(t) => {
-                let t = t.realise(arena)?;
-                Ok(arena.infer(t).map(Some)?)
+                let t = t.realise(&LevelEnvironment::new(),arena)?;
+                Ok(t.infer(arena).map(Some)?)
             },
 
             Command::Eval(t) => {
-                let t = t.realise(arena)?;
-                Ok(Some(arena.normal_form(t)))
+                let t = t.realise(&LevelEnvironment::new(),arena)?;
+                Ok(Some(t.normal_form(arena)))
             },
 
             Command::Search(s) => Ok(arena.get_binding(s)), // TODO (see #49)

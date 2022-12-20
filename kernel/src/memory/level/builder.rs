@@ -69,6 +69,12 @@ pub const fn const_<'build>(n: usize) -> impl BuilderTrait<'build> {
     move |arena, _| Ok(Level::from(n, arena))
 }
 
+/// Returns a closure building the sum of `u` and a constant `n`.
+#[inline]
+pub const fn plus<'build, F: BuilderTrait<'build>>(u: F, n: usize) -> impl BuilderTrait<'build> {
+    move |arena, env| Ok(u(arena, env)?.add(n, arena))
+}
+
 /// Returns a closure building the successor of a level built from the given closure `u1`
 #[inline]
 #[no_coverage]
@@ -115,13 +121,16 @@ pub enum Builder<'builder> {
 
     Const(usize),
 
-    #[display(fmt = "S({})", _0)]
+    #[display(fmt = "({_0}) + {_1}")]
+    Plus(Box<Builder<'builder>>, usize),
+
+    #[display(fmt = "S({_0})")]
     Succ(Box<Builder<'builder>>),
 
-    #[display(fmt = "max({},{})", _0, _1)]
+    #[display(fmt = "max({_0}, {_1})")]
     Max(Box<Builder<'builder>>, Box<Builder<'builder>>),
 
-    #[display(fmt = "imax({},{})", _0, _1)]
+    #[display(fmt = "imax({_0}, {_1})")]
     IMax(Box<Builder<'builder>>, Box<Builder<'builder>>),
 
     Var(&'builder str),
@@ -147,6 +156,7 @@ impl<'build> Builder<'build> {
         match *self {
             Zero => zero()(arena, env),
             Const(c) => const_(c)(arena, env),
+            Plus(ref u, n) => plus(u.partial_application(), n)(arena, env),
             Succ(ref l) => succ(l.partial_application())(arena, env),
             Max(ref l, ref r) => max(l.partial_application(), r.partial_application())(arena, env),
             IMax(ref l, ref r) => imax(l.partial_application(), r.partial_application())(arena, env),

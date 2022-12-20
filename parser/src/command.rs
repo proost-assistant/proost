@@ -10,10 +10,10 @@ use kernel::memory::term::builder::Builder;
 #[derive(Debug, Eq, PartialEq)]
 pub enum Command<'build> {
     /// Define a new term and optionally check that its type matches the given one.
-    Define(&'build str, Vec<&'build str>, Option<Builder<'build>>, Builder<'build>),
+    Define(&'build str, Option<Vec<&'build str>>, Option<Builder<'build>>, Builder<'build>),
 
-    /// Infer the type of a term and check that it match the given one.
-    CheckType(Builder<'build>,Builder<'build>),
+    /// Infer the type of a term and check that it matches the given one.
+    CheckType(Builder<'build>, Builder<'build>),
 
     /// Infer the type of a term.
     GetType(Builder<'build>),
