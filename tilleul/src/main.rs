@@ -1,15 +1,13 @@
 #![feature(once_cell)]
 
-mod connection;
-mod lsp_server;
-mod payload;
+mod server;
+mod tilleul;
 
 use anyhow::Result;
-use connection::Connection;
 use log::info;
-use lsp_server::LspServer;
 
-use crate::lsp_server::LspState;
+use crate::server::lsp::LspServer;
+use crate::tilleul::Tilleul;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const NAME: &str = env!("CARGO_PKG_NAME");
@@ -19,10 +17,9 @@ fn main() -> Result<()> {
 
     info!("Starting {} {}", NAME, VERSION);
 
-    let connection = Connection::new();
-    let state = LspState::default();
+    let mut backend = Tilleul::default();
 
-    LspServer::new(&connection, &state).launch();
+    LspServer::new(&mut backend).serve();
 
     info!("Exiting {}", NAME);
 
