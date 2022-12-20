@@ -74,11 +74,11 @@ impl<'build> Builder<'build> {
         arena.build_declaration(self.partial_application())
     }
 
-    pub fn partial_application(&self) -> impl BuilderTrait<'build> + '_ {
+    fn partial_application(&self) -> impl BuilderTrait<'build> + '_ {
         |arena| self.realise_in_context(arena)
     }
 
-    pub(in super::super) fn realise_in_context<'arena>(&self, arena: &mut Arena<'arena>) -> ResultDecl<'arena> {
+    fn realise_in_context<'arena>(&self, arena: &mut Arena<'arena>) -> ResultDecl<'arena> {
         match self {
             Builder::Decl(term, vars) => declaration(term.partial_application(), vars.as_slice())(arena),
         }
@@ -132,25 +132,38 @@ pub fn var<'build>(name: &'build str, levels: &'build [level::Builder<'build>]) 
 ///
 /// On the other hand, the [second variant](`InstantiatedBuilder::Var`) is typically used by the
 /// parser, as it corresponds to the only possible scenario in a file.
-#[derive(Clone, Debug, Display, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum InstantiatedBuilder<'build> {
-    #[display(fmt = "{_0}")]
     Instance(Box<Builder<'build>>, Vec<level::Builder<'build>>),
 
-    #[display(fmt = "TODODODDODOD")]
     Var(&'build str, Vec<level::Builder<'build>>),
 }
 
+impl<'arena> std::fmt::Display for InstantiatedBuilder<'arena> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        use InstantiatedBuilder::*;
+        match self {
+            Instance(decl, params) => { write!(f, "{decl}.{{")?;
+                params.iter().try_for_each(|level| write!(f, "{level}, "))?;
+                write!(f, "}}")
+            }
+            Var(decl, params) => { write!(f, "{decl}.{{")?;
+                params.iter().try_for_each(|level| write!(f, "{level}, "))?;
+                write!(f, "}}")
+            }
+        }
+    }
+}
 impl<'build> InstantiatedBuilder<'build> {
     pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultInstantiatedDecl<'arena> {
         arena.build_instantiated_declaration(self.partial_application())
     }
 
-    pub fn partial_application(&'build self) -> impl InstantiatedBuilderTrait<'build> {
+    pub(in super::super) fn partial_application(&'build self) -> impl InstantiatedBuilderTrait<'build> {
         |arena, lvl_env| self.realise_in_context(arena, lvl_env)
     }
 
-    pub(in super::super) fn realise_in_context<'arena>(
+    fn realise_in_context<'arena>(
         &'build self,
         arena: &mut Arena<'arena>,
         lvl_env: &level::Environment<'build>,

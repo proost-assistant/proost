@@ -83,27 +83,4 @@ impl<'arena> InstantiatedDeclaration<'arena> {
     pub fn get_term(self, arena: &mut Arena<'arena>) -> Term<'arena> {
         *self.0.header.term.get_or_init(|| self.0.payload.decl.0.substitute_univs(self.0.payload.params, arena))
     }
-
-    // Returns the type linked to a definition in a given environment.
-    // pub fn get_type(&self, vec: &[Level<'arena>]) -> Result<Term<'arena>, KernelError> {
-    //     if self.univ_vars != vec.len() {
-    //         Err(KernelError::WrongNumberOfUniverseArguments(
-    //             self.univ_vars,
-    //             vec.len(),
-    //         ))
-    //     } else {
-    //         Ok(self.ty.substitute_univs(vec))
-    //     }
-    // }
-
-    //pub fn get_term(&self, vec: &[Level<'arena>]) -> {
-    //    if self.univ_vars != vec.len() {
-    //        Err(KernelError::WrongNumberOfUniverseArguments(
-    //            self.univ_vars,
-    //            vec.len(),
-    //        ))
-    //    } else {
-    //        Ok(self.clone().term.map(|x| x.substitute_univs(vec)))
-    //    }
-    //}
 }

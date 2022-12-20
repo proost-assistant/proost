@@ -14,7 +14,7 @@
 //! moment, [realise](Builder::realise) it.
 
 use derive_more::Display;
-use im_rc::hashmap::HashMap as ImHashMap;
+use std::collections::HashMap;
 
 use super::super::arena::Arena;
 use super::Level;
@@ -29,7 +29,7 @@ pub enum LevelError<'arena> {
 
 /// Local environment used to store correspondence between locally-bound variables and the pair
 /// (depth at which they were bound, their type)
-pub type Environment<'build> = ImHashMap<&'build str, usize>;
+pub type Environment<'build> = HashMap<&'build str, usize>;
 
 /// The trait of closures which build terms with an adequate logic.
 ///

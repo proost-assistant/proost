@@ -18,6 +18,7 @@ use im_rc::hashmap::HashMap as ImHashMap;
 
 use super::super::arena::Arena;
 use super::super::level::builder as level;
+use super::super::declaration::builder as declaration;
 use super::{DeBruijnIndex, Term};
 use crate::error::{Error, ResultTerm};
 
@@ -151,6 +152,13 @@ pub const fn prod<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(
     }
 }
 
+/// Returns a closure building the Sort `level` term.
+#[inline]
+pub const fn decl<'build, F: declaration::InstantiatedBuilderTrait<'build>>(decl: F) -> impl BuilderTrait<'build> {
+    move |arena, _, lvl_env, _| Ok(Term::decl(decl(arena, lvl_env)?, arena))
+}
+
+
 /// Template of terms.
 ///
 /// A Builder describes a term in a naive but easy to build manner. It strongly resembles the
@@ -160,7 +168,13 @@ pub const fn prod<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
 pub enum Builder<'build> {
     #[display(fmt = "{_0}")]
-    Var(&'build str), // TODO add universe variables to vars
+    Var(&'build str),
+
+    #[display(fmt = "Prop")]
+    Prop,
+
+    #[display(fmt = "Type {_0}")]
+    Type(usize),
 
     #[display(fmt = "Sort {_0}")]
     Sort(Box<level::Builder<'build>>),
@@ -173,6 +187,8 @@ pub enum Builder<'build> {
 
     #[display(fmt = "\u{03A0} {_0}: {_1} \u{02192} {_2}")]
     Prod(&'build str, Box<Builder<'build>>, Box<Builder<'build>>),
+
+    Decl(Box<declaration::InstantiatedBuilder<'build>>)
 }
 
 impl<'build> Builder<'build> {
@@ -182,12 +198,12 @@ impl<'build> Builder<'build> {
         arena.build(self.partial_application())
     }
 
-    pub(in super::super) fn partial_application(&self) -> impl BuilderTrait<'build> + '_ {
+    pub(in super::super) fn partial_application(&'build self) -> impl BuilderTrait<'build> {
         |arena, env, lvl_env, depth| self.realise_in_context(arena, env, lvl_env, depth)
     }
 
     fn realise_in_context<'arena>(
-        &self,
+        &'build self,
         arena: &mut Arena<'arena>,
         env: &Environment<'build, 'arena>,
         lvl_env: &level::Environment<'build>,
@@ -196,12 +212,15 @@ impl<'build> Builder<'build> {
         use Builder::*;
         match self {
             Var(s) => var(s)(arena, env, lvl_env, depth),
+            Prop => prop()(arena, env, lvl_env, depth),
+            Type(i) => type_usize(*i)(arena, env, lvl_env, depth),
             Sort(ref level) => sort(level.partial_application())(arena, env, lvl_env, depth),
             App(ref l, ref r) => app(l.partial_application(), r.partial_application())(arena, env, lvl_env, depth),
             Abs(s, ref arg, ref body) => abs(s, arg.partial_application(), body.partial_application())(arena, env, lvl_env, depth),
             Prod(s, ref arg, ref body) => {
                 prod(s, arg.partial_application(), body.partial_application())(arena, env, lvl_env, depth)
             },
+            Decl(ref decl_builder) => decl(decl_builder.partial_application())(arena, env, lvl_env, depth)
         }
     }
 }
@@ -241,7 +260,7 @@ pub(crate) mod raw {
         |arena| {
             let u1 = u1(arena);
             let u2 = u2(arena);
-            u1.app(u1, arena)
+            u1.app(u2, arena)
         }
     }
 
