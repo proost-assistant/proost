@@ -35,7 +35,9 @@ Plus = { univ_plus ~ ( "+" ~ number )+ }
 Max = { ( "max" ~ "(" ~ univ ~ "," ~ univ ~ ")" ) | ( "max" ~ univ ~ univ ) }
 IMax = { ( "imax" ~ "(" ~ univ ~ "," ~ univ ~ ")" ) | ( "imax" ~ univ ~ univ ) }
 
-Var = { string ~ arg_univ? }
+Var = { string }
+VarDecl = { string ~ arg_univ }
+
 arg_univ = {".{" ~ (univ ~ ("," ~ univ)*)? ~ "}"}
 
 univ_decl = {".{" ~ (string ~ ("," ~ string)* )? ~ "}"}

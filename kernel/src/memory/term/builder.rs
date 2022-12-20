@@ -17,8 +17,8 @@ use derive_more::Display;
 use im_rc::hashmap::HashMap as ImHashMap;
 
 use super::super::arena::Arena;
-use super::super::level::builder as level;
 use super::super::declaration::builder as declaration;
+use super::super::level::builder as level;
 use super::{DeBruijnIndex, Term};
 use crate::error::{Error, ResultTerm};
 
@@ -52,14 +52,7 @@ pub trait BuilderTrait<'build> = for<'arena> FnOnce(
 impl<'arena> Arena<'arena> {
     /// Returns the term built from the given closure, provided with an empty context, at depth 0.
     #[inline]
-    pub fn build<'build, F: BuilderTrait<'build>>(
-        &mut self,
-        //lvl_env: &level::Environment<'build>,
-        f: F,
-    ) -> ResultTerm<'arena>
-    where
-        'arena: 'build,
-    {
+    pub fn build<'build, F: BuilderTrait<'build>>(&mut self, f: F) -> ResultTerm<'arena> {
         f(self, &Environment::new(), &level::Environment::new(), 0.into())
     }
 }
@@ -158,7 +151,6 @@ pub const fn decl<'build, F: declaration::InstantiatedBuilderTrait<'build>>(decl
     move |arena, _, lvl_env, _| Ok(Term::decl(decl(arena, lvl_env)?, arena))
 }
 
-
 /// Template of terms.
 ///
 /// A Builder describes a term in a naive but easy to build manner. It strongly resembles the
@@ -188,7 +180,7 @@ pub enum Builder<'build> {
     #[display(fmt = "\u{03A0} {_0}: {_1} \u{02192} {_2}")]
     Prod(&'build str, Box<Builder<'build>>, Box<Builder<'build>>),
 
-    Decl(Box<declaration::InstantiatedBuilder<'build>>)
+    Decl(Box<declaration::InstantiatedBuilder<'build>>),
 }
 
 impl<'build> Builder<'build> {
@@ -220,7 +212,7 @@ impl<'build> Builder<'build> {
             Prod(s, ref arg, ref body) => {
                 prod(s, arg.partial_application(), body.partial_application())(arena, env, lvl_env, depth)
             },
-            Decl(ref decl_builder) => decl(decl_builder.partial_application())(arena, env, lvl_env, depth)
+            Decl(ref decl_builder) => decl(decl_builder.partial_application())(arena, env, lvl_env, depth),
         }
     }
 }

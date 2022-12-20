@@ -1,4 +1,5 @@
 use kernel::location::Location;
+use kernel::memory::declaration::builder as declaration;
 use kernel::memory::level::builder as level;
 use kernel::memory::term::builder as term;
 use pest::error::LineColLocation;
@@ -62,6 +63,25 @@ fn parse_level(pair: Pair<Rule>) -> level::Builder {
     }
 }
 
+fn parse_univ_vars(pair: Pair<Rule>) -> Vec<&str> {
+    let iter = pair.into_inner();
+    let mut vec = Vec::new();
+    for (_, pair) in iter.enumerate() {
+        let str = pair.as_str();
+        vec.push(str)
+    }
+    vec
+}
+
+fn parse_univ_bindings(pair: Pair<Rule>) -> Vec<LevelBuilder<'_>> {
+    let iter = pair.into_inner();
+    let mut vec = Vec::new();
+    for (_, pair) in iter.enumerate() {
+        vec.push(parse_level(pair))
+    }
+    vec
+}
+
 /// Returns a kernel term builder from pest output
 fn parse_term(pair: Pair<Rule>) -> term::Builder {
     use term::Builder::*;
@@ -73,6 +93,13 @@ fn parse_term(pair: Pair<Rule>) -> term::Builder {
         Rule::Prop => Prop,
 
         Rule::Var => Var(pair.into_inner().as_str()),
+
+        Rule::Var => {
+            let mut iter = pair.into_inner();
+            Decl(box declaration::InstantiatedBuilder::Var(
+                iter.next().unwrap().as_str(),
+                iter.next().map(parse_level).collect()
+))},
 
         Rule::Type => {
             if let Some(next) = pair.into_inner().next_back() {
@@ -128,16 +155,6 @@ fn parse_term(pair: Pair<Rule>) -> term::Builder {
 
         term => unreachable!("Unexpected term: {:?}", term),
     }
-}
-
-fn parse_univ_vars(pair: Pair<Rule>) -> Vec<&str> {
-    let iter = pair.into_inner();
-    let mut vec = Vec::new();
-    for (_, pair) in iter.enumerate() {
-        let str = pair.as_str();
-        vec.push(str)
-    }
-    vec
 }
 
 /// build commands from errorless pest's output
