@@ -34,13 +34,12 @@ impl<'arena> Term<'arena> {
                 let body = body.beta_reduction(arena);
                 arg_type.prod(body, arena)
             },
-
             Decl(decl) => decl.get_term(arena),
             _ => self,
         }
     }
 
-    /// Returns the term `t` where all variables with de Bruijn index larger than `depth` are offset
+    /// Returns the term `self` where all variables with de Bruijn index larger than `depth` are offset
     /// by `offset`.
     pub(crate) fn shift(self, offset: usize, depth: usize, arena: &mut Arena<'arena>) -> Self {
         match *self {
@@ -64,7 +63,7 @@ impl<'arena> Term<'arena> {
         }
     }
 
-    /// Returns the term `t` where all instances of the variable tracked by `depth` are substituted
+    /// Returns the term `self` where all instances of the variable tracked by `depth` are substituted
     /// with `sub`.
     pub(crate) fn substitute(self, sub: Self, depth: usize, arena: &mut Arena<'arena>) -> Self {
         arena.get_subst_or_init(&(self, sub, depth), |arena| match *self {
@@ -89,7 +88,12 @@ impl<'arena> Term<'arena> {
         })
     }
 
-    /// TODO(docs)
+    /// Substitutes all level variables in `self` according to the correspondence given by
+    /// `univs`.
+    ///
+    /// This function would be safe to use from outside the kernel, but would serve no purpose as
+    /// level variables there can only appear behind a Declaration, which prevents the access to
+    /// the underlying Term.
     pub(crate) fn substitute_univs(self, univs: &[Level<'arena>], arena: &mut Arena<'arena>) -> Self {
         match *self {
             Var(i, ty) => {
@@ -117,9 +121,10 @@ impl<'arena> Term<'arena> {
                 let u2 = u2.substitute_univs(univs, arena);
                 u1.prod(u2, arena)
             },
+
             Decl(decl) => {
-                // TODO this can be slightly optimised. Certainly the substitute mapping can be
-                // performed in place while allocating the slice with store_level_slice. This
+                // TODO this can be slightly optimised in space. Certainly the substitution mapping can be
+                // performed in place while allocating the slice in the arena with store_level_slice. This
                 // function thus has to be made with templates.
                 let params = &*decl.params.iter().map(|level| level.substitute(univs, arena)).collect::<Vec<Level>>();
                 let params = arena.store_level_slice(params);

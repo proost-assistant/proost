@@ -1,3 +1,5 @@
+//! A set of useful functions to operate on [`Level`]s.
+
 use Payload::*;
 
 use crate::memory::arena::Arena;
@@ -15,9 +17,11 @@ impl<'arena> Level<'arena> {
         }
     }
 
-    /// General universe substitution, given a vector of universe levels, it substitutes each Var(i) with the i-th element of the
-    /// vector.
-    pub fn substitute(self, univs: &[Self], arena: &mut Arena<'arena>) -> Self {
+    /// Substitutes all level variables in `self` according to `univs`.
+    ///
+    /// This function makes no verification that `univs` has an appropriate size, which is way it
+    /// cannot be made public.
+    pub(crate) fn substitute(self, univs: &[Self], arena: &mut Arena<'arena>) -> Self {
         match *self {
             Zero => self,
             Succ(n) => n.substitute(univs, arena).succ(arena),
@@ -27,23 +31,23 @@ impl<'arena> Level<'arena> {
         }
     }
 
-    // checks whether u1 <= u2 + n
-    // returns:
-    // - (true,0) if u1 <= u2 + n,
-    // - (false,0) if !(u1 <= u2 + n),
-    // - (false,i+1) if Var(i) needs to be substituted to unstuck the comparison.
-    fn geq_no_subst(self, u2: Self, n: i64) -> (bool, usize) {
-        match (&*self,&*u2) {
+    // Checks whether `self <= rhs + n`.
+    // Preicsely, it returns:
+    // - `(false, i + 1)` if `Var(i)` needs to be substituted to unstuck the comparison.
+    // - `(true, 0)` if `self <= rhs + n`,
+    // - `(false,0)` else.
+    fn geq_no_subst(self, rhs: Self, n: i64) -> (bool, usize) {
+        match (&*self,&*rhs) {
             (Zero, _) if n >= 0 => (true, 0),
-            (_, _) if self == u2 && n >= 0 => (true, 0),
-            (Succ(l), _) if l.geq_no_subst(u2, n - 1).0 => (true, 0),
+            (_, _) if self == rhs && n >= 0 => (true, 0),
+            (Succ(l), _) if l.geq_no_subst(rhs, n - 1).0 => (true, 0),
             (_, Succ(l)) if self.geq_no_subst(*l, n + 1).0 => (true, 0),
             (_, Max(l1, l2))
                 if self.geq_no_subst(*l1, n).0 || self.geq_no_subst(*l2, n).0 =>
             {
                 (true, 0)
             }
-            (Max(l1, l2), _) if l1.geq_no_subst(u2, n).0 && l2.geq_no_subst(u2, n).0 => {
+            (Max(l1, l2), _) if l1.geq_no_subst(rhs, n).0 && l2.geq_no_subst(rhs, n).0 => {
                 (true, 0)
             }
             (_, IMax(_, v)) | (IMax(_, v), _) if let Var(i) = **v => (false, i + 1),
@@ -51,24 +55,27 @@ impl<'arena> Level<'arena> {
         }
     }
 
-    /// Checks whether u1 <= u2 + n
+    /// Checks whether `self <= rhs + n`.
     // In a case where comparison is stuck because of a variable Var(i), it checks whether the test is correct when Var(i) is
     // substituted for 0 and S(Var(i)).
-    pub fn geq(self, u2: Self, n: i64, arena: &mut Arena<'arena>) -> bool {
-        match self.geq_no_subst(u2, n) {
+    pub fn geq(self, rhs: Self, n: i64, arena: &mut Arena<'arena>) -> bool {
+        match self.geq_no_subst(rhs, n) {
             (true, _) => true,
             (false, 0) => false,
             (false, i) => {
                 let zero = Level::zero(arena);
                 let vv = Level::var(i - 1, arena).succ(arena);
-                self.substitute_single(i - 1, zero, arena).geq(u2.substitute_single(i - 1, zero, arena), n, arena)
-                    && self.substitute_single(i - 1, vv, arena).geq(u2.substitute_single(i - 1, vv, arena), n, arena)
+                self.substitute_single(i - 1, zero, arena).geq(rhs.substitute_single(i - 1, zero, arena), n, arena)
+                    && self.substitute_single(i - 1, vv, arena).geq(rhs.substitute_single(i - 1, vv, arena), n, arena)
             },
         }
     }
 
-    pub fn is_eq(self, u2: Self, arena: &mut Arena<'arena>) -> bool {
-        self.geq(u2, 0, arena) && u2.geq(self, 0, arena)
+    /// Checks whether `self = rhs`.
+    ///
+    /// This is a "conversion" equality test, not the equality function used by [`PartialEq`].
+    pub fn is_eq(self, rhs: Self, arena: &mut Arena<'arena>) -> bool {
+        self.geq(rhs, 0, arena) && rhs.geq(self, 0, arena)
     }
 }
 

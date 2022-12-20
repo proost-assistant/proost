@@ -18,24 +18,19 @@ pub struct TypedTerm<'arena>(Term<'arena>, Term<'arena>);
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum TypeCheckerError<'arena> {
-    /// `t` is not a universe
-    #[display(fmt = "{} is not a universe", _0)]
+    #[display(fmt = "{_0} is not a universe")]
     NotUniverse(Term<'arena>),
 
-    /// `t1` and `t2` are not definitionally equal
-    #[display(fmt = "{} and {} are not definitionally equal", _0, _1)]
+    #[display(fmt = "{_0} and {_1} are not definitionally equal")]
     NotDefEq(Term<'arena>, Term<'arena>),
 
-    /// function `f` expected a `t`, received `x: t`'
-    #[display(fmt = "function {} expects a term of type {}, received {}", _0, _1, _2)]
+    #[display(fmt = "function {_0} expects a term of type {_1}, received {_2}")]
     WrongArgumentType(Term<'arena>, Term<'arena>, TypedTerm<'arena>),
 
-    /// `t1` of type `ty` is not a function so cannot be applied to `t2`
-    #[display(fmt = "{} is not a function, it cannot be applied to {}", _0, _1)]
+    #[display(fmt = "{_0} is not a function, it cannot be applied to {_1}")]
     NotAFunction(TypedTerm<'arena>, Term<'arena>),
 
-    /// Expected `ty1`, found `ty2`
-    #[display(fmt = "expected {}, got {}", _0, _1)]
+    #[display(fmt = "expected {_0}, got {_1}")]
     TypeMismatch(Term<'arena>, Term<'arena>),
 }
 
@@ -43,7 +38,7 @@ impl<'arena> Term<'arena> {
     /// Conversion function, checks whether two terms are definitionally equal.
     ///
     /// The conversion is untyped, meaning that it should **only** be called during type-checking
-    /// when the two `Term`s are already known to be of the same type and in the same context.
+    /// when the two [`Term`]s are already known to be of the same type and in the same context.
     fn conversion(self, rhs: Self, arena: &mut Arena<'arena>) -> bool {
         if self == rhs {
             return true;
@@ -158,7 +153,7 @@ impl<'arena> Term<'arena> {
                 }
             },
 
-            Decl(decl) => decl.get_term(arena).infer(arena),
+            Decl(decl) => decl.get_type_or_try_init(Term::infer, arena),
         })
     }
 

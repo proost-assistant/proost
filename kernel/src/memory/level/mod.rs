@@ -1,3 +1,5 @@
+//! Universe levels.
+
 use std::cell::OnceCell;
 use std::fmt::{Display, Formatter};
 use std::hash::Hash;
@@ -9,21 +11,31 @@ super::arena::new_dweller!(Level, Header, Payload);
 pub mod builder;
 
 struct Header<'arena> {
-    /// normalized has been removed, because all levels are guaranteed to be reduced
+    /// The plus-form of a level
     plus_form: OnceCell<(Level<'arena>, usize)>,
-    univ_vars: OnceCell<usize>,
 }
 
+/// A universe level.
+///
+/// While types in the usual calculus of constructions live in types fully described with integers,
+/// more is needed when manipulating universe-polymorphic descriptions: precisely, the right amount
+/// of formal computation has to be introduced in order to account for universe-polymorphic
+/// variables.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Payload<'arena> {
+    /// The zero level (associated to Prop)
     Zero,
 
+    /// The successor of a level
     Succ(Level<'arena>),
 
+    /// The maximum of two levels
     Max(Level<'arena>, Level<'arena>),
 
+    /// The impredicative maximum of two levels
     IMax(Level<'arena>, Level<'arena>),
 
+    /// A universe-polymorphic variable
     Var(usize),
 }
 
@@ -53,11 +65,10 @@ impl<'arena> Level<'arena> {
     /// It enforces the uniqueness property of levels in the arena, as well as the reduced-form
     /// invariant.
     fn hashcons(payload: Payload<'arena>, arena: &mut Arena<'arena>) -> Self {
-        let new_node: Node<'arena> = Node {
+        let new_node = Node {
             payload,
             header: Header {
                 plus_form: OnceCell::new(),
-                univ_vars: OnceCell::new(),
             },
         };
 
@@ -106,6 +117,7 @@ impl<'arena> Level<'arena> {
         Self::hashcons(Var(id), arena)
     }
 
+    /// The addition of a level and an integer
     pub fn add(self, n: usize, arena: &mut Arena<'arena>) -> Self {
         if n == 0 {
             self
@@ -115,30 +127,18 @@ impl<'arena> Level<'arena> {
         }
     }
 
+    /// Builds a level from an integer
     pub fn from(n: usize, arena: &mut Arena<'arena>) -> Self {
         Level::zero(arena).add(n, arena)
     }
 
-    /// Helper function for pretty printing, if universe doesn't contain any variable then it gets printed as a decimal number.
+    /// Converts a level to an integer, if possible
     pub fn to_numeral(self) -> Option<usize> {
         let (u, n) = self.plus();
         (*u == Zero).then_some(n)
-        // This previous version of the code should be useless, keeping for testing the
-        // well-functioning of the normalize function.
-        //
-        //match *self {
-        //    Zero => Some(0),
-        //    Succ(u) => u.to_numeral().map(|n| n + 1),
-        //    Max(n, m) | IMax(n, m) => n
-        //        .to_numeral()
-        //        .and_then(|n| m.to_numeral().map(|m| n.max(m))),
-        //    // note: once uniqueness property is ensured with normalization, please remove the IMax case
-        //    // (and that it has been verified this does not change anything)
-        //    _ => None,
-        //}
     }
 
-    /// Helper function for pretty printing, if universe is of the form Succ(Succ(...(Succ(u))...)) then it gets printed as u+n.
+    /// Decomposes a level `l` in the best pair `(u, n)` s.t. `l = u + n`
     pub fn plus(self) -> (Self, usize) {
         *self.0.header.plus_form.get_or_init(|| match *self {
             Succ(u) => {
@@ -146,17 +146,6 @@ impl<'arena> Level<'arena> {
                 (u, n + 1)
             },
             _ => (self, 0),
-        })
-    }
-
-    /// Helper function to count the number of universe variables un a universe level.
-    pub fn univ_vars(self) -> usize {
-        *self.0.header.univ_vars.get_or_init(|| match *self {
-            Zero => 0,
-            Succ(n) => n.univ_vars(),
-            Max(n, m) => n.univ_vars().max(m.univ_vars()),
-            IMax(n, m) => n.univ_vars().max(m.univ_vars()),
-            Var(n) => n + 1,
         })
     }
 
@@ -174,19 +163,31 @@ impl<'arena> Level<'arena> {
     fn normalize(self, arena: &mut Arena<'arena>) -> Self {
         match *self {
             IMax(z, u) if *z == Zero => u,
-            IMax(u, v) => match &*v {
-                Zero => v,
-                Succ(_) => u.max(v, arena),
-                IMax(_, vw) => Level::max(u.imax(*vw, arena), v, arena),
-                Max(vv, vw) => Level::max(u.imax(*vv, arena), u.imax(*vw, arena), arena),
-                _ => self,
+            IMax(u, v) => {
+                if u == v {
+                    u
+                } else {
+                    match &*v {
+                        Zero => v,
+                        Succ(_) => u.max(v, arena),
+                        IMax(_, vw) => Level::max(u.imax(*vw, arena), v, arena),
+                        Max(vv, vw) => Level::max(u.imax(*vv, arena), u.imax(*vw, arena), arena),
+                        _ => self,
+                    }
+                }
             },
 
-            Max(u, v) => match (&*u, &*v) {
-                (Zero, _) => v,
-                (_, Zero) => u,
-                (Succ(uu), Succ(vv)) => Level::max(*uu, *vv, arena).succ(arena),
-                _ => self,
+            Max(u, v) => {
+                if u == v {
+                    u
+                } else {
+                    match (&*u, &*v) {
+                        (Zero, _) => v,
+                        (_, Zero) => u,
+                        (Succ(uu), Succ(vv)) => Level::max(*uu, *vv, arena).succ(arena),
+                        _ => self,
+                    }
+                }
             },
             _ => self,
         }

@@ -1,16 +1,16 @@
-//! Collection of safe functions to build Levels
+//! A collection of safe functions to build [`Level`]s.
 //!
-//! This module provides two main ways of building levels. The first one is via closures: users can
+//! This module provides two main ways of building terms. The first one is via closures: users can
 //! manipulate closures and create bigger ones which, when [built](Arena::build_level), provide the expected
 //! level.
 //!
 //! The overall syntax remains transparent to the user. This means the user focuses on the
-//! structure of the level they want to build, while the [closures](`LevelBuilderTrait`) internally build an appropriate
-//! logic: converting regular universe names into their corresponding variable numbers
+//! structure of the term they want to build, while the [closures](`BuilderTrait`) internally build an appropriate
+//! logic: converting regular universe variables names into their corresponding variable numbers.
 //!
 //! The other way to proceed is built on top of the latter. Users can also manipulate a sort of
 //! *high-level level* or *template*, described by the public enumeration [`Builder`], and at any
-//! moment, [realise](LevelBuilder::realise) it.
+//! moment, [realise](Builder::realise) it.
 
 use std::collections::HashMap;
 
@@ -61,6 +61,7 @@ pub const fn zero<'build>() -> impl BuilderTrait<'build> {
     |arena, _| Ok(Level::zero(arena))
 }
 
+/// Returns a closure building a constant level.
 #[inline]
 pub const fn const_<'build>(n: usize) -> impl BuilderTrait<'build> {
     move |arena, _| Ok(Level::from(n, arena))
@@ -97,9 +98,10 @@ pub const fn imax<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(u1
 
 /// Template of levels.
 ///
-/// A LevelBuilder describes a level in a naive but easy to build manner. It strongly resembles the
-/// [level](`crate::memory::level::Level`) type, except that the `Var` constructor
-/// include a name, as in the syntactic way of writing levels.
+/// A [`Builder`] describes a level in a naive but easy to build manner. It strongly resembles the
+/// [`Level`] type, except that the `Var` constructor include a name, as in the syntactic way of
+/// writing levels. Because its purpose is to provide an easy way to build terms, even through the
+/// API, it offers different ways to build some terms, for convenience.
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
 pub enum Builder<'builder> {
     #[display(fmt = "0")]
@@ -123,8 +125,8 @@ pub enum Builder<'builder> {
 }
 
 impl<'build> Builder<'build> {
-    /// Build a level from a [`Builder`]. This internally uses functions described in the
-    /// [builders](`crate::memory::level::builder`) module.
+    /// Realise a builder into a [`Level`]. This internally uses functions described in
+    /// the [builder](`crate::memory::level::builder`) module.
     pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultLevel<'arena> {
         arena.build_level(self.partial_application())
     }

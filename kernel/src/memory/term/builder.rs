@@ -1,4 +1,4 @@
-//! Collection of safe functions to build Terms
+//! A collection of safe functions to build [`Term`]s.
 //!
 //! This module provides two main ways of building terms. The first one is via closures: users can
 //! manipulate closures and create bigger ones which, when [built](Arena::build), provide the expected
@@ -35,11 +35,11 @@ pub type Environment<'build, 'arena> = ImHashMap<&'build str, (DeBruijnIndex, Te
 
 /// The trait of closures which build terms with an adequate logic.
 ///
-/// A call with a triplet of arguments `(arena, env, index)` of a closure with this trait should
-/// build a definite term in the [`Arena`] `arena`, knowing the bindings declared in `environment`,
-/// provided that the term is built at a current depth `index`.
+/// A call with a quadruplet of arguments `(arena, env, lvl_env, index)` of a closure with this
+/// trait should build a definite term in the [`Arena`] `arena`, knowing the bindings declared in
+/// `env` and `lvl_env`, provided that the term is built at a current depth `index`.
 ///
-/// Please note that this is just a trait alias, meaning it enforces very little constraints: while
+/// Please note that this is just a trait alias, meaning it enforces few constraints: while
 /// functions in this module returning a closure with this trait are guaranteed to be sound, end
 /// users can also create their own closures satisfying `BuilderTrait`; this should be avoided.
 pub trait BuilderTrait<'build> = for<'arena> FnOnce(
@@ -81,13 +81,13 @@ pub const fn prop<'build>() -> impl BuilderTrait<'build> {
     |arena, _, _, _| Ok(Term::prop(arena))
 }
 
-/// Returns a closure building the Sort `level` term.
+/// Returns a closure building the Type `level` term.
 #[inline]
 pub const fn type_<'build, F: level::BuilderTrait<'build>>(level: F) -> impl BuilderTrait<'build> {
     move |arena, _, lvl_env, _| Ok(Term::sort(level(arena, lvl_env)?.succ(arena), arena))
 }
 
-/// Returns a closure building the Type `i` term, where `i` is an integer
+/// Returns a closure building the Type `level` term (indirection from `usize`).
 #[inline]
 pub const fn type_usize<'build>(level: usize) -> impl BuilderTrait<'build> {
     move |arena, _, _, _| Ok(Term::type_usize(level, arena))
@@ -151,7 +151,7 @@ pub const fn prod<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(
     }
 }
 
-/// Returns a closure building the Sort `level` term.
+/// Returns a closure building the term associated to the instantiated declaration `decl`.
 #[inline]
 pub const fn decl<'build, F: declaration::InstantiatedBuilderTrait<'build>>(decl: F) -> impl BuilderTrait<'build> {
     move |arena, _, lvl_env, _| Ok(Term::decl(decl(arena, lvl_env)?, arena))
@@ -160,9 +160,10 @@ pub const fn decl<'build, F: declaration::InstantiatedBuilderTrait<'build>>(decl
 /// Template of terms.
 ///
 /// A Builder describes a term in a naive but easy to build manner. It strongly resembles the
-/// [payload](`crate::term::arena::Payload`) type, except that `Var`, `Abs` and `Prod` constructors
+/// [payload](`crate::memory::term::Payload`) type, except that `Var`, `Abs` and `Prod` constructors
 /// include a name, as in the classic way of writing lambda-terms (i.e. no de Bruijn indices
-/// involved).
+/// involved). Because its purpose is to provide an easy way to build terms, even through the API,
+/// it offers different ways to build some terms, for convenience.
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
 pub enum Builder<'build> {
     #[display(fmt = "{_0}")]
@@ -190,8 +191,8 @@ pub enum Builder<'build> {
 }
 
 impl<'build> Builder<'build> {
-    /// Build a terms from a [`Builder`]. This internally uses functions described in the
-    /// [builders](`crate::term::builders`) module.
+    /// Realise a builder into a [`Term`]. This internally uses functions described in
+    /// the [builder](`crate::memory::term::builder`) module.
     pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
         arena.build(self.partial_application())
     }

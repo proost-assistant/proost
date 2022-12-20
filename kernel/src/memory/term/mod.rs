@@ -1,6 +1,6 @@
-//! A comprehensive memory management unit for terms.
+//! Terms in the calculus of construction.
 //!
-//! This module defines the core functions used to manipulate an arena and its terms.
+//! This module defines the core functions used to create and manipulate terms.
 
 use core::fmt;
 use std::cell::OnceCell;
@@ -22,21 +22,23 @@ pub struct DeBruijnIndex(usize);
 super::arena::new_dweller!(Term, Header, Payload);
 
 struct Header<'arena> {
-    // Lazy and aliasing-compatible structures for memoizing
+    /// lazy structure to store the weak-head normal form of a term
     head_normal_form: OnceCell<Term<'arena>>,
+
+    /// lazy structure to store the type of a term
     type_: OnceCell<Term<'arena>>,
-    // TODO is_certainly_closed: boolean underapproximation of whether a term is closed.
-    // This may greatly improve performance in shifting, along with a mem_shift hash map.
+    // TODO(#45) is_certainly_closed: boolean underapproximation of whether a term is closed. This
+    // may greatly improve performance in shifting, along with a mem_shift hash map.
 }
 
-/// The essence of a term.
+/// A term.
 ///
-/// This enumeration has the same shape as the algebraic type of terms in the calculus of
+/// This enumeration has almost the same shape as the algebraic type of terms in the calculus of
 /// constructions.
 ///
-/// There is one true exception, which is the variable (Var)[`Payload::Var`]. Along with its de
-/// Bruijn index, the variable also stores its type, which is unique, and also ensures two
-/// variables with a different type do not share the same term in memory.
+/// One exception is the [variable](`Payload::Var`). Along with its de Bruijn index, the
+/// variable also stores its type, which is unique, and also ensures two variables with a different
+/// type do not share the same term in memory.
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Payload<'arena> {
     /// A variable, with its de Bruijn index and its type
@@ -57,7 +59,7 @@ pub enum Payload<'arena> {
     //#[display(fmt = "\u{03A0} {_0} \u{02192} {_1}")]
     Prod(Term<'arena>, Term<'arena>),
 
-    /// An instantiated universe-polymorphic declaration
+    /// An instance of a universe-polymorphic declaration
     Decl(InstantiatedDeclaration<'arena>),
 }
 

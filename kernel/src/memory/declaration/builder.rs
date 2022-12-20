@@ -1,18 +1,12 @@
-//! TODO
-//! Collection of safe functions to build Terms
+//! A collection of safe functions to build [`Declaration`]s. and [`InstantiatedDeclaration`]s.
 //!
-//! This module provides two main ways of building terms. The first one is via closures: users can
+//! This module provides two main ways of building these. The first one is via closures: users can
 //! manipulate closures and create bigger ones which, when [built](Arena::build), provide the expected
 //! term.
 //!
 //! The overall syntax remains transparent to the user. This means the user focuses on the
 //! structure of the term they want to build, while the [closures](`BuilderTrait`) internally build an appropriate
-//! logic: converting regular terms into de Bruijn-compatible ones, assigning types to variables,
-//! etc.
-//!
-//! The other way to proceed is built on top of the latter. Users can also manipulate a sort of
-//! *high-level term* or *template*, described by the public enumeration [`Builder`], and at any
-//! moment, [realise](Builder::realise) it.
+//! logic; namely verifying the correct amount of variables have been supplied or bound.
 
 use derive_more::Display;
 
@@ -43,12 +37,15 @@ pub trait InstantiatedBuilderTrait<'build> =
     for<'arena> FnOnce(&mut Arena<'arena>, &level::Environment<'build>) -> ResultInstantiatedDecl<'arena>;
 
 impl<'arena> Arena<'arena> {
-    /// Returns the term built from the given closure, provided with an empty context, at depth 0.
+    /// Returns the declaration built from the given closure, provided with an empty context, at
+    /// depth 0.
     #[inline]
     pub fn build_declaration<'build, F: BuilderTrait<'build>>(&mut self, f: F) -> ResultDecl<'arena> {
         f(self)
     }
 
+    /// Returns the instantiated declaration built from the given closure, provided with an empty
+    /// context, at depth 0.
     #[inline]
     pub fn build_instantiated_declaration<'build, F: InstantiatedBuilderTrait<'build>>(
         &mut self,
@@ -65,6 +62,7 @@ pub fn declaration<'build, F: term::BuilderTrait<'build>>(term: F, vars: &[&'bui
     move |arena| Ok(Declaration::new(term(arena, &term::Environment::new(), &lvl_env, 0.into())?, len))
 }
 
+/// Template of declarations.
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
 pub enum Builder<'build> {
     #[display(fmt = "{_0}")]
@@ -72,6 +70,8 @@ pub enum Builder<'build> {
 }
 
 impl<'build> Builder<'build> {
+    /// Realise a builder into a [`Declaration`]. This internally uses functions described in
+    /// the [builder](`crate::memory::declaration::builder`) module.
     pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultDecl<'arena> {
         arena.build_declaration(self.partial_application())
     }
@@ -117,6 +117,8 @@ pub fn instance<'build, F: BuilderTrait<'build>>(
     move |arena, env| try_build_instance(decl(arena)?, levels, arena, env)
 }
 
+/// Returns a builder creating the declaration bound by `name`, instantiated with the universe
+/// levels `levels`.
 pub fn var<'build>(name: &'build str, levels: &'build [level::Builder<'build>]) -> impl InstantiatedBuilderTrait<'build> {
     move |arena, env| {
         let decl = arena.get_binding_decl(name).ok_or(Error {
@@ -159,6 +161,8 @@ impl<'arena> std::fmt::Display for InstantiatedBuilder<'arena> {
     }
 }
 impl<'build> InstantiatedBuilder<'build> {
+    /// Realise a builder into an [`InstantiatedDeclaration`]. This internally uses functions described in
+    /// the [builder](`crate::memory::declaration::builder`) module.
     pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultInstantiatedDecl<'arena> {
         arena.build_instantiated_declaration(self.partial_application())
     }
