@@ -5,12 +5,16 @@
 use core::fmt;
 
 use kernel::memory::term::builder::Builder;
+use kernel::memory::declaration::builder as declaration;
 
 /// The type of commands that can be received by the kernel.
 #[derive(Debug, Eq, PartialEq)]
 pub enum Command<'build> {
     /// Define a new term and optionally check that its type matches the given one.
-    Define(&'build str, Option<Vec<&'build str>>, Option<Builder<'build>>, Builder<'build>),
+    Define(&'build str, Option<Builder<'build>>, Builder<'build>),
+
+    /// Define the given declaration
+    Declaration(&'build str, declaration::Builder<'build>),
 
     /// Infer the type of a term and check that it matches the given one.
     CheckType(Builder<'build>, Builder<'build>),
@@ -33,22 +37,24 @@ impl<'build> fmt::Display for Command<'build> {
         use Command::*;
 
         match self {
-            Define(name, _, None, t) => write!(f, "def {} := {}", name, t),
+            Define(name, None, t) => write!(f, "def {name} := {t}"),
 
-            Define(name, _, Some(ty), t) => write!(f, "def {}: {} := {}", name, ty, t),
+            Define(name, Some(ty), t) => write!(f, "def {name}: {ty} := {t}"),
 
-            CheckType(t, ty) => write!(f, "check {}: {}", t, ty),
+            Declaration(name, t) => write!(f, "def {name} := {t}"),
 
-            GetType(t) => write!(f, "check {}", t),
+            CheckType(t, ty) => write!(f, "check {t}: {ty}"),
 
-            Eval(t) => write!(f, "eval {}", t),
+            GetType(t) => write!(f, "check {t}"),
+
+            Eval(t) => write!(f, "eval {t}"),
 
             Import(files) => {
                 write!(f, "imports")?;
                 files.iter().try_for_each(|file| write!(f, " {file}"))
             },
 
-            Search(name) => write!(f, "search {}", name),
+            Search(name) => write!(f, "search {name}"),
         }
     }
 }

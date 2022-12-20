@@ -63,10 +63,6 @@ fn parse_level(pair: Pair<Rule>) -> level::Builder {
     }
 }
 
-fn parse_univ_vars(pair: Pair<Rule>) -> Vec<&str> {
-    pair.into_inner().map(|name| name.as_str()).collect()
-}
-
 /// Returns a kernel term builder from pest output
 fn parse_term(pair: Pair<Rule>) -> term::Builder {
     use term::Builder::*;
@@ -164,31 +160,26 @@ fn parse_expr(pair: Pair<Rule>) -> Command {
         Rule::Define => {
             let mut iter = pair.into_inner();
             let s = iter.next().unwrap().as_str();
-            let next = iter.next();
-            let (univs, term) = {
-                if matches!(next.clone().map(|x| x.as_rule()), None | Some(Rule::univ_decl)) {
-                    let univs = next.map(parse_univ_vars).unwrap_or_default();
-                    (Some(univs), parse_term(iter.next().unwrap()))
-                } else {
-                    (None, parse_term(next.unwrap()))
-                }
-            };
-            Command::Define(s, univs, None, term)
+            let term = parse_term(iter.next().unwrap());
+            Command::Define(s, None, term)
         },
 
         Rule::DefineCheckType => {
             let mut iter = pair.into_inner();
             let s = iter.next().unwrap().as_str();
-            let next = iter.next();
-            let (univs, ty, term) = {
-                if matches!(next.clone().map(|x| x.as_rule()), None | Some(Rule::univ_decl)) {
-                    let univs = next.map(parse_univ_vars).unwrap_or_default();
-                    (Some(univs), parse_term(iter.next().unwrap()), parse_term(iter.next().unwrap()))
-                } else {
-                    (None, parse_term(iter.next().unwrap()), parse_term(next.unwrap()))
-                }
-            };
-            Command::Define(s, univs, Some(term), ty)
+            let t = parse_term(iter.next().unwrap());
+            let term = parse_term(iter.next().unwrap());
+            Command::Define(s, Some(t), term)
+        },
+
+
+        Rule::Declaration => {
+            let mut iter = pair.into_inner();
+            let s = iter.next().unwrap().as_str();
+            let vars = iter.next().unwrap().into_inner().map(|name| name.as_str()).collect();
+            let body = iter.next().map(parse_term).unwrap();
+
+            Command::Declaration(s, declaration::Builder::Decl(box body, vars))
         },
 
         Rule::Eval => {
@@ -328,7 +319,7 @@ mod tests {
 
     #[test]
     fn successful_define_with_type_annotation() {
-        assert_eq!(parse_line("def x : Type := Prop"), Ok(Define("x", None, Some(Type(0)), Prop)));
+        assert_eq!(parse_line("def x : Type := Prop"), Ok(Define("x", Some(Type(0)), Prop)));
     }
 
     #[test]
@@ -349,7 +340,7 @@ mod tests {
 
     #[test]
     fn successful_define() {
-        assert_eq!(parse_line("def x := Prop"), Ok(Define("x", None, None, Prop)));
+        assert_eq!(parse_line("def x := Prop"), Ok(Define("x", None, Prop)));
     }
 
     #[test]

@@ -43,8 +43,9 @@ arg_univ = {".{" ~ (univ ~ ("," ~ univ)*)? ~ "}"}
 univ_decl = {".{" ~ (string ~ ("," ~ string)* )? ~ "}"}
 
 Command = _{ Define | CheckType | GetType | DefineCheckType | Eval | ImportFile | Search}
-Define = { "def" ~ string ~ univ_decl? ~ ":=" ~ Term }
-DefineCheckType = { "def" ~ string ~ univ_decl? ~ ":" ~ Term ~ ":=" ~ Term }
+Define = { "def" ~ string ~ ":=" ~ Term }
+DefineCheckType = { "def" ~ string ~ ":" ~ Term ~ ":=" ~ Term }
+Declaration = { "def" ~ string ~ univ_decl ~ ":=" ~ Term }
 CheckType = { "check" ~ Term ~ ":" ~ Term }
 GetType = { "check" ~ Term }
 Eval = { "eval" ~ Term }
