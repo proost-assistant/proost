@@ -64,22 +64,7 @@ fn parse_level(pair: Pair<Rule>) -> level::Builder {
 }
 
 fn parse_univ_vars(pair: Pair<Rule>) -> Vec<&str> {
-    let iter = pair.into_inner();
-    let mut vec = Vec::new();
-    for (_, pair) in iter.enumerate() {
-        let str = pair.as_str();
-        vec.push(str)
-    }
-    vec
-}
-
-fn parse_univ_bindings(pair: Pair<Rule>) -> Vec<LevelBuilder<'_>> {
-    let iter = pair.into_inner();
-    let mut vec = Vec::new();
-    for (_, pair) in iter.enumerate() {
-        vec.push(parse_level(pair))
-    }
-    vec
+    pair.into_inner().map(|name| name.as_str()).collect()
 }
 
 /// Returns a kernel term builder from pest output
@@ -94,11 +79,11 @@ fn parse_term(pair: Pair<Rule>) -> term::Builder {
 
         Rule::Var => Var(pair.into_inner().as_str()),
 
-        Rule::Var => {
+        Rule::VarDecl => {
             let mut iter = pair.into_inner();
             Decl(box declaration::InstantiatedBuilder::Var(
                 iter.next().unwrap().as_str(),
-                iter.next().map(parse_level).collect()
+                iter.map(parse_level).collect()
 ))},
 
         Rule::Type => {
@@ -203,7 +188,7 @@ fn parse_expr(pair: Pair<Rule>) -> Command {
                     (None, parse_term(iter.next().unwrap()), parse_term(next.unwrap()))
                 }
             };
-            Command::Define(s, univs, Some(ty), term)
+            Command::Define(s, univs, Some(term), ty)
         },
 
         Rule::Eval => {
@@ -230,7 +215,7 @@ fn convert_error(err: pest::error::Error<Rule>) -> error::Error {
     // renaming error messages
     let err = err.renamed_rules(|rule| match *rule {
         Rule::string | Rule::Var => "variable".to_owned(),
-        Rule::number => "universe level".to_owned(),
+        Rule::number => "number".to_owned(),
         Rule::Define => "def var := term".to_owned(),
         Rule::CheckType => "check term : term".to_owned(),
         Rule::GetType => "check term".to_owned(),
@@ -241,11 +226,19 @@ fn convert_error(err: pest::error::Error<Rule>) -> error::Error {
         Rule::App => "application".to_owned(),
         Rule::Prop => "Prop".to_owned(),
         Rule::Type => "Type".to_owned(),
+        Rule::Sort => "Sort".to_owned(),
         Rule::Eval => "eval term".to_owned(),
         Rule::filename => "path_to_file".to_owned(),
         Rule::ImportFile => "import path_to_file".to_owned(),
         Rule::Search => "search var".to_owned(),
-        _ => unreachable!("low level rules cannot appear in error messages"),
+        Rule::Max => "max".to_owned(),
+        Rule::Plus => "plus".to_owned(),
+        Rule::arg_univ => "universe argument".to_owned(),
+        Rule::univ_decl => "universe declaration".to_owned(),
+        rule => {
+            println!("{:?}", rule);
+            unreachable!("low level rules cannot appear in error messages")
+        }
     });
 
     // extracting the location from the pest output
@@ -314,9 +307,9 @@ mod tests {
 
     /// Error messages
     const COMMAND_ERR: &str = "expected def var := term, def var : term := term, check term : term, check term, eval term, import path_to_file, or search var";
-    const TERM_ERR: &str = "expected variable, abstraction, dependent product, application, product, Prop, or Type";
-    const SIMPLE_TERM_ERR: &str = "expected variable, abstraction, Prop, or Type";
-    const UNIVERSE_ERR: &str = "expected universe level, variable, abstraction, Prop, or Type";
+    const TERM_ERR: &str = "expected variable, abstraction, dependent product, application, product, Prop, Type, or Sort";
+    const SIMPLE_TERM_ERR: &str = "expected variable, abstraction, Prop, Type, Sort, or universe argument";
+    const UNIVERSE_ERR: &str = "expected number, variable, abstraction, Prop, Type, Sort, plus, or max";
 
     #[test]
     fn failure_universe_level() {
@@ -357,24 +350,24 @@ mod tests {
 
     #[test]
     fn successful_checktype() {
-        assert_eq!(parse_line("check Prop : Type"), Ok(CheckType(Prop, Type(0))));
+        assert_eq!(parse_line("check Prop : Type"), Ok(CheckType(Sort(box level::Builder::Zero), Sort(box level::Builder::Succ(box level::Builder::Zero)))));
     }
 
     #[test]
     fn successful_gettype_prop() {
-        assert_eq!(parse_line("check Prop"), Ok(GetType(Prop)));
+        assert_eq!(parse_line("check Prop"), Ok(GetType(Sort(box level::Builder::Zero))));
     }
 
     #[test]
     fn successful_var() {
-        assert_eq!(parse_line("check fun A: Prop => A"), Ok(GetType(Abs("A", Box::new(Prop), Box::new(Var("A"))))));
+        assert_eq!(parse_line("check fun A: Prop => A"), Ok(GetType(Abs("A", Box::new(Sort(box level::Builder::Zero)), Box::new(Var("A"))))));
     }
 
     #[test]
     fn successful_type() {
-        assert_eq!(parse_line("check Type"), Ok(GetType(Type(0))));
-        assert_eq!(parse_line("check Type 0"), Ok(GetType(Type(0))));
-        assert_eq!(parse_line("check Type 1"), Ok(GetType(Type(1))));
+        assert_eq!(parse_line("check Type"), Ok(GetType(Sort(box level::Builder::Succ(box level::Builder::Zero)))));
+        assert_eq!(parse_line("check Type 0"), Ok(GetType(Sort(box level::Builder::Succ(box level::Builder::Zero)))));
+        assert_eq!(parse_line("check Type 1"), Ok(GetType(Sort(box level::Builder::Succ(box level::Builder::Succ(box level::Builder::Zero))))));
     }
 
     #[test]
@@ -397,7 +390,7 @@ mod tests {
 
     #[test]
     fn successful_dprod() {
-        let res = Ok(GetType(Prod("x", Box::new(Type(0)), Box::new(Prod("y", Box::new(Type(1)), Box::new(Var("x")))))));
+        let res = Ok(GetType(Prod("x", Box::new(Sort(box level::Builder::Succ(box level::Builder::Zero))), Box::new(Prod("y", Box::new(Sort(box level::Builder::Succ(box level::Builder::Succ(box level::Builder::Zero)))), Box::new(Var("x")))))));
         assert_eq!(parse_line("check (x:Type) -> (y:Type 1) -> x"), res);
         assert_eq!(parse_line("check (x:Type) -> ((y:Type 1) -> x)"), res);
     }
@@ -406,11 +399,11 @@ mod tests {
     fn successful_abs() {
         let res = Abs(
             "w",
-            Box::new(Prop),
+            Box::new(Sort(box level::Builder::Zero)),
             Box::new(Abs(
                 "x",
-                Box::new(Prop),
-                Box::new(Abs("y", Box::new(Prop), Box::new(Abs("z", Box::new(Prop), Box::new(Var("x")))))),
+                Box::new(Sort(box level::Builder::Zero)),
+                Box::new(Abs("y", Box::new(Sort(box level::Builder::Zero)), Box::new(Abs("z", Box::new(Sort(box level::Builder::Zero)), Box::new(Var("x")))))),
             )),
         );
         assert_eq!(parse_line("check fun w x: Prop, y z: Prop => x"), Ok(GetType(res)));
@@ -438,12 +431,12 @@ mod tests {
     fn context_for_abs_args() {
         let res = Ok(GetType(Abs(
             "x",
-            Box::new(Prop),
+            Box::new(Sort(box level::Builder::Zero)),
             Box::new(Abs("x", Box::new(Var("x")), Box::new(Abs("x", Box::new(Var("x")), Box::new(Var("x")))))),
         )));
         let res2 = Ok(GetType(Abs(
             "x",
-            Box::new(Prop),
+            Box::new(Sort(box level::Builder::Zero)),
             Box::new(Abs("y", Box::new(Var("x")), Box::new(Abs("z", Box::new(Var("x")), Box::new(Var("z")))))),
         )));
         assert_eq!(parse_line("check fun x : Prop, x : x, x : x => x"), res);
@@ -455,12 +448,12 @@ mod tests {
     fn context_for_dprod_args() {
         let res = Ok(GetType(Prod(
             "x",
-            Box::new(Prop),
+            Box::new(Sort(box level::Builder::Zero)),
             Box::new(Prod("x", Box::new(Var("x")), Box::new(Prod("x", Box::new(Var("x")), Box::new(Var("x")))))),
         )));
         let res2 = Ok(GetType(Prod(
             "x",
-            Box::new(Prop),
+            Box::new(Sort(box level::Builder::Zero)),
             Box::new(Prod("y", Box::new(Var("x")), Box::new(Prod("z", Box::new(Var("x")), Box::new(Var("z")))))),
         )));
         assert_eq!(parse_line("check (x : Prop, x : x, x : x) -> x"), res);
@@ -472,11 +465,11 @@ mod tests {
     fn parenthesis_in_abs() {
         let res = Abs(
             "w",
-            Box::new(Prop),
+            Box::new(Sort(box level::Builder::Zero)),
             Box::new(Abs(
                 "x",
-                Box::new(Prop),
-                Box::new(Abs("y", Box::new(Prop), Box::new(Abs("z", Box::new(Prop), Box::new(Var("x")))))),
+                Box::new(Sort(box level::Builder::Zero)),
+                Box::new(Abs("y", Box::new(Sort(box level::Builder::Zero)), Box::new(Abs("z", Box::new(Sort(box level::Builder::Zero)), Box::new(Var("x")))))),
             )),
         );
         assert_eq!(parse_line("check fun (((w x : Prop))), y z : Prop => x"), Ok(GetType(res)));
@@ -484,13 +477,13 @@ mod tests {
 
     #[test]
     fn parenthesis_in_prod() {
-        let res = Prod("_", Box::new(Type(0)), Box::new(Prod("_", Box::new(Type(1)), Box::new(Type(2)))));
+        let res = Prod("_", Box::new(Sort(box level::Builder::Succ(box level::Builder::Zero))), Box::new(Prod("_", Box::new(Sort(box level::Builder::Succ(box level::Builder::Succ(box level::Builder::Zero)))), Box::new(Sort(box level::Builder::Succ(box level::Builder::Succ(box level::Builder::Succ(box level::Builder::Zero))))))));
         assert_eq!(parse_line("check (((Type))) -> (((Type 1 -> Type 2)))"), Ok(GetType(res)));
     }
 
     #[test]
     fn parenthesis_in_dprod() {
-        let res = Prod("x", Box::new(Type(0)), Box::new(Prod("y", Box::new(Type(1)), Box::new(Var("x")))));
+        let res = Prod("x", Box::new(Sort(box level::Builder::Succ(box level::Builder::Zero))), Box::new(Prod("y", Box::new(Sort(box level::Builder::Succ(box level::Builder::Succ(box level::Builder::Zero)))), Box::new(Var("x")))));
         assert_eq!(parse_line("check (((x:Type))) -> ((((y:Type 1) -> x)))"), Ok(GetType(res)));
     }
 
