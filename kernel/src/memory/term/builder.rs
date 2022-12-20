@@ -81,6 +81,12 @@ pub const fn prop<'build>() -> impl BuilderTrait<'build> {
     |arena, _, _, _| Ok(Term::prop(arena))
 }
 
+/// Returns a closure building the Sort `level` term.
+#[inline]
+pub const fn type_<'build, F: level::BuilderTrait<'build>>(level: F) -> impl BuilderTrait<'build> {
+    move |arena, _, lvl_env, _| Ok(Term::sort(level(arena, lvl_env)?.succ(arena), arena))
+}
+
 /// Returns a closure building the Type `i` term, where `i` is an integer
 #[inline]
 pub const fn type_usize<'build>(level: usize) -> impl BuilderTrait<'build> {
@@ -166,7 +172,7 @@ pub enum Builder<'build> {
     Prop,
 
     #[display(fmt = "Type {_0}")]
-    Type(usize),
+    Type(Box<level::Builder<'build>>),
 
     #[display(fmt = "Sort {_0}")]
     Sort(Box<level::Builder<'build>>),
@@ -205,7 +211,7 @@ impl<'build> Builder<'build> {
         match self {
             Var(s) => var(s)(arena, env, lvl_env, depth),
             Prop => prop()(arena, env, lvl_env, depth),
-            Type(i) => type_usize(*i)(arena, env, lvl_env, depth),
+            Type(ref level) => type_(level.partial_application())(arena, env, lvl_env, depth),
             Sort(ref level) => sort(level.partial_application())(arena, env, lvl_env, depth),
             App(ref l, ref r) => app(l.partial_application(), r.partial_application())(arena, env, lvl_env, depth),
             Abs(s, ref arg, ref body) => abs(s, arg.partial_application(), body.partial_application())(arena, env, lvl_env, depth),
@@ -244,9 +250,9 @@ pub(crate) mod raw {
         move |arena| Term::type_usize(level, arena)
     }
 
-    pub const fn sort_<F: level::raw::BuilderTrait>(level: F) -> impl BuilderTrait {
-        move |arena| Term::sort(level(arena), arena)
-    }
+    // pub const fn sort_<F: level::raw::BuilderTrait>(level: F) -> impl BuilderTrait {
+    //     move |arena| Term::sort(level(arena), arena)
+    // }
 
     pub const fn app<F1: BuilderTrait, F2: BuilderTrait>(u1: F1, u2: F2) -> impl BuilderTrait {
         |arena| {

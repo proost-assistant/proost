@@ -35,10 +35,6 @@ pub type Environment<'build> = HashMap<&'build str, usize>;
 ///
 /// A call with a couple of arguments `(arena, env)` of a closure with this trait should
 /// build a definite level in the [`Arena`] `arena`.
-///
-/// Please note that this is just a trait alias, meaning it enforces very little constraints: while
-/// functions in this module returning a closure with this trait are guaranteed to be sound, end
-/// users can also create their own closures satisfying `BuilderTrait`; this should be avoided.
 pub trait BuilderTrait<'build> = for<'arena> FnOnce(&mut Arena<'arena>, &Environment<'build>) -> ResultLevel<'arena>;
 
 impl<'arena> Arena<'arena> {
@@ -49,7 +45,7 @@ impl<'arena> Arena<'arena> {
     }
 }
 
-/// Returns a closure building a universe variable associated to the name `name`
+/// Returns a closure building a universe variable associated to `name`
 #[inline]
 pub const fn var(name: &str) -> impl BuilderTrait<'_> {
     move |arena, env| {
@@ -80,10 +76,7 @@ pub const fn plus<'build, F: BuilderTrait<'build>>(u: F, n: usize) -> impl Build
 #[inline]
 #[no_coverage]
 pub const fn succ<'build, F1: BuilderTrait<'build>>(u1: F1) -> impl BuilderTrait<'build> {
-    |arena, env| {
-        let u1 = u1(arena, env)?;
-        Ok(u1.succ(arena))
-    }
+    |arena, env| Ok(u1(arena, env)?.succ(arena))
 }
 
 /// Returns a closure building the max of two levels built from the given closures `u1` and
@@ -91,11 +84,7 @@ pub const fn succ<'build, F1: BuilderTrait<'build>>(u1: F1) -> impl BuilderTrait
 #[inline]
 #[no_coverage]
 pub const fn max<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(u1: F1, u2: F2) -> impl BuilderTrait<'build> {
-    |arena, env| {
-        let u1 = u1(arena, env)?;
-        let u2 = u2(arena, env)?;
-        Ok(u1.max(u2, arena))
-    }
+    |arena, env| Ok(u1(arena, env)?.max(u2(arena, env)?, arena))
 }
 
 /// Returns a closure building the imax of two levels built from the given closures `u1` and
@@ -103,11 +92,7 @@ pub const fn max<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(u1:
 #[inline]
 #[no_coverage]
 pub const fn imax<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(u1: F1, u2: F2) -> impl BuilderTrait<'build> {
-    |arena, env| {
-        let u1 = u1(arena, env)?;
-        let u2 = u2(arena, env)?;
-        Ok(u1.imax(u2, arena))
-    }
+    |arena, env| Ok(u1(arena, env)?.imax(u2(arena, env)?, arena))
 }
 
 /// Template of levels.
@@ -138,13 +123,13 @@ pub enum Builder<'builder> {
 }
 
 impl<'build> Builder<'build> {
-    /// Build a levels from a [`Builder`]. This internally uses functions described in the
-    /// [builders](`crate::level::builder`) module.
+    /// Build a level from a [`Builder`]. This internally uses functions described in the
+    /// [builders](`crate::memory::level::builder`) module.
     pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultLevel<'arena> {
         arena.build_level(self.partial_application())
     }
 
-    pub fn partial_application(&self) -> impl BuilderTrait<'build> + '_ {
+    pub(in super::super) fn partial_application(&self) -> impl BuilderTrait<'build> + '_ {
         |arena, env| self.realise_in_context(arena, env)
     }
 
@@ -182,18 +167,18 @@ pub(crate) mod raw {
         move |arena| Level::var(id, arena)
     }
 
-    pub const fn zero<'arena>() -> impl BuilderTrait {
+    pub const fn zero() -> impl BuilderTrait {
         |arena| Level::zero(arena)
     }
 
-    pub const fn succ<'arena, F1: BuilderTrait>(u1: F1) -> impl BuilderTrait {
+    pub const fn succ<F1: BuilderTrait>(u1: F1) -> impl BuilderTrait {
         |arena| {
             let u1 = u1(arena);
             u1.succ(arena)
         }
     }
 
-    pub const fn max<'arena, F1: BuilderTrait, F2: BuilderTrait>(u1: F1, u2: F2) -> impl BuilderTrait {
+    pub const fn max<F1: BuilderTrait, F2: BuilderTrait>(u1: F1, u2: F2) -> impl BuilderTrait {
         |arena| {
             let u1 = u1(arena);
             let u2 = u2(arena);
@@ -201,7 +186,7 @@ pub(crate) mod raw {
         }
     }
 
-    pub const fn imax<'arena, F1: BuilderTrait, F2: BuilderTrait>(u1: F1, u2: F2) -> impl BuilderTrait {
+    pub const fn imax<F1: BuilderTrait, F2: BuilderTrait>(u1: F1, u2: F2) -> impl BuilderTrait {
         |arena| {
             let u1 = u1(arena);
             let u2 = u2(arena);

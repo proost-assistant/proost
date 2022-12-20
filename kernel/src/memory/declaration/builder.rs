@@ -27,6 +27,8 @@ use crate::error::{Error, Result, ResultDecl, ResultInstantiatedDecl};
 pub enum DeclarationError<'arena> {
     #[display(fmt = "expected {_0} universe variables, got {_1}")]
     IncorrectVariableNumber(usize, usize),
+
+    #[display(fmt = "unknown declaration {_0}")]
     UnknownDeclaration(&'arena str),
 }
 

@@ -8,11 +8,11 @@ eoi = _{ !ANY }
 
 
 
-Term = _{ Abs | dProd | Prod | App | Var | Prop | Type | Sort | "(" ~ Term ~ ")" }
-term_prod = _{ App | Abs | dProd | Var | Prop | Type | Sort | "(" ~ Prod ~ ")" | "(" ~ term_prod ~ ")" }
-term_app = _{ Abs | Var | Prop | Type | Sort | "(" ~ App ~ ")" | "(" ~ Prod ~ ")" | "(" ~ dProd ~ ")" | "(" ~ term_app ~ ")" } 
-term_dprod = _{ App | Abs | Prod | dProd | Var | Prop | Type | Sort | "(" ~ term_dprod ~ ")" }
-term_abs = _{ App | Abs | Prod | dProd | Var | Prop | Type | Sort | "(" ~ term_abs ~ ")" }
+Term = _{ Abs | dProd | Prod | App | VarDecl | Var | Prop | Type | Sort | "(" ~ Term ~ ")" }
+term_prod = _{ App | Abs | dProd | VarDecl | Var | Prop | Type | Sort | "(" ~ Prod ~ ")" | "(" ~ term_prod ~ ")" }
+term_app = _{ Abs | VarDecl | Var | Prop | Type | Sort | "(" ~ App ~ ")" | "(" ~ Prod ~ ")" | "(" ~ dProd ~ ")" | "(" ~ term_app ~ ")" } 
+term_dprod = _{ App | Abs | Prod | dProd | VarDecl | Var | Prop | Type | Sort | "(" ~ term_dprod ~ ")" }
+term_abs = _{ App | Abs | Prod | dProd | VarDecl | Var | Prop | Type | Sort | "(" ~ term_abs ~ ")" }
 
 Abs = { ( "fun" ~ ( arg_abs_par ~ ( "," ~ arg_abs_par )* ) ~ "=>" ~ Term ) }
 arg_abs_par = _{ arg_abs | "(" ~ arg_abs_par ~ ")" }
@@ -38,11 +38,10 @@ IMax = { ( "imax" ~ "(" ~ univ ~ "," ~ univ ~ ")" ) | ( "imax" ~ univ ~ univ ) }
 Var = { string }
 VarDecl = { string ~ arg_univ }
 
-arg_univ = {".{" ~ (univ ~ ("," ~ univ)*)? ~ "}"}
-
+arg_univ = {".{" ~ (univ ~ ("," ~ univ)* )? ~ "}"}
 univ_decl = {".{" ~ (string ~ ("," ~ string)* )? ~ "}"}
 
-Command = _{ Define | CheckType | GetType | DefineCheckType | Eval | ImportFile | Search}
+Command = _{ Define | Declaration | CheckType | GetType | DefineCheckType | Eval | ImportFile | Search}
 Define = { "def" ~ string ~ ":=" ~ Term }
 DefineCheckType = { "def" ~ string ~ ":" ~ Term ~ ":=" ~ Term }
 Declaration = { "def" ~ string ~ univ_decl ~ ":=" ~ Term }
