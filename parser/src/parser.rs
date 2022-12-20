@@ -359,6 +359,11 @@ mod tests {
     }
 
     #[test]
+    fn successful_gettype_sort() {
+        assert_eq!(parse_line("check Sort"), Ok(GetType(Sort(box level::Builder::Zero))));
+    }
+
+    #[test]
     fn successful_var() {
         assert_eq!(parse_line("check fun A: Prop => A"), Ok(GetType(Abs("A", Box::new(Sort(box level::Builder::Zero)), Box::new(Var("A"))))));
     }
@@ -368,6 +373,13 @@ mod tests {
         assert_eq!(parse_line("check Type"), Ok(GetType(Sort(box level::Builder::Succ(box level::Builder::Zero)))));
         assert_eq!(parse_line("check Type 0"), Ok(GetType(Sort(box level::Builder::Succ(box level::Builder::Zero)))));
         assert_eq!(parse_line("check Type 1"), Ok(GetType(Sort(box level::Builder::Succ(box level::Builder::Succ(box level::Builder::Zero))))));
+    }
+
+    #[test]
+    fn successful_sort() {
+        assert_eq!(parse_line("check Sort"), Ok(GetType(Sort(box level::Builder::Zero))));
+        assert_eq!(parse_line("check Sort 0"), Ok(GetType(Sort(box level::Builder::Zero))));
+        assert_eq!(parse_line("check Sort 1"), Ok(GetType(Sort(box level::Builder::Succ(box level::Builder::Zero)))));
     }
 
     #[test]
