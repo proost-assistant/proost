@@ -4,8 +4,8 @@
 
 use core::fmt;
 
-use kernel::memory::term::builder::Builder;
 use kernel::memory::declaration::builder as declaration;
+use kernel::memory::term::builder::Builder;
 
 /// The type of commands that can be received by the kernel.
 #[derive(Debug, Eq, PartialEq)]

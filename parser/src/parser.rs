@@ -77,10 +77,8 @@ fn parse_term(pair: Pair<Rule>) -> term::Builder {
 
         Rule::VarDecl => {
             let mut iter = pair.into_inner();
-            Decl(box declaration::InstantiatedBuilder::Var(
-                iter.next().unwrap().as_str(),
-                iter.map(parse_level).collect()
-))},
+            Decl(box declaration::InstantiatedBuilder::Var(iter.next().unwrap().as_str(), iter.map(parse_level).collect()))
+        },
 
         Rule::Type => {
             if let Some(next) = pair.into_inner().next_back() {
@@ -172,7 +170,6 @@ fn parse_expr(pair: Pair<Rule>) -> Command {
             Command::Define(s, Some(t), term)
         },
 
-
         Rule::Declaration => {
             let mut iter = pair.into_inner();
             let s = iter.next().unwrap().as_str();
@@ -229,7 +226,7 @@ fn convert_error(err: pest::error::Error<Rule>) -> error::Error {
         rule => {
             println!("{:?}", rule);
             unreachable!("low level rules cannot appear in error messages")
-        }
+        },
     });
 
     // extracting the location from the pest output
@@ -345,7 +342,10 @@ mod tests {
 
     #[test]
     fn successful_checktype() {
-        assert_eq!(parse_line("check Prop : Type"), Ok(CheckType(Sort(box level::Builder::Zero), Sort(box level::Builder::Succ(box level::Builder::Zero)))));
+        assert_eq!(
+            parse_line("check Prop : Type"),
+            Ok(CheckType(Sort(box level::Builder::Zero), Sort(box level::Builder::Succ(box level::Builder::Zero))))
+        );
     }
 
     #[test]
@@ -360,14 +360,20 @@ mod tests {
 
     #[test]
     fn successful_var() {
-        assert_eq!(parse_line("check fun A: Prop => A"), Ok(GetType(Abs("A", Box::new(Sort(box level::Builder::Zero)), Box::new(Var("A"))))));
+        assert_eq!(
+            parse_line("check fun A: Prop => A"),
+            Ok(GetType(Abs("A", Box::new(Sort(box level::Builder::Zero)), Box::new(Var("A")))))
+        );
     }
 
     #[test]
     fn successful_type() {
         assert_eq!(parse_line("check Type"), Ok(GetType(Sort(box level::Builder::Succ(box level::Builder::Zero)))));
         assert_eq!(parse_line("check Type 0"), Ok(GetType(Sort(box level::Builder::Succ(box level::Builder::Zero)))));
-        assert_eq!(parse_line("check Type 1"), Ok(GetType(Sort(box level::Builder::Succ(box level::Builder::Succ(box level::Builder::Zero))))));
+        assert_eq!(
+            parse_line("check Type 1"),
+            Ok(GetType(Sort(box level::Builder::Succ(box level::Builder::Succ(box level::Builder::Zero)))))
+        );
     }
 
     #[test]
@@ -397,7 +403,15 @@ mod tests {
 
     #[test]
     fn successful_dprod() {
-        let res = Ok(GetType(Prod("x", Box::new(Sort(box level::Builder::Succ(box level::Builder::Zero))), Box::new(Prod("y", Box::new(Sort(box level::Builder::Succ(box level::Builder::Succ(box level::Builder::Zero)))), Box::new(Var("x")))))));
+        let res = Ok(GetType(Prod(
+            "x",
+            Box::new(Sort(box level::Builder::Succ(box level::Builder::Zero))),
+            Box::new(Prod(
+                "y",
+                Box::new(Sort(box level::Builder::Succ(box level::Builder::Succ(box level::Builder::Zero)))),
+                Box::new(Var("x")),
+            )),
+        )));
         assert_eq!(parse_line("check (x:Type) -> (y:Type 1) -> x"), res);
         assert_eq!(parse_line("check (x:Type) -> ((y:Type 1) -> x)"), res);
     }
@@ -410,7 +424,11 @@ mod tests {
             Box::new(Abs(
                 "x",
                 Box::new(Sort(box level::Builder::Zero)),
-                Box::new(Abs("y", Box::new(Sort(box level::Builder::Zero)), Box::new(Abs("z", Box::new(Sort(box level::Builder::Zero)), Box::new(Var("x")))))),
+                Box::new(Abs(
+                    "y",
+                    Box::new(Sort(box level::Builder::Zero)),
+                    Box::new(Abs("z", Box::new(Sort(box level::Builder::Zero)), Box::new(Var("x")))),
+                )),
             )),
         );
         assert_eq!(parse_line("check fun w x: Prop, y z: Prop => x"), Ok(GetType(res)));
@@ -476,7 +494,11 @@ mod tests {
             Box::new(Abs(
                 "x",
                 Box::new(Sort(box level::Builder::Zero)),
-                Box::new(Abs("y", Box::new(Sort(box level::Builder::Zero)), Box::new(Abs("z", Box::new(Sort(box level::Builder::Zero)), Box::new(Var("x")))))),
+                Box::new(Abs(
+                    "y",
+                    Box::new(Sort(box level::Builder::Zero)),
+                    Box::new(Abs("z", Box::new(Sort(box level::Builder::Zero)), Box::new(Var("x")))),
+                )),
             )),
         );
         assert_eq!(parse_line("check fun (((w x : Prop))), y z : Prop => x"), Ok(GetType(res)));
@@ -484,13 +506,31 @@ mod tests {
 
     #[test]
     fn parenthesis_in_prod() {
-        let res = Prod("_", Box::new(Sort(box level::Builder::Succ(box level::Builder::Zero))), Box::new(Prod("_", Box::new(Sort(box level::Builder::Succ(box level::Builder::Succ(box level::Builder::Zero)))), Box::new(Sort(box level::Builder::Succ(box level::Builder::Succ(box level::Builder::Succ(box level::Builder::Zero))))))));
+        let res = Prod(
+            "_",
+            Box::new(Sort(box level::Builder::Succ(box level::Builder::Zero))),
+            Box::new(Prod(
+                "_",
+                Box::new(Sort(box level::Builder::Succ(box level::Builder::Succ(box level::Builder::Zero)))),
+                Box::new(Sort(box level::Builder::Succ(box level::Builder::Succ(box level::Builder::Succ(
+                    box level::Builder::Zero,
+                ))))),
+            )),
+        );
         assert_eq!(parse_line("check (((Type))) -> (((Type 1 -> Type 2)))"), Ok(GetType(res)));
     }
 
     #[test]
     fn parenthesis_in_dprod() {
-        let res = Prod("x", Box::new(Sort(box level::Builder::Succ(box level::Builder::Zero))), Box::new(Prod("y", Box::new(Sort(box level::Builder::Succ(box level::Builder::Succ(box level::Builder::Zero)))), Box::new(Var("x")))));
+        let res = Prod(
+            "x",
+            Box::new(Sort(box level::Builder::Succ(box level::Builder::Zero))),
+            Box::new(Prod(
+                "y",
+                Box::new(Sort(box level::Builder::Succ(box level::Builder::Succ(box level::Builder::Zero)))),
+                Box::new(Var("x")),
+            )),
+        );
         assert_eq!(parse_line("check (((x:Type))) -> ((((y:Type 1) -> x)))"), Ok(GetType(res)));
     }
 

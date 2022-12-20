@@ -140,7 +140,7 @@ impl<'arena> Evaluator {
     ) -> Result<'arena, Option<Term<'arena>>> {
         match command {
             Command::Define(s, None, term) => {
-                let term = term.realise(arena)?;// TODO use right env
+                let term = term.realise(arena)?;
                 if arena.get_binding(s).is_none() {
                     term.infer(arena)?;
                     arena.bind(s, term);
@@ -154,23 +154,24 @@ impl<'arena> Evaluator {
             },
 
             Command::Define(s, Some(t), term) => {
-                let term = term.realise(arena)?; // TODO use right env
+                let term = term.realise(arena)?;
                 let t = t.realise(arena)?;
-                term.check(t,arena)?;
+                term.check(t, arena)?;
                 arena.bind(s, term);
                 Ok(None)
             },
 
             Command::Declaration(s, decl) => {
                 let decl = decl.realise(arena)?;
+                decl.infer(arena)?;
                 arena.bind_decl(s, decl);
                 Ok(None)
-            }
+            },
 
             Command::CheckType(t1, t2) => {
                 let t1 = t1.realise(arena)?;
                 let t2 = t2.realise(arena)?;
-                t1.check(t2,arena)?;
+                t1.check(t2, arena)?;
                 Ok(None)
             },
 

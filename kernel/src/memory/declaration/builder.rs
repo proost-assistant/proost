@@ -143,14 +143,16 @@ impl<'arena> std::fmt::Display for InstantiatedBuilder<'arena> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         use InstantiatedBuilder::*;
         match self {
-            Instance(decl, params) => { write!(f, "{decl}.{{")?;
+            Instance(decl, params) => {
+                write!(f, "{decl}.{{")?;
                 params.iter().try_for_each(|level| write!(f, "{level}, "))?;
                 write!(f, "}}")
-            }
-            Var(decl, params) => { write!(f, "{decl}.{{")?;
+            },
+            Var(decl, params) => {
+                write!(f, "{decl}.{{")?;
                 params.iter().try_for_each(|level| write!(f, "{level}, "))?;
                 write!(f, "}}")
-            }
+            },
         }
     }
 }

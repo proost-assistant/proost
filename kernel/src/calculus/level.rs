@@ -110,39 +110,36 @@ mod tests {
         });
     }
 
-// #[test]
-// fn univ_vars_count() {
-//     assert_eq!(
-//         IMax(
-//             box Zero,
-//             box Max(box Succ(box Zero), box Max(box Var(0), box Var(1)))
-//         )
-//         .univ_vars(),
-//         2
-//     )
-// }
-//
+    // #[test]
+    // fn univ_vars_count() {
+    //     assert_eq!(
+    //         IMax(
+    //             box Zero,
+    //             box Max(box Succ(box Zero), box Max(box Var(0), box Var(1)))
+    //         )
+    //         .univ_vars(),
+    //         2
+    //     )
+    // }
+    //
     #[test]
     fn subst() {
         use_arena(|arena| {
-            let lvl = arena.build_level_raw(imax(
-                zero(),
-                max(succ(zero()), max(var(0), var(1))),
-            ));
-            let subst = vec![ arena.build_level_raw(succ(zero())),  arena.build_level_raw(zero())];
+            let lvl = arena.build_level_raw(imax(zero(), max(succ(zero()), max(var(0), var(1)))));
+            let subst = vec![arena.build_level_raw(succ(zero())), arena.build_level_raw(zero())];
             assert_eq!(
-                lvl.substitute(&subst,arena),
-                arena.build_level_raw(imax(zero(),max(succ(zero()),max(succ(zero()),zero()))))
+                lvl.substitute(&subst, arena),
+                arena.build_level_raw(imax(zero(), max(succ(zero()), max(succ(zero()), zero()))))
             )
         })
     }
     #[test]
     fn single_subst() {
         use_arena(|arena| {
-            let lvl = arena.build_level_raw(imax(max(succ(zero()),var(0)),var(0)));
+            let lvl = arena.build_level_raw(imax(max(succ(zero()), var(0)), var(0)));
             assert_eq!(
-                lvl.substitute_single(0, Level::zero(arena),arena),
-                arena.build_level_raw(imax(max(succ(zero()),zero()),zero()))
+                lvl.substitute_single(0, Level::zero(arena), arena),
+                arena.build_level_raw(imax(max(succ(zero()), zero()), zero()))
             )
         })
     }

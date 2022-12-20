@@ -12,8 +12,9 @@
 //! *high-level level* or *template*, described by the public enumeration [`Builder`], and at any
 //! moment, [realise](LevelBuilder::realise) it.
 
-use derive_more::Display;
 use std::collections::HashMap;
+
+use derive_more::Display;
 
 use super::super::arena::Arena;
 use super::Level;

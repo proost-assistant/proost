@@ -22,7 +22,7 @@ pub mod builder;
 
 #[derive(Copy, Clone, Debug, Display, Eq, PartialEq, Hash)]
 #[display(fmt = "{_0}")]
-pub struct Declaration<'arena>(Term<'arena>, usize);
+pub struct Declaration<'arena>(pub(crate) Term<'arena>, pub(crate) usize);
 
 super::arena::new_dweller!(InstantiatedDeclaration, Header, Payload);
 

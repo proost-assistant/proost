@@ -7,6 +7,7 @@ use Payload::*;
 
 use crate::error::{Error, Result, ResultTerm};
 use crate::memory::arena::Arena;
+use crate::memory::declaration::Declaration;
 use crate::memory::term::{Payload, Term};
 
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
@@ -56,8 +57,7 @@ impl<'arena> Term<'arena> {
         }
 
         match (&*lhs, &*rhs) {
-            
-            (Sort(l1),Sort(l2)) => l1.is_eq(*l2,arena),
+            (Sort(l1), Sort(l2)) => l1.is_eq(*l2, arena),
 
             (Var(i, _), Var(j, _)) => i == j,
 
@@ -71,12 +71,14 @@ impl<'arena> Term<'arena> {
 
             (&App(t1, u1), &App(t2, u2)) => t1.conversion(t2, arena) && u1.conversion(u2, arena),
 
-            // We don't automatically unfold definitions during normalisation because of how costly it is.
+            // We do not automatically unfold definitions during normalisation because of how costly it is.
             // Instead, when the same declaration is met on both terms, they're also equal in memory.
-            // Otherwise, either one of them is not a decl, or they're two different decls. In both case, we unfold decls to check
+            // Otherwise, either one of them is not a decl, or they are two different decls. In both case, we unfold decls to check
             // equality.
             (&Decl(decl), _) => decl.get_term(arena).conversion(rhs, arena),
+
             (_, &Decl(decl)) => decl.get_term(arena).conversion(lhs, arena),
+
             _ => false,
         }
     }
@@ -109,10 +111,7 @@ impl<'arena> Term<'arena> {
     /// Infers the type of the term `t`, living in arena `arena`.
     pub fn infer(self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
         self.get_type_or_try_init(|| match *self {
-            Sort(lvl) => {
-                let lvl = lvl.succ(arena);
-                Ok(Term::sort(lvl, arena))
-            },
+            Sort(lvl) => Ok(Term::sort(lvl.succ(arena), arena)),
             Var(_, type_) => Ok(type_),
 
             Prod(t, u) => {
@@ -170,6 +169,18 @@ impl<'arena> Term<'arena> {
         tty.conversion(ty, arena).then_some(()).ok_or(Error {
             kind: TypeCheckerError::TypeMismatch(tty, ty).into(),
         })
+    }
+}
+
+impl<'arena> Declaration<'arena> {
+    /// Infer the type of a declaration.
+    ///
+    /// Because it is not allowed to access the underlying term of a declaration, this function
+    /// does not return anything, and only serves as a way to ensure the declaration is
+    /// well-formed.
+    pub fn infer(self, arena: &mut Arena<'arena>) -> Result<'arena, ()> {
+        self.0.infer(arena)?;
+        Ok(())
     }
 }
 
@@ -231,8 +242,6 @@ mod tests {
     #[test]
     fn failed_prod_binder_conversion() {
         use_arena(|arena| {
-            let type_0 = Term::type_usize(0, arena);
-
             let term_lhs = arena.build_term_raw(prod(prop(), prop()));
             let term_rhs = arena.build_term_raw(prod(type_usize(0), prop()));
 
@@ -248,9 +257,7 @@ mod tests {
     #[test]
     fn failed_app_head_conversion() {
         use_arena(|arena| {
-            let type_0 = Term::type_usize(0, arena);
             let term_lhs = arena.build_term_raw(abs(type_usize(0), abs(type_usize(0), app(var(1.into(), prop()), prop()))));
-
             let term_rhs = arena.build_term_raw(abs(type_usize(0), abs(type_usize(0), app(var(2.into(), prop()), prop()))));
 
             assert_eq!(
@@ -377,8 +384,6 @@ mod tests {
     #[test]
     fn escape_from_prop() {
         use_arena(|arena| {
-            let type_0 = Term::type_usize(0, arena);
-            let type_1 = Term::type_usize(1, arena);
             let term = arena.build_term_raw(abs(prop(), prod(var(1.into(), prop()), type_usize(0))));
 
             let term_type = term.infer(arena).unwrap();
@@ -446,8 +451,6 @@ mod tests {
     #[test]
     fn typed_polymorphism() {
         use_arena(|arena| {
-            let type_0 = Term::type_usize(0, arena);
-
             let identity = arena
                 .build_term_raw(abs(type_usize(0), abs(var(1.into(), type_usize(0)), var(1.into(), var(2.into(), type_usize(0))))));
 
