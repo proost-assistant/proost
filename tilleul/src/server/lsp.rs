@@ -11,7 +11,7 @@ use crate::server::payload::response::{ErrorCode, ResponseError};
 /// LSP server.
 pub struct LspServer<'a, T: LanguageServerBackend> {
     backend: &'a mut T,
-    connection: Connection,
+    connection: &'a Connection,
     state: LspServerState,
 }
 
@@ -22,10 +22,10 @@ enum LspServerState {
 }
 
 impl<'a, T: LanguageServerBackend> LspServer<'a, T> {
-    pub fn new(backend: &'a mut T) -> Self {
+    pub fn new(backend: &'a mut T, connection: &'a Connection) -> Self {
         LspServer {
             backend,
-            connection: Connection::new(),
+            connection,
             state: LspServerState::Initializing,
         }
     }

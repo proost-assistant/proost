@@ -6,8 +6,8 @@ use log::{debug, error, info};
 use super::payload::message::Message;
 
 pub struct Connection {
-    pub sender: Sender<Message>,
-    pub receiver: Receiver<Message>,
+    pub(crate) sender: Sender<Message>,
+    pub(crate) receiver: Receiver<Message>,
 
     _threads: Threads,
 }
@@ -31,6 +31,10 @@ impl Connection {
             receiver,
             _threads: Threads { reader, writer },
         }
+    }
+
+    pub fn send(&self, message: Message) {
+        self.sender.send(message).unwrap();
     }
 
     fn reader_thread(sender: Sender<Message>) {

@@ -1,11 +1,10 @@
-#![feature(once_cell)]
-
 mod server;
 mod tilleul;
 
 use anyhow::Result;
 use log::info;
 
+use crate::server::connection::Connection;
 use crate::server::lsp::LspServer;
 use crate::tilleul::Tilleul;
 
@@ -17,10 +16,12 @@ fn main() -> Result<()> {
 
     info!("Starting {} {}", NAME, VERSION);
 
-    kernel::term::arena::use_arena(|arena| {
-        let mut backend = Tilleul::new(arena);
+    let connection = Connection::new();
 
-        LspServer::new(&mut backend).serve();
+    kernel::term::arena::use_arena(|arena| {
+        let mut backend = Tilleul::new(arena, &connection);
+
+        LspServer::new(&mut backend, &connection).serve();
     });
 
     info!("Exiting {}", NAME);
