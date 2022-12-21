@@ -1,20 +1,20 @@
 use crossbeam_channel::Sender;
 use log::warn;
 
-use super::payload::message::Message;
-use super::payload::request::Request;
-use super::payload::response::Response;
-use super::LanguageServerBackend;
-use crate::server::payload::response::{ErrorCode, ResponseError};
+use crate::server::lsp::LspServer;
+use crate::server::payload::message::Message;
+use crate::server::payload::request::Request;
+use crate::server::payload::response::{Response, ResponseError};
+use crate::server::LanguageServerBackend;
 
-pub struct RequestDispatcher<'a, T: LanguageServerBackend> {
+pub struct Dispatcher<'a, T: LanguageServerBackend> {
     request: Option<Request>,
 
     backend: &'a mut T,
     sender: &'a Sender<Message>,
 }
 
-impl<'a, T: LanguageServerBackend> RequestDispatcher<'a, T> {
+impl<'a, T: LanguageServerBackend> Dispatcher<'a, T> {
     pub fn new(request: Request, backend: &'a mut T, sender: &'a Sender<Message>) -> Self {
         Self {
             request: Some(request),
@@ -26,6 +26,14 @@ impl<'a, T: LanguageServerBackend> RequestDispatcher<'a, T> {
 
     pub fn handle<R>(&mut self, closure: fn(&T, R::Params) -> R::Result) -> &mut Self
     where
+        R: lsp_types::request::Request,
+    {
+        self.handle_callback::<_, R>(closure, |_| ())
+    }
+
+    pub fn handle_callback<C, R>(&mut self, closure: fn(&T, R::Params) -> R::Result, callback: C) -> &mut Self
+    where
+        C: FnOnce(&R::Result) -> (),
         R: lsp_types::request::Request,
     {
         let Some(ref request) = self.request else { return self; };
@@ -40,6 +48,8 @@ impl<'a, T: LanguageServerBackend> RequestDispatcher<'a, T> {
 
         let result = closure(self.backend, params);
 
+        callback(&result);
+
         let msg = Message::Response(Response {
             id: request.id,
             result: Some(serde_json::to_value(result).unwrap()),
@@ -51,19 +61,15 @@ impl<'a, T: LanguageServerBackend> RequestDispatcher<'a, T> {
         self
     }
 
-    pub fn handle_fallthrough(&mut self) {
+    pub fn handle_fallthrough(&mut self, error_response: ResponseError) {
         let Some(ref request) = self.request else { return; };
 
-        warn!("Method {} not implemented", request.method);
+        warn!("{}", error_response.message);
 
         let response = Message::Response(Response {
             id: request.id,
             result: None,
-            error: Some(ResponseError {
-                code: ErrorCode::MethodNotFound,
-                message: format!("Method {} not implemented", request.method),
-                data: None,
-            }),
+            error: Some(error_response),
         });
 
         self.sender.send(response).unwrap();

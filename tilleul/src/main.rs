@@ -17,9 +17,11 @@ fn main() -> Result<()> {
 
     info!("Starting {} {}", NAME, VERSION);
 
-    let mut backend = Tilleul::default();
+    kernel::term::arena::use_arena(|arena| {
+        let mut backend = Tilleul::new(arena);
 
-    LspServer::new(&mut backend).serve();
+        LspServer::new(&mut backend).serve();
+    });
 
     info!("Exiting {}", NAME);
 

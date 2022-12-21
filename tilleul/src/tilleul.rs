@@ -1,25 +1,27 @@
 use std::cell::OnceCell;
 use std::path::PathBuf;
 
+use kernel::term::arena::Arena;
 use lsp_types::*;
 
 use crate::server::LanguageServerBackend;
 
-#[derive(Default, Debug)]
-pub struct Tilleul {
-    file_path: OnceCell<PathBuf>,
+pub struct Tilleul<'a, 'arena> {
+    arena: &'a mut Arena<'arena>,
 }
 
-impl LanguageServerBackend for Tilleul {
-    fn initialize(&self, params: InitializeParams) -> InitializeResult {
-        // TODO: Improve
-        if let Some(root_uri) = params.root_uri {
-            self.file_path.set(root_uri.to_file_path().unwrap()).unwrap();
-        }
+impl<'a, 'arena> Tilleul<'a, 'arena> {
+    pub fn new(arena: &'a mut Arena<'arena>) -> Self {
+        Self { arena }
+    }
+}
 
+impl LanguageServerBackend for Tilleul<'_, '_> {
+    fn initialize(&self, _: InitializeParams) -> InitializeResult {
         InitializeResult {
             capabilities: ServerCapabilities {
                 definition_provider: Some(OneOf::Left(true)),
+                text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL)),
                 ..ServerCapabilities::default()
             },
             server_info: Some(ServerInfo {
