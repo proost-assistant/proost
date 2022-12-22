@@ -177,6 +177,10 @@ impl<'arena> Declaration<'arena> {
         self.0.infer(arena)?;
         Ok(())
     }
+
+    pub fn check(self, ty: Self, arena: &mut Arena<'arena>) -> Result<'arena, ()> {
+        self.0.check(ty.0, arena)
+    }
 }
 
 #[cfg(test)]

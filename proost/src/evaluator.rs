@@ -6,7 +6,6 @@ use colored::Colorize;
 use derive_more::Display;
 use kernel::location::Location;
 use kernel::memory::arena::Arena;
-use kernel::memory::declaration::InstantiatedDeclaration;
 use kernel::memory::term::Term;
 use parser::command::Command;
 use parser::{parse_file, parse_line};
@@ -185,12 +184,9 @@ impl<'arena> Evaluator {
 
             Command::Declaration(s, Some(t), decl) => {
                 let decl = decl.realise(arena)?;
-                let t = t.realise(arena)?;
+                let ty = t.realise(arena)?;
                 if arena.get_binding(s).is_none() {
-                    decl.infer(arena)?;
-                    InstantiatedDeclaration::instantiate_with_self(decl, arena)
-                        .get_term(arena)
-                        .check(InstantiatedDeclaration::instantiate_with_self(t, arena).get_term(arena), arena)?;
+                    decl.check(ty,arena)?;
                     arena.bind_decl(s, decl);
                     Ok(None)
                 } else {

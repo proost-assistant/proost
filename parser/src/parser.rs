@@ -176,7 +176,7 @@ fn parse_expr(pair: Pair<Rule>) -> Command {
             let mut iter = pair.into_inner();
             let mut string_decl = iter.next().unwrap().into_inner();
             let s = string_decl.next().unwrap().as_str();
-            let vars = string_decl.next().unwrap().into_inner().map(|name| name.as_str()).collect();
+            let vars : Vec<&str> = string_decl.next().unwrap().into_inner().map(|name| name.as_str()).collect();
             let body = iter.next().map(parse_term).unwrap();
 
             Command::Declaration(s, None, declaration::Builder::Decl(box body, vars))
@@ -184,8 +184,10 @@ fn parse_expr(pair: Pair<Rule>) -> Command {
 
         Rule::DeclarationCheckType => {
             let mut iter = pair.into_inner();
-            let s = iter.next().unwrap().as_str();
-            let vars: Vec<&str> = iter.next().unwrap().into_inner().map(|name| name.as_str()).collect();
+            let mut string_decl = iter.next().unwrap().into_inner();
+            let s = string_decl.next().unwrap().as_str();
+            let vars : Vec<&str> = string_decl.next().unwrap().into_inner().map(|name| name.as_str()).collect();
+            
             let t = parse_term(iter.next().unwrap());
             let body = iter.next().map(parse_term).unwrap();
 
