@@ -6,7 +6,7 @@ use crate::memory::arena::Arena;
 use crate::memory::level::{Level, Payload};
 
 impl<'arena> Level<'arena> {
-    /// Helper function for equality checking, used to substitute Var(i) with Z and S(Var(i)).
+    /// Helper function for equality checking, used to substitute `Var(i)` with `Z` and `S(Var(i))`.
     fn substitute_single(self, var: usize, u: Self, arena: &mut Arena<'arena>) -> Self {
         match *self {
             Succ(n) => n.substitute_single(var, u, arena).succ(arena),
