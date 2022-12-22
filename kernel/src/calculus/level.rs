@@ -38,7 +38,7 @@ impl<'arena> Level<'arena> {
     /// - `(true, 0)` if `self <= rhs + n`,
     /// - `(false, 0)` else.
     fn geq_no_subst(self, rhs: Self, n: i64) -> (bool, usize) {
-        match (&*self,&*rhs) {
+        match (&*self, &*rhs) {
             (Zero, _) if n >= 0 => (true, 0),
             (_, _) if self == rhs && n >= 0 => (true, 0),
             (Succ(l), _) if l.geq_no_subst(rhs, n - 1).0 => (true, 0),
