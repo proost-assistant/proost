@@ -83,7 +83,7 @@ impl<'arena> InstantiatedDeclaration<'arena> {
         }
     }
 
-    // Instantiates the declaration with its own arguments, used for type-checking
+    /// Instantiates the declaration with its own arguments, used for type-checking
     pub fn instantiate_with_self(decl: Declaration<'arena>, arena: &mut Arena<'arena>) -> Self {
         let params = (0..decl.1).map(|i| Level::var(i, arena)).collect::<Vec<Level<'arena>>>();
 
