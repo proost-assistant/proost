@@ -31,11 +31,12 @@ impl<'arena> Level<'arena> {
         }
     }
 
-    // Checks whether `self <= rhs + n`.
-    // Preicsely, it returns:
-    // - `(false, i + 1)` if `Var(i)` needs to be substituted to unstuck the comparison.
-    // - `(true, 0)` if `self <= rhs + n`,
-    // - `(false,0)` else.
+    /// Checks whether `self <= rhs + n`, without applying substitution.
+    ///
+    /// Precisely, it returns:
+    /// - `(false, i + 1)` if `Var(i)` needs to be substituted to unstuck the comparison.
+    /// - `(true, 0)` if `self <= rhs + n`,
+    /// - `(false, 0)` else.
     fn geq_no_subst(self, rhs: Self, n: i64) -> (bool, usize) {
         match (&*self,&*rhs) {
             (Zero, _) if n >= 0 => (true, 0),
