@@ -21,7 +21,6 @@ use crate::error::{Error, ResultTerm};
 use crate::memory::arena::Arena;
 use crate::memory::declaration::builder as declaration;
 use crate::memory::level::builder as level;
-use crate::error::{Error, ResultTerm};
 
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
