@@ -132,7 +132,7 @@ impl<'build> Builder<'build> {
         arena.build_level(self.partial_application())
     }
 
-    pub(in super::super) fn partial_application(&self) -> impl BuilderTrait<'build> + '_ {
+    pub(in crate::memory) fn partial_application(&self) -> impl BuilderTrait<'build> + '_ {
         |arena, env| self.realise_in_context(arena, env)
     }
 
