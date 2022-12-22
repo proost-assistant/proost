@@ -85,10 +85,9 @@ impl<'arena> InstantiatedDeclaration<'arena> {
 
     // Instantiates the declaration with its own arguments, used for type-checking
     pub fn instantiate_with_self(decl: Declaration<'arena>, arena: &mut Arena<'arena>) -> Self {
-        let params = Vec::from_iter(0..decl.1).iter().map(|i| Level::var(*i, arena)).collect::<Vec<Level<'arena>>>();
+        let params = (0..decl.1).map(|i| Level::var(i, arena)).collect::<Vec<Level<'arena>>>();
 
-        let params = params.as_slice();
-        InstantiatedDeclaration::instantiate(decl, params, arena)
+        InstantiatedDeclaration::instantiate(decl, params.as_slice(), arena)
     }
 
     /// Returns the term linked to a definition in a given environment.
