@@ -204,6 +204,26 @@ mod tests {
     }
 
     #[test]
+    fn conv_decl() {
+        use_arena(|arena| {
+            let decl_ = crate::memory::declaration::InstantiatedDeclaration::instantiate(
+                crate::memory::declaration::builder::Builder::Decl(crate::memory::term::builder::Builder::Prop.into(), Vec::new())
+                    .realise(arena)
+                    .unwrap(),
+                &Vec::new(),
+                arena,
+            );
+            let decl = crate::memory::term::Term::decl(decl_, arena);
+
+            let prop = arena.build_term_raw(prop());
+
+            assert!(decl.is_def_eq(prop,arena).is_ok());
+            assert!(prop.is_def_eq(decl,arena).is_ok());
+
+        })
+    }
+
+    #[test]
     fn def_eq_2() {
         use_arena(|arena| {
             let term = arena.build_term_raw(app(abs(prop(), abs(prop(), var(2.into(), prop()))), id()));
