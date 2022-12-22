@@ -16,9 +16,9 @@ use std::collections::HashMap;
 
 use derive_more::Display;
 
-use super::super::arena::Arena;
 use super::Level;
 use crate::error::{Error, ResultLevel};
+use crate::memory::arena::Arena;
 
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
