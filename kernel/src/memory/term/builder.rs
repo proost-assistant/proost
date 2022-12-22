@@ -254,9 +254,9 @@ pub(crate) mod raw {
         move |arena| Term::type_usize(level, arena)
     }
 
-    // pub const fn sort_<F: level::raw::BuilderTrait>(level: F) -> impl BuilderTrait {
-    //     move |arena| Term::sort(level(arena), arena)
-    // }
+    pub const fn sort_<F: level::raw::BuilderTrait>(level: F) -> impl BuilderTrait {
+        move |arena| Term::sort(level(arena), arena)
+    }
 
     pub const fn app<F1: BuilderTrait, F2: BuilderTrait>(u1: F1, u2: F2) -> impl BuilderTrait {
         |arena| {

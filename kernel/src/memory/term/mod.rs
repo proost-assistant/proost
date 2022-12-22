@@ -73,7 +73,7 @@ impl<'arena> fmt::Display for Payload<'arena> {
                     1 => write!(f, "Type"),
                     _ => write!(f, "Type {}", n - 1),
                 },
-                None => write!(f, "Sort {{{level}}}"),
+                None => write!(f, "Sort {level}"),
             },
             App(fun, arg) => write!(f, "({fun}) ({arg})"),
             Abs(argtype, body) => write!(f, "\u{003BB} {argtype} \u{02192} {body}"),
@@ -199,5 +199,44 @@ impl<'arena> Arena<'arena> {
                 res
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::memory::arena::use_arena;
+    use crate::memory::level::builder::raw::{var, *};
+    use crate::memory::term::builder::raw::*;
+
+    #[test]
+    fn display() {
+        use_arena(|arena| {
+            let decl_ = crate::memory::declaration::InstantiatedDeclaration::instantiate(
+                crate::memory::declaration::builder::Builder::Decl(crate::memory::term::builder::Builder::Prop.into(), Vec::new())
+                    .realise(arena)
+                    .unwrap(),
+                &Vec::new(),
+                arena,
+            );
+
+            let prop_ = crate::memory::term::Term::decl(decl_, arena);
+
+            assert_eq!(format!("{}", prop_), "(Prop).{}");
+            let vart = crate::memory::term::builder::raw::var;
+
+            let lvl = max(succ(var(0)), succ(var(1)));
+            let term = arena.build_term_raw(abs(
+                sort_(lvl),
+                abs(
+                    type_usize(0),
+                    abs(
+                        type_usize(1),
+                        prod(vart(1.into(), type_usize(1)), app(vart(1.into(), type_usize(1)), vart(2.into(), type_usize(0)))),
+                    ),
+                ),
+            ));
+
+            assert_eq!(format!("{}", term), "λ Sort max (u0) (u1) + 1 → λ Type → λ Type 1 → Π 1 → (1) (2)")
+        })
     }
 }
