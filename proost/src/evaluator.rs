@@ -157,27 +157,48 @@ impl<'arena> Evaluator {
             Command::Define(s, Some(t), term) => {
                 let term = term.realise(arena)?;
                 let t = t.realise(arena)?;
-                term.check(t, arena)?;
-                arena.bind(s, term);
-                Ok(None)
+                if arena.get_binding(s).is_none() {
+                    term.check(t, arena)?;
+                    arena.bind(s, term);
+                    Ok(None)
+                } else {
+                    Err(Toplevel(Error {
+                        kind: ErrorKind::BoundVariable(s.to_string()),
+                        location: Location::default(), // TODO (see #38)
+                    }))
+                }
             },
 
             Command::Declaration(s, None, decl) => {
                 let decl = decl.realise(arena)?;
-                decl.infer(arena)?;
-                arena.bind_decl(s, decl);
-                Ok(None)
+                if arena.get_binding(s).is_none() {
+                    decl.infer(arena)?;
+                    arena.bind_decl(s, decl);
+                    Ok(None)
+                } else {
+                    Err(Toplevel(Error {
+                        kind: ErrorKind::BoundVariable(s.to_string()),
+                        location: Location::default(), // TODO (see #38)
+                    }))
+                }
             },
 
             Command::Declaration(s, Some(t), decl) => {
                 let decl = decl.realise(arena)?;
                 let t = t.realise(arena)?;
-                decl.infer(arena)?;
-                InstantiatedDeclaration::instantiate_with_self(decl, arena)
-                    .get_term(arena)
-                    .check(InstantiatedDeclaration::instantiate_with_self(t, arena).get_term(arena), arena)?;
-                arena.bind_decl(s, decl);
-                Ok(None)
+                if arena.get_binding(s).is_none() {
+                    decl.infer(arena)?;
+                    InstantiatedDeclaration::instantiate_with_self(decl, arena)
+                        .get_term(arena)
+                        .check(InstantiatedDeclaration::instantiate_with_self(t, arena).get_term(arena), arena)?;
+                    arena.bind_decl(s, decl);
+                    Ok(None)
+                } else {
+                    Err(Toplevel(Error {
+                        kind: ErrorKind::BoundVariable(s.to_string()),
+                        location: Location::default(), // TODO (see #38)
+                    }))
+                }
             },
 
             Command::CheckType(t1, t2) => {
