@@ -1,0 +1,10 @@
+def bool: Prop :=  (A: Prop) -> A -> A -> A
+
+def true: bool := fun A: Prop => (fun a b: A => a)
+def false: bool := fun A: Prop => (fun a b: A => b)
+
+def if: Prop := fun A: Prop b: bool => (fun e1 e2: A => b A e1 e2)
+
+def and_b: bool :=  if bool b1 b2 false
+def or_b: bool := if bool b1 true b2
+def neg_b: bool := if bool b1 false true
