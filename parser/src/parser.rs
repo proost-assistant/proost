@@ -174,8 +174,9 @@ fn parse_expr(pair: Pair<Rule>) -> Command {
 
         Rule::Declaration => {
             let mut iter = pair.into_inner();
-            let s = iter.next().unwrap().as_str();
-            let vars = iter.next().unwrap().into_inner().map(|name| name.as_str()).collect();
+            let mut string_decl = iter.next().unwrap().into_inner();
+            let s = string_decl.next().unwrap().as_str();
+            let vars = string_decl.next().unwrap().into_inner().map(|name| name.as_str()).collect();
             let body = iter.next().map(parse_term).unwrap();
 
             Command::Declaration(s, None, declaration::Builder::Decl(box body, vars))
