@@ -135,7 +135,7 @@ impl<'build> Builder<'build> {
         |arena, env| self.realise_in_context(arena, env)
     }
 
-    pub(in super::super) fn realise_in_context<'arena>(
+    pub(in crate::memory) fn realise_in_context<'arena>(
         &self,
         arena: &mut Arena<'arena>,
         env: &Environment<'build>,
