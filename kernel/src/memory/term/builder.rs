@@ -16,10 +16,11 @@
 use derive_more::Display;
 use im_rc::hashmap::HashMap as ImHashMap;
 
-use super::super::arena::Arena;
-use super::super::declaration::builder as declaration;
-use super::super::level::builder as level;
 use super::{DeBruijnIndex, Term};
+use crate::error::{Error, ResultTerm};
+use crate::memory::arena::Arena;
+use crate::memory::declaration::builder as declaration;
+use crate::memory::level::builder as level;
 use crate::error::{Error, ResultTerm};
 
 #[non_exhaustive]
