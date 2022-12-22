@@ -308,7 +308,7 @@ pub fn parse_file(file: &str) -> error::Result<Vec<Command>> {
 
 #[cfg(test)]
 mod tests {
-    // TODO TESTS:
+    // TODO (#69) TESTS:
     // - universe declarations for both define and define_check
     // - universe bindings on vars
     // - level constructions for numbers, +, succ, max and imax
