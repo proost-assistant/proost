@@ -162,7 +162,6 @@ impl<'arena> Level<'arena> {
     /// to substitute Var(i) with 0 and S(Var(i)). This gives us a consistent way to unstuck the geq-checking.
     fn normalize(self, arena: &mut Arena<'arena>) -> Self {
         match *self {
-            IMax(z, u) if *z == Zero => u,
             IMax(u, v) => {
                 if u == v {
                     u

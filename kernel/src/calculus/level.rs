@@ -122,7 +122,11 @@ mod tests {
     #[test]
     fn subst() {
         use_arena(|arena| {
-            let lvl = arena.build_level_raw(imax(zero(), max(succ(zero()), max(var(0), var(1)))));
+            let lvl = Level::imax(
+                Level::succ(Level::zero(arena), arena),
+                arena.build_level_raw(max(succ(zero()), max(var(0), var(1)))),
+                arena,
+            );
             let subst = vec![arena.build_level_raw(succ(zero())), arena.build_level_raw(zero())];
             assert_eq!(
                 lvl.substitute(&subst, arena),
