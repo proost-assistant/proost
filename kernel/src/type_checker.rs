@@ -104,8 +104,8 @@ impl<'arena> Term<'arena> {
     }
 
     /// Infers the type of the term `t`, living in arena `arena`.
-    pub fn infer(self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
-        self.get_type_or_try_init(|| match *self {
+    pub fn infer_raw(self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
+        match *self {
             Sort(lvl) => Ok(Term::sort(lvl.succ(arena), arena)),
             Var(_, type_) => Ok(type_),
 
@@ -153,8 +153,13 @@ impl<'arena> Term<'arena> {
                 }
             },
 
-            Decl(decl) => decl.get_type_or_try_init(Term::infer, arena),
-        })
+            Decl(decl) => decl.get_type_or_try_init(Term::infer_raw, arena),
+        }
+    }
+
+    /// Infers the type of the term `t`, living in arena `arena`, checks for memoization.
+    pub fn infer(self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
+        self.get_type_or_try_init(|| self.infer_raw(arena))
     }
 
     /// Checks whether the term `t` living in `arena` is of type `ty`.
@@ -219,6 +224,26 @@ mod tests {
 
             assert!(decl.is_def_eq(prop, arena).is_ok());
             assert!(prop.is_def_eq(decl, arena).is_ok());
+        })
+    }
+
+    #[test]
+    fn infer_decl() {
+        //use std::env;
+        //env::set_var("RUST_BACKTRACE", "1");
+        use_arena(|arena| {
+            let decl_ = crate::memory::declaration::InstantiatedDeclaration::instantiate(
+                crate::memory::declaration::builder::Builder::Decl(crate::memory::term::builder::Builder::Prop.into(), Vec::new())
+                    .realise(arena)
+                    .unwrap(),
+                &Vec::new(),
+                arena,
+            );
+
+            let term = crate::memory::term::Term::decl(decl_, arena);
+            let ty = arena.build_term_raw(type_usize(0));
+
+            assert!(term.check(ty, arena).is_ok());
         })
     }
 
