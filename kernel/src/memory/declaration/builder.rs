@@ -10,11 +10,11 @@
 
 use derive_more::Display;
 
-use super::super::arena::Arena;
-use super::super::level::builder as level;
-use super::super::term::builder as term;
 use super::{Declaration, InstantiatedDeclaration};
 use crate::error::{Error, Result, ResultDecl, ResultInstantiatedDecl};
+use crate::memory::arena::Arena;
+use crate::memory::level::builder as level;
+use crate::memory::term::builder as term;
 
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
