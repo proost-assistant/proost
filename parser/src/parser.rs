@@ -247,7 +247,6 @@ fn convert_error(err: pest::error::Error<Rule>) -> error::Error {
         Rule::arg_univ => "universe argument".to_owned(),
         Rule::univ_decl => "universe declaration".to_owned(),
         rule => {
-            println!("{:?}", rule);
             unreachable!("low level rules cannot appear in error messages")
         },
     });
