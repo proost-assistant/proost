@@ -69,6 +69,7 @@ pub const fn const_<'build>(n: usize) -> impl BuilderTrait<'build> {
 
 /// Returns a closure building the sum of `u` and a constant `n`.
 #[inline]
+#[no_coverage]
 pub const fn plus<'build, F: BuilderTrait<'build>>(u: F, n: usize) -> impl BuilderTrait<'build> {
     move |arena, env| Ok(u(arena, env)?.add(n, arena))
 }
