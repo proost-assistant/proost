@@ -314,10 +314,11 @@ mod tests {
     #[test]
     fn decl_subst() {
         use_arena(|arena| {
-            let decl_ = crate::memory::declaration::InstantiatedDeclaration::instantiate_with_self(
+            let decl_ = crate::memory::declaration::InstantiatedDeclaration::instantiate(
                 declaration::builder::Builder::Decl(crate::memory::term::builder::Builder::Prop.into(), Vec::new())
                     .realise(arena)
                     .unwrap(),
+                &Vec::new(),
                 arena,
             );
             let decl = crate::memory::term::Term::decl(decl_, arena);
