@@ -182,6 +182,7 @@ impl<'arena> Evaluator {
 
             Command::Eval(t) => {
                 let t = t.realise(arena)?;
+                let _ = t.infer(arena)?;
                 Ok(Some(t.normal_form(arena)))
             },
 
