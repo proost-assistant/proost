@@ -139,35 +139,6 @@ impl<'arena> Evaluator {
         importing: &mut Vec<PathBuf>,
     ) -> Result<'arena, Option<Term<'arena>>> {
         match command {
-            Command::Define(s, None, term) => {
-                let term = term.realise(arena)?;
-                if arena.get_binding(s).is_none() {
-                    term.infer(arena)?;
-                    arena.bind(s, term);
-                    Ok(None)
-                } else {
-                    Err(Toplevel(Error {
-                        kind: ErrorKind::BoundVariable(s.to_string()),
-                        location: Location::default(), // TODO (see #38)
-                    }))
-                }
-            },
-
-            Command::Define(s, Some(t), term) => {
-                let term = term.realise(arena)?;
-                let t = t.realise(arena)?;
-                if arena.get_binding(s).is_none() {
-                    term.check(t, arena)?;
-                    arena.bind(s, term);
-                    Ok(None)
-                } else {
-                    Err(Toplevel(Error {
-                        kind: ErrorKind::BoundVariable(s.to_string()),
-                        location: Location::default(), // TODO (see #38)
-                    }))
-                }
-            },
-
             Command::Declaration(s, None, decl) => {
                 let decl = decl.realise(arena)?;
                 if arena.get_binding(s).is_none() {
@@ -186,7 +157,7 @@ impl<'arena> Evaluator {
                 let decl = decl.realise(arena)?;
                 let ty = t.realise(arena)?;
                 if arena.get_binding(s).is_none() {
-                    decl.check(ty,arena)?;
+                    decl.check(ty, arena)?;
                     arena.bind_decl(s, decl);
                     Ok(None)
                 } else {

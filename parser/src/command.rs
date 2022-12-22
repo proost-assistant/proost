@@ -10,9 +10,6 @@ use kernel::memory::term::builder::Builder;
 /// The type of commands that can be received by the kernel.
 #[derive(Debug, Eq, PartialEq)]
 pub enum Command<'build> {
-    /// Define a new term and optionally check that its type matches the given one.
-    Define(&'build str, Option<Builder<'build>>, Builder<'build>),
-
     /// Define the given declaration
     Declaration(&'build str, Option<declaration::Builder<'build>>, declaration::Builder<'build>),
 
@@ -37,10 +34,6 @@ impl<'build> fmt::Display for Command<'build> {
         use Command::*;
 
         match self {
-            Define(name, None, t) => write!(f, "def {name} := {t}"),
-
-            Define(name, Some(ty), t) => write!(f, "def {name}: {ty} := {t}"),
-
             Declaration(name, None, t) => write!(f, "def {name} := {t}"),
 
             Declaration(name, Some(ty), t) => write!(f, "def {name}: {ty} := {t}"),

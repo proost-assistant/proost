@@ -161,22 +161,26 @@ fn parse_expr(pair: Pair<Rule>) -> Command {
             let mut iter = pair.into_inner();
             let s = iter.next().unwrap().as_str();
             let term = parse_term(iter.next().unwrap());
-            Command::Define(s, None, term)
+            Command::Declaration(s, None, declaration::Builder::Decl(box term, Vec::new()))
         },
 
         Rule::DefineCheckType => {
             let mut iter = pair.into_inner();
             let s = iter.next().unwrap().as_str();
-            let t = parse_term(iter.next().unwrap());
-            let term = parse_term(iter.next().unwrap());
-            Command::Define(s, Some(t), term)
+            let ty = parse_term(iter.next().unwrap());
+            let decl = parse_term(iter.next().unwrap());
+
+            let ty = declaration::Builder::Decl(box ty, Vec::new());
+            let decl = declaration::Builder::Decl(box decl, Vec::new());
+
+            Command::Declaration(s, Some(ty), decl)
         },
 
         Rule::Declaration => {
             let mut iter = pair.into_inner();
             let mut string_decl = iter.next().unwrap().into_inner();
             let s = string_decl.next().unwrap().as_str();
-            let vars : Vec<&str> = string_decl.next().unwrap().into_inner().map(|name| name.as_str()).collect();
+            let vars: Vec<&str> = string_decl.next().unwrap().into_inner().map(|name| name.as_str()).collect();
             let body = iter.next().map(parse_term).unwrap();
 
             Command::Declaration(s, None, declaration::Builder::Decl(box body, vars))
@@ -186,13 +190,13 @@ fn parse_expr(pair: Pair<Rule>) -> Command {
             let mut iter = pair.into_inner();
             let mut string_decl = iter.next().unwrap().into_inner();
             let s = string_decl.next().unwrap().as_str();
-            let vars : Vec<&str> = string_decl.next().unwrap().into_inner().map(|name| name.as_str()).collect();
-            
-            let t = parse_term(iter.next().unwrap());
-            let body = iter.next().map(parse_term).unwrap();
+            let vars: Vec<&str> = string_decl.next().unwrap().into_inner().map(|name| name.as_str()).collect();
 
-            let ty = declaration::Builder::Decl(box t, vars.clone());
-            let decl = declaration::Builder::Decl(box body, vars);
+            let ty = parse_term(iter.next().unwrap());
+            let decl = iter.next().map(parse_term).unwrap();
+
+            let ty = declaration::Builder::Decl(box ty, vars.clone());
+            let decl = declaration::Builder::Decl(box decl, vars);
             Command::Declaration(s, Some(ty), decl)
         },
 
@@ -335,7 +339,14 @@ mod tests {
 
     #[test]
     fn successful_define_with_type_annotation() {
-        assert_eq!(parse_line("def x : Type := Prop"), Ok(Define("x", Some(Type(box level::Builder::Const(0))), Prop)));
+        assert_eq!(
+            parse_line("def x : Type := Prop"),
+            Ok(Declaration(
+                "x",
+                Some(declaration::Builder::Decl(box Type(box level::Builder::Const(0)), Vec::new())),
+                declaration::Builder::Decl(box Prop, Vec::new())
+            ))
+        );
     }
 
     #[test]
@@ -356,7 +367,7 @@ mod tests {
 
     #[test]
     fn successful_define() {
-        assert_eq!(parse_line("def x := Prop"), Ok(Define("x", None, Prop)));
+        assert_eq!(parse_line("def x := Prop"), Ok(Declaration("x", None, declaration::Builder::Decl(box Prop, Vec::new()))));
     }
 
     #[test]
