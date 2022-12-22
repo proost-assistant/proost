@@ -217,9 +217,8 @@ mod tests {
 
             let prop = arena.build_term_raw(prop());
 
-            assert!(decl.is_def_eq(prop,arena).is_ok());
-            assert!(prop.is_def_eq(decl,arena).is_ok());
-
+            assert!(decl.is_def_eq(prop, arena).is_ok());
+            assert!(prop.is_def_eq(decl, arena).is_ok());
         })
     }
 
