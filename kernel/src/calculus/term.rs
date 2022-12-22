@@ -167,6 +167,7 @@ impl<'arena> Term<'arena> {
 mod tests {
     // /!\ most terms used in these tests are ill-typed; they should not be used elsewhere
     use crate::memory::arena::use_arena;
+    use crate::memory::declaration;
     use crate::memory::term::builder::raw::*;
 
     #[test]
@@ -307,6 +308,24 @@ mod tests {
             assert_eq!(term_step_5.beta_reduction(arena), term_step_6);
             assert_eq!(term_step_6.beta_reduction(arena), term_step_7);
             assert_eq!(term_step_7.beta_reduction(arena), term_step_7);
+        })
+    }
+
+    #[test]
+    fn decl_subst() {
+        use_arena(|arena| {
+            // λx.(λy.x y) x
+            let decl_ = crate::memory::declaration::InstantiatedDeclaration::instantiate_with_self(
+                declaration::builder::Builder::Decl(crate::memory::term::builder::Builder::Prop.into(), Vec::new())
+                    .realise(arena)
+                    .unwrap(),
+                arena,
+            );
+            let decl = crate::memory::term::Term::decl(decl_, arena);
+            // λx.x x
+            let reduced = arena.build_term_raw(prop());
+
+            assert_eq!(decl.beta_reduction(arena), reduced);
         })
     }
 

@@ -94,7 +94,7 @@ mod tests {
             let zero_ = arena.build_level_raw(zero());
             let var0 = Level::var(0, arena);
             let var1 = Level::var(1, arena);
-            let succ_var0 = Level::succ(var0,arena);
+            let succ_var0 = Level::succ(var0, arena);
             let max1_var0 = Level::max(one, var0, arena);
             let max0_var0 = Level::max(zero_, var0, arena);
             let max_var0_var1 = Level::max(var0, var1, arena);
@@ -103,7 +103,7 @@ mod tests {
             let succ_max_var0_var1 = Level::succ(max_var0_var1, arena);
             let max_succ_var0_succ_var1 = arena.build_level_raw(max(succ(var(0)), succ(var(1))));
 
-            assert!(max1_var0.geq(succ_var0,0,arena));
+            assert!(max1_var0.geq(succ_var0, 0, arena));
             assert!(!zero_.is_eq(one, arena));
             assert!(!one.is_eq(zero_, arena));
             assert!(var0.is_eq(max0_var0, arena));
