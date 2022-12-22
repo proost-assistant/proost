@@ -315,7 +315,7 @@ mod tests {
     fn decl_subst() {
         use_arena(|arena| {
             let decl_ = crate::memory::declaration::InstantiatedDeclaration::instantiate(
-                declaration::builder::Builder::Decl(crate::memory::term::builder::Builder::Prop.into(), Vec::new())
+                crate::memory::declaration::builder::Builder::Decl(crate::memory::term::builder::Builder::Prop.into(), Vec::new())
                     .realise(arena)
                     .unwrap(),
                 &Vec::new(),
@@ -372,6 +372,41 @@ mod tests {
             let normal_form = arena.build_term_raw(prop());
 
             assert_eq!(term.normal_form(arena), normal_form);
+        })
+    }
+
+    #[test]
+    fn subst_univs() {
+        use crate::memory::level::builder::raw::*;
+
+        use_arena(|arena| {
+            let decl_ = crate::memory::declaration::InstantiatedDeclaration::instantiate(
+                declaration::builder::Builder::Decl(crate::memory::term::builder::Builder::Prop.into(), ["u", "v"].to_vec())
+                    .realise(arena)
+                    .unwrap(),
+                &[arena.build_level_raw(zero()), arena.build_level_raw(zero())],
+                arena,
+            );
+
+            let prop_ = crate::memory::term::Term::decl(decl_, arena);
+
+            assert_eq!(prop_.substitute_univs(&[arena.build_level_raw(zero()), arena.build_level_raw(zero())], arena), prop_);
+
+            let vart = crate::memory::term::builder::raw::var;
+
+            let lvl = max(succ(zero()), succ(zero()));
+            let term = arena.build_term_raw(abs(
+                sort_(lvl),
+                abs(
+                    type_usize(0),
+                    abs(
+                        type_usize(1),
+                        prod(vart(1.into(), type_usize(1)), app(vart(1.into(), type_usize(1)), vart(2.into(), type_usize(0)))),
+                    ),
+                ),
+            ));
+
+            assert_eq!(term.substitute_univs(&[arena.build_level_raw(zero()), arena.build_level_raw(zero())], arena), term);
         })
     }
 }
