@@ -246,6 +246,9 @@ fn convert_error(err: pest::error::Error<Rule>) -> error::Error {
         Rule::Plus => "plus".to_owned(),
         Rule::arg_univ => "universe argument".to_owned(),
         Rule::univ_decl => "universe declaration".to_owned(),
+        _ => {
+            unreachable!("low level rules cannot appear in error messages")
+        },
     });
 
     // extracting the location from the pest output
