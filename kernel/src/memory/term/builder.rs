@@ -155,6 +155,7 @@ pub const fn prod<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(
 
 /// Returns a closure building the term associated to the instantiated declaration `decl`.
 #[inline]
+#[no_coverage]
 pub const fn decl<'build, F: declaration::InstantiatedBuilderTrait<'build>>(decl: F) -> impl BuilderTrait<'build> {
     move |arena, _, lvl_env, _| Ok(Term::decl(decl(arena, lvl_env)?, arena))
 }
