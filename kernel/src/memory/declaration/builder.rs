@@ -167,7 +167,7 @@ impl<'build> InstantiatedBuilder<'build> {
         arena.build_instantiated_declaration(self.partial_application())
     }
 
-    pub(in super::super) fn partial_application(&'build self) -> impl InstantiatedBuilderTrait<'build> {
+    pub(in crate::memory) fn partial_application(&'build self) -> impl InstantiatedBuilderTrait<'build> {
         |arena, lvl_env| self.realise_in_context(arena, lvl_env)
     }
 
