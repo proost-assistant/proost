@@ -117,19 +117,6 @@ mod tests {
         });
     }
 
-    // #[test]
-    // fn univ_vars_count() {
-    //     assert_eq!(
-    //         IMax(
-    //             box Zero,
-    //             box Max(box Succ(box Zero), box Max(box Var(0), box Var(1)))
-    //         )
-    //         .univ_vars(),
-    //         2
-    //     )
-    // }
-    //
-    #[test]
     fn subst() {
         use_arena(|arena| {
             let lvl = arena.build_level_raw(imax(zero(), max(succ(zero()), max(var(0), var(1)))));
