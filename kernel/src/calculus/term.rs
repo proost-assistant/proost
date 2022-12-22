@@ -314,7 +314,6 @@ mod tests {
     #[test]
     fn decl_subst() {
         use_arena(|arena| {
-            // λx.(λy.x y) x
             let decl_ = crate::memory::declaration::InstantiatedDeclaration::instantiate_with_self(
                 declaration::builder::Builder::Decl(crate::memory::term::builder::Builder::Prop.into(), Vec::new())
                     .realise(arena)
@@ -322,7 +321,6 @@ mod tests {
                 arena,
             );
             let decl = crate::memory::term::Term::decl(decl_, arena);
-            // λx.x x
             let reduced = arena.build_term_raw(prop());
 
             assert_eq!(decl.beta_reduction(arena), reduced);

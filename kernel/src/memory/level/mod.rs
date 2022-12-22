@@ -226,4 +226,13 @@ mod pretty_printing {
             )
         })
     }
+
+    #[test]
+    fn normalize() {
+        use_arena(|arena| {
+            let lvl = arena.build_level_raw(imax(zero(), imax(zero(), imax(succ(zero()), var(0)))));
+
+            assert_eq!(format!("{lvl}"), "max (imax (0) (u0)) (max (imax (0) (u0)) (imax (1) (u0)))")
+        })
+    }
 }
