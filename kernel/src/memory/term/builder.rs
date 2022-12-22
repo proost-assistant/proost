@@ -96,6 +96,7 @@ pub const fn type_usize<'build>(level: usize) -> impl BuilderTrait<'build> {
 
 /// Returns a closure building the Sort `level` term.
 #[inline]
+#[no_coverage]
 pub const fn sort<'build, F: level::BuilderTrait<'build>>(level: F) -> impl BuilderTrait<'build> {
     move |arena, _, lvl_env, _| Ok(Term::sort(level(arena, lvl_env)?, arena))
 }
