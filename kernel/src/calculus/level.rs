@@ -27,7 +27,7 @@ impl<'arena> Level<'arena> {
             Succ(n) => n.substitute(univs, arena).succ(arena),
             Max(n, m) => Level::max(n.substitute(univs, arena), m.substitute(univs, arena), arena),
             IMax(n, m) => Level::imax(n.substitute(univs, arena), m.substitute(univs, arena), arena),
-            Var(var) => univs[var],
+            Var(var) => *univs.get(var).unwrap_or_else(|| unreachable!()),
         }
     }
 
