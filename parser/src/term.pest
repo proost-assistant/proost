@@ -41,10 +41,11 @@ VarDecl = { string ~ arg_univ }
 arg_univ = {".{" ~ (univ ~ ("," ~ univ)* )? ~ "}"}
 univ_decl = {".{" ~ (string ~ ("," ~ string)* )? ~ "}"}
 
-Command = _{ Define | Declaration | CheckType | GetType | DefineCheckType | Eval | ImportFile | Search}
+Command = _{ Define | Declaration | DeclarationCheckType | CheckType | GetType | DefineCheckType | Eval | ImportFile | Search}
 Define = { "def" ~ string ~ ":=" ~ Term }
 DefineCheckType = { "def" ~ string ~ ":" ~ Term ~ ":=" ~ Term }
 Declaration = { "def" ~ string ~ univ_decl ~ ":=" ~ Term }
+DeclarationCheckType = { "def" ~ string ~ univ_decl ~ ":" ~ Term ~ ":=" ~ Term }
 CheckType = { "check" ~ Term ~ ":" ~ Term }
 GetType = { "check" ~ Term }
 Eval = { "eval" ~ Term }

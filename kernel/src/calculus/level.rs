@@ -117,6 +117,7 @@ mod tests {
         });
     }
 
+    #[test]
     fn subst() {
         use_arena(|arena| {
             let lvl = arena.build_level_raw(imax(zero(), max(succ(zero()), max(var(0), var(1)))));

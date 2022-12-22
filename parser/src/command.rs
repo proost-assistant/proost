@@ -14,7 +14,7 @@ pub enum Command<'build> {
     Define(&'build str, Option<Builder<'build>>, Builder<'build>),
 
     /// Define the given declaration
-    Declaration(&'build str, declaration::Builder<'build>),
+    Declaration(&'build str, Option<declaration::Builder<'build>>, declaration::Builder<'build>),
 
     /// Infer the type of a term and check that it matches the given one.
     CheckType(Builder<'build>, Builder<'build>),
@@ -41,7 +41,9 @@ impl<'build> fmt::Display for Command<'build> {
 
             Define(name, Some(ty), t) => write!(f, "def {name}: {ty} := {t}"),
 
-            Declaration(name, t) => write!(f, "def {name} := {t}"),
+            Declaration(name, None, t) => write!(f, "def {name} := {t}"),
+
+            Declaration(name, Some(ty), t) => write!(f, "def {name}: {ty} := {t}"),
 
             CheckType(t, ty) => write!(f, "check {t}: {ty}"),
 

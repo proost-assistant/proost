@@ -178,7 +178,19 @@ fn parse_expr(pair: Pair<Rule>) -> Command {
             let vars = iter.next().unwrap().into_inner().map(|name| name.as_str()).collect();
             let body = iter.next().map(parse_term).unwrap();
 
-            Command::Declaration(s, declaration::Builder::Decl(box body, vars))
+            Command::Declaration(s, None, declaration::Builder::Decl(box body, vars))
+        },
+
+        Rule::DeclarationCheckType => {
+            let mut iter = pair.into_inner();
+            let s = iter.next().unwrap().as_str();
+            let vars: Vec<&str> = iter.next().unwrap().into_inner().map(|name| name.as_str()).collect();
+            let t = parse_term(iter.next().unwrap());
+            let body = iter.next().map(parse_term).unwrap();
+
+            let ty = declaration::Builder::Decl(box t, vars.clone());
+            let decl = declaration::Builder::Decl(box body, vars);
+            Command::Declaration(s, Some(ty), decl)
         },
 
         Rule::Eval => {
@@ -208,6 +220,7 @@ fn convert_error(err: pest::error::Error<Rule>) -> error::Error {
         Rule::number => "number".to_owned(),
         Rule::Define => "def var := term".to_owned(),
         Rule::Declaration => "def decl.{ vars, ... } := term".to_owned(),
+        Rule::DeclarationCheckType => "def decl.{ vars, ... } : term := term".to_owned(),
         Rule::CheckType => "check term : term".to_owned(),
         Rule::GetType => "check term".to_owned(),
         Rule::DefineCheckType => "def var : term := term".to_owned(),
@@ -301,7 +314,7 @@ mod tests {
     use super::*;
 
     /// Error messages
-    const COMMAND_ERR: &str = "expected def var := term, def var : term := term, def decl.{ vars, ... } := term, check term : term, check term, eval term, import path_to_file, or search var";
+    const COMMAND_ERR: &str = "expected def var := term, def var : term := term, def decl.{ vars, ... } := term, def decl.{ vars, ... } : term := term, check term : term, check term, eval term, import path_to_file, or search var";
     const TERM_ERR: &str = "expected variable, abstraction, dependent product, application, product, Prop, Type, or Sort";
     const SIMPLE_TERM_ERR: &str = "expected variable, abstraction, Prop, Type, Sort, or universe argument";
     const UNIVERSE_ERR: &str = "expected number, variable, abstraction, Prop, Type, Sort, plus, or max";
