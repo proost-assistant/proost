@@ -140,6 +140,16 @@ impl<'arena> Term<'arena> {
                 let inst = InstantiatedDeclaration::instantiate(decl.decl, params, arena);
                 Term::decl(inst, arena)
             },
+
+            Axiom(decl) => {
+                // TODO (#14) this can be slightly optimised in space. Certainly the substitution mapping can be
+                // performed in place while allocating the slice in the arena with store_level_slice. This
+                // function thus has to be made with templates.
+                let params = &*decl.params.iter().map(|level| level.substitute(univs, arena)).collect::<Vec<Level>>();
+                let params = arena.store_level_slice(params);
+                let inst = InstantiatedDeclaration::instantiate(decl.decl, params, arena);
+                Term::axiom(inst, arena)
+            },
         }
     }
 
