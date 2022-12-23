@@ -5,6 +5,25 @@ use Payload::*;
 use crate::memory::arena::Arena;
 use crate::memory::level::{Level, Payload};
 
+/// State during computation for level comparison.
+enum State {
+    /// Comparison failed.
+    False,
+
+    /// Comparison succeed.
+    True,
+
+    /// Induction is needed to complete the comparaison.
+    NeedsInductionOn(usize),
+}
+
+impl State {
+    /// Checks if the comparison succeeded.
+    fn is_true(&self) -> bool {
+        matches!(self, State::True)
+    }
+}
+
 impl<'arena> Level<'arena> {
     /// Helper function for equality checking, used to substitute `Var(i)` with `Z` and `S(Var(i))`.
     fn substitute_single(self, var: usize, u: Self, arena: &mut Arena<'arena>) -> Self {
@@ -37,22 +56,27 @@ impl<'arena> Level<'arena> {
     /// - `(false, i + 1)` if `Var(i)` needs to be substituted to unstuck the comparison.
     /// - `(true, 0)` if `self <= rhs + n`,
     /// - `(false, 0)` else.
-    fn geq_no_subst(self, rhs: Self, n: i64) -> (bool, usize) {
+    fn geq_no_subst(self, rhs: Self, n: i64) -> State {
         match (&*self, &*rhs) {
-            (Zero, _) if n >= 0 => (true, 0),
-            (_, _) if self == rhs && n >= 0 => (true, 0),
-            (Succ(l), _) if l.geq_no_subst(rhs, n - 1).0 => (true, 0),
-            (_, Succ(l)) if self.geq_no_subst(*l, n + 1).0 => (true, 0),
+            (Zero, _) if n >= 0 => State::True,
+
+            (_, _) if self == rhs && n >= 0 => State::True,
+
+            (Succ(l), _) if l.geq_no_subst(rhs, n - 1).is_true() => State::True,
+            (_, Succ(l)) if self.geq_no_subst(*l, n + 1).is_true() => State::True,
+
             (_, Max(l1, l2))
-                if self.geq_no_subst(*l1, n).0 || self.geq_no_subst(*l2, n).0 =>
+                if self.geq_no_subst(*l1, n).is_true() || self.geq_no_subst(*l2, n).is_true() =>
             {
-                (true, 0)
+                State::True
             }
-            (Max(l1, l2), _) if l1.geq_no_subst(rhs, n).0 && l2.geq_no_subst(rhs, n).0 => {
-                (true, 0)
+            (Max(l1, l2), _) if l1.geq_no_subst(rhs, n).is_true() && l2.geq_no_subst(rhs, n).is_true() => {
+                State::True
             }
-            (_, IMax(_, v)) | (IMax(_, v), _) if let Var(i) = **v => (false, i + 1),
-            _ => (false, 0),
+
+            (_, IMax(_, v)) | (IMax(_, v), _) if let Var(i) = **v => State::NeedsInductionOn(i),
+
+            _ => State::False,
         }
     }
 
@@ -62,13 +86,13 @@ impl<'arena> Level<'arena> {
     /// is substituted for `0` and `S(Var(i))`.
     pub fn geq(self, rhs: Self, n: i64, arena: &mut Arena<'arena>) -> bool {
         match self.geq_no_subst(rhs, n) {
-            (true, _) => true,
-            (false, 0) => false,
-            (false, i) => {
+            State::True => true,
+            State::False => false,
+            State::NeedsInductionOn(i) => {
                 let zero = Level::zero(arena);
-                let vv = Level::var(i - 1, arena).succ(arena);
-                self.substitute_single(i - 1, zero, arena).geq(rhs.substitute_single(i - 1, zero, arena), n, arena)
-                    && self.substitute_single(i - 1, vv, arena).geq(rhs.substitute_single(i - 1, vv, arena), n, arena)
+                let vv = Level::var(i, arena).succ(arena);
+                self.substitute_single(i, zero, arena).geq(rhs.substitute_single(i, zero, arena), n, arena)
+                    && self.substitute_single(i, vv, arena).geq(rhs.substitute_single(i, vv, arena), n, arena)
             },
         }
     }
@@ -105,7 +129,7 @@ mod tests {
             let succ_max_var0_var1 = Level::succ(max_var0_var1, arena);
             let max_succ_var0_succ_var1 = arena.build_level_raw(max(succ(var(0)), succ(var(1))));
 
-            assert!(!two.geq_no_subst(succ_var0, 0).0);
+            assert!(!two.geq_no_subst(succ_var0, 0).is_true());
             assert!(imax_0_var0.is_eq(var0, arena));
             assert!(max1_var0.geq(succ_var0, 0, arena));
             assert!(!zero_.is_eq(one, arena));
