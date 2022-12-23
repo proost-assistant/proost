@@ -244,6 +244,7 @@ fn convert_error(err: pest::error::Error<Rule>) -> error::Error {
         Rule::Search => "search var".to_owned(),
         Rule::Max => "max".to_owned(),
         Rule::Plus => "plus".to_owned(),
+        Rule::IMax => "imax".to_owned(),
         Rule::arg_univ => "universe argument".to_owned(),
         Rule::univ_decl => "universe declaration".to_owned(),
         _ => {
@@ -323,7 +324,7 @@ mod tests {
     const COMMAND_ERR: &str = "expected def var := term, def var : term := term, def decl.{ vars, ... } := term, def decl.{ vars, ... } : term := term, check term : term, check term, eval term, import path_to_file, or search var";
     const TERM_ERR: &str = "expected variable, abstraction, dependent product, application, product, Prop, Type, or Sort";
     const SIMPLE_TERM_ERR: &str = "expected variable, abstraction, Prop, Type, Sort, or universe argument";
-    const UNIVERSE_ERR: &str = "expected number, variable, abstraction, Prop, Type, Sort, plus, or max";
+    const UNIVERSE_ERR: &str = "expected number, variable, abstraction, Prop, Type, Sort, plus, max, or imax";
 
     #[test]
     fn failure_universe_level() {
@@ -349,6 +350,24 @@ mod tests {
     }
 
     #[test]
+    fn successful_declare_with_type_annotation() {
+        assert_eq!(
+            parse_line("def x.{u} : Type u := foo.{u}"),
+            Ok(Declaration(
+                "x",
+                Some(declaration::Builder::Decl(box Type(box level::Builder::Var("u")), ["u"].to_vec())),
+                declaration::Builder::Decl(
+                    box kernel::memory::term::builder::Builder::Decl(box declaration::InstantiatedBuilder::Var(
+                        "foo",
+                        [level::Builder::Var("u")].to_vec()
+                    )),
+                    ["u"].to_vec()
+                )
+            ))
+        );
+    }
+
+    #[test]
     fn successful_import() {
         assert_eq!(parse_line("import file1 dir/file2"), Ok(Import(["file1", "dir/file2"].to_vec())));
         assert_eq!(parse_line("import "), Ok(Import(Vec::new())))
@@ -367,6 +386,11 @@ mod tests {
     #[test]
     fn successful_define() {
         assert_eq!(parse_line("def x := Prop"), Ok(Declaration("x", None, declaration::Builder::Decl(box Prop, Vec::new()))));
+    }
+
+    #[test]
+    fn successful_declare() {
+        assert_eq!(parse_line("def x.{} := Prop"), Ok(Declaration("x", None, declaration::Builder::Decl(box Prop, Vec::new()))));
     }
 
     #[test]
@@ -401,6 +425,15 @@ mod tests {
         assert_eq!(parse_line("check Sort"), Ok(GetType(Sort(box level::Builder::Const(0)))));
         assert_eq!(parse_line("check Sort 0"), Ok(GetType(Sort(box level::Builder::Const(0)))));
         assert_eq!(parse_line("check Sort 1"), Ok(GetType(Sort(box level::Builder::Const(1)))));
+        assert_eq!(parse_line("check Sort (0 + 1)"), Ok(GetType(Sort(box level::Builder::Plus(box level::Builder::Const(0), 1)))));
+        assert_eq!(
+            parse_line("check Sort max 0 0"),
+            Ok(GetType(Sort(box level::Builder::Max(box level::Builder::Const(0), box level::Builder::Const(0)))))
+        );
+        assert_eq!(
+            parse_line("check Sort imax 0 0"),
+            Ok(GetType(Sort(box level::Builder::IMax(box level::Builder::Const(0), box level::Builder::Const(0)))))
+        );
     }
 
     #[test]

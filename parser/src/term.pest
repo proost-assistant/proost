@@ -28,8 +28,8 @@ Prop = { "Prop" }
 
 Type = { "Type" ~ univ? }
 Sort = { "Sort" ~ univ? }
-univ = _{ Plus | Max | Num | string | "(" ~ univ ~ ")" }
-univ_plus = _{ Max | Num | string | "(" ~ univ ~ ")" }
+univ = _{ Plus | Max | IMax | Num | string | "(" ~ univ ~ ")" }
+univ_plus = _{ Max | IMax | Num | string | "(" ~ univ ~ ")" }
 Num = { number }
 Plus = { univ_plus ~ ( "+" ~ number )+ }
 Max = { ( "max" ~ "(" ~ univ ~ "," ~ univ ~ ")" ) | ( "max" ~ univ ~ univ ) }
