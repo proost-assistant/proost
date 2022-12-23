@@ -90,6 +90,7 @@ mod tests {
     #[test]
     fn univ_eq() {
         use_arena(|arena| {
+            let two = arena.build_level_raw(succ(succ(zero())));
             let one = arena.build_level_raw(succ(zero()));
             let zero_ = arena.build_level_raw(zero());
             let var0 = Level::var(0, arena);
@@ -104,6 +105,7 @@ mod tests {
             let succ_max_var0_var1 = Level::succ(max_var0_var1, arena);
             let max_succ_var0_succ_var1 = arena.build_level_raw(max(succ(var(0)), succ(var(1))));
 
+            assert!(!two.geq_no_subst(succ_var0, 0).0);
             assert!(imax_0_var0.is_eq(var0, arena));
             assert!(max1_var0.geq(succ_var0, 0, arena));
             assert!(!zero_.is_eq(one, arena));
