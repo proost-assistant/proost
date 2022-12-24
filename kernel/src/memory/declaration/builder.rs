@@ -83,8 +83,8 @@ impl<'build> Builder<'build> {
     }
 
     fn realise_in_context<'arena>(&self, arena: &mut Arena<'arena>) -> ResultDecl<'arena> {
-        match self {
-            Builder::Decl(term, vars) => declaration(term.partial_application(), vars.as_slice())(arena),
+        match *self {
+            Builder::Decl(ref term, ref vars) => declaration(term.partial_application(), vars.as_slice())(arena),
         }
     }
 }
@@ -151,13 +151,13 @@ pub enum InstantiatedBuilder<'build> {
 impl<'arena> core::fmt::Display for InstantiatedBuilder<'arena> {
     #[inline]
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        match self {
-            InstantiatedBuilder::Instance(decl, params) => {
+        match *self {
+            InstantiatedBuilder::Instance(ref decl, ref params) => {
                 write!(f, "{decl}.{{")?;
                 params.iter().try_for_each(|level| write!(f, "{level}, "))?;
                 write!(f, "}}")
             },
-            InstantiatedBuilder::Var(decl, params) => {
+            InstantiatedBuilder::Var(decl, ref params) => {
                 write!(f, "{decl}.{{")?;
                 params.iter().try_for_each(|level| write!(f, "{level}, "))?;
                 write!(f, "}}")
@@ -182,9 +182,9 @@ impl<'build> InstantiatedBuilder<'build> {
         arena: &mut Arena<'arena>,
         lvl_env: &level::Environment<'build>,
     ) -> ResultInstantiatedDecl<'arena> {
-        match self {
-            InstantiatedBuilder::Instance(decl, levels) => instance(decl.partial_application(), levels)(arena, lvl_env),
-            InstantiatedBuilder::Var(name, levels) => var(name, levels)(arena, lvl_env),
+        match *self {
+            InstantiatedBuilder::Instance(ref decl, ref levels) => instance(decl.partial_application(), levels)(arena, lvl_env),
+            InstantiatedBuilder::Var(name, ref levels) => var(name, levels)(arena, lvl_env),
         }
     }
 }

@@ -138,8 +138,8 @@ impl<'arena> Evaluator {
         command: &Command,
         importing: &mut Vec<PathBuf>,
     ) -> Result<'arena, Option<Term<'arena>>> {
-        match command {
-            Command::Define(s, ty, term) => {
+        match *command {
+            Command::Define(s, ref ty, ref term) => {
                 if arena.get_binding(s).is_some() {
                     return Err(Toplevel(Error {
                         kind: ErrorKind::BoundVariable(s.to_string()),
@@ -147,17 +147,17 @@ impl<'arena> Evaluator {
                     }));
                 }
                 let term = term.realise(arena)?;
-                match ty {
+                match *ty {
                     None => {
                         term.infer(arena)?;
                     },
-                    Some(ty) => term.check(ty.realise(arena)?, arena)?,
+                    Some(ref ty) => term.check(ty.realise(arena)?, arena)?,
                 }
                 arena.bind(s, term);
                 Ok(None)
             },
 
-            Command::Declaration(s, ty, decl) => {
+            Command::Declaration(s, ref ty, ref decl) => {
                 if arena.get_binding_decl(s).is_some() {
                     return Err(Toplevel(Error {
                         kind: ErrorKind::BoundVariable(s.to_string()),
@@ -165,29 +165,29 @@ impl<'arena> Evaluator {
                     }));
                 }
                 let decl = decl.realise(arena)?;
-                match ty {
+                match *ty {
                     None => {
                         decl.infer(arena)?;
                     },
-                    Some(ty) => decl.check(ty.realise(arena)?, arena)?,
+                    Some(ref ty) => decl.check(ty.realise(arena)?, arena)?,
                 }
                 arena.bind_decl(s, decl);
                 Ok(None)
             },
 
-            Command::CheckType(t1, t2) => {
+            Command::CheckType(ref t1, ref t2) => {
                 let t1 = t1.realise(arena)?;
                 let t2 = t2.realise(arena)?;
                 t1.check(t2, arena)?;
                 Ok(None)
             },
 
-            Command::GetType(t) => {
+            Command::GetType(ref t) => {
                 let t = t.realise(arena)?;
                 Ok(t.infer(arena).map(Some)?)
             },
 
-            Command::Eval(t) => {
+            Command::Eval(ref t) => {
                 let t = t.realise(arena)?;
                 let _ = t.infer(arena)?;
                 Ok(Some(t.normal_form(arena)))
@@ -195,7 +195,7 @@ impl<'arena> Evaluator {
 
             Command::Search(s) => Ok(arena.get_binding(s)), // TODO (see #49)
 
-            Command::Import(files) => files
+            Command::Import(ref files) => files
                 .iter()
                 .try_for_each(|relative_path| {
                     let file_path = self.create_path(Location::default(), relative_path.to_string(), importing)?;

@@ -216,7 +216,7 @@ impl<'build> Builder<'build> {
         lvl_env: &level::Environment<'build>,
         depth: DeBruijnIndex,
     ) -> ResultTerm<'arena> {
-        match self {
+        match *self {
             Builder::Var(s) => var(s)(arena, env, lvl_env, depth),
             Builder::Prop => prop()(arena, env, lvl_env, depth),
             Builder::Type(ref level) => type_(level.partial_application())(arena, env, lvl_env, depth),

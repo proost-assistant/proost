@@ -52,9 +52,9 @@ impl<'arena> Term<'arena> {
         }
 
         match (&*lhs, &*rhs) {
-            (Sort(l1), Sort(l2)) => l1.is_eq(*l2, arena),
+            (&Sort(l1), &Sort(l2)) => l1.is_eq(l2, arena),
 
-            (Var(i, _), Var(j, _)) => i == j,
+            (&Var(i, _), &Var(j, _)) => i == j,
 
             (&Prod(t1, u1), &Prod(t2, u2)) => t1.conversion(t2, arena) && u1.conversion(u2, arena),
 

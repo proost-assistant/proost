@@ -174,11 +174,11 @@ impl<'arena> Level<'arena> {
                 if u == v {
                     u
                 } else {
-                    match &*v {
+                    match *v {
                         Zero => v,
                         Succ(_) => u.max(v, arena),
-                        IMax(_, vw) => Level::max(u.imax(*vw, arena), v, arena),
-                        Max(vv, vw) => Level::max(u.imax(*vv, arena), u.imax(*vw, arena), arena),
+                        IMax(_, vw) => Level::max(u.imax(vw, arena), v, arena),
+                        Max(vv, vw) => Level::max(u.imax(vv, arena), u.imax(vw, arena), arena),
                         _ => self,
                     }
                 }

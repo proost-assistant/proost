@@ -19,7 +19,7 @@ enum State {
 impl State {
     /// Checks if the comparison succeeded.
     const fn is_true(&self) -> bool {
-        matches!(self, State::True)
+        matches!(*self, Self::True)
     }
 }
 
@@ -57,23 +57,23 @@ impl<'arena> Level<'arena> {
     /// - `False` else.
     fn geq_no_subst(self, rhs: Self, n: i64) -> State {
         match (&*self, &*rhs) {
-            (Zero, _) if n >= 0 => State::True,
+            (&Zero, _) if n >= 0 => State::True,
 
             (_, _) if self == rhs && n >= 0 => State::True,
 
-            (Succ(l), _) if l.geq_no_subst(rhs, n - 1).is_true() => State::True,
-            (_, Succ(l)) if self.geq_no_subst(*l, n + 1).is_true() => State::True,
+            (&Succ(l), _) if l.geq_no_subst(rhs, n - 1).is_true() => State::True,
+            (_, &Succ(l)) if self.geq_no_subst(l, n + 1).is_true() => State::True,
 
-            (_, Max(l1, l2))
-                if self.geq_no_subst(*l1, n).is_true() || self.geq_no_subst(*l2, n).is_true() =>
+            (_, &Max(l1, l2))
+                if self.geq_no_subst(l1, n).is_true() || self.geq_no_subst(l2, n).is_true() =>
             {
                 State::True
             }
-            (Max(l1, l2), _) if l1.geq_no_subst(rhs, n).is_true() && l2.geq_no_subst(rhs, n).is_true() => {
+            (&Max(l1, l2), _) if l1.geq_no_subst(rhs, n).is_true() && l2.geq_no_subst(rhs, n).is_true() => {
                 State::True
             }
 
-            (_, IMax(_, v)) | (IMax(_, v), _) if let Var(i) = **v => State::Stuck(i),
+            (_, &IMax(_, v)) | (&IMax(_, v), _) if let Var(i) = *v => State::Stuck(i),
 
             _ => State::False,
         }
