@@ -1,9 +1,8 @@
 //! A set of useful functions to operate on [`Level`]s.
 
-use Payload::*;
-
 use crate::memory::arena::Arena;
-use crate::memory::level::{Level, Payload};
+use crate::memory::level::Level;
+use crate::memory::level::Payload::{IMax, Max, Succ, Var, Zero};
 
 /// State during computation for level comparison.
 enum State {

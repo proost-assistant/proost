@@ -211,18 +211,19 @@ impl<'build> Builder<'build> {
         lvl_env: &level::Environment<'build>,
         depth: DeBruijnIndex,
     ) -> ResultTerm<'arena> {
-        use Builder::*;
         match self {
-            Var(s) => var(s)(arena, env, lvl_env, depth),
-            Prop => prop()(arena, env, lvl_env, depth),
-            Type(ref level) => type_(level.partial_application())(arena, env, lvl_env, depth),
-            Sort(ref level) => sort(level.partial_application())(arena, env, lvl_env, depth),
-            App(ref l, ref r) => app(l.partial_application(), r.partial_application())(arena, env, lvl_env, depth),
-            Abs(s, ref arg, ref body) => abs(s, arg.partial_application(), body.partial_application())(arena, env, lvl_env, depth),
-            Prod(s, ref arg, ref body) => {
+            Builder::Var(s) => var(s)(arena, env, lvl_env, depth),
+            Builder::Prop => prop()(arena, env, lvl_env, depth),
+            Builder::Type(ref level) => type_(level.partial_application())(arena, env, lvl_env, depth),
+            Builder::Sort(ref level) => sort(level.partial_application())(arena, env, lvl_env, depth),
+            Builder::App(ref l, ref r) => app(l.partial_application(), r.partial_application())(arena, env, lvl_env, depth),
+            Builder::Abs(s, ref arg, ref body) => {
+                abs(s, arg.partial_application(), body.partial_application())(arena, env, lvl_env, depth)
+            },
+            Builder::Prod(s, ref arg, ref body) => {
                 prod(s, arg.partial_application(), body.partial_application())(arena, env, lvl_env, depth)
             },
-            Decl(ref decl_builder) => decl(decl_builder.partial_application())(arena, env, lvl_env, depth),
+            Builder::Decl(ref decl_builder) => decl(decl_builder.partial_application())(arena, env, lvl_env, depth),
         }
     }
 }

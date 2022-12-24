@@ -57,7 +57,7 @@ impl Display for Level<'_> {
     }
 }
 
-use Payload::*;
+use Payload::{IMax, Max, Succ, Var, Zero};
 
 impl<'arena> Level<'arena> {
     /// This function is the base low-level function for creating levels.

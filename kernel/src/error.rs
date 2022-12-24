@@ -2,7 +2,7 @@
 
 use derive_more::{Display, From};
 
-use crate::memory::*;
+use crate::memory::{declaration, level, term};
 use crate::type_checker::TypeCheckerError;
 
 /// Type representing kernel errors.

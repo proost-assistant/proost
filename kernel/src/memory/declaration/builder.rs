@@ -145,14 +145,13 @@ pub enum InstantiatedBuilder<'build> {
 
 impl<'arena> std::fmt::Display for InstantiatedBuilder<'arena> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        use InstantiatedBuilder::*;
         match self {
-            Instance(decl, params) => {
+            InstantiatedBuilder::Instance(decl, params) => {
                 write!(f, "{decl}.{{")?;
                 params.iter().try_for_each(|level| write!(f, "{level}, "))?;
                 write!(f, "}}")
             },
-            Var(decl, params) => {
+            InstantiatedBuilder::Var(decl, params) => {
                 write!(f, "{decl}.{{")?;
                 params.iter().try_for_each(|level| write!(f, "{level}, "))?;
                 write!(f, "}}")
@@ -176,10 +175,9 @@ impl<'build> InstantiatedBuilder<'build> {
         arena: &mut Arena<'arena>,
         lvl_env: &level::Environment<'build>,
     ) -> ResultInstantiatedDecl<'arena> {
-        use InstantiatedBuilder::*;
         match self {
-            Instance(decl, levels) => instance(decl.partial_application(), levels)(arena, lvl_env),
-            Var(name, levels) => var(name, levels)(arena, lvl_env),
+            InstantiatedBuilder::Instance(decl, levels) => instance(decl.partial_application(), levels)(arena, lvl_env),
+            InstantiatedBuilder::Var(name, levels) => var(name, levels)(arena, lvl_env),
         }
     }
 }

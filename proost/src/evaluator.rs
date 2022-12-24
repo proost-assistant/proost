@@ -11,7 +11,7 @@ use parser::command::Command;
 use parser::{parse_file, parse_line};
 use path_absolutize::Absolutize;
 
-use crate::error::Error::*;
+use crate::error::Error::{Parser, Toplevel};
 use crate::error::Result;
 
 /// Type representing parser errors.

@@ -34,7 +34,7 @@ pub enum Command<'build> {
 
 impl<'build> fmt::Display for Command<'build> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use Command::*;
+        use Command::{CheckType, Declaration, Define, Eval, GetType, Import, Search};
 
         match self {
             Define(name, None, t) => write!(f, "def {name} := {t}"),

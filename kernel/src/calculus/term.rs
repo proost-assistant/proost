@@ -3,12 +3,11 @@
 //! This module consists of internal utility functions used by the type checker, and correspond to
 //! usual functions over lambda-terms. These functions interact appropriately with a given arena.
 
-use Payload::*;
-
 use crate::memory::arena::Arena;
 use crate::memory::declaration::InstantiatedDeclaration;
 use crate::memory::level::Level;
-use crate::memory::term::{Payload, Term};
+use crate::memory::term::Payload::{Abs, App, Decl, Prod, Sort, Var};
+use crate::memory::term::Term;
 
 impl<'arena> Term<'arena> {
     /// Apply one step of β-reduction, using the leftmost-outermost evaluation strategy.

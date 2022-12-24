@@ -141,15 +141,14 @@ impl<'build> Builder<'build> {
         arena: &mut Arena<'arena>,
         env: &Environment<'build>,
     ) -> ResultLevel<'arena> {
-        use Builder::*;
         match *self {
-            Zero => zero()(arena, env),
-            Const(c) => const_(c)(arena, env),
-            Plus(ref u, n) => plus(u.partial_application(), n)(arena, env),
-            Succ(ref l) => succ(l.partial_application())(arena, env),
-            Max(ref l, ref r) => max(l.partial_application(), r.partial_application())(arena, env),
-            IMax(ref l, ref r) => imax(l.partial_application(), r.partial_application())(arena, env),
-            Var(s) => var(s)(arena, env),
+            Builder::Zero => zero()(arena, env),
+            Builder::Const(c) => const_(c)(arena, env),
+            Builder::Plus(ref u, n) => plus(u.partial_application(), n)(arena, env),
+            Builder::Succ(ref l) => succ(l.partial_application())(arena, env),
+            Builder::Max(ref l, ref r) => max(l.partial_application(), r.partial_application())(arena, env),
+            Builder::IMax(ref l, ref r) => imax(l.partial_application(), r.partial_application())(arena, env),
+            Builder::Var(s) => var(s)(arena, env),
         }
     }
 }

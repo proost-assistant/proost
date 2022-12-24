@@ -63,7 +63,7 @@ use clap::Parser;
 use evaluator::Evaluator;
 use rustyline::error::ReadlineError;
 use rustyline::{Cmd, Config, Editor, EventHandler, KeyCode, KeyEvent, Modifiers};
-use rustyline_helper::*;
+use rustyline_helper::{RustyLineHelper, TabEventHandler};
 
 use crate::error::Result;
 

@@ -1,6 +1,6 @@
 use std::borrow::Cow::{self, Borrowed, Owned};
 
-use colored::*;
+use colored::Colorize;
 use rustyline::completion::{Completer, FilenameCompleter, Pair};
 use rustyline::highlight::Highlighter;
 use rustyline::hint::HistoryHinter;

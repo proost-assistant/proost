@@ -22,7 +22,7 @@ fn convert_span(span: Span) -> Location {
 
 /// build universe level from errorless pest's output
 fn parse_level(pair: Pair<Rule>) -> level::Builder {
-    use level::Builder::*;
+    use level::Builder::{Const, IMax, Max, Plus, Var};
 
     // location to be used in a future version
     let _loc = convert_span(pair.as_span());
@@ -65,7 +65,7 @@ fn parse_level(pair: Pair<Rule>) -> level::Builder {
 
 /// Returns a kernel term builder from pest output
 fn parse_term(pair: Pair<Rule>) -> term::Builder {
-    use term::Builder::*;
+    use term::Builder::{Abs, App, Decl, Prod, Prop, Sort, Type, Var};
 
     // location to be used in a future version
     let _loc = convert_span(pair.as_span());
