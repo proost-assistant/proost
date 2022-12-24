@@ -223,7 +223,7 @@ mod tests {
 
             let prop_ = crate::memory::term::Term::decl(decl_, arena);
 
-            assert_eq!(format!("{}", prop_), "(Prop).{}");
+            assert_eq!(prop_.to_string(), "(Prop).{}");
             let vart = crate::memory::term::builder::raw::var;
 
             let lvl = max(succ(var(0)), succ(var(1)));
@@ -238,7 +238,7 @@ mod tests {
                 ),
             ));
 
-            assert_eq!(format!("{}", term), "λ Sort max (u0) (u1) + 1 → λ Type → λ Type 1 → Π 1 → (1) (2)");
+            assert_eq!(term.to_string(), "λ Sort max (u0) (u1) + 1 → λ Type → λ Type 1 → Π 1 → (1) (2)");
         });
     }
 }

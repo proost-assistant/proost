@@ -16,7 +16,7 @@ use crate::error::Result;
 
 /// Type representing parser errors.
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
-#[display(fmt = "{}", kind)]
+#[display(fmt = "{kind}")]
 pub struct Error {
     /// The kind of form error that occurred.
     pub kind: ErrorKind,
@@ -28,11 +28,11 @@ pub struct Error {
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum ErrorKind {
-    #[display(fmt = "{} is not a file", _0)]
+    #[display(fmt = "{_0} is not a file")]
     FileNotFound(String),
-    #[display(fmt = "cyclic dependency:\n{}", _0)]
+    #[display(fmt = "cyclic dependency:\n{_0}")]
     CyclicDependencies(String),
-    #[display(fmt = "identifier {} already defined", _0)]
+    #[display(fmt = "identifier {_0} already defined")]
     BoundVariable(String),
 }
 
@@ -125,7 +125,7 @@ impl<'arena> Evaluator {
             .iter()
             .try_for_each(|command| {
                 if self.verbose {
-                    println!("{}", command);
+                    println!("{command}");
                 }
                 self.process(arena, command, importing).map(|_| ())
             })
@@ -210,7 +210,7 @@ impl<'arena> Evaluator {
             Ok(None) => println!("{}", "\u{2713}".green()),
             Ok(Some(t)) => {
                 for line in t.to_string().lines() {
-                    println!("{} {}", "\u{2713}".green(), line)
+                    println!("{} {line}", "\u{2713}".green())
                 }
             },
             Err(err) => {
@@ -220,15 +220,14 @@ impl<'arena> Evaluator {
                         location: loc,
                     }) => {
                         if loc.start.column == loc.end.column {
-                            format!("{:0w1$}^\n{m}", "", w1 = loc.start.column - 1, m = message)
+                            format!("{:0w1$}^\n{message}", "", w1 = loc.start.column - 1)
                         } else {
                             format!(
-                                "{:0w1$}^{:-<w2$}^\n{m}",
+                                "{:0w1$}^{:-<w2$}^\n{message}",
                                 "",
                                 "",
                                 w1 = loc.start.column - 1,
-                                w2 = loc.end.column - loc.start.column - 1,
-                                m = message
+                                w2 = loc.end.column - loc.start.column - 1
                             )
                         }
                     },
@@ -237,7 +236,7 @@ impl<'arena> Evaluator {
                 };
 
                 for line in string.lines() {
-                    println!("{} {}", "\u{2717}".red(), line)
+                    println!("{} {line}", "\u{2717}".red())
                 }
             },
         }

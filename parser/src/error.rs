@@ -3,7 +3,7 @@ use kernel::location::Location;
 
 /// Type representing parser errors.
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
-#[display(fmt = "{}", kind)]
+#[display(fmt = "{kind}")]
 pub struct Error {
     /// The kind of form error that occurred.
     pub kind: ErrorKind,

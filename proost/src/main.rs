@@ -107,7 +107,7 @@ fn main() -> Result<'static, ()> {
         let current_path = current_dir()?;
         let mut evaluator = Evaluator::new(current_path, args.verbose);
 
-        println!("Welcome to {} {}", NAME, VERSION);
+        println!("Welcome to {NAME} {VERSION}");
 
         loop {
             let readline = rl.readline("\u{00BB} ");

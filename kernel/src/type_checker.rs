@@ -11,7 +11,7 @@ use crate::memory::term::Payload::{Abs, App, Decl, Prod, Sort, Var};
 use crate::memory::term::Term;
 
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
-#[display(fmt = "{}: {}", _0, _1)]
+#[display(fmt = "{_0}: {_1}")]
 pub struct TypedTerm<'arena>(Term<'arena>, Term<'arena>);
 
 /// Errors that can occur, at runtime, during type checking.

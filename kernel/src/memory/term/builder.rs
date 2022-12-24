@@ -25,7 +25,7 @@ use crate::memory::level::builder as level;
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum TermError<'arena> {
-    #[display(fmt = "unknown identifier {}", _0)]
+    #[display(fmt = "unknown identifier {_0}")]
     ConstNotFound(&'arena str),
 }
 

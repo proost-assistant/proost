@@ -23,7 +23,7 @@ use crate::memory::arena::Arena;
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum LevelError<'arena> {
-    #[display(fmt = "unknown universe variable {}", _0)]
+    #[display(fmt = "unknown universe variable {_0}")]
     VarNotFound(&'arena str),
 }
 
