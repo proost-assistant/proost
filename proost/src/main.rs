@@ -1,5 +1,55 @@
 #![doc(html_logo_url = "https://gitlab.crans.org/loutr/proost/-/raw/main/docs/media/logo.png")]
 #![feature(let_chains)]
+#![deny(
+    clippy::complexity,
+    clippy::correctness,
+    clippy::nursery,
+    clippy::pedantic,
+    clippy::perf,
+    clippy::restriction,
+    clippy::style,
+    clippy::suspicious
+)]
+#![allow(
+    clippy::arithmetic_side_effects,
+    clippy::blanket_clippy_restriction_lints,
+    clippy::default_numeric_fallback,
+    clippy::else_if_without_else,
+    clippy::exhaustive_enums,
+    clippy::exhaustive_structs,
+    clippy::implicit_return,
+    clippy::integer_arithmetic,
+    clippy::match_same_arms,
+    clippy::match_wildcard_for_single_variants,
+    clippy::missing_trait_methods,
+    clippy::mod_module_files,
+    clippy::module_name_repetitions,
+    clippy::panic_in_result_fn,
+    clippy::pattern_type_mismatch,
+    clippy::shadow_reuse,
+    clippy::shadow_unrelated,
+    clippy::unreachable,
+    clippy::wildcard_enum_match_arm,
+    // Due to clap dependency
+    clippy::std_instead_of_core,
+    // Due to this crate is a binary manipulating string
+    clippy::indexing_slicing,
+    clippy::print_stdout,
+    clippy::string_slice
+)]
+#![warn(clippy::missing_errors_doc, clippy::missing_docs_in_private_items, clippy::self_named_module_files)]
+#![cfg_attr(
+    test,
+    allow(
+        clippy::assertions_on_result_states,
+        clippy::enum_glob_use,
+        clippy::indexing_slicing,
+        clippy::non_ascii_literal,
+        clippy::too_many_lines,
+        clippy::unwrap_used,
+        clippy::wildcard_imports,
+    )
+)]
 
 mod error;
 mod evaluator;
@@ -73,6 +123,7 @@ fn main() -> Result<'static, ()> {
                 Err(err) => return Err(err.into()),
             }
         }
+
         Ok(())
     })
 }
