@@ -89,6 +89,15 @@ fn is_command(input: &str) -> bool {
 mod tests {
 
     #[test]
+    fn is_command_no_crash() {
+        assert!(!super::is_command(""));
+        assert!(super::is_command("a"));
+        assert!(super::is_command("aa"));
+        assert!(super::is_command("aaa"));
+        assert!(super::is_command("aaaa"));
+    }
+
+    #[test]
     fn is_command_false() {
         assert!(!super::is_command("    "));
         assert!(!super::is_command(" "));
