@@ -33,6 +33,7 @@ pub enum Command<'build> {
 }
 
 impl<'build> fmt::Display for Command<'build> {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use Command::{CheckType, Declaration, Define, Eval, GetType, Import, Search};
 

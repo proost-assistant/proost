@@ -128,6 +128,7 @@ pub enum Builder<'builder> {
 impl<'build> Builder<'build> {
     /// Realise a builder into a [`Level`]. This internally uses functions described in
     /// the [builder](`crate::memory::level::builder`) module.
+    #[inline]
     pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultLevel<'arena> {
         arena.build_level(self.partial_application())
     }

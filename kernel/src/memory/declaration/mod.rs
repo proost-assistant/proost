@@ -41,6 +41,7 @@ struct Header<'arena> {
 }
 
 impl<'arena> fmt::Display for InstantiatedDeclaration<'arena> {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.0.header.term.get() {
             Some(term) => write!(f, "{term}"),
@@ -89,6 +90,7 @@ impl<'arena> InstantiatedDeclaration<'arena> {
     }
 
     /// Returns the term linked to a definition in a given environment.
+    #[inline]
     pub fn get_term(self, arena: &mut Arena<'arena>) -> Term<'arena> {
         *self.0.header.term.get_or_init(|| self.0.payload.decl.0.substitute_univs(self.0.payload.params, arena))
     }

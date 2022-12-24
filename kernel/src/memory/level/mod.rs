@@ -40,6 +40,7 @@ pub enum Payload<'arena> {
 }
 
 impl Display for Level<'_> {
+    #[inline]
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self.to_numeral() {
             Some(n) => write!(f, "{n}"),
@@ -118,6 +119,7 @@ impl<'arena> Level<'arena> {
     }
 
     /// The addition of a level and an integer
+    #[inline]
     pub fn add(self, n: usize, arena: &mut Arena<'arena>) -> Self {
         if n == 0 {
             self
@@ -128,17 +130,20 @@ impl<'arena> Level<'arena> {
     }
 
     /// Builds a level from an integer
+    #[inline]
     pub fn from(n: usize, arena: &mut Arena<'arena>) -> Self {
         Level::zero(arena).add(n, arena)
     }
 
     /// Converts a level to an integer, if possible
+    #[inline]
     pub fn to_numeral(self) -> Option<usize> {
         let (u, n) = self.plus();
         (*u == Zero).then_some(n)
     }
 
     /// Decomposes a level `l` in the best pair `(u, n)` s.t. `l = u + n`
+    #[inline]
     pub fn plus(self) -> (Self, usize) {
         *self.0.header.plus_form.get_or_init(|| match *self {
             Succ(u) => {

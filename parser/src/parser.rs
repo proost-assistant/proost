@@ -296,6 +296,7 @@ fn convert_error(err: pest::error::Error<Rule>) -> error::Error {
 /// Parse a text input and try to convert it into a command.
 ///
 /// if unsuccessful, a box containing the first error that was encountered is returned.
+#[inline]
 pub fn parse_line(line: &str) -> error::Result<Command> {
     CommandParser::parse(Rule::command, line).map_err(convert_error).map(|mut pairs| parse_expr(pairs.next().unwrap()))
 }
@@ -303,6 +304,7 @@ pub fn parse_line(line: &str) -> error::Result<Command> {
 /// Parse a text input and try to convert it into a vector of commands.
 ///
 /// if unsuccessful, a box containing the first error that was encountered is returned.
+#[inline]
 pub fn parse_file(file: &str) -> error::Result<Vec<Command>> {
     CommandParser::parse(Rule::file, file).map_err(convert_error).map(|pairs| pairs.into_iter().map(parse_expr).collect())
 }

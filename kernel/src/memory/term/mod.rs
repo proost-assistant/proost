@@ -64,6 +64,7 @@ pub enum Payload<'arena> {
 }
 
 impl<'arena> fmt::Display for Payload<'arena> {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             Var(index, _) => write!(f, "{index}"),
@@ -84,6 +85,7 @@ impl<'arena> fmt::Display for Payload<'arena> {
 }
 
 impl<'arena> fmt::Display for Term<'arena> {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0.payload)
     }

@@ -63,6 +63,7 @@ pub struct Arena<'arena> {
 /// To generate the `alloc` object in this function is necessary, as this is the main way to
 /// "create" a lifetime variable which makes sense. That way, `'arena` is valid exactly during
 /// the execution of the function `f`.
+#[inline]
 pub fn use_arena<F, T>(f: F) -> T
 where
     F: for<'arena> FnOnce(&mut Arena<'arena>) -> T,
@@ -107,23 +108,27 @@ impl<'arena> Arena<'arena> {
     }
 
     /// Binds a term to a given name.
+    #[inline]
     pub fn bind(&mut self, name: &str, t: Term<'arena>) {
         let name = self.store_name(name);
         self.named_terms.insert(name, t);
     }
 
     /// Binds a declaration to a given name.
+    #[inline]
     pub fn bind_decl(&mut self, name: &str, decl: Declaration<'arena>) {
         let name = self.store_name(name);
         self.named_decls.insert(name, decl);
     }
 
     /// Retrieves the binding of a given name, if one exists.
+    #[inline]
     pub fn get_binding(&self, name: &str) -> Option<Term<'arena>> {
         self.named_terms.get(name).copied()
     }
 
     /// Retrieves the declaration binding of a given name, if one exists.
+    #[inline]
     pub fn get_binding_decl(&self, name: &str) -> Option<Declaration<'arena>> {
         self.named_decls.get(name).copied()
     }
@@ -186,6 +191,7 @@ a *pair* of", stringify!($dweller), "s still requires some convolution.")]
         impl<'arena> std::ops::Deref for $dweller<'arena> {
             type Target = $payload<'arena>;
 
+            #[inline]
             fn deref(&self) -> &Self::Target {
                 &self.0.payload
             }
@@ -197,6 +203,7 @@ Apart from enhancing debug readability, this reimplementation is surprisingly ne
 the case of terms for instance, and because they may refer to themselves in the payload, the
 default debug implementation recursively calls itself until the stack overflows.")]
         impl<'arena> std::fmt::Debug for $dweller<'arena> {
+            #[inline]
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
                 self.0.payload.fmt(f)
             }
@@ -205,6 +212,7 @@ default debug implementation recursively calls itself until the stack overflows.
         #[doc = concat!("Because ", stringify!($dweller), "s are unique in the arena, it is
 sufficient to compare their locations in memory to test equality.")]
         impl<'arena> PartialEq<Self> for $dweller<'arena> {
+            #[inline]
             fn eq(&self, rhs: &Self) -> bool {
                 std::ptr::eq(self.0, rhs.0)
             }
@@ -216,6 +224,7 @@ sufficient to compare their locations in memory to test equality.")]
 sufficient to compare their locations in memory to test equality. In particular, hash can
 also be computed from the location")]
         impl<'arena> std::hash::Hash for $dweller<'arena> {
+            #[inline]
             fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
                 std::ptr::hash(self.0, state)
             }

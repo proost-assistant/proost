@@ -56,6 +56,7 @@ impl<'arena> Arena<'arena> {
 }
 
 /// Returns a builder creating `term`, where universe variables are described by `vars`.
+#[inline]
 pub fn declaration<'build, F: term::BuilderTrait<'build>>(term: F, vars: &[&'build str]) -> impl BuilderTrait<'build> {
     let len = vars.len();
     let lvl_env = vars.iter().enumerate().map(|(n, name)| (*name, n)).collect();
@@ -72,6 +73,7 @@ pub enum Builder<'build> {
 impl<'build> Builder<'build> {
     /// Realise a builder into a [`Declaration`]. This internally uses functions described in
     /// the [builder](`crate::memory::declaration::builder`) module.
+    #[inline]
     pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultDecl<'arena> {
         arena.build_declaration(self.partial_application())
     }
@@ -110,6 +112,7 @@ fn try_build_instance<'arena, 'build>(
 /// Please note that this is the only function from the closure API requiring the use of Builders.
 /// This is by choice, as opposed to the other possibility, where `levels` would be a slice over
 /// `Box<dyn level::BuilderTrait>`, which is not interesting performance-wise.
+#[inline]
 pub fn instance<'build, F: BuilderTrait<'build>>(
     decl: F,
     levels: &'build [level::Builder<'build>],
@@ -119,6 +122,7 @@ pub fn instance<'build, F: BuilderTrait<'build>>(
 
 /// Returns a builder creating the declaration bound by `name`, instantiated with the universe
 /// levels `levels`.
+#[inline]
 pub fn var<'build>(name: &'build str, levels: &'build [level::Builder<'build>]) -> impl InstantiatedBuilderTrait<'build> {
     move |arena, env| {
         let decl = arena.get_binding_decl(name).ok_or(Error {
@@ -144,6 +148,7 @@ pub enum InstantiatedBuilder<'build> {
 }
 
 impl<'arena> std::fmt::Display for InstantiatedBuilder<'arena> {
+    #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             InstantiatedBuilder::Instance(decl, params) => {
@@ -162,6 +167,7 @@ impl<'arena> std::fmt::Display for InstantiatedBuilder<'arena> {
 impl<'build> InstantiatedBuilder<'build> {
     /// Realise a builder into an [`InstantiatedDeclaration`]. This internally uses functions described in
     /// the [builder](`crate::memory::declaration::builder`) module.
+    #[inline]
     pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultInstantiatedDecl<'arena> {
         arena.build_instantiated_declaration(self.partial_application())
     }

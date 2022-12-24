@@ -79,6 +79,7 @@ impl<'arena> Term<'arena> {
     }
 
     /// Checks whether two terms are definitionally equal.
+    #[inline]
     pub fn is_def_eq(self, rhs: Self, arena: &mut Arena<'arena>) -> Result<'arena, ()> {
         self.conversion(rhs, arena).then_some(()).ok_or(Error {
             kind: TypeCheckerError::NotDefEq(self, rhs).into(),
@@ -104,6 +105,7 @@ impl<'arena> Term<'arena> {
     }
 
     /// Infers the type of the term `t`, living in arena `arena`.
+    #[inline]
     pub fn infer_raw(self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
         match *self {
             Sort(lvl) => Ok(Term::sort(lvl.succ(arena), arena)),
@@ -158,11 +160,13 @@ impl<'arena> Term<'arena> {
     }
 
     /// Infers the type of the term `t`, living in arena `arena`, checks for memoization.
+    #[inline]
     pub fn infer(self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
         self.get_type_or_try_init(|| self.infer_raw(arena))
     }
 
     /// Checks whether the term `t` living in `arena` is of type `ty`.
+    #[inline]
     pub fn check(self, ty: Self, arena: &mut Arena<'arena>) -> Result<'arena, ()> {
         let tty = self.infer(arena)?;
 
@@ -178,11 +182,13 @@ impl<'arena> Declaration<'arena> {
     /// Because it is not allowed to access the underlying term of a declaration, this function
     /// does not return anything, and only serves as a way to ensure the declaration is
     /// well-formed.
+    #[inline]
     pub fn infer(self, arena: &mut Arena<'arena>) -> Result<'arena, ()> {
         self.0.infer(arena)?;
         Ok(())
     }
 
+    #[inline]
     pub fn check(self, ty: Self, arena: &mut Arena<'arena>) -> Result<'arena, ()> {
         self.0.check(ty.0, arena)
     }

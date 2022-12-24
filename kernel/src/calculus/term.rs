@@ -11,6 +11,7 @@ use crate::memory::term::Term;
 
 impl<'arena> Term<'arena> {
     /// Apply one step of β-reduction, using the leftmost-outermost evaluation strategy.
+    #[inline]
     pub fn beta_reduction(self, arena: &mut Arena<'arena>) -> Self {
         match *self {
             App(t1, t2) => match *t1 {
@@ -136,6 +137,7 @@ impl<'arena> Term<'arena> {
     /// Returns the normal form of a term.
     ///
     /// This function is computationally expensive and should only be used for reduce/eval commands, not when type-checking.
+    #[inline]
     pub fn normal_form(self, arena: &mut Arena<'arena>) -> Self {
         let mut temp = self;
         let mut res = self.beta_reduction(arena);
@@ -148,6 +150,7 @@ impl<'arena> Term<'arena> {
     }
 
     /// Returns the weak-head normal form of a term.
+    #[inline]
     pub fn whnf(self, arena: &mut Arena<'arena>) -> Self {
         self.get_whnf_or_init(|| match *self {
             App(t1, t2) => match *t1.whnf(arena) {

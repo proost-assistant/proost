@@ -83,6 +83,7 @@ impl<'arena> Level<'arena> {
     ///
     /// In a case where comparison is stuck because of a variable `Var(i)`, it checks whether the test is correct when `Var(i)`
     /// is substituted for `0` and `S(Var(i))`.
+    #[inline]
     pub fn geq(self, rhs: Self, n: i64, arena: &mut Arena<'arena>) -> bool {
         match self.geq_no_subst(rhs, n) {
             State::True => true,
@@ -99,6 +100,7 @@ impl<'arena> Level<'arena> {
     /// Checks whether `self = rhs`.
     ///
     /// This is a "conversion" equality test, not the equality function used by [`PartialEq`].
+    #[inline]
     pub fn is_eq(self, rhs: Self, arena: &mut Arena<'arena>) -> bool {
         self.geq(rhs, 0, arena) && rhs.geq(self, 0, arena)
     }
