@@ -60,7 +60,7 @@ impl<'arena> fmt::Display for InstantiatedDeclaration<'arena> {
 }
 
 impl<'arena> Declaration<'arena> {
-    pub(crate) fn new(term: Term<'arena>, vars: usize) -> Self {
+    pub(crate) const fn new(term: Term<'arena>, vars: usize) -> Self {
         Self(term, vars)
     }
 }

@@ -160,7 +160,7 @@ accelerating specific algorithms.")]
         }
 
         impl<'arena> $dweller<'arena> {
-            fn new(node: &'arena Node<'arena>) -> Self {
+            const fn new(node: &'arena Node<'arena>) -> Self {
                 $dweller(node, core::marker::PhantomData)
             }
         }

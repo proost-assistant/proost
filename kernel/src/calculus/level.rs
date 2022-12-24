@@ -18,7 +18,7 @@ enum State {
 
 impl State {
     /// Checks if the comparison succeeded.
-    fn is_true(&self) -> bool {
+    const fn is_true(&self) -> bool {
         matches!(self, State::True)
     }
 }
