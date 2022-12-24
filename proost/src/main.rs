@@ -170,11 +170,7 @@ pub fn display<'arena>(res: Result<'arena, Option<Term<'arena>>>) {
 }
 >>>>>>> Stashed changes
 fn is_command(input: &str) -> bool {
-    input
-        .chars()
-        .position(|c| !c.is_whitespace())
-        .map(|pos| input.len() < 2 || input[pos..pos + 2] != *"//")
-        .unwrap_or_else(|| false)
+    input.chars().position(|c| !c.is_whitespace()).map_or(false, |pos| input.len() < 2 || input[pos..pos + 2] != *"//")
 }
 
 #[cfg(test)]

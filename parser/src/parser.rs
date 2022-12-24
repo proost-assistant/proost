@@ -82,21 +82,9 @@ fn parse_term(pair: Pair<Rule>) -> term::Builder {
             Decl(box declaration::InstantiatedBuilder::Var(name, levels))
         },
 
-        Rule::Type => {
-            if let Some(next) = pair.into_inner().next_back() {
-                Type(box parse_level(next))
-            } else {
-                Type(box level::Builder::Const(0))
-            }
-        },
+        Rule::Type => pair.into_inner().next_back().map_or(Type(box level::Builder::Const(0)), |next| Type(box parse_level(next))),
 
-        Rule::Sort => {
-            if let Some(next) = pair.into_inner().next_back() {
-                Sort(box parse_level(next))
-            } else {
-                Sort(box level::Builder::Const(0))
-            }
-        },
+        Rule::Sort => pair.into_inner().next_back().map_or(Sort(box level::Builder::Const(0)), |next| Sort(box parse_level(next))),
 
         Rule::App => {
             let mut iter = pair.into_inner().map(parse_term);

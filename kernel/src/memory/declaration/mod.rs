@@ -50,7 +50,7 @@ impl<'arena> fmt::Display for InstantiatedDeclaration<'arena> {
 
             let mut iter = self.0.payload.params.iter();
 
-            iter.next().map(|level| write!(f, "{level}")).unwrap_or(Ok(()))?;
+            iter.next().map_or(Ok(()), |level| write!(f, "{level}"))?;
             iter.try_for_each(|level| write!(f, ", {level}"))?;
 
             write!(f, "}}")
