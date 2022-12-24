@@ -142,7 +142,7 @@ impl<'arena> Evaluator {
             Command::Define(s, ref ty, ref term) => {
                 if arena.get_binding(s).is_some() {
                     return Err(Toplevel(Error {
-                        kind: ErrorKind::BoundVariable(s.to_string()),
+                        kind: ErrorKind::BoundVariable(s.to_owned()),
                         location: Location::default(), // TODO (see #38)
                     }));
                 }
@@ -160,7 +160,7 @@ impl<'arena> Evaluator {
             Command::Declaration(s, ref ty, ref decl) => {
                 if arena.get_binding_decl(s).is_some() {
                     return Err(Toplevel(Error {
-                        kind: ErrorKind::BoundVariable(s.to_string()),
+                        kind: ErrorKind::BoundVariable(s.to_owned()),
                         location: Location::default(), // TODO (see #38)
                     }));
                 }
@@ -198,7 +198,7 @@ impl<'arena> Evaluator {
             Command::Import(ref files) => files
                 .iter()
                 .try_for_each(|relative_path| {
-                    let file_path = self.create_path(Location::default(), relative_path.to_string(), importing)?;
+                    let file_path = self.create_path(Location::default(), (*relative_path).to_owned(), importing)?;
                     self.import_file(arena, Location::default(), file_path, importing)
                 })
                 .map(|_| None),

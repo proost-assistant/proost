@@ -39,7 +39,7 @@ impl ConditionalEventHandler for TabEventHandler {
         if ctx.line().starts_with("import") {
             return None;
         }
-        Some(Cmd::Insert(n, "  ".to_string()))
+        Some(Cmd::Insert(n, "  ".to_owned()))
     }
 }
 
@@ -87,9 +87,9 @@ fn validate_brackets(input: &str) -> Option<ValidationResult> {
             ')' => match stack.pop() {
                 Some('(') => {},
                 Some(_) => {
-                    return Some(ValidationResult::Invalid(Some("\nMismatched brackets: ) is not properly closed".to_string())));
+                    return Some(ValidationResult::Invalid(Some("\nMismatched brackets: ) is not properly closed".to_owned())));
                 },
-                None => return Some(ValidationResult::Invalid(Some("\nMismatched brackets: ( is unpaired".to_string()))),
+                None => return Some(ValidationResult::Invalid(Some("\nMismatched brackets: ( is unpaired".to_owned()))),
             },
             _ => {},
         }
@@ -241,8 +241,8 @@ mod tests {
 
     #[test]
     fn replace_inplace() {
-        let mut message = "mot motus et mots mot mot".to_string();
+        let mut message = "mot motus et mots mot mot".to_owned();
         super::replace_inplace(&mut message, "mot", "mots");
-        assert_eq!(message, "mots motus et mots mots mots".to_string());
+        assert_eq!(message, "mots motus et mots mots mots".to_owned());
     }
 }

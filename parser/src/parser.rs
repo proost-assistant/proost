@@ -276,7 +276,7 @@ fn convert_error(err: pest::error::Error<Rule>) -> error::Error {
         chars.next();
     }
     error::Error {
-        kind: error::ErrorKind::CannotParse(chars.as_str().to_string()),
+        kind: error::ErrorKind::CannotParse(chars.as_str().to_owned()),
         location: loc,
     }
 }
@@ -318,7 +318,7 @@ mod tests {
         assert_eq!(
             parse_line("check fun x : Prop -> Type"),
             Err(Error {
-                kind: ErrorKind::CannotParse(UNIVERSE_ERR.to_string()),
+                kind: ErrorKind::CannotParse(UNIVERSE_ERR.to_owned()),
                 location: Location::new((1, 27).into(), (1, 27).into()),
             })
         );
@@ -464,14 +464,14 @@ mod tests {
         assert_eq!(
             parse_line("check (x:A)"),
             Err(Error {
-                kind: ErrorKind::CannotParse(SIMPLE_TERM_ERR.to_string()),
+                kind: ErrorKind::CannotParse(SIMPLE_TERM_ERR.to_owned()),
                 location: Location::new((1, 7).into(), (1, 11).into()),
             })
         );
         assert_eq!(
             parse_line("check (x:A) -> (y:B)"),
             Err(Error {
-                kind: ErrorKind::CannotParse(SIMPLE_TERM_ERR.to_string()),
+                kind: ErrorKind::CannotParse(SIMPLE_TERM_ERR.to_owned()),
                 location: Location::new((1, 16).into(), (1, 20).into()),
             })
         );
@@ -569,21 +569,21 @@ mod tests {
         assert_eq!(
             parse_line("chehk 2x"),
             Err(Error {
-                kind: ErrorKind::CannotParse(COMMAND_ERR.to_string()),
+                kind: ErrorKind::CannotParse(COMMAND_ERR.to_owned()),
                 location: Location::new((1, 1).into(), (1, 5).into()),
             })
         );
         assert_eq!(
             parse_line("check 2x"),
             Err(Error {
-                kind: ErrorKind::CannotParse(TERM_ERR.to_string()),
+                kind: ErrorKind::CannotParse(TERM_ERR.to_owned()),
                 location: Location::new((1, 7).into(), (1, 8).into()),
             })
         );
         assert_eq!(
             parse_line("check x:"),
             Err(Error {
-                kind: ErrorKind::CannotParse(TERM_ERR.to_string()),
+                kind: ErrorKind::CannotParse(TERM_ERR.to_owned()),
                 location: Location::new((1, 9).into(), (1, 9).into()),
             })
         );
@@ -598,7 +598,7 @@ mod tests {
                         check .x"
             ),
             Err(Error {
-                kind: ErrorKind::CannotParse(TERM_ERR.to_string()),
+                kind: ErrorKind::CannotParse(TERM_ERR.to_owned()),
                 location: Location::new((3, 31).into(), (3, 32).into()),
             })
         );
