@@ -78,7 +78,11 @@ fn main() -> Result<'static, ()> {
 }
 
 fn is_command(input: &str) -> bool {
-    input.chars().position(|c| !c.is_whitespace()).map(|pos| input[pos..pos + 2] != *"//").unwrap_or_else(|| false)
+    input
+        .chars()
+        .position(|c| !c.is_whitespace())
+        .map(|pos| input.len() < 2 || input[pos..pos + 2] != *"//")
+        .unwrap_or_else(|| false)
 }
 
 #[cfg(test)]
