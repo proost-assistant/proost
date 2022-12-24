@@ -123,6 +123,7 @@ pub fn instance<'build, F: BuilderTrait<'build>>(
 /// Returns a builder creating the declaration bound by `name`, instantiated with the universe
 /// levels `levels`.
 #[inline]
+#[must_use]
 pub fn var<'build>(name: &'build str, levels: &'build [level::Builder<'build>]) -> impl InstantiatedBuilderTrait<'build> {
     move |arena, env| {
         let decl = arena.get_binding_decl(name).ok_or(Error {

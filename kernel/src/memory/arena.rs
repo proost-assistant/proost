@@ -123,12 +123,14 @@ impl<'arena> Arena<'arena> {
 
     /// Retrieves the binding of a given name, if one exists.
     #[inline]
+    #[must_use]
     pub fn get_binding(&self, name: &str) -> Option<Term<'arena>> {
         self.named_terms.get(name).copied()
     }
 
     /// Retrieves the declaration binding of a given name, if one exists.
     #[inline]
+    #[must_use]
     pub fn get_binding_decl(&self, name: &str) -> Option<Declaration<'arena>> {
         self.named_decls.get(name).copied()
     }

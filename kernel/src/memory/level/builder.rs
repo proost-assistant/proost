@@ -47,6 +47,7 @@ impl<'arena> Arena<'arena> {
 
 /// Returns a closure building a universe variable associated to `name`
 #[inline]
+#[must_use]
 pub const fn var(name: &str) -> impl BuilderTrait<'_> {
     move |arena, env| {
         env.get(name).map(|lvl| Level::var(*lvl, arena)).ok_or(Error {
@@ -57,12 +58,14 @@ pub const fn var(name: &str) -> impl BuilderTrait<'_> {
 
 /// Returns a closure building the 0 level.
 #[inline]
+#[must_use]
 pub const fn zero<'build>() -> impl BuilderTrait<'build> {
     |arena, _| Ok(Level::zero(arena))
 }
 
 /// Returns a closure building a constant level.
 #[inline]
+#[must_use]
 pub const fn const_<'build>(n: usize) -> impl BuilderTrait<'build> {
     move |arena, _| Ok(Level::from(n, arena))
 }

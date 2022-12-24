@@ -119,6 +119,7 @@ impl<'arena> Level<'arena> {
 
     /// The addition of a level and an integer
     #[inline]
+    #[must_use]
     pub fn add(self, n: usize, arena: &mut Arena<'arena>) -> Self {
         if n == 0 {
             self
@@ -130,12 +131,14 @@ impl<'arena> Level<'arena> {
 
     /// Builds a level from an integer
     #[inline]
+    #[must_use]
     pub fn from(n: usize, arena: &mut Arena<'arena>) -> Self {
         Level::zero(arena).add(n, arena)
     }
 
     /// Converts a level to an integer, if possible
     #[inline]
+    #[must_use]
     pub fn to_numeral(self) -> Option<usize> {
         let (u, n) = self.plus();
         (*u == Zero).then_some(n)
@@ -143,6 +146,7 @@ impl<'arena> Level<'arena> {
 
     /// Decomposes a level `l` in the best pair `(u, n)` s.t. `l = u + n`
     #[inline]
+    #[must_use]
     pub fn plus(self) -> (Self, usize) {
         *self.0.header.plus_form.get_or_init(|| match *self {
             Succ(u) => {
