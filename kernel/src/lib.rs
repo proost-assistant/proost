@@ -2,15 +2,17 @@
 
 //! A kernel for the calculus of constructions.
 //!
-//! Terms can be built with functions from the [`term`] module. This module also provides essential
-//! manipulation functions from lambda-calculus, while the [`type_checker`] module provides typed
-//! interactions.
+//! Terms can be built with functions from the [`memory::term`] module. The [`calculus`] module
+//! provides essential manipulation functions from lambda-calculus, while the [`type_checker`]
+//! module provides typed interactions.
 
 #![feature(no_coverage)]
 #![feature(once_cell)]
 #![feature(trait_alias)]
+#![feature(if_let_guard)]
 
+pub mod calculus;
 pub mod error;
 pub mod location;
-pub mod term;
+pub mod memory;
 pub mod type_checker;

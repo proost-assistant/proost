@@ -4,15 +4,19 @@
 
 use core::fmt;
 
-use kernel::term::builders::Builder;
+use kernel::memory::declaration::builder as declaration;
+use kernel::memory::term::builder::Builder;
 
 /// The type of commands that can be received by the kernel.
 #[derive(Debug, Eq, PartialEq)]
 pub enum Command<'build> {
-    /// Define a new term and optionally check that it's type match the given one.
+    /// Define the given term
     Define(&'build str, Option<Builder<'build>>, Builder<'build>),
 
-    /// Infer the type of a term and check that it match the given one.
+    /// Define the given declaration
+    Declaration(&'build str, Option<declaration::Builder<'build>>, declaration::Builder<'build>),
+
+    /// Infer the type of a term and check that it matches the given one.
     CheckType(Builder<'build>, Builder<'build>),
 
     /// Infer the type of a term.
@@ -33,22 +37,26 @@ impl<'build> fmt::Display for Command<'build> {
         use Command::*;
 
         match self {
-            Define(name, None, t) => write!(f, "def {} := {}", name, t),
+            Define(name, None, t) => write!(f, "def {name} := {t}"),
 
-            Define(name, Some(ty), t) => write!(f, "def {}: {} := {}", name, ty, t),
+            Define(name, Some(ty), t) => write!(f, "def {name}: {ty} := {t}"),
 
-            CheckType(t, ty) => write!(f, "check {}: {}", t, ty),
+            Declaration(name, None, t) => write!(f, "def {name} := {t}"),
 
-            GetType(t) => write!(f, "check {}", t),
+            Declaration(name, Some(ty), t) => write!(f, "def {name}: {ty} := {t}"),
 
-            Eval(t) => write!(f, "eval {}", t),
+            CheckType(t, ty) => write!(f, "check {t}: {ty}"),
+
+            GetType(t) => write!(f, "check {t}"),
+
+            Eval(t) => write!(f, "eval {t}"),
 
             Import(files) => {
                 write!(f, "imports")?;
                 files.iter().try_for_each(|file| write!(f, " {file}"))
             },
 
-            Search(name) => write!(f, "search {}", name),
+            Search(name) => write!(f, "search {name}"),
         }
     }
 }

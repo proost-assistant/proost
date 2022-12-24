@@ -53,7 +53,7 @@ fn main() -> Result<'static, ()> {
     rl.bind_sequence(KeyEvent::from('\t'), EventHandler::Conditional(Box::new(TabEventHandler)));
     rl.bind_sequence(KeyEvent(KeyCode::Enter, Modifiers::ALT), EventHandler::Simple(Cmd::Newline));
 
-    kernel::term::arena::use_arena(|arena| {
+    kernel::memory::arena::use_arena(|arena| {
         let current_path = current_dir()?;
         let mut evaluator = Evaluator::new(current_path, args.verbose);
 

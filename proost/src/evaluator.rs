@@ -5,7 +5,8 @@ use std::path::PathBuf;
 use colored::Colorize;
 use derive_more::Display;
 use kernel::location::Location;
-use kernel::term::arena::{Arena, Term};
+use kernel::memory::arena::Arena;
+use kernel::memory::term::Term;
 use parser::command::Command;
 use parser::{parse_file, parse_line};
 use path_absolutize::Absolutize;
@@ -131,50 +132,65 @@ impl<'arena> Evaluator {
             .map(|_| None)
     }
 
-    fn process<'build>(
+    fn process(
         &mut self,
         arena: &mut Arena<'arena>,
-        command: &Command<'build>,
+        command: &Command,
         importing: &mut Vec<PathBuf>,
     ) -> Result<'arena, Option<Term<'arena>>> {
         match command {
-            Command::Define(s, None, term) => {
-                let term = term.realise(arena)?;
-                if arena.get_binding(s).is_none() {
-                    arena.infer(term)?;
-                    arena.bind(s, term);
-                    Ok(None)
-                } else {
-                    Err(Toplevel(Error {
+            Command::Define(s, ty, term) => {
+                if arena.get_binding(s).is_some() {
+                    return Err(Toplevel(Error {
                         kind: ErrorKind::BoundVariable(s.to_string()),
                         location: Location::default(), // TODO (see #38)
-                    }))
+                    }));
                 }
+                let term = term.realise(arena)?;
+                match ty {
+                    None => {
+                        term.infer(arena)?;
+                    },
+                    Some(ty) => term.check(ty.realise(arena)?, arena)?,
+                }
+                arena.bind(s, term);
+                Ok(None)
             },
 
-            Command::Define(s, Some(t), term) => {
-                let term = term.realise(arena)?;
-                let t = t.realise(arena)?;
-                arena.check(term, t)?;
-                arena.bind(s, term);
+            Command::Declaration(s, ty, decl) => {
+                if arena.get_binding_decl(s).is_some() {
+                    return Err(Toplevel(Error {
+                        kind: ErrorKind::BoundVariable(s.to_string()),
+                        location: Location::default(), // TODO (see #38)
+                    }));
+                }
+                let decl = decl.realise(arena)?;
+                match ty {
+                    None => {
+                        decl.infer(arena)?;
+                    },
+                    Some(ty) => decl.check(ty.realise(arena)?, arena)?,
+                }
+                arena.bind_decl(s, decl);
                 Ok(None)
             },
 
             Command::CheckType(t1, t2) => {
                 let t1 = t1.realise(arena)?;
                 let t2 = t2.realise(arena)?;
-                arena.check(t1, t2)?;
+                t1.check(t2, arena)?;
                 Ok(None)
             },
 
             Command::GetType(t) => {
                 let t = t.realise(arena)?;
-                Ok(arena.infer(t).map(Some)?)
+                Ok(t.infer(arena).map(Some)?)
             },
 
             Command::Eval(t) => {
                 let t = t.realise(arena)?;
-                Ok(Some(arena.normal_form(t)))
+                let _ = t.infer(arena)?;
+                Ok(Some(t.normal_form(arena)))
             },
 
             Command::Search(s) => Ok(arena.get_binding(s)), // TODO (see #49)

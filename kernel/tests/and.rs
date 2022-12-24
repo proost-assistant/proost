@@ -1,5 +1,5 @@
-use kernel::term::arena::{use_arena, Arena};
-use kernel::term::builders::*;
+use kernel::memory::arena::{use_arena, Arena};
+use kernel::memory::term::builder::*;
 
 fn use_and_arena<F, T>(f: F) -> T
 where
@@ -36,7 +36,7 @@ fn and_true_true() {
         let hypothesis = arena.build(abs("x", var("False"), var("x"))).unwrap();
         let true_ = arena.build(var("True")).unwrap();
 
-        assert!(arena.check(hypothesis, true_).is_ok());
+        assert!(hypothesis.check(true_, arena).is_ok());
         arena.bind("hyp", hypothesis);
 
         let proof = arena
@@ -47,7 +47,7 @@ fn and_true_true() {
             ))
             .unwrap();
 
-        assert!(arena.check(proof, goal).is_ok());
+        assert!(proof.check(goal, arena).is_ok());
     })
 }
 
@@ -101,7 +101,7 @@ fn and_intro() {
             ))
             .unwrap();
 
-        assert!(arena.check(proof, goal).is_ok());
+        assert!(proof.check(goal, arena).is_ok());
     })
 }
 
@@ -154,7 +154,7 @@ fn and_elim_1() {
             ))
             .unwrap();
 
-        assert!(arena.check(proof, goal).is_ok());
+        assert!(proof.check(goal, arena).is_ok());
     })
 }
 
@@ -212,6 +212,6 @@ fn and_elim_2() {
             ))
             .unwrap();
 
-        assert!(arena.check(proof, goal).is_ok());
+        assert!(proof.check(goal, arena).is_ok());
     })
 }
