@@ -206,15 +206,15 @@ mod pretty_printing {
             assert_eq!(arena.build_level_raw(max(succ(zero()), zero())).to_numeral(), Some(1));
             assert_eq!(arena.build_level_raw(max(succ(zero()), succ(var(0)))).to_numeral(), None);
             assert_eq!(arena.build_level_raw(imax(var(0), zero())).to_numeral(), Some(0));
-            assert_eq!(arena.build_level_raw(imax(zero(), succ(zero()))).to_numeral(), Some(1))
-        })
+            assert_eq!(arena.build_level_raw(imax(zero(), succ(zero()))).to_numeral(), Some(1));
+        });
     }
 
     #[test]
     fn to_plus() {
         use_arena(|arena| {
             assert_eq!(arena.build_level_raw(succ(zero())).plus(), (Level::zero(arena), 1));
-        })
+        });
     }
 
     #[test]
@@ -223,8 +223,8 @@ mod pretty_printing {
             assert_eq!(
                 format!("{}", arena.build_level_raw(max(succ(zero()), imax(max(zero(), var(0)), succ(var(0)))))),
                 "max (1) (max (u0) (u0 + 1))"
-            )
-        })
+            );
+        });
     }
 
     #[test]
@@ -232,7 +232,7 @@ mod pretty_printing {
         use_arena(|arena| {
             let lvl = arena.build_level_raw(imax(zero(), imax(zero(), imax(succ(zero()), var(0)))));
 
-            assert_eq!(format!("{lvl}"), "max (imax (0) (u0)) (max (imax (0) (u0)) (imax (1) (u0)))")
-        })
+            assert_eq!(format!("{lvl}"), "max (imax (0) (u0)) (max (imax (0) (u0)) (imax (1) (u0)))");
+        });
     }
 }

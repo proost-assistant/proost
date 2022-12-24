@@ -236,7 +236,7 @@ mod tests {
                 ),
             ));
 
-            assert_eq!(format!("{}", term), "λ Sort max (u0) (u1) + 1 → λ Type → λ Type 1 → Π 1 → (1) (2)")
-        })
+            assert_eq!(format!("{}", term), "λ Sort max (u0) (u1) + 1 → λ Type → λ Type 1 → Π 1 → (1) (2)");
+        });
     }
 }

@@ -139,7 +139,7 @@ pub fn replace_inplace(input: &mut String, from: &str, to: &str) {
             input.replace_range((offset + pos)..(offset + pos + from.len()), to);
             offset += pos + to.len();
         } else {
-            offset += pos + from.len()
+            offset += pos + from.len();
         }
     }
 }
@@ -199,24 +199,24 @@ mod tests {
 
     #[test]
     fn get_bracket_empty() {
-        assert!(get_bracket("", 0).is_none())
+        assert!(get_bracket("", 0).is_none());
     }
 
     #[test]
     fn get_bracket_out_of_bound() {
-        assert!(get_bracket("(())", 4).is_none())
+        assert!(get_bracket("(())", 4).is_none());
     }
 
     #[test]
     fn get_bracket_none() {
         assert!(get_bracket("a()[", 0).is_none());
-        assert!(get_bracket("a()[", 3).is_none())
+        assert!(get_bracket("a()[", 3).is_none());
     }
 
     #[test]
     fn get_bracket_some() {
         assert!(get_bracket("a()[", 1).is_some());
-        assert!(get_bracket("a()[", 2).is_some())
+        assert!(get_bracket("a()[", 2).is_some());
     }
 
     #[test]
@@ -224,13 +224,13 @@ mod tests {
         assert!(find_matching_bracket("  )", 1, b')').is_none());
         assert!(find_matching_bracket("  )", 1, b'(').is_some());
         assert!(find_matching_bracket("(  ", 1, b')').is_some());
-        assert!(find_matching_bracket("(  ", 1, b'(').is_none())
+        assert!(find_matching_bracket("(  ", 1, b'(').is_none());
     }
 
     #[test]
     fn find_matching_bracket_matching() {
         assert_eq!(find_matching_bracket("  )", 1, b'('), Some((b')', 2)));
-        assert_eq!(find_matching_bracket("(  ", 1, b')'), Some((b'(', 0)))
+        assert_eq!(find_matching_bracket("(  ", 1, b')'), Some((b'(', 0)));
     }
 
     #[test]
@@ -243,6 +243,6 @@ mod tests {
     fn replace_inplace() {
         let mut message = "mot motus et mots mot mot".to_string();
         super::replace_inplace(&mut message, "mot", "mots");
-        assert_eq!(message, "mots motus et mots mots mots".to_string())
+        assert_eq!(message, "mots motus et mots mots mots".to_string());
     }
 }

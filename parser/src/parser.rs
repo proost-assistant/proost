@@ -256,22 +256,25 @@ fn convert_error(err: pest::error::Error<Rule>) -> error::Error {
             let mut left = 1;
             let chars = err.line().chars();
             let mut i = 0;
+
             for c in chars {
                 i += 1;
                 if char::is_whitespace(c) {
                     if i < y {
-                        left = i + 1
+                        left = i + 1;
                     } else {
                         break;
                     }
                 } else {
-                    right = i
+                    right = i;
                 }
             }
+
             if i < y {
                 left = y;
                 right = y;
             }
+
             Location::new((x, left).into(), (x, right).into())
         },
 
@@ -357,17 +360,17 @@ mod tests {
     #[test]
     fn successful_import() {
         assert_eq!(parse_line("import file1 dir/file2"), Ok(Import(["file1", "dir/file2"].to_vec())));
-        assert_eq!(parse_line("import "), Ok(Import(Vec::new())))
+        assert_eq!(parse_line("import "), Ok(Import(Vec::new())));
     }
 
     #[test]
     fn successful_search() {
-        assert_eq!(parse_line("search variable1"), Ok(Search("variable1")))
+        assert_eq!(parse_line("search variable1"), Ok(Search("variable1")));
     }
 
     #[test]
     fn successful_eval() {
-        assert_eq!(parse_line("eval Prop"), Ok(Eval(Prop)))
+        assert_eq!(parse_line("eval Prop"), Ok(Eval(Prop)));
     }
 
     #[test]

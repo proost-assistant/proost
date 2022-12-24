@@ -146,7 +146,7 @@ mod tests {
             assert!(
                 (arena.build_level_raw(max(zero(), imax(zero(), max(succ(zero()), zero())))))
                     .is_eq(arena.build_level_raw(imax(succ(zero()), imax(succ(zero()), succ(zero())))), arena)
-            )
+            );
         });
     }
 
@@ -162,8 +162,8 @@ mod tests {
             assert_eq!(
                 lvl.substitute(&subst, arena),
                 arena.build_level_raw(imax(zero(), max(succ(zero()), max(succ(zero()), zero()))))
-            )
-        })
+            );
+        });
     }
     #[test]
     fn single_subst() {
@@ -172,7 +172,7 @@ mod tests {
             assert_eq!(
                 lvl.substitute_single(0, Level::zero(arena), arena),
                 arena.build_level_raw(imax(max(succ(zero()), zero()), zero()))
-            )
-        })
+            );
+        });
     }
 }

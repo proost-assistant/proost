@@ -182,7 +182,7 @@ mod tests {
             let reduced = arena.build_term_raw(abs(prop(), app(var(1.into(), prop()), var(1.into(), prop()))));
 
             assert_eq!(term.beta_reduction(arena), reduced);
-        })
+        });
     }
 
     #[test]
@@ -308,7 +308,7 @@ mod tests {
             assert_eq!(term_step_5.beta_reduction(arena), term_step_6);
             assert_eq!(term_step_6.beta_reduction(arena), term_step_7);
             assert_eq!(term_step_7.beta_reduction(arena), term_step_7);
-        })
+        });
     }
 
     #[test]
@@ -325,7 +325,7 @@ mod tests {
             let reduced = arena.build_term_raw(prop());
 
             assert_eq!(decl.beta_reduction(arena), reduced);
-        })
+        });
     }
 
     #[test]
@@ -335,8 +335,8 @@ mod tests {
             let term = arena.build_term_raw(app(abs(prop(), reduced), prop()));
 
             let reduced = arena.build_term_raw(prod(prop(), var(1.into(), prop())));
-            assert_eq!(term.beta_reduction(arena), reduced)
-        })
+            assert_eq!(term.beta_reduction(arena), reduced);
+        });
     }
 
     #[test]
@@ -346,7 +346,7 @@ mod tests {
             let reduced = arena.build_term_raw(prod(prop(), var(1.into(), prop())));
 
             assert_eq!(term.beta_reduction(arena), reduced);
-        })
+        });
     }
 
     #[test]
@@ -359,7 +359,7 @@ mod tests {
             let reduced = arena.build_term_raw(abs(prop(), app(var(1.into(), prop()), var(1.into(), prop()))));
 
             assert_eq!(term.beta_reduction(arena), reduced);
-        })
+        });
     }
 
     #[test]
@@ -372,7 +372,7 @@ mod tests {
             let normal_form = arena.build_term_raw(prop());
 
             assert_eq!(term.normal_form(arena), normal_form);
-        })
+        });
     }
 
     #[test]
@@ -407,6 +407,6 @@ mod tests {
             ));
 
             assert_eq!(term.substitute_univs(&[arena.build_level_raw(zero()), arena.build_level_raw(zero())], arena), term);
-        })
+        });
     }
 }

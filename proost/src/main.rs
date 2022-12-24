@@ -128,6 +128,45 @@ fn main() -> Result<'static, ()> {
     })
 }
 
+<<<<<<< Updated upstream
+=======
+pub fn display<'arena>(res: Result<'arena, Option<Term<'arena>>>) {
+    match res {
+        Ok(None) => println!("{}", "\u{2713}".green()),
+        Ok(Some(t)) => {
+            for line in t.to_string().lines() {
+                println!("{} {line}", "\u{2713}".green());
+            }
+        },
+        Err(err) => {
+            let string = match err {
+                Error::Parser(parser::error::Error {
+                    kind: parser::error::ErrorKind::CannotParse(message),
+                    location: loc,
+                }) => {
+                    if loc.start.column == loc.end.column {
+                        format!("{:0w1$}^\n{message}", "", w1 = loc.start.column - 1)
+                    } else {
+                        format!(
+                            "{:0w1$}^{:-<w2$}^\n{message}",
+                            "",
+                            "",
+                            w1 = loc.start.column - 1,
+                            w2 = loc.end.column - loc.start.column - 1
+                        )
+                    }
+                },
+
+                _ => err.to_string(),
+            };
+
+            for line in string.lines() {
+                println!("{} {line}", "\u{2717}".red());
+            }
+        },
+    }
+}
+>>>>>>> Stashed changes
 fn is_command(input: &str) -> bool {
     input
         .chars()
@@ -152,13 +191,13 @@ mod tests {
     fn is_command_false() {
         assert!(!super::is_command("    "));
         assert!(!super::is_command(" "));
-        assert!(!super::is_command("// comment"))
+        assert!(!super::is_command("// comment"));
     }
 
     #[test]
     fn is_command_true() {
         assert!(super::is_command("     check x"));
         assert!(super::is_command("  check x"));
-        assert!(super::is_command("check x // comment"))
+        assert!(super::is_command("check x // comment"));
     }
 }
