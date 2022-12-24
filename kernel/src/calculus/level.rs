@@ -14,7 +14,7 @@ enum State {
     True,
 
     /// Induction is needed to complete the comparaison.
-    NeedsInductionOn(usize),
+    Stuck(usize),
 }
 
 impl State {
@@ -53,9 +53,9 @@ impl<'arena> Level<'arena> {
     /// Checks whether `self <= rhs + n`, without applying substitution.
     ///
     /// Precisely, it returns:
-    /// - `(false, i + 1)` if `Var(i)` needs to be substituted to unstuck the comparison.
-    /// - `(true, 0)` if `self <= rhs + n`,
-    /// - `(false, 0)` else.
+    /// - `Stuck(i + 1)` if `Var(i)` needs to be substituted to unstuck the comparison.
+    /// - `True` if `self <= rhs + n`,
+    /// - `False` else.
     fn geq_no_subst(self, rhs: Self, n: i64) -> State {
         match (&*self, &*rhs) {
             (Zero, _) if n >= 0 => State::True,
@@ -74,7 +74,7 @@ impl<'arena> Level<'arena> {
                 State::True
             }
 
-            (_, IMax(_, v)) | (IMax(_, v), _) if let Var(i) = **v => State::NeedsInductionOn(i),
+            (_, IMax(_, v)) | (IMax(_, v), _) if let Var(i) = **v => State::Stuck(i),
 
             _ => State::False,
         }
@@ -88,7 +88,7 @@ impl<'arena> Level<'arena> {
         match self.geq_no_subst(rhs, n) {
             State::True => true,
             State::False => false,
-            State::NeedsInductionOn(i) => {
+            State::Stuck(i) => {
                 let zero = Level::zero(arena);
                 let vv = Level::var(i, arena).succ(arena);
                 self.substitute_single(i, zero, arena).geq(rhs.substitute_single(i, zero, arena), n, arena)
