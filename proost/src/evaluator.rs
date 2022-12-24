@@ -132,40 +132,47 @@ impl<'arena> Evaluator {
             .map(|_| None)
     }
 
-    fn process<'build>(
+    fn process(
         &mut self,
         arena: &mut Arena<'arena>,
-        command: &Command<'build>,
+        command: &Command,
         importing: &mut Vec<PathBuf>,
     ) -> Result<'arena, Option<Term<'arena>>> {
         match command {
-            Command::Declaration(s, None, decl) => {
-                let decl = decl.realise(arena)?;
-                if arena.get_binding(s).is_none() {
-                    decl.infer(arena)?;
-                    arena.bind_decl(s, decl);
-                    Ok(None)
-                } else {
-                    Err(Toplevel(Error {
+            Command::Define(s, ty, term) => {
+                if arena.get_binding(s).is_some() {
+                    return Err(Toplevel(Error {
                         kind: ErrorKind::BoundVariable(s.to_string()),
                         location: Location::default(), // TODO (see #38)
-                    }))
+                    }));
                 }
+                let term = term.realise(arena)?;
+                match ty {
+                    None => {
+                        term.infer(arena)?;
+                    },
+                    Some(ty) => term.check(ty.realise(arena)?, arena)?,
+                }
+                arena.bind(s, term);
+                Ok(None)
             },
 
-            Command::Declaration(s, Some(t), decl) => {
-                let decl = decl.realise(arena)?;
-                let ty = t.realise(arena)?;
-                if arena.get_binding(s).is_none() {
-                    decl.check(ty, arena)?;
-                    arena.bind_decl(s, decl);
-                    Ok(None)
-                } else {
-                    Err(Toplevel(Error {
+            Command::Declaration(s, ty, decl) => {
+                if arena.get_binding_decl(s).is_some() {
+                    return Err(Toplevel(Error {
                         kind: ErrorKind::BoundVariable(s.to_string()),
                         location: Location::default(), // TODO (see #38)
-                    }))
+                    }));
                 }
+                let decl = decl.realise(arena)?;
+                match ty {
+                    None => {
+                        decl.infer(arena)?;
+                    },
+                    Some(ty) => decl.check(ty.realise(arena)?, arena)?,
+                }
+                arena.bind_decl(s, decl);
+                Ok(None)
             },
 
             Command::CheckType(t1, t2) => {

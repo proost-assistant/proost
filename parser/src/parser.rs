@@ -161,19 +161,16 @@ fn parse_expr(pair: Pair<Rule>) -> Command {
             let mut iter = pair.into_inner();
             let s = iter.next().unwrap().as_str();
             let term = parse_term(iter.next().unwrap());
-            Command::Declaration(s, None, declaration::Builder::Decl(box term, Vec::new()))
+            Command::Define(s, None, term)
         },
 
         Rule::DefineCheckType => {
             let mut iter = pair.into_inner();
             let s = iter.next().unwrap().as_str();
             let ty = parse_term(iter.next().unwrap());
-            let decl = parse_term(iter.next().unwrap());
+            let term = parse_term(iter.next().unwrap());
 
-            let ty = declaration::Builder::Decl(box ty, Vec::new());
-            let decl = declaration::Builder::Decl(box decl, Vec::new());
-
-            Command::Declaration(s, Some(ty), decl)
+            Command::Define(s, Some(ty), term)
         },
 
         Rule::Declaration => {
@@ -336,14 +333,7 @@ mod tests {
 
     #[test]
     fn successful_define_with_type_annotation() {
-        assert_eq!(
-            parse_line("def x : Type := Prop"),
-            Ok(Declaration(
-                "x",
-                Some(declaration::Builder::Decl(box Type(box level::Builder::Const(0)), Vec::new())),
-                declaration::Builder::Decl(box Prop, Vec::new())
-            ))
-        );
+        assert_eq!(parse_line("def x : Type := Prop"), Ok(Define("x", Some(Type(box level::Builder::Const(0))), Prop)));
     }
 
     #[test]
@@ -382,7 +372,7 @@ mod tests {
 
     #[test]
     fn successful_define() {
-        assert_eq!(parse_line("def x := Prop"), Ok(Declaration("x", None, declaration::Builder::Decl(box Prop, Vec::new()))));
+        assert_eq!(parse_line("def x := Prop"), Ok(Define("x", None, Prop)));
     }
 
     #[test]
