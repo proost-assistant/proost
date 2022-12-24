@@ -29,10 +29,10 @@ super::arena::new_dweller!(InstantiatedDeclaration, Header, Payload);
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Payload<'arena> {
     /// The declaration being instantiated
-    pub decl: Declaration<'arena>,
+    pub(crate) decl: Declaration<'arena>,
 
     /// The parameters used to instantiate it
-    pub params: &'arena [Level<'arena>],
+    pub(crate) params: &'arena [Level<'arena>],
 }
 
 struct Header<'arena> {
