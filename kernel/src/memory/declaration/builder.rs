@@ -147,9 +147,9 @@ pub enum InstantiatedBuilder<'build> {
     Var(&'build str, Vec<level::Builder<'build>>),
 }
 
-impl<'arena> std::fmt::Display for InstantiatedBuilder<'arena> {
+impl<'arena> core::fmt::Display for InstantiatedBuilder<'arena> {
     #[inline]
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         match self {
             InstantiatedBuilder::Instance(decl, params) => {
                 write!(f, "{decl}.{{")?;

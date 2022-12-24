@@ -26,7 +26,7 @@ pub enum ErrorKind<'arena> {
 
 impl<'arena> std::error::Error for Error<'arena> {}
 
-pub type Result<'arena, T> = std::result::Result<T, Error<'arena>>;
+pub type Result<'arena, T> = core::result::Result<T, Error<'arena>>;
 pub type ResultTerm<'arena> = Result<'arena, term::Term<'arena>>;
 pub type ResultLevel<'arena> = Result<'arena, level::Level<'arena>>;
 pub type ResultDecl<'arena> = Result<'arena, declaration::Declaration<'arena>>;

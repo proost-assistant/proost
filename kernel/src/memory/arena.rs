@@ -2,8 +2,8 @@
 //!
 //! This module defines the core functions used to manipulate an arena and its dwellers.
 
+use core::marker::PhantomData;
 use std::collections::{HashMap, HashSet};
-use std::marker::PhantomData;
 
 use bumpalo::Bump;
 
@@ -152,7 +152,7 @@ which itself contains the [core content](", stringify!($payload), ").
 Additionally, the Node contains lazy structures which typically further helps
 accelerating specific algorithms.")]
         #[derive(Clone, Copy)]
-        pub struct $dweller<'arena>(&'arena Node<'arena>, std::marker::PhantomData<*mut &'arena ()>);
+        pub struct $dweller<'arena>(&'arena Node<'arena>, core::marker::PhantomData<*mut &'arena ()>);
 
         pub(super) struct Node<'arena> {
             header: $header<'arena>,
@@ -161,7 +161,7 @@ accelerating specific algorithms.")]
 
         impl<'arena> $dweller<'arena> {
             fn new(node: &'arena Node<'arena>) -> Self {
-                $dweller(node, std::marker::PhantomData)
+                $dweller(node, core::marker::PhantomData)
             }
         }
 
@@ -188,7 +188,7 @@ match *t {
 ```
 Please note that this trait has some limits. For instance, the notations used to match against
 a *pair* of", stringify!($dweller), "s still requires some convolution.")]
-        impl<'arena> std::ops::Deref for $dweller<'arena> {
+        impl<'arena> core::ops::Deref for $dweller<'arena> {
             type Target = $payload<'arena>;
 
             #[inline]
@@ -202,9 +202,9 @@ a *pair* of", stringify!($dweller), "s still requires some convolution.")]
 Apart from enhancing debug readability, this reimplementation is surprisingly necessary: in
 the case of terms for instance, and because they may refer to themselves in the payload, the
 default debug implementation recursively calls itself until the stack overflows.")]
-        impl<'arena> std::fmt::Debug for $dweller<'arena> {
+        impl<'arena> core::fmt::Debug for $dweller<'arena> {
             #[inline]
-            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
                 self.0.payload.fmt(f)
             }
         }
@@ -214,7 +214,7 @@ sufficient to compare their locations in memory to test equality.")]
         impl<'arena> PartialEq<Self> for $dweller<'arena> {
             #[inline]
             fn eq(&self, rhs: &Self) -> bool {
-                std::ptr::eq(self.0, rhs.0)
+                core::ptr::eq(self.0, rhs.0)
             }
         }
 
@@ -223,10 +223,10 @@ sufficient to compare their locations in memory to test equality.")]
         #[doc = concat!("Because ", stringify!($dweller), "s are unique in the arena, it is
 sufficient to compare their locations in memory to test equality. In particular, hash can
 also be computed from the location")]
-        impl<'arena> std::hash::Hash for $dweller<'arena> {
+        impl<'arena> core::hash::Hash for $dweller<'arena> {
             #[inline]
-            fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-                std::ptr::hash(self.0, state)
+            fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+                core::ptr::hash(self.0, state)
             }
         }
 
@@ -241,8 +241,8 @@ also be computed from the location")]
         /// Nodes are not guaranteed to be unique. Nonetheless, only the payload matters and characterises
         /// the value. Which means computing the hash for nodes can be restricted to hashing their
         /// payloads.
-        impl<'arena> std::hash::Hash for Node<'arena> {
-            fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        impl<'arena> core::hash::Hash for Node<'arena> {
+            fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
                 self.payload.hash(state);
             }
         }

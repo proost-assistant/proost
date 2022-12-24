@@ -3,8 +3,8 @@
 //! This module defines the core functions used to create and manipulate terms.
 
 use core::fmt;
+use core::fmt::Debug;
 use std::cell::OnceCell;
-use std::fmt::Debug;
 
 use derive_more::{Add, Display, From, Into, Sub};
 

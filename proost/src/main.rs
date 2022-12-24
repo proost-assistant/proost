@@ -51,6 +51,8 @@
     )
 )]
 
+extern crate alloc;
+
 mod error;
 mod evaluator;
 mod rustyline_helper;

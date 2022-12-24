@@ -1,4 +1,4 @@
-use std::borrow::Cow::{self, Borrowed, Owned};
+use alloc::borrow::Cow::{self, Borrowed, Owned};
 
 use colored::Colorize;
 use rustyline::completion::{Completer, FilenameCompleter, Pair};

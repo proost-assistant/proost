@@ -1,8 +1,8 @@
 //! Universe levels.
 
+use core::fmt::{Display, Formatter};
+use core::hash::Hash;
 use std::cell::OnceCell;
-use std::fmt::{Display, Formatter};
-use std::hash::Hash;
 
 use super::arena::Arena;
 
@@ -41,7 +41,7 @@ pub enum Payload<'arena> {
 
 impl Display for Level<'_> {
     #[inline]
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
         match self.to_numeral() {
             Some(n) => write!(f, "{n}"),
             None => match **self {
