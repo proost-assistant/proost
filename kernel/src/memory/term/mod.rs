@@ -109,13 +109,12 @@ impl<'arena> Term<'arena> {
             },
         };
 
-        match arena.hashcons_terms.get(&new_node) {
-            Some(addr) => Term::new(addr),
-            None => {
-                let addr = arena.alloc.alloc(new_node);
-                arena.hashcons_terms.insert(addr);
-                Term::new(addr)
-            },
+        if let Some(addr) = arena.hashcons_terms.get(&new_node) {
+            Term::new(addr)
+        } else {
+            let addr = arena.alloc.alloc(new_node);
+            arena.hashcons_terms.insert(addr);
+            Term::new(addr)
         }
     }
 
@@ -193,13 +192,12 @@ impl<'arena> Arena<'arena> {
     where
         F: FnOnce(&mut Self) -> Term<'arena>,
     {
-        match self.mem_subst.get(key) {
-            Some(res) => *res,
-            None => {
-                let res = f(self);
-                self.mem_subst.insert(*key, res);
-                res
-            },
+        if let Some(res) = self.mem_subst.get(key) {
+            *res
+        } else {
+            let res = f(self);
+            self.mem_subst.insert(*key, res);
+            res
         }
     }
 }

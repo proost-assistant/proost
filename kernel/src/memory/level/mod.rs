@@ -73,23 +73,22 @@ impl<'arena> Level<'arena> {
             },
         };
 
-        match arena.hashcons_levels.get(&new_node) {
-            Some(level) => *level,
-            None => {
-                // add the unreduced node to the arena
-                let node_unreduced = &*arena.alloc.alloc(new_node);
-                let level_unreduced = Level::new(node_unreduced);
-                arena.hashcons_levels.insert(node_unreduced, level_unreduced);
+        if let Some(level) = arena.hashcons_levels.get(&new_node) {
+            *level
+        } else {
+            // add the unreduced node to the arena
+            let node_unreduced = &*arena.alloc.alloc(new_node);
+            let level_unreduced = Level::new(node_unreduced);
+            arena.hashcons_levels.insert(node_unreduced, level_unreduced);
 
-                // compute its reduced form
-                let reduced = level_unreduced.normalize(arena);
+            // compute its reduced form
+            let reduced = level_unreduced.normalize(arena);
 
-                // supersede the previous correspondence
-                arena.hashcons_levels.insert(node_unreduced, reduced);
-                arena.hashcons_levels.insert(reduced.0, reduced);
+            // supersede the previous correspondence
+            arena.hashcons_levels.insert(node_unreduced, reduced);
+            arena.hashcons_levels.insert(reduced.0, reduced);
 
-                reduced
-            },
+            reduced
         }
     }
 

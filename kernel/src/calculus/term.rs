@@ -14,9 +14,10 @@ impl<'arena> Term<'arena> {
     #[inline]
     pub fn beta_reduction(self, arena: &mut Arena<'arena>) -> Self {
         match *self {
-            App(t1, t2) => match *t1 {
-                Abs(_, t1) => t1.substitute(t2, 1, arena),
-                _ => {
+            App(t1, t2) => {
+                if let Abs(_, t1) = *t1 {
+                    t1.substitute(t2, 1, arena)
+                } else {
                     let t1_new = t1.beta_reduction(arena);
                     if t1_new == t1 {
                         let t2_new = t2.beta_reduction(arena);
@@ -24,7 +25,7 @@ impl<'arena> Term<'arena> {
                     } else {
                         t1_new.app(t2, arena)
                     }
-                },
+                }
             },
             Abs(arg_type, body) => {
                 let body = body.beta_reduction(arena);
