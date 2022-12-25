@@ -121,7 +121,7 @@ impl Highlighter for RustyLineHelper {
 
         if let Some((bracket, pos)) = get_bracket(line, pos)
             && let Some((matching, pos)) = find_matching_bracket(line, pos, bracket) {
-                let s = String::from(matching as char);
+                let s = String::from(matching);
                 copy.replace_range(pos..=pos, &format!("{}", s.blue().bold()));
             }
         KEYWORDS.iter().for_each(|keyword| replace_inplace(&mut copy, keyword, &format!("{}", keyword.blue().bold())));
@@ -144,12 +144,12 @@ pub fn replace_inplace(input: &mut String, from: &str, to: &str) {
     }
 }
 
-fn find_matching_bracket(line: &str, pos: usize, bracket: u8) -> Option<(u8, usize)> {
+fn find_matching_bracket(line: &str, pos: usize, bracket: u8) -> Option<(char, usize)> {
     let matching_bracket = matching_bracket(bracket);
     let mut to_match = 1;
 
     let match_bracket = |b: u8| {
-        if b == matching_bracket {
+        if b == matching_bracket.try_into().unwrap_or_else(|_| unreachable!()) {
             to_match -= 1;
         } else if b == bracket {
             to_match += 1;
@@ -177,10 +177,10 @@ const fn get_bracket(line: &str, pos: usize) -> Option<(u8, usize)> {
     None
 }
 
-const fn matching_bracket(bracket: u8) -> u8 {
+const fn matching_bracket(bracket: u8) -> char {
     match bracket {
-        b'(' => b')',
-        b')' => b'(',
+        b'(' => ')',
+        b')' => '(',
         _ => unreachable!(),
     }
 }
@@ -229,14 +229,14 @@ mod tests {
 
     #[test]
     fn find_matching_bracket_matching() {
-        assert_eq!(find_matching_bracket("  )", 1, b'('), Some((b')', 2)));
-        assert_eq!(find_matching_bracket("(  ", 1, b')'), Some((b'(', 0)));
+        assert_eq!(find_matching_bracket("  )", 1, b'('), Some((')', 2)));
+        assert_eq!(find_matching_bracket("(  ", 1, b')'), Some(('(', 0)));
     }
 
     #[test]
     fn find_matching_bracket_counter() {
-        assert_eq!(find_matching_bracket(" (())))", 0, b'('), Some((b')', 5)));
-        assert_eq!(find_matching_bracket("(((()) ", 6, b')'), Some((b'(', 1)));
+        assert_eq!(find_matching_bracket(" (())))", 0, b'('), Some((')', 5)));
+        assert_eq!(find_matching_bracket("(((()) ", 6, b')'), Some(('(', 1)));
     }
 
     #[test]
