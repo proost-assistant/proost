@@ -45,8 +45,8 @@ pub struct Evaluator {
 }
 
 impl<'arena> Evaluator {
-    pub fn new(path: PathBuf, verbose: bool) -> Evaluator {
-        Evaluator {
+    pub fn new(path: PathBuf, verbose: bool) -> Self {
+        Self {
             path,
             imported: HashSet::new(),
             verbose,
