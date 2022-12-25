@@ -90,7 +90,11 @@ impl<'arena> InstantiatedDeclaration<'arena> {
     /// Returns the term linked to a definition in a given environment.
     #[inline]
     pub fn get_term(self, arena: &mut Arena<'arena>) -> Term<'arena> {
-        *self.0.header.term.get_or_init(|| self.0.payload.decl.0.substitute_univs(self.0.payload.params, arena))
+        *self
+            .0
+            .header
+            .term
+            .get_or_init(|| self.0.payload.decl.0.substitute_univs(self.0.payload.params, arena))
     }
 
     /// Tries to type the generic underlying declaration. If it works, returns the type
@@ -100,6 +104,7 @@ impl<'arena> InstantiatedDeclaration<'arena> {
         F: FnOnce(Term<'arena>, &mut Arena<'arena>) -> ResultTerm<'arena>,
     {
         let term = self.0.payload.decl.0;
-        term.get_type_or_try_init(|| f(term, arena)).map(|type_| type_.substitute_univs(self.0.payload.params, arena))
+        term.get_type_or_try_init(|| f(term, arena))
+            .map(|type_| type_.substitute_univs(self.0.payload.params, arena))
     }
 }

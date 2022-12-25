@@ -91,7 +91,8 @@ impl<'arena> Level<'arena> {
             State::Stuck(i) => {
                 let zero = Level::zero(arena);
                 let vv = Level::var(i, arena).succ(arena);
-                self.substitute_single(i, zero, arena).geq(rhs.substitute_single(i, zero, arena), n, arena)
+                self.substitute_single(i, zero, arena)
+                    .geq(rhs.substitute_single(i, zero, arena), n, arena)
                     && self.substitute_single(i, vv, arena).geq(rhs.substitute_single(i, vv, arena), n, arena)
             },
         }

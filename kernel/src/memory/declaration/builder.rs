@@ -95,7 +95,10 @@ fn try_build_instance<'arena, 'build>(
     arena: &mut Arena<'arena>,
     env: &level::Environment<'build>,
 ) -> ResultInstantiatedDecl<'arena> {
-    let levels = levels.iter().map(|level_builder| level_builder.realise_in_context(arena, env)).collect::<Result<Vec<_>>>()?;
+    let levels = levels
+        .iter()
+        .map(|level_builder| level_builder.realise_in_context(arena, env))
+        .collect::<Result<Vec<_>>>()?;
 
     if decl.1 == levels.len() {
         Ok(InstantiatedDeclaration::instantiate(decl, levels.as_slice(), arena))

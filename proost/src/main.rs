@@ -92,7 +92,11 @@ fn main() -> Result<'static, ()> {
 
     // check if files are provided as command-line arguments
     if !args.files.is_empty() {
-        return args.files.iter().try_for_each(|path| fs::read_to_string(path).map(|_| ())).map_err(error::Error::from);
+        return args
+            .files
+            .iter()
+            .try_for_each(|path| fs::read_to_string(path).map(|_| ()))
+            .map_err(error::Error::from);
     }
 
     // check if we are in a terminal
@@ -170,7 +174,10 @@ pub fn display<'arena>(res: Result<'arena, Option<Term<'arena>>>) {
 }
 
 fn is_command(input: &str) -> bool {
-    input.chars().position(|c| !c.is_whitespace()).map_or(false, |pos| input.len() < 2 || input[pos..pos + 2] != *"//")
+    input
+        .chars()
+        .position(|c| !c.is_whitespace())
+        .map_or(false, |pos| input.len() < 2 || input[pos..pos + 2] != *"//")
 }
 
 #[cfg(test)]

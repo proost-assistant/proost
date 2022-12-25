@@ -82,9 +82,15 @@ fn parse_term(pair: Pair<Rule>) -> term::Builder {
             Decl(box declaration::InstantiatedBuilder::Var(name, levels))
         },
 
-        Rule::Type => pair.into_inner().next_back().map_or(Type(box level::Builder::Const(0)), |next| Type(box parse_level(next))),
+        Rule::Type => pair
+            .into_inner()
+            .next_back()
+            .map_or(Type(box level::Builder::Const(0)), |next| Type(box parse_level(next))),
 
-        Rule::Sort => pair.into_inner().next_back().map_or(Sort(box level::Builder::Const(0)), |next| Sort(box parse_level(next))),
+        Rule::Sort => pair
+            .into_inner()
+            .next_back()
+            .map_or(Sort(box level::Builder::Const(0)), |next| Sort(box parse_level(next))),
 
         Rule::App => {
             let mut iter = pair.into_inner().map(parse_term);
@@ -296,7 +302,9 @@ pub fn parse_line(line: &str) -> error::Result<Command> {
 /// if unsuccessful, a box containing the first error that was encountered is returned.
 #[inline]
 pub fn parse_file(file: &str) -> error::Result<Vec<Command>> {
-    CommandParser::parse(Rule::file, file).map_err(convert_error).map(|pairs| pairs.into_iter().map(parse_expr).collect())
+    CommandParser::parse(Rule::file, file)
+        .map_err(convert_error)
+        .map(|pairs| pairs.into_iter().map(parse_expr).collect())
 }
 
 #[cfg(test)]

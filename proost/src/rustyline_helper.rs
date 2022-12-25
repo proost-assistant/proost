@@ -62,7 +62,9 @@ impl Validator for RustyLineHelper {
             return Ok(ValidationResult::Valid(None));
         }
 
-        Ok(validate_arrows(ctx.input()).or_else(|| validate_brackets(ctx.input())).unwrap_or(ValidationResult::Valid(None)))
+        Ok(validate_arrows(ctx.input())
+            .or_else(|| validate_brackets(ctx.input()))
+            .unwrap_or(ValidationResult::Valid(None)))
     }
 }
 
@@ -124,7 +126,9 @@ impl Highlighter for RustyLineHelper {
                 let s = String::from(matching);
                 copy.replace_range(pos..=pos, &format!("{}", s.blue().bold()));
             }
-        KEYWORDS.iter().for_each(|keyword| replace_inplace(&mut copy, keyword, &format!("{}", keyword.blue().bold())));
+        KEYWORDS
+            .iter()
+            .for_each(|keyword| replace_inplace(&mut copy, keyword, &format!("{}", keyword.blue().bold())));
         Owned(copy)
     }
 }
@@ -159,10 +163,17 @@ fn find_matching_bracket(line: &str, pos: usize, bracket: u8) -> Option<(char, u
 
     if is_open_bracket(bracket) {
         // forward search
-        line[pos + 1..].bytes().position(match_bracket).map(|pos2| (matching_bracket, pos2 + pos + 1))
+        line[pos + 1..]
+            .bytes()
+            .position(match_bracket)
+            .map(|pos2| (matching_bracket, pos2 + pos + 1))
     } else {
         // backward search
-        line[..pos].bytes().rev().position(match_bracket).map(|pos2| (matching_bracket, pos - pos2 - 1))
+        line[..pos]
+            .bytes()
+            .rev()
+            .position(match_bracket)
+            .map(|pos2| (matching_bracket, pos - pos2 - 1))
     }
 }
 
