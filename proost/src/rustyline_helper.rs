@@ -11,7 +11,7 @@ use rustyline_derive::{Helper, Hinter};
 /// Language keywords that should be highlighted
 const KEYWORDS: [&str; 5] = ["check", "def", "eval", "import", "search"];
 
-/// An Helper for a RustyLine Editor that implements:
+/// An Helper for a `RustyLine` Editor that implements:
 /// - a standard hinter;
 /// - custom validator, completer and highlighter.
 #[derive(Helper, Hinter)]
@@ -43,7 +43,7 @@ impl ConditionalEventHandler for TabEventHandler {
     }
 }
 
-/// A variation of [FilenameCompleter](https://docs.rs/rustyline/latest/rustyline/completion/struct.FilenameCompleter.html):
+/// A variation of [`FilenameCompleter`](https://docs.rs/rustyline/latest/rustyline/completion/struct.FilenameCompleter.html):
 /// file completion is available only after having typed import
 impl Completer for RustyLineHelper {
     type Candidate = Pair;
@@ -53,7 +53,7 @@ impl Completer for RustyLineHelper {
     }
 }
 
-/// A variation of [MatchingBracketValidator](https://docs.rs/rustyline/latest/rustyline/validate/struct.MatchingBracketValidator.html).
+/// A variation of [`MatchingBracketValidator`](https://docs.rs/rustyline/latest/rustyline/validate/struct.MatchingBracketValidator.html).
 ///
 /// No validation occurs when entering the import command
 impl Validator for RustyLineHelper {
@@ -98,7 +98,7 @@ fn validate_brackets(input: &str) -> Option<ValidationResult> {
     if stack.is_empty() { None } else { Some(ValidationResult::Incomplete) }
 }
 
-/// A variation of [MatchingBracketHighlighter](https://docs.rs/rustyline/latest/rustyline/highlight/struct.MatchingBracketHighlighter.html).
+/// A variation of [`MatchingBracketHighlighter`](https://docs.rs/rustyline/latest/rustyline/highlight/struct.MatchingBracketHighlighter.html).
 ///
 /// No check occurs before cursor
 impl Highlighter for RustyLineHelper {

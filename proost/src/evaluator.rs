@@ -69,7 +69,7 @@ impl<'arena> Evaluator {
 
     /// Begin a new file importation.
     ///
-    /// file_path must be absolute
+    /// `file_path` must be absolute
     fn import_file(
         &mut self,
         arena: &mut Arena<'arena>,
