@@ -62,12 +62,14 @@ use std::fs;
 
 use atty::Stream;
 use clap::Parser;
+use colored::Colorize;
 use evaluator::Evaluator;
+use kernel::memory::term::Term;
 use rustyline::error::ReadlineError;
 use rustyline::{Cmd, Config, Editor, EventHandler, KeyCode, KeyEvent, Modifiers};
 use rustyline_helper::{RustyLineHelper, TabEventHandler};
 
-use crate::error::Result;
+use crate::error::{Error, Result};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -116,8 +118,8 @@ fn main() -> Result<'static, ()> {
             match readline {
                 Ok(line) if is_command(&line) => {
                     rl.add_history_entry(line.as_str());
-                    let result = evaluator.process_line(arena, line.as_str());
-                    evaluator.display(result);
+
+                    display(evaluator.process_line(arena, line.as_str()));
                 },
                 Ok(_) => (),
                 Err(ReadlineError::Interrupted) => {},
@@ -130,8 +132,6 @@ fn main() -> Result<'static, ()> {
     })
 }
 
-<<<<<<< Updated upstream
-=======
 pub fn display<'arena>(res: Result<'arena, Option<Term<'arena>>>) {
     match res {
         Ok(None) => println!("{}", "\u{2713}".green()),
@@ -168,7 +168,7 @@ pub fn display<'arena>(res: Result<'arena, Option<Term<'arena>>>) {
         },
     }
 }
->>>>>>> Stashed changes
+
 fn is_command(input: &str) -> bool {
     input.chars().position(|c| !c.is_whitespace()).map_or(false, |pos| input.len() < 2 || input[pos..pos + 2] != *"//")
 }

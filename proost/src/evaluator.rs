@@ -2,7 +2,6 @@ use std::collections::HashSet;
 use std::fs::read_to_string;
 use std::path::PathBuf;
 
-use colored::Colorize;
 use derive_more::Display;
 use kernel::location::Location;
 use kernel::memory::arena::Arena;
@@ -11,7 +10,7 @@ use parser::command::Command;
 use parser::{parse_file, parse_line};
 use path_absolutize::Absolutize;
 
-use crate::error::Error::{Parser, Toplevel};
+use crate::error::Error::Toplevel;
 use crate::error::Result;
 
 /// Type representing parser errors.
@@ -197,43 +196,6 @@ impl<'arena> Evaluator {
                     self.import_file(arena, Location::default(), file_path, importing)
                 })
                 .map(|_| None),
-        }
-    }
-
-    pub fn display(&self, res: Result<'arena, Option<Term<'arena>>>) {
-        match res {
-            Ok(None) => println!("{}", "\u{2713}".green()),
-            Ok(Some(t)) => {
-                for line in t.to_string().lines() {
-                    println!("{} {line}", "\u{2713}".green())
-                }
-            },
-            Err(err) => {
-                let string = match err {
-                    Parser(parser::error::Error {
-                        kind: parser::error::ErrorKind::CannotParse(message),
-                        location: loc,
-                    }) => {
-                        if loc.start.column == loc.end.column {
-                            format!("{:0w1$}^\n{message}", "", w1 = loc.start.column - 1)
-                        } else {
-                            format!(
-                                "{:0w1$}^{:-<w2$}^\n{message}",
-                                "",
-                                "",
-                                w1 = loc.start.column - 1,
-                                w2 = loc.end.column - loc.start.column - 1
-                            )
-                        }
-                    },
-
-                    _ => err.to_string(),
-                };
-
-                for line in string.lines() {
-                    println!("{} {line}", "\u{2717}".red())
-                }
-            },
         }
     }
 }
