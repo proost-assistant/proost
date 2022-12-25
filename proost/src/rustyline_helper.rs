@@ -102,7 +102,7 @@ fn validate_brackets(input: &str) -> Option<ValidationResult> {
 ///
 /// No check occurs before cursor
 impl Highlighter for RustyLineHelper {
-    fn highlight_hint<'h>(&self, hint: &'h str) -> Cow<'h, str> {
+    fn highlight_hint<'input>(&self, hint: &'input str) -> Cow<'input, str> {
         if !self.color {
             return Owned(hint.to_owned());
         }
@@ -113,7 +113,7 @@ impl Highlighter for RustyLineHelper {
         self.color
     }
 
-    fn highlight<'l>(&self, line: &'l str, pos: usize) -> Cow<'l, str> {
+    fn highlight<'input>(&self, line: &'input str, pos: usize) -> Cow<'input, str> {
         if line.len() <= 1 || !self.color {
             return Borrowed(line);
         }
