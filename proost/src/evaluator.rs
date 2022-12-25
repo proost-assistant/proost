@@ -55,14 +55,9 @@ impl<'arena> Evaluator {
 
     /// Create a new path from a relative path
     fn create_path(&self, location: Location, relative_path: String, importing: &[PathBuf]) -> Result<'arena, PathBuf> {
-        let file_path = importing
-            .last()
-            .and_then(|path| path.parent())
-            .unwrap_or(&self.path)
-            .join(relative_path)
-            .absolutize()
-            .unwrap()
-            .to_path_buf();
+        let file_path =
+            importing.last().and_then(|path| path.parent()).unwrap_or(&self.path).join(relative_path).absolutize()?.to_path_buf();
+
         if file_path.is_file() {
             Ok(file_path)
         } else {
@@ -102,7 +97,7 @@ impl<'arena> Evaluator {
         // try to import it
         let result = self.process_file(arena, &file, importing);
         // remove it from the list of files to import
-        let file_path = importing.pop().unwrap();
+        let file_path = importing.pop().unwrap_or_else(|| unreachable!());
         // if importation failed, return error, else add file to imported files
         result?;
         self.imported.insert(file_path);
