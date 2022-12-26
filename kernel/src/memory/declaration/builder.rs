@@ -31,6 +31,7 @@ pub enum DeclarationError<'arena> {
 /// Note that, unlike the other building traits, this one only takes an arena as an argument.
 /// This is because declarations cannot be declared locally (that is, within a context where some
 /// extra local variables are bound by lambda-abstraction).
+#[allow(clippy::module_name_repetitions)]
 pub trait BuilderTrait<'build> = for<'arena> FnOnce(&mut Arena<'arena>) -> ResultDecl<'arena>;
 
 pub trait InstantiatedBuilderTrait<'build> =
@@ -144,6 +145,7 @@ pub fn var<'build>(name: &'build str, levels: &'build [level::Builder<'build>]) 
 ///
 /// On the other hand, the [second variant](`InstantiatedBuilder::Var`) is typically used by the
 /// parser, as it corresponds to the only possible scenario in a file.
+#[allow(clippy::module_name_repetitions)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum InstantiatedBuilder<'build> {
     Instance(Box<Builder<'build>>, Vec<level::Builder<'build>>),

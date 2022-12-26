@@ -35,6 +35,7 @@ pub type Environment<'build> = HashMap<&'build str, usize>;
 ///
 /// A call with a couple of arguments `(arena, env)` of a closure with this trait should
 /// build a definite level in the [`Arena`] `arena`.
+#[allow(clippy::module_name_repetitions)]
 pub trait BuilderTrait<'build> = for<'arena> FnOnce(&mut Arena<'arena>, &Environment<'build>) -> ResultLevel<'arena>;
 
 impl<'arena> Arena<'arena> {

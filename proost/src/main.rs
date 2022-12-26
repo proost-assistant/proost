@@ -22,7 +22,6 @@
     clippy::match_wildcard_for_single_variants,
     clippy::missing_trait_methods,
     clippy::mod_module_files,
-    clippy::module_name_repetitions,
     clippy::panic_in_result_fn,
     clippy::pattern_type_mismatch,
     clippy::separated_literal_suffix,
@@ -37,7 +36,7 @@
     clippy::print_stdout,
     clippy::string_slice
 )]
-#![warn(clippy::missing_errors_doc, clippy::missing_docs_in_private_items, clippy::self_named_module_files)]
+#![warn(clippy::missing_errors_doc, clippy::missing_docs_in_private_items)]
 #![cfg_attr(
     test,
     allow(
@@ -147,7 +146,7 @@ pub fn display<'arena>(res: Result<'arena, Option<Term<'arena>>>) {
         Err(err) => {
             let string = match err {
                 Error::Parser(parser::error::Error {
-                    kind: parser::error::ErrorKind::CannotParse(message),
+                    kind: parser::error::Kind::CannotParse(message),
                     location: loc,
                 }) => {
                     if loc.start.column == loc.end.column {

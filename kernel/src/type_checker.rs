@@ -15,6 +15,7 @@ use crate::memory::term::Term;
 pub struct TypedTerm<'arena>(Term<'arena>, Term<'arena>);
 
 /// Errors that can occur, at runtime, during type checking.
+#[allow(clippy::module_name_repetitions)]
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum TypeCheckerError<'arena> {

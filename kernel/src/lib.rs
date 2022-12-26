@@ -30,7 +30,6 @@
     clippy::match_wildcard_for_single_variants,
     clippy::missing_trait_methods,
     clippy::mod_module_files,
-    clippy::module_name_repetitions,
     clippy::panic_in_result_fn,
     clippy::pattern_type_mismatch,
     clippy::separated_literal_suffix,

@@ -9,7 +9,7 @@ use crate::type_checker::TypeCheckerError;
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub struct Error<'arena> {
     /// The kind of form error that occurred.
-    pub kind: ErrorKind<'arena>,
+    pub kind: Kind<'arena>,
     // This struct might contains more fields in the future (waiting for #15)
 }
 
@@ -17,7 +17,7 @@ pub struct Error<'arena> {
 /// the errors are respectively defined.
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq, From)]
-pub enum ErrorKind<'arena> {
+pub enum Kind<'arena> {
     TypeChecker(TypeCheckerError<'arena>),
     Term(term::builder::TermError<'arena>),
     Level(level::builder::LevelError<'arena>),

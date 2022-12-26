@@ -63,6 +63,7 @@ pub struct Arena<'arena> {
 /// To generate the `alloc` object in this function is necessary, as this is the main way to
 /// "create" a lifetime variable which makes sense. That way, `'arena` is valid exactly during
 /// the execution of the function `f`.
+#[allow(clippy::module_name_repetitions)]
 #[inline]
 pub fn use_arena<F, T>(f: F) -> T
 where
