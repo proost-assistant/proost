@@ -2,6 +2,8 @@
 //!
 //! This complements low-level functions defined in the [`kernel::type_checker`] module.
 
+pub mod parse;
+
 use core::fmt;
 
 use kernel::memory::declaration::builder as declaration;

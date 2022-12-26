@@ -6,8 +6,7 @@ use derive_more::Display;
 use kernel::location::Location;
 use kernel::memory::arena::Arena;
 use kernel::memory::term::Term;
-use parser::command::Command;
-use parser::{parse_file, parse_line};
+use parser::command::{parse, Command};
 use path_absolutize::Absolutize;
 
 use crate::error::Error::Toplevel;
@@ -113,7 +112,7 @@ impl<'arena> Evaluator {
     }
 
     pub fn process_line(&mut self, arena: &mut Arena<'arena>, line: &str) -> Result<'arena, Option<Term<'arena>>> {
-        let command = parse_line(line)?;
+        let command = parse::line(line)?;
         self.process(arena, &command, &mut Vec::new())
     }
 
@@ -123,8 +122,7 @@ impl<'arena> Evaluator {
         file: &str,
         importing: &mut Vec<PathBuf>,
     ) -> Result<'arena, Option<Term<'arena>>> {
-        let commands = parse_file(file)?;
-        commands
+        parse::file(file)?
             .iter()
             .try_for_each(|command| {
                 if self.verbose {

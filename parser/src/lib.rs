@@ -60,6 +60,3 @@ extern crate pest_derive;
 
 pub mod command;
 pub mod error;
-mod parser;
-
-pub use self::parser::*;
