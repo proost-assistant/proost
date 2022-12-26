@@ -18,7 +18,6 @@
 #![allow(
     clippy::arithmetic_side_effects,
     clippy::blanket_clippy_restriction_lints,
-    clippy::default_numeric_fallback,
     clippy::else_if_without_else,
     clippy::exhaustive_enums,
     clippy::exhaustive_structs,
@@ -31,6 +30,7 @@
     clippy::module_name_repetitions,
     clippy::panic_in_result_fn,
     clippy::pattern_type_mismatch,
+    clippy::separated_literal_suffix,
     clippy::shadow_reuse,
     clippy::shadow_unrelated,
     clippy::unreachable,

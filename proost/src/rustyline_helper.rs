@@ -150,15 +150,15 @@ pub fn replace_inplace(input: &mut String, from: &str, to: &str) {
 
 fn find_matching_bracket(line: &str, pos: usize, bracket: u8) -> Option<(char, usize)> {
     let matching_bracket = matching_bracket(bracket);
-    let mut to_match = 1;
+    let mut to_match: i32 = 1;
 
     let match_bracket = |b: u8| {
         if b == matching_bracket.try_into().unwrap_or_else(|_| unreachable!()) {
-            to_match -= 1;
+            to_match -= 1_i32;
         } else if b == bracket {
-            to_match += 1;
+            to_match += 1_i32;
         };
-        to_match == 0
+        to_match == 0_i32
     };
 
     if is_open_bracket(bracket) {
