@@ -189,9 +189,6 @@ pub struct Builder<'build> {
 /// it offers different ways to build some terms, for convenience.
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
 pub enum Payload<'build> {
-    #[display(fmt = "{_0}")]
-    Var(&'build str),
-
     #[display(fmt = "Prop")]
     Prop,
 
@@ -257,7 +254,6 @@ impl<'build> Builder<'build> {
         depth: DeBruijnIndex,
     ) -> ResultTerm<'arena> {
         match **self {
-            Payload::Var(s) => var(s)(arena, env, lvl_env, depth),
             Payload::Prop => prop()(arena, env, lvl_env, depth),
             Payload::Type(ref level) => type_(level.partial_application())(arena, env, lvl_env, depth),
             Payload::Sort(ref level) => sort(level.partial_application())(arena, env, lvl_env, depth),
