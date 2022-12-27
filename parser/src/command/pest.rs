@@ -73,7 +73,8 @@ fn parse_term(pair: Pair<Rule>) -> term::Builder {
     match pair.as_rule() {
         Rule::Prop => Prop,
 
-        Rule::Var => Decl(box declaration::InstantiatedBuilder::Var(pair.into_inner().as_str(), Vec::new())),
+        Rule::Var => Var(pair.into_inner().as_str()),
+
         Rule::VarDecl => {
             let mut iter = pair.into_inner();
             let name = iter.next().unwrap().as_str();
@@ -401,10 +402,7 @@ mod tests {
 
     #[test]
     fn successful_var() {
-        assert_eq!(
-            parse_line("check fun A: Prop => A"),
-            Ok(GetType(Abs("A", Box::new(Prop), Box::new(Decl(Box::new(Var("A", Vec::new())))))))
-        );
+        assert_eq!(parse_line("check fun A: Prop => A"), Ok(GetType(Abs("A", Box::new(Prop), Box::new(Var("A"))))));
     }
 
     #[test]
@@ -432,14 +430,8 @@ mod tests {
 
     #[test]
     fn successful_app() {
-        let res_left = Ok(GetType(App(
-            Box::new(App(Box::new(Decl(Box::new(Var("A", Vec::new())))), Box::new(Decl(Box::new(Var("B", Vec::new())))))),
-            Box::new(Decl(Box::new(Var("C", Vec::new())))),
-        )));
-        let res_right = Ok(GetType(App(
-            Box::new(Decl(Box::new(Var("A", Vec::new())))),
-            Box::new(App(Box::new(Decl(Box::new(Var("B", Vec::new())))), Box::new(Decl(Box::new(Var("C", Vec::new())))))),
-        )));
+        let res_left = Ok(GetType(App(Box::new(App(Box::new(Var("A")), Box::new(Var("B")))), Box::new(Var("C")))));
+        let res_right = Ok(GetType(App(Box::new(Var("A")), Box::new(App(Box::new(Var("B")), Box::new(Var("C")))))));
         assert_eq!(parse_line("check A B C"), res_left);
         assert_eq!(parse_line("check (A B) C"), res_left);
         assert_eq!(parse_line("check A (B C)"), res_right);
@@ -447,16 +439,8 @@ mod tests {
 
     #[test]
     fn successful_prod() {
-        let res_left = Ok(GetType(Prod(
-            "_",
-            Box::new(Prod("_", Box::new(Decl(Box::new(Var("A", Vec::new())))), Box::new(Decl(Box::new(Var("B", Vec::new())))))),
-            Box::new(Decl(Box::new(Var("C", Vec::new())))),
-        )));
-        let res_right = Ok(GetType(Prod(
-            "_",
-            Box::new(Decl(Box::new(Var("A", Vec::new())))),
-            Box::new(Prod("_", Box::new(Decl(Box::new(Var("B", Vec::new())))), Box::new(Decl(Box::new(Var("C", Vec::new())))))),
-        )));
+        let res_left = Ok(GetType(Prod("_", Box::new(Prod("_", Box::new(Var("A")), Box::new(Var("B")))), Box::new(Var("C")))));
+        let res_right = Ok(GetType(Prod("_", Box::new(Var("A")), Box::new(Prod("_", Box::new(Var("B")), Box::new(Var("C")))))));
         assert_eq!(parse_line("check A -> B -> C"), res_right);
         assert_eq!(parse_line("check A -> (B -> C)"), res_right);
         assert_eq!(parse_line("check (A -> B) -> C"), res_left);
@@ -467,7 +451,7 @@ mod tests {
         let res = Ok(GetType(Prod(
             "x",
             Box::new(Type(box level::Builder::Const(0))),
-            Box::new(Prod("y", Box::new(Type(box level::Builder::Const(1))), Box::new(Decl(Box::new(Var("x", Vec::new())))))),
+            Box::new(Prod("y", Box::new(Type(box level::Builder::Const(1))), Box::new(Var("x")))),
         )));
         assert_eq!(parse_line("check (x:Type) -> (y:Type 1) -> x"), res);
         assert_eq!(parse_line("check (x:Type) -> ((y:Type 1) -> x)"), res);
@@ -481,11 +465,7 @@ mod tests {
             Box::new(Abs(
                 "x",
                 Box::new(Prop),
-                Box::new(Abs(
-                    "y",
-                    Box::new(Prop),
-                    Box::new(Abs("z", Box::new(Prop), Box::new(Decl(Box::new(Var("x", Vec::new())))))),
-                )),
+                Box::new(Abs("y", Box::new(Prop), Box::new(Abs("z", Box::new(Prop), Box::new(Var("x")))))),
             )),
         );
         assert_eq!(parse_line("check fun w x: Prop, y z: Prop => x"), Ok(GetType(res)));
@@ -514,20 +494,12 @@ mod tests {
         let res = Ok(GetType(Abs(
             "x",
             Box::new(Prop),
-            Box::new(Abs(
-                "x",
-                Box::new(Decl(Box::new(Var("x", Vec::new())))),
-                Box::new(Abs("x", Box::new(Decl(Box::new(Var("x", Vec::new())))), Box::new(Decl(Box::new(Var("x", Vec::new())))))),
-            )),
+            Box::new(Abs("x", Box::new(Var("x")), Box::new(Abs("x", Box::new(Var("x")), Box::new(Var("x")))))),
         )));
         let res2 = Ok(GetType(Abs(
             "x",
             Box::new(Prop),
-            Box::new(Abs(
-                "y",
-                Box::new(Decl(Box::new(Var("x", Vec::new())))),
-                Box::new(Abs("z", Box::new(Decl(Box::new(Var("x", Vec::new())))), Box::new(Decl(Box::new(Var("z", Vec::new())))))),
-            )),
+            Box::new(Abs("y", Box::new(Var("x")), Box::new(Abs("z", Box::new(Var("x")), Box::new(Var("z")))))),
         )));
         assert_eq!(parse_line("check fun x : Prop, x : x, x : x => x"), res);
         assert_eq!(parse_line("check fun x : Prop, x x : x => x"), res);
@@ -539,20 +511,12 @@ mod tests {
         let res = Ok(GetType(Prod(
             "x",
             Box::new(Prop),
-            Box::new(Prod(
-                "x",
-                Box::new(Decl(Box::new(Var("x", Vec::new())))),
-                Box::new(Prod("x", Box::new(Decl(Box::new(Var("x", Vec::new())))), Box::new(Decl(Box::new(Var("x", Vec::new())))))),
-            )),
+            Box::new(Prod("x", Box::new(Var("x")), Box::new(Prod("x", Box::new(Var("x")), Box::new(Var("x")))))),
         )));
         let res2 = Ok(GetType(Prod(
             "x",
             Box::new(Prop),
-            Box::new(Prod(
-                "y",
-                Box::new(Decl(Box::new(Var("x", Vec::new())))),
-                Box::new(Prod("z", Box::new(Decl(Box::new(Var("x", Vec::new())))), Box::new(Decl(Box::new(Var("z", Vec::new())))))),
-            )),
+            Box::new(Prod("y", Box::new(Var("x")), Box::new(Prod("z", Box::new(Var("x")), Box::new(Var("z")))))),
         )));
         assert_eq!(parse_line("check (x : Prop, x : x, x : x) -> x"), res);
         assert_eq!(parse_line("check (x : Prop, x x : x) -> x"), res);
@@ -567,11 +531,7 @@ mod tests {
             Box::new(Abs(
                 "x",
                 Box::new(Prop),
-                Box::new(Abs(
-                    "y",
-                    Box::new(Prop),
-                    Box::new(Abs("z", Box::new(Prop), Box::new(Decl(Box::new(Var("x", Vec::new())))))),
-                )),
+                Box::new(Abs("y", Box::new(Prop), Box::new(Abs("z", Box::new(Prop), Box::new(Var("x")))))),
             )),
         );
         assert_eq!(parse_line("check fun (((w x : Prop))), y z : Prop => x"), Ok(GetType(res)));
@@ -592,17 +552,14 @@ mod tests {
         let res = Prod(
             "x",
             Box::new(Type(box level::Builder::Const(0))),
-            Box::new(Prod("y", Box::new(Type(box level::Builder::Const(1))), Box::new(Decl(Box::new(Var("x", Vec::new())))))),
+            Box::new(Prod("y", Box::new(Type(box level::Builder::Const(1))), Box::new(Var("x")))),
         );
         assert_eq!(parse_line("check (((x:Type))) -> ((((y:Type 1) -> x)))"), Ok(GetType(res)));
     }
 
     #[test]
     fn parenthesis_in_app() {
-        let res = App(
-            Box::new(Decl(Box::new(Var("A", Vec::new())))),
-            Box::new(App(Box::new(Decl(Box::new(Var("B", Vec::new())))), Box::new(Decl(Box::new(Var("C", Vec::new())))))),
-        );
+        let res = App(Box::new(Var("A")), Box::new(App(Box::new(Var("B")), Box::new(Var("C")))));
         assert_eq!(parse_line("check ((((((A))) (((B C))))))"), Ok(GetType(res)));
     }
 
