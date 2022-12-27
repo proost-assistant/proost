@@ -105,6 +105,8 @@ impl<'arena> Term<'arena> {
     /// the underlying Term.
     pub(crate) fn substitute_univs(self, univs: &[Level<'arena>], arena: &mut Arena<'arena>) -> Self {
         match *self {
+            Axiom(_) => self,
+
             Var(i, ty) => {
                 let ty = ty.substitute_univs(univs, arena);
                 Term::var(i, ty, arena)
@@ -139,16 +141,6 @@ impl<'arena> Term<'arena> {
                 let params = arena.store_level_slice(params);
                 let inst = InstantiatedDeclaration::instantiate(decl.decl, params, arena);
                 Term::decl(inst, arena)
-            },
-
-            Axiom(decl) => {
-                // TODO (#14) this can be slightly optimised in space. Certainly the substitution mapping can be
-                // performed in place while allocating the slice in the arena with store_level_slice. This
-                // function thus has to be made with templates.
-                let params = &*decl.params.iter().map(|level| level.substitute(univs, arena)).collect::<Vec<Level>>();
-                let params = arena.store_level_slice(params);
-                let inst = InstantiatedDeclaration::instantiate(decl.decl, params, arena);
-                Term::axiom(inst, arena)
             },
         }
     }

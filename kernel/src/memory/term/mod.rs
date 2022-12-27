@@ -62,8 +62,8 @@ pub enum Payload<'arena> {
     /// An instance of a universe-polymorphic declaration
     Decl(InstantiatedDeclaration<'arena>),
 
-    /// A universe polymorphic axiom, is not yet available through user input, but can be (and should be used) to implement new inductive types
-    Axiom(&'arena str, InstantiatedDeclaration<'arena>)
+    /// An axiom, is not yet available through user input, but can be (and should be used) to implement new inductive types
+    Axiom(crate::axiom::Axiom),
 }
 
 impl<'arena> fmt::Display for Payload<'arena> {
@@ -83,7 +83,7 @@ impl<'arena> fmt::Display for Payload<'arena> {
             Abs(argtype, body) => write!(f, "\u{003BB} {argtype} \u{02192} {body}"),
             Prod(argtype, body) => write!(f, "\u{003A0} {argtype} \u{02192} {body}"),
             Decl(decl) => write!(f, "{decl}"),
-            Axiom(s,_) => write!(f, "{s}"),
+            Axiom(s) => write!(f, "{s}"),
         }
     }
 }
@@ -125,6 +125,11 @@ impl<'arena> Term<'arena> {
     /// Returns a variable term with the given index and type
     pub(crate) fn var(index: DeBruijnIndex, type_: Term<'arena>, arena: &mut Arena<'arena>) -> Self {
         Self::hashcons(Var(index, type_), arena)
+    }
+
+    /// Returns an axiom term with the given axiom
+    pub(crate) fn axiom(axiom: crate::axiom::Axiom, arena: &mut Arena<'arena>) -> Self {
+        Self::hashcons(Axiom(axiom), arena)
     }
 
     /// Returns the term corresponding to a proposition
@@ -171,11 +176,6 @@ impl<'arena> Term<'arena> {
     /// Returns the term associated to the given instantiated declaration.
     pub(crate) fn decl(decl: InstantiatedDeclaration<'arena>, arena: &mut Arena<'arena>) -> Self {
         Self::hashcons(Decl(decl), arena)
-    }
-
-    /// Returns the axiom associated to the given instantiated declaration.
-    pub(crate) fn axiom(decl: InstantiatedDeclaration<'arena>, arena: &mut Arena<'arena>) -> Self {
-        Self::hashcons(Axiom(decl), arena)
     }
 
     /// Returns the weak head normal form of the term, lazily computing the closure `f`.

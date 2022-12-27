@@ -57,6 +57,7 @@
     )
 )]
 
+pub mod axiom;
 pub mod calculus;
 pub mod error;
 pub mod memory;
