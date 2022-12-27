@@ -10,13 +10,20 @@ use crate::memory::term::Payload::{Abs, App, Decl, Prod, Sort, Var};
 use crate::memory::term::Term;
 
 impl<'arena> Term<'arena> {
+    fn unfold(self, arena: &mut Arena<'arena>) -> Self {
+        match *self {
+            Decl(decl) => decl.get_term(arena),
+            _ => self,
+        }
+    }
+
     /// Apply one step of β-reduction, using the leftmost-outermost evaluation strategy.
     #[inline]
     #[must_use]
     pub fn beta_reduction(self, arena: &mut Arena<'arena>) -> Self {
         match *self {
             App(t1, t2) => {
-                if let Abs(_, t1) = *t1 {
+                if let Abs(_, t1) = *t1.unfold(arena) {
                     t1.substitute(t2, 1, arena)
                 } else {
                     let t1_new = t1.beta_reduction(arena);
@@ -157,7 +164,7 @@ impl<'arena> Term<'arena> {
     #[must_use]
     pub fn whnf(self, arena: &mut Arena<'arena>) -> Self {
         self.get_whnf_or_init(|| match *self {
-            App(t1, t2) => match *t1.whnf(arena) {
+            App(t1, t2) => match *t1.unfold(arena).whnf(arena) {
                 Abs(_, t1) => {
                     let subst = t1.substitute(t2, 1, arena);
                     subst.whnf(arena)
@@ -331,6 +338,28 @@ mod tests {
             let reduced = arena.build_term_raw(prop());
 
             assert_eq!(decl.beta_reduction(arena), reduced);
+        });
+    }
+
+    #[test]
+    fn decl_app_whnf() {
+        use crate::memory::term::builder::Builder::*;
+        use_arena(|arena| {
+            let false_ = arena.build_term_raw(prod(prop(), var(0.into(), prop())));
+
+            let decl_ = crate::memory::declaration::InstantiatedDeclaration::instantiate(
+                crate::memory::declaration::builder::Builder::Decl(Abs("x", Prop.into(), Prop.into()).into(), Vec::new())
+                    .realise(arena)
+                    .unwrap(),
+                &Vec::new(),
+                arena,
+            );
+            let decl = crate::memory::term::Term::decl(decl_, arena);
+            let app = crate::memory::term::Term::app(decl, false_, arena);
+            let reduced = arena.build_term_raw(prop());
+
+            assert_eq!(app.beta_reduction(arena), reduced);
+            assert_eq!(app.whnf(arena), reduced);
         });
     }
 
