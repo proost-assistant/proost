@@ -360,7 +360,7 @@ mod tests {
 
             assert_eq!(app.beta_reduction(arena), reduced);
             assert_eq!(app.whnf(arena), reduced);
-        })
+        });
     }
 
     #[test]
