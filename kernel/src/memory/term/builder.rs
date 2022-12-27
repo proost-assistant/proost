@@ -268,7 +268,13 @@ impl<'build> Builder<'build> {
             Payload::Prod(s, ref arg, ref body) => {
                 prod(s, arg.partial_application(), body.partial_application())(arena, env, lvl_env, depth)
             },
-            Payload::Decl(ref decl_builder) => decl(decl_builder.partial_application())(arena, env, lvl_env, depth),
+            Payload::Decl(ref decl_builder) => {
+                if let declaration::InstantiatedBuilder::Var(str, vec) = &**decl_builder && vec.len() == 0 &&
+                   let Ok(res) = var(str)(arena, env, lvl_env, depth) {
+                    return Ok(res);
+                }
+                decl(decl_builder.partial_application())(arena, env, lvl_env, depth)
+            },
         }
     }
 }
