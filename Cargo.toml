@@ -6,17 +6,8 @@ members = [
 ]
 
 [workspace.dependencies]
-atty = "0.2"
-bumpalo = "3.11.1"
 clap = { version = "4.0.10", features = ["derive"] }
-colored = "2"
 derive_more = "0.99.17"
-im-rc = "15.1.0"
-path-absolutize = "3.0.14"
-pest = "2.5"
-pest_derive = "2.5"
-rustyline = "10.0.0"
-rustyline-derive = "0.7.0"
 
 [workspace.package]
 authors = [
@@ -25,7 +16,7 @@ authors = [
     "Vincent Lafeychine",
     "Lucas Tabary-Maujean"
 ]
-description = "A simple proof assistant written in Rust"
 edition = "2021"
-license = "GPL-3.0-or-later"
 version = "0.1.0"
+license = "GPL-3.0-or-later"
+repository = "https://gitlab.crans.org/loutr/proost"

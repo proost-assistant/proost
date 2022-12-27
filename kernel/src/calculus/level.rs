@@ -1,9 +1,8 @@
 //! A set of useful functions to operate on [`Level`]s.
 
-use Payload::*;
-
 use crate::memory::arena::Arena;
-use crate::memory::level::{Level, Payload};
+use crate::memory::level::Level;
+use crate::memory::level::Payload::{IMax, Max, Succ, Var, Zero};
 
 /// State during computation for level comparison.
 enum State {
@@ -19,8 +18,8 @@ enum State {
 
 impl State {
     /// Checks if the comparison succeeded.
-    fn is_true(&self) -> bool {
-        matches!(self, State::True)
+    const fn is_true(&self) -> bool {
+        matches!(*self, Self::True)
     }
 }
 
@@ -58,23 +57,23 @@ impl<'arena> Level<'arena> {
     /// - `False` else.
     fn geq_no_subst(self, rhs: Self, n: i64) -> State {
         match (&*self, &*rhs) {
-            (Zero, _) if n >= 0 => State::True,
+            (&Zero, _) if n >= 0 => State::True,
 
             (_, _) if self == rhs && n >= 0 => State::True,
 
-            (Succ(l), _) if l.geq_no_subst(rhs, n - 1).is_true() => State::True,
-            (_, Succ(l)) if self.geq_no_subst(*l, n + 1).is_true() => State::True,
+            (&Succ(l), _) if l.geq_no_subst(rhs, n - 1).is_true() => State::True,
+            (_, &Succ(l)) if self.geq_no_subst(l, n + 1).is_true() => State::True,
 
-            (_, Max(l1, l2))
-                if self.geq_no_subst(*l1, n).is_true() || self.geq_no_subst(*l2, n).is_true() =>
+            (_, &Max(l1, l2))
+                if self.geq_no_subst(l1, n).is_true() || self.geq_no_subst(l2, n).is_true() =>
             {
                 State::True
             }
-            (Max(l1, l2), _) if l1.geq_no_subst(rhs, n).is_true() && l2.geq_no_subst(rhs, n).is_true() => {
+            (&Max(l1, l2), _) if l1.geq_no_subst(rhs, n).is_true() && l2.geq_no_subst(rhs, n).is_true() => {
                 State::True
             }
 
-            (_, IMax(_, v)) | (IMax(_, v), _) if let Var(i) = **v => State::Stuck(i),
+            (_, &IMax(_, v)) | (&IMax(_, v), _) if let Var(i) = *v => State::Stuck(i),
 
             _ => State::False,
         }
@@ -84,6 +83,7 @@ impl<'arena> Level<'arena> {
     ///
     /// In a case where comparison is stuck because of a variable `Var(i)`, it checks whether the test is correct when `Var(i)`
     /// is substituted for `0` and `S(Var(i))`.
+    #[inline]
     pub fn geq(self, rhs: Self, n: i64, arena: &mut Arena<'arena>) -> bool {
         match self.geq_no_subst(rhs, n) {
             State::True => true,
@@ -91,7 +91,8 @@ impl<'arena> Level<'arena> {
             State::Stuck(i) => {
                 let zero = Level::zero(arena);
                 let vv = Level::var(i, arena).succ(arena);
-                self.substitute_single(i, zero, arena).geq(rhs.substitute_single(i, zero, arena), n, arena)
+                self.substitute_single(i, zero, arena)
+                    .geq(rhs.substitute_single(i, zero, arena), n, arena)
                     && self.substitute_single(i, vv, arena).geq(rhs.substitute_single(i, vv, arena), n, arena)
             },
         }
@@ -100,6 +101,7 @@ impl<'arena> Level<'arena> {
     /// Checks whether `self = rhs`.
     ///
     /// This is a "conversion" equality test, not the equality function used by [`PartialEq`].
+    #[inline]
     pub fn is_eq(self, rhs: Self, arena: &mut Arena<'arena>) -> bool {
         self.geq(rhs, 0, arena) && rhs.geq(self, 0, arena)
     }
@@ -146,7 +148,7 @@ mod tests {
             assert!(
                 (arena.build_level_raw(max(zero(), imax(zero(), max(succ(zero()), zero())))))
                     .is_eq(arena.build_level_raw(imax(succ(zero()), imax(succ(zero()), succ(zero())))), arena)
-            )
+            );
         });
     }
 
@@ -162,8 +164,8 @@ mod tests {
             assert_eq!(
                 lvl.substitute(&subst, arena),
                 arena.build_level_raw(imax(zero(), max(succ(zero()), max(succ(zero()), zero()))))
-            )
-        })
+            );
+        });
     }
     #[test]
     fn single_subst() {
@@ -172,7 +174,7 @@ mod tests {
             assert_eq!(
                 lvl.substitute_single(0, Level::zero(arena), arena),
                 arena.build_level_raw(imax(max(succ(zero()), zero()), zero()))
-            )
-        })
+            );
+        });
     }
 }

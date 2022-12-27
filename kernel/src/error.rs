@@ -2,14 +2,14 @@
 
 use derive_more::{Display, From};
 
-use crate::memory::*;
+use crate::memory::{declaration, level, term};
 use crate::type_checker::TypeCheckerError;
 
 /// Type representing kernel errors.
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub struct Error<'arena> {
     /// The kind of form error that occurred.
-    pub kind: ErrorKind<'arena>,
+    pub kind: Kind<'arena>,
     // This struct might contains more fields in the future (waiting for #15)
 }
 
@@ -17,7 +17,7 @@ pub struct Error<'arena> {
 /// the errors are respectively defined.
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq, From)]
-pub enum ErrorKind<'arena> {
+pub enum Kind<'arena> {
     TypeChecker(TypeCheckerError<'arena>),
     Term(term::builder::TermError<'arena>),
     Level(level::builder::LevelError<'arena>),
@@ -26,7 +26,7 @@ pub enum ErrorKind<'arena> {
 
 impl<'arena> std::error::Error for Error<'arena> {}
 
-pub type Result<'arena, T> = std::result::Result<T, Error<'arena>>;
+pub type Result<'arena, T> = core::result::Result<T, Error<'arena>>;
 pub type ResultTerm<'arena> = Result<'arena, term::Term<'arena>>;
 pub type ResultLevel<'arena> = Result<'arena, level::Level<'arena>>;
 pub type ResultDecl<'arena> = Result<'arena, declaration::Declaration<'arena>>;

@@ -1,6 +1,6 @@
-use std::borrow::Cow::{self, Borrowed, Owned};
+use alloc::borrow::Cow::{self, Borrowed, Owned};
 
-use colored::*;
+use colored::Colorize;
 use rustyline::completion::{Completer, FilenameCompleter, Pair};
 use rustyline::highlight::Highlighter;
 use rustyline::hint::HistoryHinter;
@@ -11,7 +11,7 @@ use rustyline_derive::{Helper, Hinter};
 /// Language keywords that should be highlighted
 const KEYWORDS: [&str; 5] = ["check", "def", "eval", "import", "search"];
 
-/// An Helper for a RustyLine Editor that implements:
+/// An Helper for a `RustyLine` Editor that implements:
 /// - a standard hinter;
 /// - custom validator, completer and highlighter.
 #[derive(Helper, Hinter)]
@@ -39,11 +39,11 @@ impl ConditionalEventHandler for TabEventHandler {
         if ctx.line().starts_with("import") {
             return None;
         }
-        Some(Cmd::Insert(n, "  ".to_string()))
+        Some(Cmd::Insert(n, "  ".to_owned()))
     }
 }
 
-/// A variation of [FilenameCompleter](https://docs.rs/rustyline/latest/rustyline/completion/struct.FilenameCompleter.html):
+/// A variation of [`FilenameCompleter`](https://docs.rs/rustyline/latest/rustyline/completion/struct.FilenameCompleter.html):
 /// file completion is available only after having typed import
 impl Completer for RustyLineHelper {
     type Candidate = Pair;
@@ -53,7 +53,7 @@ impl Completer for RustyLineHelper {
     }
 }
 
-/// A variation of [MatchingBracketValidator](https://docs.rs/rustyline/latest/rustyline/validate/struct.MatchingBracketValidator.html).
+/// A variation of [`MatchingBracketValidator`](https://docs.rs/rustyline/latest/rustyline/validate/struct.MatchingBracketValidator.html).
 ///
 /// No validation occurs when entering the import command
 impl Validator for RustyLineHelper {
@@ -62,7 +62,9 @@ impl Validator for RustyLineHelper {
             return Ok(ValidationResult::Valid(None));
         }
 
-        Ok(validate_arrows(ctx.input()).or_else(|| validate_brackets(ctx.input())).unwrap_or(ValidationResult::Valid(None)))
+        Ok(validate_arrows(ctx.input())
+            .or_else(|| validate_brackets(ctx.input()))
+            .unwrap_or(ValidationResult::Valid(None)))
     }
 }
 
@@ -87,9 +89,9 @@ fn validate_brackets(input: &str) -> Option<ValidationResult> {
             ')' => match stack.pop() {
                 Some('(') => {},
                 Some(_) => {
-                    return Some(ValidationResult::Invalid(Some("\nMismatched brackets: ) is not properly closed".to_string())));
+                    return Some(ValidationResult::Invalid(Some("\nMismatched brackets: ) is not properly closed".to_owned())));
                 },
-                None => return Some(ValidationResult::Invalid(Some("\nMismatched brackets: ( is unpaired".to_string()))),
+                None => return Some(ValidationResult::Invalid(Some("\nMismatched brackets: ( is unpaired".to_owned()))),
             },
             _ => {},
         }
@@ -98,11 +100,11 @@ fn validate_brackets(input: &str) -> Option<ValidationResult> {
     if stack.is_empty() { None } else { Some(ValidationResult::Incomplete) }
 }
 
-/// A variation of [MatchingBracketHighlighter](https://docs.rs/rustyline/latest/rustyline/highlight/struct.MatchingBracketHighlighter.html).
+/// A variation of [`MatchingBracketHighlighter`](https://docs.rs/rustyline/latest/rustyline/highlight/struct.MatchingBracketHighlighter.html).
 ///
 /// No check occurs before cursor
 impl Highlighter for RustyLineHelper {
-    fn highlight_hint<'h>(&self, hint: &'h str) -> Cow<'h, str> {
+    fn highlight_hint<'input>(&self, hint: &'input str) -> Cow<'input, str> {
         if !self.color {
             return Owned(hint.to_owned());
         }
@@ -113,7 +115,7 @@ impl Highlighter for RustyLineHelper {
         self.color
     }
 
-    fn highlight<'l>(&self, line: &'l str, pos: usize) -> Cow<'l, str> {
+    fn highlight<'input>(&self, line: &'input str, pos: usize) -> Cow<'input, str> {
         if line.len() <= 1 || !self.color {
             return Borrowed(line);
         }
@@ -121,10 +123,12 @@ impl Highlighter for RustyLineHelper {
 
         if let Some((bracket, pos)) = get_bracket(line, pos)
             && let Some((matching, pos)) = find_matching_bracket(line, pos, bracket) {
-                let s = String::from(matching as char);
+                let s = String::from(matching);
                 copy.replace_range(pos..=pos, &format!("{}", s.blue().bold()));
             }
-        KEYWORDS.iter().for_each(|keyword| replace_inplace(&mut copy, keyword, &format!("{}", keyword.blue().bold())));
+        KEYWORDS
+            .iter()
+            .for_each(|keyword| replace_inplace(&mut copy, keyword, &format!("{}", keyword.blue().bold())));
         Owned(copy)
     }
 }
@@ -139,30 +143,37 @@ pub fn replace_inplace(input: &mut String, from: &str, to: &str) {
             input.replace_range((offset + pos)..(offset + pos + from.len()), to);
             offset += pos + to.len();
         } else {
-            offset += pos + from.len()
+            offset += pos + from.len();
         }
     }
 }
 
-fn find_matching_bracket(line: &str, pos: usize, bracket: u8) -> Option<(u8, usize)> {
+fn find_matching_bracket(line: &str, pos: usize, bracket: u8) -> Option<(char, usize)> {
     let matching_bracket = matching_bracket(bracket);
-    let mut to_match = 1;
+    let mut to_match: i32 = 1;
 
     let match_bracket = |b: u8| {
-        if b == matching_bracket {
-            to_match -= 1;
+        if b == matching_bracket.try_into().unwrap_or_else(|_| unreachable!()) {
+            to_match -= 1_i32;
         } else if b == bracket {
-            to_match += 1;
+            to_match += 1_i32;
         };
-        to_match == 0
+        to_match == 0_i32
     };
 
     if is_open_bracket(bracket) {
         // forward search
-        line[pos + 1..].bytes().position(match_bracket).map(|pos2| (matching_bracket, pos2 + pos + 1))
+        line[pos + 1..]
+            .bytes()
+            .position(match_bracket)
+            .map(|pos2| (matching_bracket, pos2 + pos + 1))
     } else {
         // backward search
-        line[..pos].bytes().rev().position(match_bracket).map(|pos2| (matching_bracket, pos - pos2 - 1))
+        line[..pos]
+            .bytes()
+            .rev()
+            .position(match_bracket)
+            .map(|pos2| (matching_bracket, pos - pos2 - 1))
     }
 }
 
@@ -177,10 +188,10 @@ const fn get_bracket(line: &str, pos: usize) -> Option<(u8, usize)> {
     None
 }
 
-const fn matching_bracket(bracket: u8) -> u8 {
+const fn matching_bracket(bracket: u8) -> char {
     match bracket {
-        b'(' => b')',
-        b')' => b'(',
+        b'(' => ')',
+        b')' => '(',
         _ => unreachable!(),
     }
 }
@@ -199,24 +210,24 @@ mod tests {
 
     #[test]
     fn get_bracket_empty() {
-        assert!(get_bracket("", 0).is_none())
+        assert!(get_bracket("", 0).is_none());
     }
 
     #[test]
     fn get_bracket_out_of_bound() {
-        assert!(get_bracket("(())", 4).is_none())
+        assert!(get_bracket("(())", 4).is_none());
     }
 
     #[test]
     fn get_bracket_none() {
         assert!(get_bracket("a()[", 0).is_none());
-        assert!(get_bracket("a()[", 3).is_none())
+        assert!(get_bracket("a()[", 3).is_none());
     }
 
     #[test]
     fn get_bracket_some() {
         assert!(get_bracket("a()[", 1).is_some());
-        assert!(get_bracket("a()[", 2).is_some())
+        assert!(get_bracket("a()[", 2).is_some());
     }
 
     #[test]
@@ -224,25 +235,25 @@ mod tests {
         assert!(find_matching_bracket("  )", 1, b')').is_none());
         assert!(find_matching_bracket("  )", 1, b'(').is_some());
         assert!(find_matching_bracket("(  ", 1, b')').is_some());
-        assert!(find_matching_bracket("(  ", 1, b'(').is_none())
+        assert!(find_matching_bracket("(  ", 1, b'(').is_none());
     }
 
     #[test]
     fn find_matching_bracket_matching() {
-        assert_eq!(find_matching_bracket("  )", 1, b'('), Some((b')', 2)));
-        assert_eq!(find_matching_bracket("(  ", 1, b')'), Some((b'(', 0)))
+        assert_eq!(find_matching_bracket("  )", 1, b'('), Some((')', 2)));
+        assert_eq!(find_matching_bracket("(  ", 1, b')'), Some(('(', 0)));
     }
 
     #[test]
     fn find_matching_bracket_counter() {
-        assert_eq!(find_matching_bracket(" (())))", 0, b'('), Some((b')', 5)));
-        assert_eq!(find_matching_bracket("(((()) ", 6, b')'), Some((b'(', 1)));
+        assert_eq!(find_matching_bracket(" (())))", 0, b'('), Some((')', 5)));
+        assert_eq!(find_matching_bracket("(((()) ", 6, b')'), Some(('(', 1)));
     }
 
     #[test]
     fn replace_inplace() {
-        let mut message = "mot motus et mots mot mot".to_string();
+        let mut message = "mot motus et mots mot mot".to_owned();
         super::replace_inplace(&mut message, "mot", "mots");
-        assert_eq!(message, "mots motus et mots mots mots".to_string())
+        assert_eq!(message, "mots motus et mots mots mots".to_owned());
     }
 }

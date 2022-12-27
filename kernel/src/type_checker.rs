@@ -3,18 +3,19 @@
 //! The logical core of the kernel.
 
 use derive_more::Display;
-use Payload::*;
 
 use crate::error::{Error, Result, ResultTerm};
 use crate::memory::arena::Arena;
 use crate::memory::declaration::Declaration;
-use crate::memory::term::{Payload, Term};
+use crate::memory::term::Payload::{Abs, App, Decl, Prod, Sort, Var};
+use crate::memory::term::Term;
 
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
-#[display(fmt = "{}: {}", _0, _1)]
+#[display(fmt = "{_0}: {_1}")]
 pub struct TypedTerm<'arena>(Term<'arena>, Term<'arena>);
 
 /// Errors that can occur, at runtime, during type checking.
+#[allow(clippy::module_name_repetitions)]
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum TypeCheckerError<'arena> {
@@ -52,9 +53,9 @@ impl<'arena> Term<'arena> {
         }
 
         match (&*lhs, &*rhs) {
-            (Sort(l1), Sort(l2)) => l1.is_eq(*l2, arena),
+            (&Sort(l1), &Sort(l2)) => l1.is_eq(l2, arena),
 
-            (Var(i, _), Var(j, _)) => i == j,
+            (&Var(i, _), &Var(j, _)) => i == j,
 
             (&Prod(t1, u1), &Prod(t2, u2)) => t1.conversion(t2, arena) && u1.conversion(u2, arena),
 
@@ -79,6 +80,7 @@ impl<'arena> Term<'arena> {
     }
 
     /// Checks whether two terms are definitionally equal.
+    #[inline]
     pub fn is_def_eq(self, rhs: Self, arena: &mut Arena<'arena>) -> Result<'arena, ()> {
         self.conversion(rhs, arena).then_some(()).ok_or(Error {
             kind: TypeCheckerError::NotDefEq(self, rhs).into(),
@@ -104,6 +106,7 @@ impl<'arena> Term<'arena> {
     }
 
     /// Infers the type of the term `t`, living in arena `arena`.
+    #[inline]
     pub fn infer_raw(self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
         match *self {
             Sort(lvl) => Ok(Term::sort(lvl.succ(arena), arena)),
@@ -158,11 +161,13 @@ impl<'arena> Term<'arena> {
     }
 
     /// Infers the type of the term `t`, living in arena `arena`, checks for memoization.
+    #[inline]
     pub fn infer(self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
         self.get_type_or_try_init(|| self.infer_raw(arena))
     }
 
     /// Checks whether the term `t` living in `arena` is of type `ty`.
+    #[inline]
     pub fn check(self, ty: Self, arena: &mut Arena<'arena>) -> Result<'arena, ()> {
         let tty = self.infer(arena)?;
 
@@ -178,11 +183,13 @@ impl<'arena> Declaration<'arena> {
     /// Because it is not allowed to access the underlying term of a declaration, this function
     /// does not return anything, and only serves as a way to ensure the declaration is
     /// well-formed.
+    #[inline]
     pub fn infer(self, arena: &mut Arena<'arena>) -> Result<'arena, ()> {
         self.0.infer(arena)?;
         Ok(())
     }
 
+    #[inline]
     pub fn check(self, ty: Self, arena: &mut Arena<'arena>) -> Result<'arena, ()> {
         self.0.check(ty.0, arena)
     }
@@ -204,8 +211,8 @@ mod tests {
             let term = arena.build_term_raw(app(abs(prop(), id()), id()));
             let normal_form = arena.build_term_raw(abs(prop(), var(1.into(), prop())));
 
-            assert!(term.is_def_eq(normal_form, arena).is_ok())
-        })
+            assert!(term.is_def_eq(normal_form, arena).is_ok());
+        });
     }
 
     #[test]
@@ -224,7 +231,7 @@ mod tests {
 
             assert!(decl.is_def_eq(prop, arena).is_ok());
             assert!(prop.is_def_eq(decl, arena).is_ok());
-        })
+        });
     }
 
     #[test]
@@ -244,7 +251,7 @@ mod tests {
             let ty = arena.build_term_raw(type_usize(0));
 
             assert!(term.check(ty, arena).is_ok());
-        })
+        });
     }
 
     #[test]
@@ -253,8 +260,8 @@ mod tests {
             let term = arena.build_term_raw(app(abs(prop(), abs(prop(), var(2.into(), prop()))), id()));
             let normal_form = arena.build_term_raw(abs(prop(), id()));
 
-            assert!(term.is_def_eq(normal_form, arena).is_ok())
-        })
+            assert!(term.is_def_eq(normal_form, arena).is_ok());
+        });
     }
 
     #[test]
@@ -264,7 +271,7 @@ mod tests {
             let term = arena.build_term_raw(abs(prop(), app(app(var(2.into(), prop()), id()), id())));
 
             assert!(term.is_def_eq(term, arena).is_ok());
-        })
+        });
     }
 
     #[test]
@@ -279,7 +286,7 @@ mod tests {
                     kind: TypeCheckerError::NotDefEq(term_lhs, term_rhs).into()
                 })
             );
-        })
+        });
     }
 
     #[test]
@@ -294,7 +301,7 @@ mod tests {
                     kind: TypeCheckerError::NotDefEq(term_lhs, term_rhs).into()
                 })
             );
-        })
+        });
     }
 
     #[test]
@@ -309,7 +316,7 @@ mod tests {
                     kind: TypeCheckerError::NotDefEq(term_lhs, term_rhs).into()
                 })
             );
-        })
+        });
     }
 
     #[test]
@@ -323,8 +330,8 @@ mod tests {
 
             let term_type = term.infer(arena).unwrap();
             assert_eq!(term_type, type_0);
-            assert!(term.check(term_type, arena).is_ok())
-        })
+            assert!(term.check(term_type, arena).is_ok());
+        });
     }
 
     #[test]
@@ -404,8 +411,8 @@ mod tests {
             let term_type = term.infer(arena).unwrap();
             let expected_type = arena.build(prod("_", prop(), prod("_", prop(), prop()))).unwrap();
             assert_eq!(term_type, expected_type);
-            assert!(term.check(term_type, arena).is_ok())
-        })
+            assert!(term.check(term_type, arena).is_ok());
+        });
     }
 
     #[test]
@@ -420,8 +427,8 @@ mod tests {
 
             let term_type = term.infer(arena).unwrap();
             assert_eq!(term_type, type_1);
-            assert!(term.check(term_type, arena).is_ok())
-        })
+            assert!(term.check(term_type, arena).is_ok());
+        });
     }
 
     #[test]
@@ -432,8 +439,8 @@ mod tests {
             let term_type = term.infer(arena).unwrap();
             let expected_type = arena.build_term_raw(prod(prop(), type_usize(1)));
             assert_eq!(term_type, expected_type);
-            assert!(term.check(term_type, arena).is_ok())
-        })
+            assert!(term.check(term_type, arena).is_ok());
+        });
     }
 
     #[test]
@@ -452,8 +459,8 @@ mod tests {
             // λx.x x
             let reduced = arena.build_term_raw(abs(prop(), app(var(1.into(), prop()), var(1.into(), prop()))));
 
-            assert!(term.is_def_eq(reduced, arena).is_ok())
-        })
+            assert!(term.is_def_eq(reduced, arena).is_ok());
+        });
     }
 
     #[test]
@@ -464,8 +471,8 @@ mod tests {
             let term_type = term.infer(arena).unwrap();
 
             assert_eq!(term_type, type_0);
-            assert!(term.check(term_type, arena).is_ok())
-        })
+            assert!(term.check(term_type, arena).is_ok());
+        });
     }
 
     #[test]
@@ -476,7 +483,7 @@ mod tests {
 
             assert_eq!(term_type, Term::prop(arena));
             assert!(term.check(term_type, arena).is_ok());
-        })
+        });
     }
 
     #[test]
@@ -488,7 +495,7 @@ mod tests {
 
             assert_eq!(term_type, expected_type);
             assert!(term.check(term_type, arena).is_ok());
-        })
+        });
     }
 
     #[test]
@@ -503,7 +510,7 @@ mod tests {
 
             assert_eq!(identity_type, expected_type);
             assert!(identity.check(identity_type, arena).is_ok());
-        })
+        });
     }
 
     #[test]
@@ -526,7 +533,7 @@ mod tests {
                 arena.build_term_raw(prod(prop(), prod(prop(), prod(prod(prop(), prod(prop(), prop())), prop()))))
             );
             assert!(term.check(term_type, arena).is_ok());
-        })
+        });
     }
 
     #[test]
@@ -537,7 +544,7 @@ mod tests {
 
             assert_eq!(term_type, Term::type_usize(0, arena));
             assert!(term.check(term_type, arena).is_ok());
-        })
+        });
     }
 
     #[test]
@@ -548,7 +555,7 @@ mod tests {
 
             assert_eq!(term_type, Term::type_usize(1, arena));
             assert!(term.check(term_type, arena).is_ok());
-        })
+        });
     }
 
     mod failed_type_inference {
@@ -569,7 +576,7 @@ mod tests {
                         .into()
                     })
                 );
-            })
+            });
         }
 
         #[test]
@@ -587,7 +594,7 @@ mod tests {
                         .into()
                     })
                 );
-            })
+            });
         }
 
         #[test]
@@ -605,7 +612,7 @@ mod tests {
                         .into()
                     })
                 );
-            })
+            });
         }
 
         #[test]
@@ -623,7 +630,7 @@ mod tests {
                         .into()
                     })
                 );
-            })
+            });
         }
 
         #[test]
@@ -641,7 +648,7 @@ mod tests {
                         .into()
                     })
                 );
-            })
+            });
         }
 
         #[test]
@@ -659,7 +666,7 @@ mod tests {
                         .into()
                     })
                 );
-            })
+            });
         }
 
         #[test]
@@ -689,7 +696,7 @@ mod tests {
                         .into()
                     })
                 );
-            })
+            });
         }
 
         #[test]
@@ -706,7 +713,7 @@ mod tests {
                         kind: TypeCheckerError::NotUniverse(arena.build_term_raw(var(2.into(), prop()))).into()
                     })
                 );
-            })
+            });
         }
 
         #[test]
@@ -720,7 +727,7 @@ mod tests {
                         kind: TypeCheckerError::NotUniverse(arena.build_term_raw(prod(prop(), prop()))).into()
                     })
                 );
-            })
+            });
         }
 
         #[test]
@@ -736,7 +743,7 @@ mod tests {
                         kind: TypeCheckerError::NotUniverse(prop.prod(type_, arena)).into()
                     })
                 );
-            })
+            });
         }
 
         #[test]
@@ -755,7 +762,7 @@ mod tests {
                         .into(),
                     })
                 );
-            })
+            });
         }
 
         #[test]
@@ -768,7 +775,7 @@ mod tests {
                         kind: TypeCheckerError::TypeMismatch(Term::type_usize(0, arena), prop).into(),
                     })
                 );
-            })
+            });
         }
     }
 }

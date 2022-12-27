@@ -2,6 +2,8 @@
 //!
 //! This complements low-level functions defined in the [`kernel::type_checker`] module.
 
+pub mod parse;
+
 use core::fmt;
 
 use kernel::memory::declaration::builder as declaration;
@@ -33,25 +35,26 @@ pub enum Command<'build> {
 }
 
 impl<'build> fmt::Display for Command<'build> {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use Command::*;
+        use Command::{CheckType, Declaration, Define, Eval, GetType, Import, Search};
 
-        match self {
-            Define(name, None, t) => write!(f, "def {name} := {t}"),
+        match *self {
+            Define(name, None, ref t) => write!(f, "def {name} := {t}"),
 
-            Define(name, Some(ty), t) => write!(f, "def {name}: {ty} := {t}"),
+            Define(name, Some(ref ty), ref t) => write!(f, "def {name}: {ty} := {t}"),
 
-            Declaration(name, None, t) => write!(f, "def {name} := {t}"),
+            Declaration(name, None, ref t) => write!(f, "def {name} := {t}"),
 
-            Declaration(name, Some(ty), t) => write!(f, "def {name}: {ty} := {t}"),
+            Declaration(name, Some(ref ty), ref t) => write!(f, "def {name}: {ty} := {t}"),
 
-            CheckType(t, ty) => write!(f, "check {t}: {ty}"),
+            CheckType(ref t, ref ty) => write!(f, "check {t}: {ty}"),
 
-            GetType(t) => write!(f, "check {t}"),
+            GetType(ref t) => write!(f, "check {t}"),
 
-            Eval(t) => write!(f, "eval {t}"),
+            Eval(ref t) => write!(f, "eval {t}"),
 
-            Import(files) => {
+            Import(ref files) => {
                 write!(f, "imports")?;
                 files.iter().try_for_each(|file| write!(f, " {file}"))
             },

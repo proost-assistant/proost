@@ -3,20 +3,22 @@
 //! This module consists of internal utility functions used by the type checker, and correspond to
 //! usual functions over lambda-terms. These functions interact appropriately with a given arena.
 
-use Payload::*;
-
 use crate::memory::arena::Arena;
 use crate::memory::declaration::InstantiatedDeclaration;
 use crate::memory::level::Level;
-use crate::memory::term::{Payload, Term};
+use crate::memory::term::Payload::{Abs, App, Decl, Prod, Sort, Var};
+use crate::memory::term::Term;
 
 impl<'arena> Term<'arena> {
     /// Apply one step of β-reduction, using the leftmost-outermost evaluation strategy.
+    #[inline]
+    #[must_use]
     pub fn beta_reduction(self, arena: &mut Arena<'arena>) -> Self {
         match *self {
-            App(t1, t2) => match *t1 {
-                Abs(_, t1) => t1.substitute(t2, 1, arena),
-                _ => {
+            App(t1, t2) => {
+                if let Abs(_, t1) = *t1 {
+                    t1.substitute(t2, 1, arena)
+                } else {
                     let t1_new = t1.beta_reduction(arena);
                     if t1_new == t1 {
                         let t2_new = t2.beta_reduction(arena);
@@ -24,7 +26,7 @@ impl<'arena> Term<'arena> {
                     } else {
                         t1_new.app(t2, arena)
                     }
-                },
+                }
             },
             Abs(arg_type, body) => {
                 let body = body.beta_reduction(arena);
@@ -137,6 +139,8 @@ impl<'arena> Term<'arena> {
     /// Returns the normal form of a term.
     ///
     /// This function is computationally expensive and should only be used for reduce/eval commands, not when type-checking.
+    #[inline]
+    #[must_use]
     pub fn normal_form(self, arena: &mut Arena<'arena>) -> Self {
         let mut temp = self;
         let mut res = self.beta_reduction(arena);
@@ -149,6 +153,8 @@ impl<'arena> Term<'arena> {
     }
 
     /// Returns the weak-head normal form of a term.
+    #[inline]
+    #[must_use]
     pub fn whnf(self, arena: &mut Arena<'arena>) -> Self {
         self.get_whnf_or_init(|| match *self {
             App(t1, t2) => match *t1.whnf(arena) {
@@ -182,7 +188,7 @@ mod tests {
             let reduced = arena.build_term_raw(abs(prop(), app(var(1.into(), prop()), var(1.into(), prop()))));
 
             assert_eq!(term.beta_reduction(arena), reduced);
-        })
+        });
     }
 
     #[test]
@@ -308,7 +314,7 @@ mod tests {
             assert_eq!(term_step_5.beta_reduction(arena), term_step_6);
             assert_eq!(term_step_6.beta_reduction(arena), term_step_7);
             assert_eq!(term_step_7.beta_reduction(arena), term_step_7);
-        })
+        });
     }
 
     #[test]
@@ -325,7 +331,7 @@ mod tests {
             let reduced = arena.build_term_raw(prop());
 
             assert_eq!(decl.beta_reduction(arena), reduced);
-        })
+        });
     }
 
     #[test]
@@ -335,8 +341,8 @@ mod tests {
             let term = arena.build_term_raw(app(abs(prop(), reduced), prop()));
 
             let reduced = arena.build_term_raw(prod(prop(), var(1.into(), prop())));
-            assert_eq!(term.beta_reduction(arena), reduced)
-        })
+            assert_eq!(term.beta_reduction(arena), reduced);
+        });
     }
 
     #[test]
@@ -346,7 +352,7 @@ mod tests {
             let reduced = arena.build_term_raw(prod(prop(), var(1.into(), prop())));
 
             assert_eq!(term.beta_reduction(arena), reduced);
-        })
+        });
     }
 
     #[test]
@@ -359,7 +365,7 @@ mod tests {
             let reduced = arena.build_term_raw(abs(prop(), app(var(1.into(), prop()), var(1.into(), prop()))));
 
             assert_eq!(term.beta_reduction(arena), reduced);
-        })
+        });
     }
 
     #[test]
@@ -372,7 +378,7 @@ mod tests {
             let normal_form = arena.build_term_raw(prop());
 
             assert_eq!(term.normal_form(arena), normal_form);
-        })
+        });
     }
 
     #[test]
@@ -407,6 +413,6 @@ mod tests {
             ));
 
             assert_eq!(term.substitute_univs(&[arena.build_level_raw(zero()), arena.build_level_raw(zero())], arena), term);
-        })
+        });
     }
 }

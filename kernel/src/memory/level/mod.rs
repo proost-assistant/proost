@@ -1,8 +1,8 @@
 //! Universe levels.
 
+use core::fmt::{Display, Formatter};
+use core::hash::Hash;
 use std::cell::OnceCell;
-use std::fmt::{Display, Formatter};
-use std::hash::Hash;
 
 use super::arena::Arena;
 
@@ -40,7 +40,8 @@ pub enum Payload<'arena> {
 }
 
 impl Display for Level<'_> {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
         match self.to_numeral() {
             Some(n) => write!(f, "{n}"),
             None => match **self {
@@ -57,7 +58,7 @@ impl Display for Level<'_> {
     }
 }
 
-use Payload::*;
+use Payload::{IMax, Max, Succ, Var, Zero};
 
 impl<'arena> Level<'arena> {
     /// This function is the base low-level function for creating levels.
@@ -72,23 +73,22 @@ impl<'arena> Level<'arena> {
             },
         };
 
-        match arena.hashcons_levels.get(&new_node) {
-            Some(level) => *level,
-            None => {
-                // add the unreduced node to the arena
-                let node_unreduced = &*arena.alloc.alloc(new_node);
-                let level_unreduced = Level::new(node_unreduced);
-                arena.hashcons_levels.insert(node_unreduced, level_unreduced);
+        if let Some(level) = arena.hashcons_levels.get(&new_node) {
+            *level
+        } else {
+            // add the unreduced node to the arena
+            let node_unreduced = &*arena.alloc.alloc(new_node);
+            let level_unreduced = Level::new(node_unreduced);
+            arena.hashcons_levels.insert(node_unreduced, level_unreduced);
 
-                // compute its reduced form
-                let reduced = level_unreduced.normalize(arena);
+            // compute its reduced form
+            let reduced = level_unreduced.normalize(arena);
 
-                // supersede the previous correspondence
-                arena.hashcons_levels.insert(node_unreduced, reduced);
-                arena.hashcons_levels.insert(reduced.0, reduced);
+            // supersede the previous correspondence
+            arena.hashcons_levels.insert(node_unreduced, reduced);
+            arena.hashcons_levels.insert(reduced.0, reduced);
 
-                reduced
-            },
+            reduced
         }
     }
 
@@ -118,6 +118,8 @@ impl<'arena> Level<'arena> {
     }
 
     /// The addition of a level and an integer
+    #[inline]
+    #[must_use]
     pub fn add(self, n: usize, arena: &mut Arena<'arena>) -> Self {
         if n == 0 {
             self
@@ -128,17 +130,23 @@ impl<'arena> Level<'arena> {
     }
 
     /// Builds a level from an integer
+    #[inline]
+    #[must_use]
     pub fn from(n: usize, arena: &mut Arena<'arena>) -> Self {
         Level::zero(arena).add(n, arena)
     }
 
     /// Converts a level to an integer, if possible
+    #[inline]
+    #[must_use]
     pub fn to_numeral(self) -> Option<usize> {
         let (u, n) = self.plus();
         (*u == Zero).then_some(n)
     }
 
     /// Decomposes a level `l` in the best pair `(u, n)` s.t. `l = u + n`
+    #[inline]
+    #[must_use]
     pub fn plus(self) -> (Self, usize) {
         *self.0.header.plus_form.get_or_init(|| match *self {
             Succ(u) => {
@@ -166,11 +174,11 @@ impl<'arena> Level<'arena> {
                 if u == v {
                     u
                 } else {
-                    match &*v {
+                    match *v {
                         Zero => v,
                         Succ(_) => u.max(v, arena),
-                        IMax(_, vw) => Level::max(u.imax(*vw, arena), v, arena),
-                        Max(vv, vw) => Level::max(u.imax(*vv, arena), u.imax(*vw, arena), arena),
+                        IMax(_, vw) => Level::max(u.imax(vw, arena), v, arena),
+                        Max(vv, vw) => Level::max(u.imax(vv, arena), u.imax(vw, arena), arena),
                         _ => self,
                     }
                 }
@@ -206,15 +214,15 @@ mod pretty_printing {
             assert_eq!(arena.build_level_raw(max(succ(zero()), zero())).to_numeral(), Some(1));
             assert_eq!(arena.build_level_raw(max(succ(zero()), succ(var(0)))).to_numeral(), None);
             assert_eq!(arena.build_level_raw(imax(var(0), zero())).to_numeral(), Some(0));
-            assert_eq!(arena.build_level_raw(imax(zero(), succ(zero()))).to_numeral(), Some(1))
-        })
+            assert_eq!(arena.build_level_raw(imax(zero(), succ(zero()))).to_numeral(), Some(1));
+        });
     }
 
     #[test]
     fn to_plus() {
         use_arena(|arena| {
             assert_eq!(arena.build_level_raw(succ(zero())).plus(), (Level::zero(arena), 1));
-        })
+        });
     }
 
     #[test]
@@ -223,8 +231,8 @@ mod pretty_printing {
             assert_eq!(
                 format!("{}", arena.build_level_raw(max(succ(zero()), imax(max(zero(), var(0)), succ(var(0)))))),
                 "max (1) (max (u0) (u0 + 1))"
-            )
-        })
+            );
+        });
     }
 
     #[test]
@@ -232,7 +240,7 @@ mod pretty_printing {
         use_arena(|arena| {
             let lvl = arena.build_level_raw(imax(zero(), imax(zero(), imax(succ(zero()), var(0)))));
 
-            assert_eq!(format!("{lvl}"), "max (imax (0) (u0)) (max (imax (0) (u0)) (imax (1) (u0)))")
-        })
+            assert_eq!(format!("{lvl}"), "max (imax (0) (u0)) (max (imax (0) (u0)) (imax (1) (u0)))");
+        });
     }
 }

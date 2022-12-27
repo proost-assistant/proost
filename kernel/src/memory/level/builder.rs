@@ -23,7 +23,7 @@ use crate::memory::arena::Arena;
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum LevelError<'arena> {
-    #[display(fmt = "unknown universe variable {}", _0)]
+    #[display(fmt = "unknown universe variable {_0}")]
     VarNotFound(&'arena str),
 }
 
@@ -35,6 +35,7 @@ pub type Environment<'build> = HashMap<&'build str, usize>;
 ///
 /// A call with a couple of arguments `(arena, env)` of a closure with this trait should
 /// build a definite level in the [`Arena`] `arena`.
+#[allow(clippy::module_name_repetitions)]
 pub trait BuilderTrait<'build> = for<'arena> FnOnce(&mut Arena<'arena>, &Environment<'build>) -> ResultLevel<'arena>;
 
 impl<'arena> Arena<'arena> {
@@ -47,6 +48,7 @@ impl<'arena> Arena<'arena> {
 
 /// Returns a closure building a universe variable associated to `name`
 #[inline]
+#[must_use]
 pub const fn var(name: &str) -> impl BuilderTrait<'_> {
     move |arena, env| {
         env.get(name).map(|lvl| Level::var(*lvl, arena)).ok_or(Error {
@@ -57,12 +59,14 @@ pub const fn var(name: &str) -> impl BuilderTrait<'_> {
 
 /// Returns a closure building the 0 level.
 #[inline]
+#[must_use]
 pub const fn zero<'build>() -> impl BuilderTrait<'build> {
     |arena, _| Ok(Level::zero(arena))
 }
 
 /// Returns a closure building a constant level.
 #[inline]
+#[must_use]
 pub const fn const_<'build>(n: usize) -> impl BuilderTrait<'build> {
     move |arena, _| Ok(Level::from(n, arena))
 }
@@ -128,6 +132,7 @@ pub enum Builder<'builder> {
 impl<'build> Builder<'build> {
     /// Realise a builder into a [`Level`]. This internally uses functions described in
     /// the [builder](`crate::memory::level::builder`) module.
+    #[inline]
     pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultLevel<'arena> {
         arena.build_level(self.partial_application())
     }
@@ -141,15 +146,14 @@ impl<'build> Builder<'build> {
         arena: &mut Arena<'arena>,
         env: &Environment<'build>,
     ) -> ResultLevel<'arena> {
-        use Builder::*;
         match *self {
-            Zero => zero()(arena, env),
-            Const(c) => const_(c)(arena, env),
-            Plus(ref u, n) => plus(u.partial_application(), n)(arena, env),
-            Succ(ref l) => succ(l.partial_application())(arena, env),
-            Max(ref l, ref r) => max(l.partial_application(), r.partial_application())(arena, env),
-            IMax(ref l, ref r) => imax(l.partial_application(), r.partial_application())(arena, env),
-            Var(s) => var(s)(arena, env),
+            Builder::Zero => zero()(arena, env),
+            Builder::Const(c) => const_(c)(arena, env),
+            Builder::Plus(ref u, n) => plus(u.partial_application(), n)(arena, env),
+            Builder::Succ(ref l) => succ(l.partial_application())(arena, env),
+            Builder::Max(ref l, ref r) => max(l.partial_application(), r.partial_application())(arena, env),
+            Builder::IMax(ref l, ref r) => imax(l.partial_application(), r.partial_application())(arena, env),
+            Builder::Var(s) => var(s)(arena, env),
         }
     }
 }

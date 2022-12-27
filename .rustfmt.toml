@@ -9,6 +9,7 @@ reorder_impl_items = true
 wrap_comments = true
 
 # Set the width of lines
+chain_width = 90
 comment_width = 132
 max_width = 132
 use_small_heuristics = "Max"

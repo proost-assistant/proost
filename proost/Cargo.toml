@@ -1,19 +1,22 @@
 [package]
 name = "proost"
-description.workspace = true
+description = "A simple proof assistant written in Rust"
+
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 version.workspace = true
 
 [dependencies]
 kernel.path = "../kernel"
 parser.path = "../parser"
 
-atty.workspace = true
 clap.workspace = true
-colored.workspace = true
 derive_more.workspace = true
-path-absolutize.workspace = true
-rustyline-derive.workspace = true
-rustyline.workspace = true
+
+atty = "0.2"
+colored = "2"
+path-absolutize = "3.0.14"
+rustyline = "10.0.0"
+rustyline-derive = "0.7.0"

@@ -3,8 +3,8 @@
 //! This module defines the core functions used to create and manipulate terms.
 
 use core::fmt;
+use core::fmt::Debug;
 use std::cell::OnceCell;
-use std::fmt::Debug;
 
 use derive_more::{Add, Display, From, Into, Sub};
 
@@ -64,6 +64,7 @@ pub enum Payload<'arena> {
 }
 
 impl<'arena> fmt::Display for Payload<'arena> {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             Var(index, _) => write!(f, "{index}"),
@@ -84,12 +85,13 @@ impl<'arena> fmt::Display for Payload<'arena> {
 }
 
 impl<'arena> fmt::Display for Term<'arena> {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0.payload)
     }
 }
 
-use Payload::*;
+use Payload::{Abs, App, Decl, Prod, Sort, Var};
 
 impl<'arena> Term<'arena> {
     /// This function is the base low-level function for creating terms.
@@ -107,13 +109,12 @@ impl<'arena> Term<'arena> {
             },
         };
 
-        match arena.hashcons_terms.get(&new_node) {
-            Some(addr) => Term::new(addr),
-            None => {
-                let addr = arena.alloc.alloc(new_node);
-                arena.hashcons_terms.insert(addr);
-                Term::new(addr)
-            },
+        if let Some(addr) = arena.hashcons_terms.get(&new_node) {
+            Term::new(addr)
+        } else {
+            let addr = arena.alloc.alloc(new_node);
+            arena.hashcons_terms.insert(addr);
+            Term::new(addr)
         }
     }
 
@@ -191,13 +192,12 @@ impl<'arena> Arena<'arena> {
     where
         F: FnOnce(&mut Self) -> Term<'arena>,
     {
-        match self.mem_subst.get(key) {
-            Some(res) => *res,
-            None => {
-                let res = f(self);
-                self.mem_subst.insert(*key, res);
-                res
-            },
+        if let Some(res) = self.mem_subst.get(key) {
+            *res
+        } else {
+            let res = f(self);
+            self.mem_subst.insert(*key, res);
+            res
         }
     }
 }
@@ -221,7 +221,7 @@ mod tests {
 
             let prop_ = crate::memory::term::Term::decl(decl_, arena);
 
-            assert_eq!(format!("{}", prop_), "(Prop).{}");
+            assert_eq!(prop_.to_string(), "(Prop).{}");
             let vart = crate::memory::term::builder::raw::var;
 
             let lvl = max(succ(var(0)), succ(var(1)));
@@ -236,7 +236,7 @@ mod tests {
                 ),
             ));
 
-            assert_eq!(format!("{}", term), "λ Sort max (u0) (u1) + 1 → λ Type → λ Type 1 → Π 1 → (1) (2)")
-        })
+            assert_eq!(term.to_string(), "λ Sort max (u0) (u1) + 1 → λ Type → λ Type 1 → Π 1 → (1) (2)");
+        });
     }
 }

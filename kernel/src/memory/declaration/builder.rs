@@ -31,6 +31,7 @@ pub enum DeclarationError<'arena> {
 /// Note that, unlike the other building traits, this one only takes an arena as an argument.
 /// This is because declarations cannot be declared locally (that is, within a context where some
 /// extra local variables are bound by lambda-abstraction).
+#[allow(clippy::module_name_repetitions)]
 pub trait BuilderTrait<'build> = for<'arena> FnOnce(&mut Arena<'arena>) -> ResultDecl<'arena>;
 
 pub trait InstantiatedBuilderTrait<'build> =
@@ -56,6 +57,7 @@ impl<'arena> Arena<'arena> {
 }
 
 /// Returns a builder creating `term`, where universe variables are described by `vars`.
+#[inline]
 pub fn declaration<'build, F: term::BuilderTrait<'build>>(term: F, vars: &[&'build str]) -> impl BuilderTrait<'build> {
     let len = vars.len();
     let lvl_env = vars.iter().enumerate().map(|(n, name)| (*name, n)).collect();
@@ -72,6 +74,7 @@ pub enum Builder<'build> {
 impl<'build> Builder<'build> {
     /// Realise a builder into a [`Declaration`]. This internally uses functions described in
     /// the [builder](`crate::memory::declaration::builder`) module.
+    #[inline]
     pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultDecl<'arena> {
         arena.build_declaration(self.partial_application())
     }
@@ -81,8 +84,8 @@ impl<'build> Builder<'build> {
     }
 
     fn realise_in_context<'arena>(&self, arena: &mut Arena<'arena>) -> ResultDecl<'arena> {
-        match self {
-            Builder::Decl(term, vars) => declaration(term.partial_application(), vars.as_slice())(arena),
+        match *self {
+            Builder::Decl(ref term, ref vars) => declaration(term.partial_application(), vars.as_slice())(arena),
         }
     }
 }
@@ -93,7 +96,10 @@ fn try_build_instance<'arena, 'build>(
     arena: &mut Arena<'arena>,
     env: &level::Environment<'build>,
 ) -> ResultInstantiatedDecl<'arena> {
-    let levels = levels.iter().map(|level_builder| level_builder.realise_in_context(arena, env)).collect::<Result<Vec<_>>>()?;
+    let levels = levels
+        .iter()
+        .map(|level_builder| level_builder.realise_in_context(arena, env))
+        .collect::<Result<Vec<_>>>()?;
 
     if decl.1 == levels.len() {
         Ok(InstantiatedDeclaration::instantiate(decl, levels.as_slice(), arena))
@@ -110,6 +116,7 @@ fn try_build_instance<'arena, 'build>(
 /// Please note that this is the only function from the closure API requiring the use of Builders.
 /// This is by choice, as opposed to the other possibility, where `levels` would be a slice over
 /// `Box<dyn level::BuilderTrait>`, which is not interesting performance-wise.
+#[inline]
 pub fn instance<'build, F: BuilderTrait<'build>>(
     decl: F,
     levels: &'build [level::Builder<'build>],
@@ -119,6 +126,8 @@ pub fn instance<'build, F: BuilderTrait<'build>>(
 
 /// Returns a builder creating the declaration bound by `name`, instantiated with the universe
 /// levels `levels`.
+#[inline]
+#[must_use]
 pub fn var<'build>(name: &'build str, levels: &'build [level::Builder<'build>]) -> impl InstantiatedBuilderTrait<'build> {
     move |arena, env| {
         let decl = arena.get_binding_decl(name).ok_or(Error {
@@ -136,6 +145,7 @@ pub fn var<'build>(name: &'build str, levels: &'build [level::Builder<'build>]) 
 ///
 /// On the other hand, the [second variant](`InstantiatedBuilder::Var`) is typically used by the
 /// parser, as it corresponds to the only possible scenario in a file.
+#[allow(clippy::module_name_repetitions)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum InstantiatedBuilder<'build> {
     Instance(Box<Builder<'build>>, Vec<level::Builder<'build>>),
@@ -143,16 +153,16 @@ pub enum InstantiatedBuilder<'build> {
     Var(&'build str, Vec<level::Builder<'build>>),
 }
 
-impl<'arena> std::fmt::Display for InstantiatedBuilder<'arena> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        use InstantiatedBuilder::*;
-        match self {
-            Instance(decl, params) => {
+impl<'arena> core::fmt::Display for InstantiatedBuilder<'arena> {
+    #[inline]
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        match *self {
+            InstantiatedBuilder::Instance(ref decl, ref params) => {
                 write!(f, "{decl}.{{")?;
                 params.iter().try_for_each(|level| write!(f, "{level}, "))?;
                 write!(f, "}}")
             },
-            Var(decl, params) => {
+            InstantiatedBuilder::Var(decl, ref params) => {
                 write!(f, "{decl}.{{")?;
                 params.iter().try_for_each(|level| write!(f, "{level}, "))?;
                 write!(f, "}}")
@@ -163,6 +173,7 @@ impl<'arena> std::fmt::Display for InstantiatedBuilder<'arena> {
 impl<'build> InstantiatedBuilder<'build> {
     /// Realise a builder into an [`InstantiatedDeclaration`]. This internally uses functions described in
     /// the [builder](`crate::memory::declaration::builder`) module.
+    #[inline]
     pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultInstantiatedDecl<'arena> {
         arena.build_instantiated_declaration(self.partial_application())
     }
@@ -176,10 +187,9 @@ impl<'build> InstantiatedBuilder<'build> {
         arena: &mut Arena<'arena>,
         lvl_env: &level::Environment<'build>,
     ) -> ResultInstantiatedDecl<'arena> {
-        use InstantiatedBuilder::*;
-        match self {
-            Instance(decl, levels) => instance(decl.partial_application(), levels)(arena, lvl_env),
-            Var(name, levels) => var(name, levels)(arena, lvl_env),
+        match *self {
+            InstantiatedBuilder::Instance(ref decl, ref levels) => instance(decl.partial_application(), levels)(arena, lvl_env),
+            InstantiatedBuilder::Var(name, ref levels) => var(name, levels)(arena, lvl_env),
         }
     }
 }

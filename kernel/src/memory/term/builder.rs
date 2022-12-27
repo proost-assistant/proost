@@ -25,7 +25,7 @@ use crate::memory::level::builder as level;
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum TermError<'arena> {
-    #[display(fmt = "unknown identifier {}", _0)]
+    #[display(fmt = "unknown identifier {_0}")]
     ConstNotFound(&'arena str),
 }
 
@@ -42,6 +42,7 @@ pub type Environment<'build, 'arena> = ImHashMap<&'build str, (DeBruijnIndex, Te
 /// Please note that this is just a trait alias, meaning it enforces few constraints: while
 /// functions in this module returning a closure with this trait are guaranteed to be sound, end
 /// users can also create their own closures satisfying `BuilderTrait`; this should be avoided.
+#[allow(clippy::module_name_repetitions)]
 pub trait BuilderTrait<'build> = for<'arena> FnOnce(
     &mut Arena<'arena>,
     &Environment<'build, 'arena>,
@@ -59,6 +60,7 @@ impl<'arena> Arena<'arena> {
 
 /// Returns a closure building a variable associated to the name `name`
 #[inline]
+#[must_use]
 pub const fn var(name: &str) -> impl BuilderTrait<'_> {
     move |arena, env, _, depth| {
         env.get(name)
@@ -77,6 +79,7 @@ pub const fn var(name: &str) -> impl BuilderTrait<'_> {
 
 /// Returns a closure building the Prop term.
 #[inline]
+#[must_use]
 pub const fn prop<'build>() -> impl BuilderTrait<'build> {
     |arena, _, _, _| Ok(Term::prop(arena))
 }
@@ -90,6 +93,7 @@ pub const fn type_<'build, F: level::BuilderTrait<'build>>(level: F) -> impl Bui
 
 /// Returns a closure building the Type `level` term (indirection from `usize`).
 #[inline]
+#[must_use]
 pub const fn type_usize<'build>(level: usize) -> impl BuilderTrait<'build> {
     move |arena, _, _, _| Ok(Term::type_usize(level, arena))
 }
@@ -103,6 +107,7 @@ pub const fn sort<'build, F: level::BuilderTrait<'build>>(level: F) -> impl Buil
 
 /// Returns a closure building the Sort `level` term (indirection from `usize`).
 #[inline]
+#[must_use]
 pub const fn sort_usize<'build>(level: usize) -> impl BuilderTrait<'build> {
     move |arena, _, _, _| Ok(Term::sort_usize(level, arena))
 }
@@ -196,6 +201,7 @@ pub enum Builder<'build> {
 impl<'build> Builder<'build> {
     /// Realise a builder into a [`Term`]. This internally uses functions described in
     /// the [builder](`crate::memory::term::builder`) module.
+    #[inline]
     pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
         arena.build(self.partial_application())
     }
@@ -211,18 +217,19 @@ impl<'build> Builder<'build> {
         lvl_env: &level::Environment<'build>,
         depth: DeBruijnIndex,
     ) -> ResultTerm<'arena> {
-        use Builder::*;
-        match self {
-            Var(s) => var(s)(arena, env, lvl_env, depth),
-            Prop => prop()(arena, env, lvl_env, depth),
-            Type(ref level) => type_(level.partial_application())(arena, env, lvl_env, depth),
-            Sort(ref level) => sort(level.partial_application())(arena, env, lvl_env, depth),
-            App(ref l, ref r) => app(l.partial_application(), r.partial_application())(arena, env, lvl_env, depth),
-            Abs(s, ref arg, ref body) => abs(s, arg.partial_application(), body.partial_application())(arena, env, lvl_env, depth),
-            Prod(s, ref arg, ref body) => {
+        match *self {
+            Builder::Var(s) => var(s)(arena, env, lvl_env, depth),
+            Builder::Prop => prop()(arena, env, lvl_env, depth),
+            Builder::Type(ref level) => type_(level.partial_application())(arena, env, lvl_env, depth),
+            Builder::Sort(ref level) => sort(level.partial_application())(arena, env, lvl_env, depth),
+            Builder::App(ref l, ref r) => app(l.partial_application(), r.partial_application())(arena, env, lvl_env, depth),
+            Builder::Abs(s, ref arg, ref body) => {
+                abs(s, arg.partial_application(), body.partial_application())(arena, env, lvl_env, depth)
+            },
+            Builder::Prod(s, ref arg, ref body) => {
                 prod(s, arg.partial_application(), body.partial_application())(arena, env, lvl_env, depth)
             },
-            Decl(ref decl_builder) => decl(decl_builder.partial_application())(arena, env, lvl_env, depth),
+            Builder::Decl(ref decl_builder) => decl(decl_builder.partial_application())(arena, env, lvl_env, depth),
         }
     }
 }

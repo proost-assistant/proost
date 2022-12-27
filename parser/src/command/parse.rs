@@ -10,7 +10,7 @@ use crate::command::Command;
 use crate::error;
 
 #[derive(Parser)]
-#[grammar = "term.pest"]
+#[grammar = "command/grammar.pest"]
 struct CommandParser;
 
 /// convert pest locations to kernel locations
@@ -22,7 +22,7 @@ fn convert_span(span: Span) -> Location {
 
 /// build universe level from errorless pest's output
 fn parse_level(pair: Pair<Rule>) -> level::Builder {
-    use level::Builder::*;
+    use level::Builder::{Const, IMax, Max, Plus, Var};
 
     // location to be used in a future version
     let _loc = convert_span(pair.as_span());
@@ -65,7 +65,7 @@ fn parse_level(pair: Pair<Rule>) -> level::Builder {
 
 /// Returns a kernel term builder from pest output
 fn parse_term(pair: Pair<Rule>) -> term::Builder {
-    use term::Builder::*;
+    use term::Builder::{Abs, App, Decl, Prod, Prop, Sort, Type, Var};
 
     // location to be used in a future version
     let _loc = convert_span(pair.as_span());
@@ -82,21 +82,15 @@ fn parse_term(pair: Pair<Rule>) -> term::Builder {
             Decl(box declaration::InstantiatedBuilder::Var(name, levels))
         },
 
-        Rule::Type => {
-            if let Some(next) = pair.into_inner().next_back() {
-                Type(box parse_level(next))
-            } else {
-                Type(box level::Builder::Const(0))
-            }
-        },
+        Rule::Type => pair
+            .into_inner()
+            .next_back()
+            .map_or(Type(box level::Builder::Const(0)), |next| Type(box parse_level(next))),
 
-        Rule::Sort => {
-            if let Some(next) = pair.into_inner().next_back() {
-                Sort(box parse_level(next))
-            } else {
-                Sort(box level::Builder::Const(0))
-            }
-        },
+        Rule::Sort => pair
+            .into_inner()
+            .next_back()
+            .map_or(Sort(box level::Builder::Const(0)), |next| Sort(box parse_level(next))),
 
         Rule::App => {
             let mut iter = pair.into_inner().map(parse_term);
@@ -256,22 +250,25 @@ fn convert_error(err: pest::error::Error<Rule>) -> error::Error {
             let mut left = 1;
             let chars = err.line().chars();
             let mut i = 0;
+
             for c in chars {
                 i += 1;
                 if char::is_whitespace(c) {
                     if i < y {
-                        left = i + 1
+                        left = i + 1;
                     } else {
                         break;
                     }
                 } else {
-                    right = i
+                    right = i;
                 }
             }
+
             if i < y {
                 left = y;
                 right = y;
             }
+
             Location::new((x, left).into(), (x, right).into())
         },
 
@@ -281,11 +278,13 @@ fn convert_error(err: pest::error::Error<Rule>) -> error::Error {
     // extracting the message from the pest output
     let message = err.to_string();
     let mut chars = message.lines().next_back().unwrap().chars();
-    for _ in 0..4 {
+
+    (0_i32..4_i32).for_each(|_| {
         chars.next();
-    }
+    });
+
     error::Error {
-        kind: error::ErrorKind::CannotParse(chars.as_str().to_string()),
+        kind: error::Kind::CannotParse(chars.as_str().to_owned()),
         location: loc,
     }
 }
@@ -293,21 +292,27 @@ fn convert_error(err: pest::error::Error<Rule>) -> error::Error {
 /// Parse a text input and try to convert it into a command.
 ///
 /// if unsuccessful, a box containing the first error that was encountered is returned.
-pub fn parse_line(line: &str) -> error::Result<Command> {
-    CommandParser::parse(Rule::command, line).map_err(convert_error).map(|mut pairs| parse_expr(pairs.next().unwrap()))
+#[inline]
+pub fn line(line: &str) -> error::Result<Command> {
+    CommandParser::parse(Rule::command, line)
+        .map_err(convert_error)
+        .map(|mut pairs| parse_expr(pairs.next().unwrap_or_else(|| unreachable!())))
 }
 
 /// Parse a text input and try to convert it into a vector of commands.
 ///
 /// if unsuccessful, a box containing the first error that was encountered is returned.
-pub fn parse_file(file: &str) -> error::Result<Vec<Command>> {
-    CommandParser::parse(Rule::file, file).map_err(convert_error).map(|pairs| pairs.into_iter().map(parse_expr).collect())
+#[inline]
+pub fn file(file: &str) -> error::Result<Vec<Command>> {
+    CommandParser::parse(Rule::file, file)
+        .map_err(convert_error)
+        .map(|pairs| pairs.into_iter().map(parse_expr).collect())
 }
 
 #[cfg(test)]
 mod tests {
 
-    use error::{Error, ErrorKind};
+    use error::{Error, Kind};
     use kernel::memory::term::builder as term;
     use term::Builder::*;
 
@@ -323,9 +328,9 @@ mod tests {
     #[test]
     fn failure_universe_level() {
         assert_eq!(
-            parse_line("check fun x : Prop -> Type"),
+            line("check fun x : Prop -> Type"),
             Err(Error {
-                kind: ErrorKind::CannotParse(UNIVERSE_ERR.to_string()),
+                kind: Kind::CannotParse(UNIVERSE_ERR.to_owned()),
                 location: Location::new((1, 27).into(), (1, 27).into()),
             })
         );
@@ -333,13 +338,13 @@ mod tests {
 
     #[test]
     fn successful_define_with_type_annotation() {
-        assert_eq!(parse_line("def x : Type := Prop"), Ok(Define("x", Some(Type(box level::Builder::Const(0))), Prop)));
+        assert_eq!(line("def x : Type := Prop"), Ok(Define("x", Some(Type(box level::Builder::Const(0))), Prop)));
     }
 
     #[test]
     fn successful_declare_with_type_annotation() {
         assert_eq!(
-            parse_line("def x.{u} : Type u := foo.{u}"),
+            line("def x.{u} : Type u := foo.{u}"),
             Ok(Declaration(
                 "x",
                 Some(declaration::Builder::Decl(box Type(box level::Builder::Var("u")), ["u"].to_vec())),
@@ -356,69 +361,69 @@ mod tests {
 
     #[test]
     fn successful_import() {
-        assert_eq!(parse_line("import file1 dir/file2"), Ok(Import(["file1", "dir/file2"].to_vec())));
-        assert_eq!(parse_line("import "), Ok(Import(Vec::new())))
+        assert_eq!(line("import file1 dir/file2"), Ok(Import(["file1", "dir/file2"].to_vec())));
+        assert_eq!(line("import "), Ok(Import(Vec::new())));
     }
 
     #[test]
     fn successful_search() {
-        assert_eq!(parse_line("search variable1"), Ok(Search("variable1")))
+        assert_eq!(line("search variable1"), Ok(Search("variable1")));
     }
 
     #[test]
     fn successful_eval() {
-        assert_eq!(parse_line("eval Prop"), Ok(Eval(Prop)))
+        assert_eq!(line("eval Prop"), Ok(Eval(Prop)));
     }
 
     #[test]
     fn successful_define() {
-        assert_eq!(parse_line("def x := Prop"), Ok(Define("x", None, Prop)));
+        assert_eq!(line("def x := Prop"), Ok(Define("x", None, Prop)));
     }
 
     #[test]
     fn successful_declare() {
-        assert_eq!(parse_line("def x.{} := Prop"), Ok(Declaration("x", None, declaration::Builder::Decl(box Prop, Vec::new()))));
+        assert_eq!(line("def x.{} := Prop"), Ok(Declaration("x", None, declaration::Builder::Decl(box Prop, Vec::new()))));
     }
 
     #[test]
     fn successful_checktype() {
-        assert_eq!(parse_line("check Prop : Type"), Ok(CheckType(Prop, Type(box level::Builder::Const(0)))));
+        assert_eq!(line("check Prop : Type"), Ok(CheckType(Prop, Type(box level::Builder::Const(0)))));
     }
 
     #[test]
     fn successful_gettype_prop() {
-        assert_eq!(parse_line("check Prop"), Ok(GetType(Prop)));
+        assert_eq!(line("check Prop"), Ok(GetType(Prop)));
     }
 
     #[test]
     fn successful_gettype_sort() {
-        assert_eq!(parse_line("check Sort"), Ok(GetType(Sort(box level::Builder::Const(0)))));
+        assert_eq!(line("check Sort"), Ok(GetType(Sort(box level::Builder::Const(0)))));
     }
 
     #[test]
     fn successful_var() {
-        assert_eq!(parse_line("check fun A: Prop => A"), Ok(GetType(Abs("A", Box::new(Prop), Box::new(Var("A"))))));
+        assert_eq!(line("check fun A: Prop => A"), Ok(GetType(Abs("A", Box::new(Prop), Box::new(Var("A"))))));
     }
 
     #[test]
     fn successful_type() {
-        assert_eq!(parse_line("check Type"), Ok(GetType(Type(box level::Builder::Const(0)))));
-        assert_eq!(parse_line("check Type 0"), Ok(GetType(Type(box level::Builder::Const(0)))));
-        assert_eq!(parse_line("check Type 1"), Ok(GetType(Type(box level::Builder::Const(1)))));
+        assert_eq!(line("check Type"), Ok(GetType(Type(box level::Builder::Const(0)))));
+        assert_eq!(line("check Type 0"), Ok(GetType(Type(box level::Builder::Const(0)))));
+        assert_eq!(line("check Type 1"), Ok(GetType(Type(box level::Builder::Const(1)))));
     }
 
     #[test]
     fn successful_sort() {
-        assert_eq!(parse_line("check Sort"), Ok(GetType(Sort(box level::Builder::Const(0)))));
-        assert_eq!(parse_line("check Sort 0"), Ok(GetType(Sort(box level::Builder::Const(0)))));
-        assert_eq!(parse_line("check Sort 1"), Ok(GetType(Sort(box level::Builder::Const(1)))));
-        assert_eq!(parse_line("check Sort (0 + 1)"), Ok(GetType(Sort(box level::Builder::Plus(box level::Builder::Const(0), 1)))));
+        assert_eq!(line("check Sort"), Ok(GetType(Sort(box level::Builder::Const(0)))));
+        assert_eq!(line("check Sort 0"), Ok(GetType(Sort(box level::Builder::Const(0)))));
+        assert_eq!(line("check Sort 1"), Ok(GetType(Sort(box level::Builder::Const(1)))));
+        assert_eq!(line("check Sort (0 + 1)"), Ok(GetType(Sort(box level::Builder::Plus(box level::Builder::Const(0), 1)))));
         assert_eq!(
-            parse_line("check Sort max 0 0"),
+            line("check Sort max 0 0"),
             Ok(GetType(Sort(box level::Builder::Max(box level::Builder::Const(0), box level::Builder::Const(0)))))
         );
         assert_eq!(
-            parse_line("check Sort imax 0 0"),
+            line("check Sort imax 0 0"),
             Ok(GetType(Sort(box level::Builder::IMax(box level::Builder::Const(0), box level::Builder::Const(0)))))
         );
     }
@@ -427,18 +432,18 @@ mod tests {
     fn successful_app() {
         let res_left = Ok(GetType(App(Box::new(App(Box::new(Var("A")), Box::new(Var("B")))), Box::new(Var("C")))));
         let res_right = Ok(GetType(App(Box::new(Var("A")), Box::new(App(Box::new(Var("B")), Box::new(Var("C")))))));
-        assert_eq!(parse_line("check A B C"), res_left);
-        assert_eq!(parse_line("check (A B) C"), res_left);
-        assert_eq!(parse_line("check A (B C)"), res_right);
+        assert_eq!(line("check A B C"), res_left);
+        assert_eq!(line("check (A B) C"), res_left);
+        assert_eq!(line("check A (B C)"), res_right);
     }
 
     #[test]
     fn successful_prod() {
         let res_left = Ok(GetType(Prod("_", Box::new(Prod("_", Box::new(Var("A")), Box::new(Var("B")))), Box::new(Var("C")))));
         let res_right = Ok(GetType(Prod("_", Box::new(Var("A")), Box::new(Prod("_", Box::new(Var("B")), Box::new(Var("C")))))));
-        assert_eq!(parse_line("check A -> B -> C"), res_right);
-        assert_eq!(parse_line("check A -> (B -> C)"), res_right);
-        assert_eq!(parse_line("check (A -> B) -> C"), res_left);
+        assert_eq!(line("check A -> B -> C"), res_right);
+        assert_eq!(line("check A -> (B -> C)"), res_right);
+        assert_eq!(line("check (A -> B) -> C"), res_left);
     }
 
     #[test]
@@ -448,8 +453,8 @@ mod tests {
             Box::new(Type(box level::Builder::Const(0))),
             Box::new(Prod("y", Box::new(Type(box level::Builder::Const(1))), Box::new(Var("x")))),
         )));
-        assert_eq!(parse_line("check (x:Type) -> (y:Type 1) -> x"), res);
-        assert_eq!(parse_line("check (x:Type) -> ((y:Type 1) -> x)"), res);
+        assert_eq!(line("check (x:Type) -> (y:Type 1) -> x"), res);
+        assert_eq!(line("check (x:Type) -> ((y:Type 1) -> x)"), res);
     }
 
     #[test]
@@ -463,22 +468,22 @@ mod tests {
                 Box::new(Abs("y", Box::new(Prop), Box::new(Abs("z", Box::new(Prop), Box::new(Var("x")))))),
             )),
         );
-        assert_eq!(parse_line("check fun w x: Prop, y z: Prop => x"), Ok(GetType(res)));
+        assert_eq!(line("check fun w x: Prop, y z: Prop => x"), Ok(GetType(res)));
     }
 
     #[test]
     fn failed_dprod() {
         assert_eq!(
-            parse_line("check (x:A)"),
+            line("check (x:A)"),
             Err(Error {
-                kind: ErrorKind::CannotParse(SIMPLE_TERM_ERR.to_string()),
+                kind: Kind::CannotParse(SIMPLE_TERM_ERR.to_owned()),
                 location: Location::new((1, 7).into(), (1, 11).into()),
             })
         );
         assert_eq!(
-            parse_line("check (x:A) -> (y:B)"),
+            line("check (x:A) -> (y:B)"),
             Err(Error {
-                kind: ErrorKind::CannotParse(SIMPLE_TERM_ERR.to_string()),
+                kind: Kind::CannotParse(SIMPLE_TERM_ERR.to_owned()),
                 location: Location::new((1, 16).into(), (1, 20).into()),
             })
         );
@@ -496,9 +501,9 @@ mod tests {
             Box::new(Prop),
             Box::new(Abs("y", Box::new(Var("x")), Box::new(Abs("z", Box::new(Var("x")), Box::new(Var("z")))))),
         )));
-        assert_eq!(parse_line("check fun x : Prop, x : x, x : x => x"), res);
-        assert_eq!(parse_line("check fun x : Prop, x x : x => x"), res);
-        assert_eq!(parse_line("check fun x : Prop, y z : x => z"), res2);
+        assert_eq!(line("check fun x : Prop, x : x, x : x => x"), res);
+        assert_eq!(line("check fun x : Prop, x x : x => x"), res);
+        assert_eq!(line("check fun x : Prop, y z : x => z"), res2);
     }
 
     #[test]
@@ -513,9 +518,9 @@ mod tests {
             Box::new(Prop),
             Box::new(Prod("y", Box::new(Var("x")), Box::new(Prod("z", Box::new(Var("x")), Box::new(Var("z")))))),
         )));
-        assert_eq!(parse_line("check (x : Prop, x : x, x : x) -> x"), res);
-        assert_eq!(parse_line("check (x : Prop, x x : x) -> x"), res);
-        assert_eq!(parse_line("check (x : Prop, y z : x) -> z"), res2);
+        assert_eq!(line("check (x : Prop, x : x, x : x) -> x"), res);
+        assert_eq!(line("check (x : Prop, x x : x) -> x"), res);
+        assert_eq!(line("check (x : Prop, y z : x) -> z"), res2);
     }
 
     #[test]
@@ -529,7 +534,7 @@ mod tests {
                 Box::new(Abs("y", Box::new(Prop), Box::new(Abs("z", Box::new(Prop), Box::new(Var("x")))))),
             )),
         );
-        assert_eq!(parse_line("check fun (((w x : Prop))), y z : Prop => x"), Ok(GetType(res)));
+        assert_eq!(line("check fun (((w x : Prop))), y z : Prop => x"), Ok(GetType(res)));
     }
 
     #[test]
@@ -539,7 +544,7 @@ mod tests {
             Box::new(Type(box level::Builder::Const(0))),
             Box::new(Prod("_", Box::new(Type(box level::Builder::Const(1))), Box::new(Type(box level::Builder::Const(2))))),
         );
-        assert_eq!(parse_line("check (((Type))) -> (((Type 1 -> Type 2)))"), Ok(GetType(res)));
+        assert_eq!(line("check (((Type))) -> (((Type 1 -> Type 2)))"), Ok(GetType(res)));
     }
 
     #[test]
@@ -549,48 +554,48 @@ mod tests {
             Box::new(Type(box level::Builder::Const(0))),
             Box::new(Prod("y", Box::new(Type(box level::Builder::Const(1))), Box::new(Var("x")))),
         );
-        assert_eq!(parse_line("check (((x:Type))) -> ((((y:Type 1) -> x)))"), Ok(GetType(res)));
+        assert_eq!(line("check (((x:Type))) -> ((((y:Type 1) -> x)))"), Ok(GetType(res)));
     }
 
     #[test]
     fn parenthesis_in_app() {
         let res = App(Box::new(Var("A")), Box::new(App(Box::new(Var("B")), Box::new(Var("C")))));
-        assert_eq!(parse_line("check ((((((A))) (((B C))))))"), Ok(GetType(res)));
+        assert_eq!(line("check ((((((A))) (((B C))))))"), Ok(GetType(res)));
     }
 
     #[test]
     fn successful_parsers() {
-        let file = r#"
+        let input = r#"
             def x := Prop -> Prop
 
             // this is a comment
             check fun x:Prop => x
         "#;
 
-        assert_eq!(parse_file(file).unwrap()[0], parse_line("def x := Prop -> Prop").unwrap());
-        assert_eq!(parse_file(file).unwrap()[1], parse_line("check fun x:Prop => x").unwrap());
+        assert_eq!(file(input).unwrap()[0], line("def x := Prop -> Prop").unwrap());
+        assert_eq!(file(input).unwrap()[1], line("check fun x:Prop => x").unwrap());
     }
 
     #[test]
     fn successful_convert_error() {
         assert_eq!(
-            parse_line("chehk 2x"),
+            line("chehk 2x"),
             Err(Error {
-                kind: ErrorKind::CannotParse(COMMAND_ERR.to_string()),
+                kind: Kind::CannotParse(COMMAND_ERR.to_owned()),
                 location: Location::new((1, 1).into(), (1, 5).into()),
             })
         );
         assert_eq!(
-            parse_line("check 2x"),
+            line("check 2x"),
             Err(Error {
-                kind: ErrorKind::CannotParse(TERM_ERR.to_string()),
+                kind: Kind::CannotParse(TERM_ERR.to_owned()),
                 location: Location::new((1, 7).into(), (1, 8).into()),
             })
         );
         assert_eq!(
-            parse_line("check x:"),
+            line("check x:"),
             Err(Error {
-                kind: ErrorKind::CannotParse(TERM_ERR.to_string()),
+                kind: Kind::CannotParse(TERM_ERR.to_owned()),
                 location: Location::new((1, 9).into(), (1, 9).into()),
             })
         );
@@ -599,13 +604,13 @@ mod tests {
     #[test]
     fn failed_parsers() {
         assert_eq!(
-            parse_file(
+            file(
                 "def x : Type := Prop -> Prop
                  // this is a comment
                         check .x"
             ),
             Err(Error {
-                kind: ErrorKind::CannotParse(TERM_ERR.to_string()),
+                kind: Kind::CannotParse(TERM_ERR.to_owned()),
                 location: Location::new((3, 31).into(), (3, 32).into()),
             })
         );
