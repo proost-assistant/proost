@@ -311,7 +311,6 @@ pub fn parse_file(file: &str) -> error::Result<Vec<Command>> {
 
 #[cfg(test)]
 mod tests {
-    use declaration::InstantiatedBuilder::Var;
     use error::{Error, Kind};
     use kernel::memory::term::builder as term;
     use term::Builder::*;
