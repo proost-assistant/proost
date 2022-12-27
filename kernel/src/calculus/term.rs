@@ -185,6 +185,7 @@ impl<'arena> Term<'arena> {
     }
 
     fn reduce_recursor(self, arena: &mut Arena<'arena>) -> Option<Self> {
+        use crate::axiom::Axiom::*;
         if let App(f,n) = *self &&
            let App(f,motive_succ) = *f &&
            let App(f,motive_0) = *f &&
