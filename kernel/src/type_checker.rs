@@ -108,6 +108,7 @@ impl<'arena> Term<'arena> {
         match *self {
             Sort(lvl) => Ok(Term::sort(lvl.succ(arena), arena)),
             Var(_, type_) => Ok(type_),
+            Axiom(ax) => Ok(ax.get_type(arena)),
 
             Prod(t, u) => {
                 let univ_t = t.infer(arena).trace_err(Trace::Left)?;
@@ -151,7 +152,6 @@ impl<'arena> Term<'arena> {
             },
 
             Decl(decl) => decl.get_type_or_try_init(Term::infer_raw, arena),
-            Axiom(decl) => Ok(decl.get_term(arena))
         }
     }
 
@@ -546,22 +546,6 @@ mod tests {
             assert_eq!(term_type, Term::type_usize(1, arena));
             assert!(term.check(term_type, arena).is_ok());
         });
-    }
-
-
-    #[test]
-    fn axioms() {
-        use_arena(|arena| {
-            let nat = crate::memory::declaration::builder::Builder::Decl(
-                crate::memory::term::builder::Builder::Type(crate::memory::level::builder::Builder::Zero.into()).into(), Vec::new())
-            .realise(arena)
-            .unwrap();
-            let inst_nat = crate::memory::declaration::InstantiatedDeclaration::instantiate(nat, &Vec::new(), arena);
-
-            let nat_type = Axiom(inst_nat);
-            
-        })
-
     }
 
     mod failed_type_inference {
