@@ -310,10 +310,6 @@ pub fn parse_file(file: &str) -> error::Result<Vec<Command>> {
 
 #[cfg(test)]
 mod tests {
-    // TODO (#69) TESTS:
-    // - universe declarations for both define and define_check
-    // - universe bindings on vars
-    // - level constructions for numbers, +, succ, max and imax
     use declaration::InstantiatedBuilder::Var;
     use error::{Error, Kind};
     use kernel::memory::term::builder as term;
