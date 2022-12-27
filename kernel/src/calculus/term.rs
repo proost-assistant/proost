@@ -21,6 +21,9 @@ impl<'arena> Term<'arena> {
     #[inline]
     #[must_use]
     pub fn beta_reduction(self, arena: &mut Arena<'arena>) -> Self {
+        if let Some(red) = self.reduce_recursor(arena) {
+            return red;
+        };
         // TODO beta-reduce recursors
         match *self {
             App(t1, t2) => {
@@ -166,7 +169,9 @@ impl<'arena> Term<'arena> {
     #[inline]
     #[must_use]
     pub fn whnf(self, arena: &mut Arena<'arena>) -> Self {
-        // TODO beta-reduce recursors
+        if let Some(red) = self.reduce_recursor(arena) {
+            return red;
+        };
         self.get_whnf_or_init(|| match *self {
             App(t1, t2) => match *t1.unfold(arena).whnf(arena) {
                 Abs(_, t1) => {
@@ -177,6 +182,26 @@ impl<'arena> Term<'arena> {
             },
             _ => self,
         })
+    }
+
+    fn reduce_recursor(self, arena: &mut Arena<'arena>) -> Option<Self> {
+        if let App(f,n) = *self &&
+           let App(f,motive_succ) = *f &&
+           let App(f,motive_0) = *f &&
+           let App(f,motive) = *f &&
+           let Axiom(NatRec) = *f {
+            match *n.whnf(arena) {
+                | Axiom(Zero) => Some(motive_0),
+                | App(f,n) if let Axiom(Succ) = *f => {
+                    let new_rec = Term::app(Term::app(Term::app(Term::app(Term::axiom(NatRec,arena),motive,arena), motive_0,arena),motive_succ,arena),n,arena);
+                    let app = Term::app(Term::app(motive_succ, n,arena),new_rec,arena);
+                    Some(app)
+                },
+                _ => None,
+           }
+        } else {
+            None
+        }
     }
 }
 
