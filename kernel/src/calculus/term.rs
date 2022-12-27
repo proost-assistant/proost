@@ -21,6 +21,7 @@ impl<'arena> Term<'arena> {
     #[inline]
     #[must_use]
     pub fn beta_reduction(self, arena: &mut Arena<'arena>) -> Self {
+        // TODO beta-reduce recursors
         match *self {
             App(t1, t2) => {
                 if let Abs(_, t1) = *t1.unfold(arena) {
@@ -165,6 +166,7 @@ impl<'arena> Term<'arena> {
     #[inline]
     #[must_use]
     pub fn whnf(self, arena: &mut Arena<'arena>) -> Self {
+        // TODO beta-reduce recursors
         self.get_whnf_or_init(|| match *self {
             App(t1, t2) => match *t1.unfold(arena).whnf(arena) {
                 Abs(_, t1) => {
