@@ -69,8 +69,11 @@ pub fn use_arena<F, T>(f: F) -> T
 where
     F: for<'arena> FnOnce(&mut Arena<'arena>) -> T,
 {
+    use crate::axiom::Axiom;
+
     let alloc = Bump::new();
     let mut arena = Arena::new(&alloc);
+    Axiom::add_named_axioms(&mut arena);
     f(&mut arena)
 }
 
