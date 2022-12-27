@@ -136,7 +136,7 @@ fn main() -> Result<'static, 'static, ()> {
     })
 }
 
-pub fn display<'arena, 'build>(res: Result<'arena, 'build, Option<Term<'arena>>>) {
+pub fn display<'arena>(res: Result<'arena, '_, Option<Term<'arena>>>) {
     match res {
         Ok(None) => println!("{}", "\u{2713}".green()),
 
@@ -153,17 +153,17 @@ pub fn display<'arena, 'build>(res: Result<'arena, 'build, Option<Term<'arena>>>
                 _ => None,
             };
 
-            location.map(|loc| {
+            if let Some(loc) = location {
                 let indicator = if loc.start.column == loc.end.column {
                     format!("{:0w1$}^", "", w1 = loc.start.column - 1)
                 } else {
                     format!("{:0w1$}^{:-<w2$}^", "", "", w1 = loc.start.column - 1, w2 = loc.end.column - loc.start.column - 1)
                 };
 
-                println!("{} {}", "\u{2717}".red(), indicator)
-            });
+                println!("{} {}", "\u{2717}".red(), indicator);
+            };
 
-            println!("{} {}", "\u{2717}".red(), err.to_string())
+            println!("{} {}", "\u{2717}".red(), err);
         },
     }
 }

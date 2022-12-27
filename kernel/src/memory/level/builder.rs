@@ -53,7 +53,7 @@ pub const fn var(name: &str) -> impl BuilderTrait<'_> {
     move |arena, env| {
         env.get(name)
             .map(|lvl| Level::var(*lvl, arena))
-            .ok_or(Error::new(LevelError::VarNotFound(arena.store_name(name)).into()))
+            .ok_or_else(|| Error::new(LevelError::VarNotFound(arena.store_name(name)).into()))
     }
 }
 

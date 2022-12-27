@@ -85,7 +85,7 @@ impl<'arena> Term<'arena> {
     pub fn is_def_eq(self, rhs: Self, arena: &mut Arena<'arena>) -> Result<'arena, ()> {
         self.conversion(rhs, arena)
             .then_some(())
-            .ok_or(Error::new(TypeCheckerError::NotDefEq(self, rhs).into()))
+            .ok_or_else(|| Error::new(TypeCheckerError::NotDefEq(self, rhs).into()))
     }
 
     /// Computes the universe in which `(x: A) -> B` lives when `A: lhs` and `B: rhs`.
@@ -166,7 +166,7 @@ impl<'arena> Term<'arena> {
 
         tty.conversion(ty, arena)
             .then_some(())
-            .ok_or(Error::new(TypeCheckerError::TypeMismatch(tty, ty).into()))
+            .ok_or_else(|| Error::new(TypeCheckerError::TypeMismatch(tty, ty).into()))
     }
 }
 
@@ -569,7 +569,7 @@ mod tests {
                             TypedTerm(Term::prop(arena), Term::type_usize(0, arena)),
                             Term::prop(arena)
                         )
-                        .into()
+                        .into(),
                         trace: vec![Trace::Left, Trace::Left]
                     })
                 );
@@ -588,7 +588,7 @@ mod tests {
                             TypedTerm(Term::prop(arena), Term::type_usize(0, arena)),
                             Term::prop(arena)
                         )
-                        .into()
+                        .into(),
                         trace: vec![Trace::Left, Trace::Right]
                     })
                 );
@@ -607,7 +607,7 @@ mod tests {
                             TypedTerm(Term::prop(arena), Term::type_usize(0, arena)),
                             Term::prop(arena)
                         )
-                        .into()
+                        .into(),
                         trace: vec![Trace::Left, Trace::Left]
                     })
                 );
@@ -626,7 +626,7 @@ mod tests {
                             TypedTerm(Term::prop(arena), Term::type_usize(0, arena)),
                             Term::prop(arena)
                         )
-                        .into()
+                        .into(),
                         trace: vec![Trace::Left]
                     })
                 );
@@ -645,7 +645,7 @@ mod tests {
                             TypedTerm(Term::prop(arena), Term::type_usize(0, arena)),
                             Term::prop(arena)
                         )
-                        .into()
+                        .into(),
                         trace: vec![Trace::Left, Trace::Left]
                     })
                 );
@@ -664,7 +664,7 @@ mod tests {
                             TypedTerm(Term::prop(arena), Term::type_usize(0, arena)),
                             Term::prop(arena)
                         )
-                        .into()
+                        .into(),
                         trace: vec![Trace::Left, Trace::Right]
                     })
                 );
@@ -713,7 +713,7 @@ mod tests {
                 assert_eq!(
                     term.infer(arena),
                     Err(Error {
-                        kind: TypeCheckerError::NotUniverse(arena.build_term_raw(var(2.into(), prop()))).into()
+                        kind: TypeCheckerError::NotUniverse(arena.build_term_raw(var(2.into(), prop()))).into(),
                         trace: vec![Trace::Left, Trace::Right, Trace::Right]
                     })
                 );
@@ -728,7 +728,7 @@ mod tests {
                 assert_eq!(
                     term.infer(arena),
                     Err(Error {
-                        kind: TypeCheckerError::NotUniverse(arena.build_term_raw(prod(prop(), prop()))).into()
+                        kind: TypeCheckerError::NotUniverse(arena.build_term_raw(prod(prop(), prop()))).into(),
                         trace: vec![Trace::Left]
                     })
                 );
@@ -745,7 +745,7 @@ mod tests {
                 assert_eq!(
                     term.infer(arena),
                     Err(Error {
-                        kind: TypeCheckerError::NotUniverse(prop.prod(type_, arena)).into()
+                        kind: TypeCheckerError::NotUniverse(prop.prod(type_, arena)).into(),
                         trace: vec![Trace::Right]
                     })
                 );

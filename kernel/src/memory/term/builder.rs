@@ -71,7 +71,7 @@ pub const fn var(name: &str) -> impl BuilderTrait<'_> {
                 Term::var(depth - bind_depth, var_type, arena)
             })
             .or_else(|| arena.get_binding(name))
-            .ok_or(Error::new(TermError::ConstNotFound(arena.store_name(name)).into()))
+            .ok_or_else(|| Error::new(TermError::ConstNotFound(arena.store_name(name)).into()))
     }
 }
 

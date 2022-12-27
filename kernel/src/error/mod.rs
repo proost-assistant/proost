@@ -21,7 +21,9 @@ pub struct Error<'arena> {
 
 impl<'arena> Error<'arena> {
     /// Creates a new error from a kind and a trace.
-    pub fn new(kind: Kind<'arena>) -> Self {
+    #[inline]
+    #[must_use]
+    pub const fn new(kind: Kind<'arena>) -> Self {
         Self {
             kind,
             trace: Vec::new(),
@@ -30,8 +32,9 @@ impl<'arena> Error<'arena> {
 }
 
 impl core::fmt::Display for Error<'_> {
+    #[inline]
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{:?}", self.kind)
+        write!(f, "{}", self.kind)
     }
 }
 

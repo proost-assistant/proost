@@ -132,7 +132,7 @@ pub fn var<'build>(name: &'build str, levels: &'build [level::Builder<'build>]) 
     move |arena, env| {
         let decl = arena
             .get_binding_decl(name)
-            .ok_or(Error::new(DeclarationError::UnknownDeclaration(arena.store_name(name)).into()))?;
+            .ok_or_else(|| Error::new(DeclarationError::UnknownDeclaration(arena.store_name(name)).into()))?;
 
         try_build_instance(decl, levels, arena, env)
     }

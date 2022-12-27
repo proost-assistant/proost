@@ -6,7 +6,7 @@ use derive_more::{Display, From};
 /// [`std::io::Error`] does not implement them.
 #[derive(Display, From)]
 pub enum Error<'arena, 'build> {
-    #[display(fmt = "{}", _1)]
+    #[display(fmt = "{_1}")]
     Kernel(Box<dyn kernel::memory::Builder<'build> + 'build>, kernel::error::Error<'arena>),
 
     Parser(parser::error::Error),

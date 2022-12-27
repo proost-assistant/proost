@@ -32,10 +32,10 @@ pub enum ErrorKind {
     #[display(fmt = "errors occurred while reading file")]
     FileError,
 
-    #[display(fmt = "cyclic dependency:\n{}", _0)]
+    #[display(fmt = "cyclic dependency:\n{_0}")]
     CyclicDependencies(String),
 
-    #[display(fmt = "identifier {} already defined", _0)]
+    #[display(fmt = "identifier {_0} already defined")]
     BoundVariable(String),
 }
 
@@ -186,7 +186,7 @@ impl<'arena> Evaluator {
                     Some(ref type_builder) => {
                         let type_ = type_builder.realise(arena).map_err(|err| Kernel(box type_builder.clone(), err))?;
 
-                        term.check(type_, arena).map_err(|err| Kernel(box term_builder.clone(), err))?
+                        term.check(type_, arena).map_err(|err| Kernel(box term_builder.clone(), err))?;
                     },
                 }
 
@@ -211,7 +211,7 @@ impl<'arena> Evaluator {
                     Some(ref type_builder) => {
                         let type_ = type_builder.realise(arena).map_err(|err| Kernel(box type_builder.clone(), err))?;
 
-                        decl.check(type_, arena).map_err(|err| Kernel(box decl_builder.clone(), err))?
+                        decl.check(type_, arena).map_err(|err| Kernel(box decl_builder.clone(), err))?;
                     },
                 }
 
