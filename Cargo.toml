@@ -3,6 +3,7 @@ members = [
     "kernel",
     "parser",
     "proost",
+    "utils"
 ]
 
 [workspace.dependencies]

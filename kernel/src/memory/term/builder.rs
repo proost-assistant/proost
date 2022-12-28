@@ -15,18 +15,21 @@
 
 use derive_more::{Constructor, Deref, Display};
 use im_rc::hashmap::HashMap as ImHashMap;
+use utils::error::Error;
+use utils::location::Location;
+use utils::trace::{Trace, Traceable};
 
 use super::{DeBruijnIndex, Term};
-use crate::error::location::Location;
-use crate::error::trace::{Trace, Traceable};
-use crate::error::{Error, ResultTerm};
+use crate::error::ResultTerm;
 use crate::memory::arena::Arena;
 use crate::memory::declaration::builder as declaration;
 use crate::memory::level::builder as level;
 
+/// The kind of the error that can occur when building a [`Term`].
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
-pub enum TermError<'arena> {
+pub enum ErrorKind<'arena> {
+    /// The identifier is not bound in the given context.
     #[display(fmt = "unknown identifier {_0}")]
     ConstNotFound(&'arena str),
 }
@@ -73,7 +76,7 @@ pub const fn var(name: &str) -> impl BuilderTrait<'_> {
                 Term::var(depth - bind_depth, var_type, arena)
             })
             .or_else(|| arena.get_binding(name))
-            .ok_or_else(|| Error::new(TermError::ConstNotFound(arena.store_name(name)).into()))
+            .ok_or_else(|| Error::new(ErrorKind::ConstNotFound(arena.store_name(name)).into()))
     }
 }
 

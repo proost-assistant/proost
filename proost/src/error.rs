@@ -1,5 +1,7 @@
 use derive_more::{Display, From};
 
+use crate::evaluator;
+
 /// The type of errors encountered by Proost during an interactive session.
 ///
 /// Please note that some traits like `Clone` or `PartialEq` cannot be implemented here because
@@ -7,11 +9,11 @@ use derive_more::{Display, From};
 #[derive(Display, From)]
 pub enum Error<'arena, 'build> {
     #[display(fmt = "{_1}")]
-    Kernel(Box<dyn kernel::error::trace::Traceable + 'build>, kernel::error::Error<'arena>),
+    Kernel(Box<dyn utils::trace::Traceable + 'build>, kernel::error::Error<'arena>),
 
     Parser(parser::error::Error),
 
-    Toplevel(crate::evaluator::Error),
+    TopLevel(evaluator::Error),
 
     Io(std::io::Error),
 

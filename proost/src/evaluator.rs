@@ -3,13 +3,13 @@ use std::fs::read_to_string;
 use std::path::PathBuf;
 
 use derive_more::Display;
-use kernel::error::location::Location;
 use kernel::memory::arena::Arena;
 use kernel::memory::term::Term;
 use parser::command::{parse, Command};
 use path_absolutize::Absolutize;
+use utils::location::Location;
 
-use crate::error::Error::{Kernel, Toplevel};
+use crate::error::Error::{Kernel, TopLevel};
 use crate::error::Result;
 
 /// Type representing parser errors.
@@ -74,7 +74,7 @@ impl<'arena> Evaluator {
         if file_path.is_file() {
             Ok(file_path)
         } else {
-            Err(Toplevel(Error {
+            Err(TopLevel(Error {
                 kind: ErrorKind::FileNotFound(file_path.to_string_lossy().to_string()),
                 location,
             }))
@@ -96,7 +96,7 @@ impl<'arena> Evaluator {
         }
 
         if let Some(i) = importing.iter().position(|path| path == &file_path) {
-            return Err(Toplevel(Error {
+            return Err(TopLevel(Error {
                 kind: ErrorKind::CyclicDependencies(
                     importing[i..]
                         .iter()
@@ -171,7 +171,7 @@ impl<'arena> Evaluator {
         match *command {
             Command::Define(s, ref type_builder, ref term_builder) => {
                 if arena.get_binding(s).is_some() {
-                    return Err(Toplevel(Error {
+                    return Err(TopLevel(Error {
                         kind: ErrorKind::BoundVariable(s.to_owned()),
                         location: Location::default(), // TODO (see #38)
                     }));
@@ -196,7 +196,7 @@ impl<'arena> Evaluator {
 
             Command::Declaration(s, ref type_builder, ref decl_builder) => {
                 if arena.get_binding_decl(s).is_some() {
-                    return Err(Toplevel(Error {
+                    return Err(TopLevel(Error {
                         kind: ErrorKind::BoundVariable(s.to_owned()),
                         location: Location::default(), // TODO (see #38)
                     }));

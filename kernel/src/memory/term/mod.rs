@@ -204,7 +204,8 @@ impl<'arena> Arena<'arena> {
 
 #[cfg(test)]
 mod tests {
-    use crate::error::location::Location;
+    use utils::location::Location;
+
     use crate::memory::arena::use_arena;
     use crate::memory::declaration::{builder as declaration, InstantiatedDeclaration};
     use crate::memory::level::builder::raw as level;

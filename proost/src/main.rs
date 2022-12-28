@@ -38,7 +38,7 @@
     clippy::print_stdout,
     clippy::string_slice
 )]
-#![warn(clippy::missing_errors_doc, clippy::missing_docs_in_private_items)]
+#![warn(clippy::missing_docs_in_private_items)]
 #![cfg_attr(
     test,
     allow(
@@ -150,7 +150,7 @@ pub fn display<'arena>(res: Result<'arena, '_, Option<Term<'arena>>>) {
         Err(err) => {
             let location = match err {
                 Error::Kernel(ref builder, ref err) => Some(builder.apply_trace(&err.trace)),
-                Error::Parser(ref err) => Some(err.location),
+                Error::Parser(ref err) => Some(err.loc),
 
                 _ => None,
             };

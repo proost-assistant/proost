@@ -15,14 +15,17 @@
 use std::collections::HashMap;
 
 use derive_more::Display;
+use utils::error::Error;
 
 use super::Level;
-use crate::error::{Error, ResultLevel};
+use crate::error::ResultLevel;
 use crate::memory::arena::Arena;
 
+/// The kind of the error that can occur when building a [`Level`].
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
-pub enum LevelError<'arena> {
+pub enum ErrorKind<'arena> {
+    /// The identifier is not bound in the given context.
     #[display(fmt = "unknown universe variable {_0}")]
     VarNotFound(&'arena str),
 }
@@ -53,7 +56,7 @@ pub const fn var(name: &str) -> impl BuilderTrait<'_> {
     move |arena, env| {
         env.get(name)
             .map(|lvl| Level::var(*lvl, arena))
-            .ok_or_else(|| Error::new(LevelError::VarNotFound(arena.store_name(name)).into()))
+            .ok_or_else(|| Error::new(ErrorKind::VarNotFound(arena.store_name(name)).into()))
     }
 }
 

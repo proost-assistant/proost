@@ -11,6 +11,7 @@ version.workspace = true
 [dependencies]
 kernel.path = "../kernel"
 parser.path = "../parser"
+utils.path = "../utils"
 
 clap.workspace = true
 derive_more.workspace = true

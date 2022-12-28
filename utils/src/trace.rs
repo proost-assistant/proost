@@ -1,9 +1,11 @@
-use super::location::Location;
-use crate::error::Result;
+//! Trace to record the path taken by an algorithm over a structure.
 
-/// An element of a trace that indicates which branch has been taken at each step of the execution.
+use crate::error::Error;
+use crate::location::Location;
+
+/// An element of a trace that indicates which branch has been taken at each step of the execution of an algorithm.
 ///
-/// Please note that there is only two possible values since our builders have at most two children.
+/// Please note that there is only two possible values since our structures have at most two children.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Trace {
     /// Left branch
@@ -28,7 +30,7 @@ pub trait TraceableError {
     fn trace_err(self, trace: Trace) -> Self;
 }
 
-impl<'arena, T> TraceableError for Result<'arena, T> {
+impl<K: core::fmt::Display, T> TraceableError for Result<T, Error<K>> {
     #[inline]
     fn trace_err(self, trace: Trace) -> Self {
         self.map_err(|mut err| {

@@ -179,7 +179,8 @@ impl<'arena> Term<'arena> {
 #[cfg(test)]
 mod tests {
     // /!\ most terms used in these tests are ill-typed; they should not be used elsewhere
-    use crate::error::location::Location;
+    use utils::location::Location;
+
     use crate::memory::arena::use_arena;
     use crate::memory::declaration::{builder as declaration, InstantiatedDeclaration};
     use crate::memory::term::builder::raw::*;

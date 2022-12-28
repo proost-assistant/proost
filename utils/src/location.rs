@@ -6,7 +6,10 @@ use derive_more::{Constructor, Display};
 #[derive(Clone, Copy, Constructor, Debug, Default, Display, Eq, PartialEq, Ord, PartialOrd)]
 #[display(fmt = "{line}:{column}")]
 pub struct Position {
+    /// Line number, starts at 1.
     pub line: usize,
+
+    /// Column number, starts at 1.
     pub column: usize,
 }
 
@@ -14,8 +17,10 @@ pub struct Position {
 #[derive(Clone, Copy, Debug, Default, Display, Eq, PartialEq, Ord, PartialOrd)]
 #[display(fmt = "{start}-{end}")]
 pub struct Location {
+    /// Start position.
     pub start: Position,
 
+    /// End position.
     pub end: Position,
 }
 

@@ -1,13 +1,14 @@
-use kernel::error::location::Location;
 use kernel::memory::declaration::builder as declaration;
 use kernel::memory::level::builder as level;
 use kernel::memory::term::builder as term;
 use pest::error::LineColLocation;
 use pest::iterators::Pair;
 use pest::{Parser, Span};
+use utils::location::Location;
 
 use crate::command::Command;
 use crate::error;
+use crate::error::Error;
 
 #[derive(Parser)]
 #[grammar = "command/grammar.pest"]
@@ -288,9 +289,9 @@ fn convert_error(err: pest::error::Error<Rule>) -> error::Error {
         chars.next();
     });
 
-    error::Error {
+    Error {
         kind: error::Kind::CannotParse(chars.as_str().to_owned()),
-        location: loc,
+        loc,
     }
 }
 
@@ -335,7 +336,7 @@ mod tests {
             line("check fun x : Prop -> Type"),
             Err(Error {
                 kind: Kind::CannotParse(UNIVERSE_ERR.to_owned()),
-                location: Location::new((1, 27), (1, 27)),
+                loc: Location::new((1, 27), (1, 27)),
             })
         );
     }
@@ -698,14 +699,14 @@ mod tests {
             line("check (x:A)"),
             Err(Error {
                 kind: Kind::CannotParse(SIMPLE_TERM_ERR.to_owned()),
-                location: Location::new((1, 7), (1, 11)),
+                loc: Location::new((1, 7), (1, 11)),
             })
         );
         assert_eq!(
             line("check (x:A) -> (y:B)"),
             Err(Error {
                 kind: Kind::CannotParse(SIMPLE_TERM_ERR.to_owned()),
-                location: Location::new((1, 16), (1, 20)),
+                loc: Location::new((1, 16), (1, 20)),
             })
         );
     }
@@ -992,21 +993,21 @@ mod tests {
             line("chehk 2x"),
             Err(Error {
                 kind: Kind::CannotParse(COMMAND_ERR.to_owned()),
-                location: Location::new((1, 1), (1, 5)),
+                loc: Location::new((1, 1), (1, 5)),
             })
         );
         assert_eq!(
             line("check 2x"),
             Err(Error {
                 kind: Kind::CannotParse(TERM_ERR.to_owned()),
-                location: Location::new((1, 7), (1, 8)),
+                loc: Location::new((1, 7), (1, 8)),
             })
         );
         assert_eq!(
             line("check x:"),
             Err(Error {
                 kind: Kind::CannotParse(TERM_ERR.to_owned()),
-                location: Location::new((1, 9), (1, 9)),
+                loc: Location::new((1, 9), (1, 9)),
             })
         );
     }
@@ -1021,7 +1022,7 @@ mod tests {
             ),
             Err(Error {
                 kind: Kind::CannotParse(TERM_ERR.to_owned()),
-                location: Location::new((3, 31), (3, 32)),
+                loc: Location::new((3, 31), (3, 32)),
             })
         );
     }
