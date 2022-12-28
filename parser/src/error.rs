@@ -1,6 +1,7 @@
 //! Errors that can be yielded by the parser.
 
 use derive_more::Display;
+
 use pest::error::LineColLocation;
 use utils::location::Location;
 
@@ -17,11 +18,11 @@ pub struct Error {
     pub loc: Location,
 }
 
-/// The type of errors that can be encountered by the parser.
+/// The type of errors that can occur in the parser.
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum Kind {
-    /// An error that occurs when the parser encounters an unexpected token.
+    /// Parsing error (redirection from Pest)
     CannotParse(String),
 }
 
@@ -106,5 +107,5 @@ impl From<pest::error::Error<Rule>> for Error {
     }
 }
 
-/// Specify the [`Result`](core::result::Result) type for the parser.
+/// The type of results yielded by the parser.
 pub type Result<T> = core::result::Result<T, Error>;
