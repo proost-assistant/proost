@@ -103,8 +103,6 @@ impl<'arena> InstantiatedDeclaration<'arena> {
     where
         F: FnOnce(Term<'arena>, &mut Arena<'arena>) -> ResultTerm<'arena>,
     {
-        let term = self.0.payload.decl.0;
-        term.get_type_or_try_init(|| f(term, arena))
-            .map(|type_| type_.substitute_univs(self.0.payload.params, arena))
+        f(self.0.payload.decl.0, arena).map(|type_| type_.substitute_univs(self.0.payload.params, arena))
     }
 }

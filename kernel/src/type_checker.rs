@@ -104,8 +104,8 @@ impl<'arena> Term<'arena> {
 
     /// Infers the type of the term `t`, living in arena `arena`.
     #[inline]
-    pub fn infer_raw(self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
-        match *self {
+    pub fn infer(self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
+        self.get_type_or_try_init(|| match *self {
             Sort(lvl) => Ok(Term::sort(lvl.succ(arena), arena)),
             Var(_, type_) => Ok(type_),
             Axiom(ax) => Ok(ax.get_type(arena)),
@@ -151,14 +151,8 @@ impl<'arena> Term<'arena> {
                 }
             },
 
-            Decl(decl) => decl.get_type_or_try_init(Term::infer_raw, arena),
-        }
-    }
-
-    /// Infers the type of the term `t`, living in arena `arena`, checks for memoization.
-    #[inline]
-    pub fn infer(self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
-        self.get_type_or_try_init(|| self.infer_raw(arena))
+            Decl(decl) => decl.get_type_or_try_init(Term::infer, arena),
+        })
     }
 
     /// Checks whether the term `t` living in `arena` is of type `ty`.
@@ -192,12 +186,9 @@ impl<'arena> Declaration<'arena> {
 
 #[cfg(test)]
 mod tests {
-    use utils::location::Location;
-
     use super::*;
     use crate::memory::arena::use_arena;
-    use crate::memory::declaration::{builder as declaration, InstantiatedDeclaration};
-    use crate::memory::term::builder as term;
+    use crate::memory::declaration::InstantiatedDeclaration;
     use crate::memory::term::builder::raw::*;
 
     fn id() -> impl BuilderTrait {
@@ -237,24 +228,22 @@ mod tests {
     #[test]
     fn conv_decl() {
         use_arena(|arena| {
-            let decl = declaration::Builder::Decl(Box::new(term::Builder::new(Location::default(), term::Payload::Prop)), vec![]);
-            let decl = InstantiatedDeclaration::instantiate(decl.realise(arena).unwrap(), &[], arena);
+            let decl_ = InstantiatedDeclaration::instantiate(Declaration(Term::prop(arena), 0), &Vec::new(), arena);
+            let term = Term::decl(decl_, arena);
 
-            let decl = crate::memory::term::Term::decl(decl, arena);
             let prop = arena.build_term_raw(prop());
 
-            assert!(decl.is_def_eq(prop, arena).is_ok());
-            assert!(prop.is_def_eq(decl, arena).is_ok());
+            assert!(term.is_def_eq(prop, arena).is_ok());
+            assert!(prop.is_def_eq(term, arena).is_ok());
         });
     }
 
     #[test]
     fn infer_decl() {
         use_arena(|arena| {
-            let decl = declaration::Builder::Decl(Box::new(term::Builder::new(Location::default(), term::Payload::Prop)), vec![]);
-            let decl = InstantiatedDeclaration::instantiate(decl.realise(arena).unwrap(), &[], arena);
+            let decl_ = InstantiatedDeclaration::instantiate(Declaration(Term::prop(arena), 0), &Vec::new(), arena);
 
-            let term = crate::memory::term::Term::decl(decl, arena);
+            let term = Term::decl(decl_, arena);
             let ty = arena.build_term_raw(type_usize(0));
 
             assert!(term.check(ty, arena).is_ok());
