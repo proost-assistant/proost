@@ -10,7 +10,8 @@ use crate::memory::{declaration, level, term};
 use crate::type_checker::TypeCheckerError;
 
 /// Type representing kernel errors.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Display, PartialEq, Eq)]
+#[display(fmt = "{kind}")]
 pub struct Error<'arena> {
     /// The kind of form error that occurred.
     pub kind: Kind<'arena>,
@@ -28,13 +29,6 @@ impl<'arena> Error<'arena> {
             kind,
             trace: Vec::new(),
         }
-    }
-}
-
-impl core::fmt::Display for Error<'_> {
-    #[inline]
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{}", self.kind)
     }
 }
 

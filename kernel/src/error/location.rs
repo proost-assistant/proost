@@ -1,6 +1,4 @@
-//! Location of terms in a text interface.
-//!
-//! Be aware that this portion of the code will be refactored (see issue #38 on GitLab).
+//! Location of elements in a text interface.
 
 use derive_more::{Constructor, Display, From};
 

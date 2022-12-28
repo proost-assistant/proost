@@ -13,7 +13,7 @@ use crate::error;
 #[grammar = "command/grammar.pest"]
 struct CommandParser;
 
-/// convert pest locations to kernel locations
+/// Convert pest location [`Span`] to our location [`Location`].
 fn convert_span(span: Span) -> Location {
     let (x1, y1) = span.start_pos().line_col();
     let (x2, y2) = span.end_pos().line_col();
@@ -210,7 +210,7 @@ fn parse_expr(pair: Pair<Rule>) -> Command {
     }
 }
 
-/// convert pest error to kernel error
+/// convert pest error to parser error
 fn convert_error(err: pest::error::Error<Rule>) -> error::Error {
     // renaming error messages
     let err = err.renamed_rules(|rule| match *rule {

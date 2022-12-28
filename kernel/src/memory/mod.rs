@@ -9,5 +9,3 @@ pub mod arena;
 pub mod declaration;
 pub mod level;
 pub mod term;
-
-pub trait Builder<'build> {}

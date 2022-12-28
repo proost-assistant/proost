@@ -1,4 +1,5 @@
 #![doc(html_logo_url = "https://gitlab.crans.org/loutr/proost/-/raw/main/docs/media/logo.png")]
+#![feature(box_patterns)]
 #![feature(box_syntax)]
 #![feature(let_chains)]
 #![deny(
@@ -148,7 +149,8 @@ pub fn display<'arena>(res: Result<'arena, '_, Option<Term<'arena>>>) {
 
         Err(err) => {
             let location = match err {
-                Error::Parser(ref err) => Some(&err.location),
+                Error::Kernel(ref builder, ref err) => Some(builder.apply_trace(&err.trace)),
+                Error::Parser(ref err) => Some(err.location.clone()),
 
                 _ => None,
             };
@@ -160,10 +162,10 @@ pub fn display<'arena>(res: Result<'arena, '_, Option<Term<'arena>>>) {
                     format!("{:0w1$}^{:-<w2$}^", "", "", w1 = loc.start.column - 1, w2 = loc.end.column - loc.start.column - 1)
                 };
 
-                println!("{} {}", "\u{2717}".red(), indicator);
+                println!("{} {indicator}", "\u{2717}".red());
             };
 
-            println!("{} {}", "\u{2717}".red(), err);
+            println!("{} {err}", "\u{2717}".red());
         },
     }
 }

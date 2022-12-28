@@ -17,6 +17,8 @@ use derive_more::Display;
 use im_rc::hashmap::HashMap as ImHashMap;
 
 use super::{DeBruijnIndex, Term};
+use crate::error::location::Location;
+use crate::error::trace::{Trace, Traceable};
 use crate::error::{Error, ResultTerm};
 use crate::memory::arena::Arena;
 use crate::memory::declaration::builder as declaration;
@@ -196,7 +198,12 @@ pub enum Builder<'build> {
     Decl(Box<declaration::InstantiatedBuilder<'build>>),
 }
 
-impl<'build> super::super::Builder<'build> for Builder<'build> {}
+impl<'build> Traceable for Builder<'build> {
+    #[inline]
+    fn apply_trace(&self, trace: &[Trace]) -> Location {
+        Location::default()
+    }
+}
 
 impl<'build> Builder<'build> {
     /// Realise a builder into a [`Term`]. This internally uses functions described in

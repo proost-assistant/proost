@@ -11,6 +11,8 @@
 use derive_more::Display;
 
 use super::{Declaration, InstantiatedDeclaration};
+use crate::error::location::Location;
+use crate::error::trace::{Trace, Traceable};
 use crate::error::{Error, Result, ResultDecl, ResultInstantiatedDecl};
 use crate::memory::arena::Arena;
 use crate::memory::level::builder as level;
@@ -71,7 +73,12 @@ pub enum Builder<'build> {
     Decl(Box<term::Builder<'build>>, Vec<&'build str>),
 }
 
-impl<'build> super::super::Builder<'build> for Builder<'build> {}
+impl<'build> Traceable for Builder<'build> {
+    #[inline]
+    fn apply_trace(&self, trace: &[Trace]) -> Location {
+        Location::default()
+    }
+}
 
 impl<'build> Builder<'build> {
     /// Realise a builder into a [`Declaration`]. This internally uses functions described in
