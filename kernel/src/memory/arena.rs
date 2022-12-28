@@ -122,6 +122,9 @@ impl<'arena> Arena<'arena> {
     pub fn bind_decl(&mut self, name: &str, decl: Declaration<'arena>) {
         let name = self.store_name(name);
         self.named_decls.insert(name, decl);
+        if let Declaration(term, 0) = decl {
+            self.bind(name, term);
+        }
     }
 
     /// Retrieves the binding of a given name, if one exists.

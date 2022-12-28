@@ -66,7 +66,7 @@ fn parse_level(pair: Pair<Rule>) -> level::Builder {
 /// Build [`kernel`]'s [`Term`](term::Builder) from errorless pest's output
 fn parse_term(pair: Pair<Rule>) -> term::Builder {
     use term::Builder;
-    use term::Payload::{Abs, App, Decl, Prod, Prop, Sort, Type, Var};
+    use term::Payload::{Abs, App, Prod, Prop, Sort, Type, Var, VarInstance};
 
     let loc = convert_span(pair.as_span());
 
@@ -80,7 +80,7 @@ fn parse_term(pair: Pair<Rule>) -> term::Builder {
             let name = iter.next().unwrap().as_str();
             let levels = iter.next().unwrap().into_inner().map(parse_level).collect();
 
-            Builder::new(loc, Decl(box declaration::InstantiatedBuilder::Var(name, levels)))
+            Builder::new(loc, VarInstance(name, levels))
         },
 
         Rule::Type => pair.into_inner().next_back().map_or_else(
@@ -289,14 +289,14 @@ mod tests {
                 (Location::new((1, 5), (1, 6)), "x"),
                 Some(declaration::Builder::Decl(
                     box Builder::new(Location::new((1, 13), (1, 19)), Type(box level::Builder::Var("u"))),
-                    ["u"].to_vec()
+                    vec!["u"]
                 )),
                 declaration::Builder::Decl(
                     box Builder::new(
                         Location::new((1, 23), (1, 30)),
                         Decl(box declaration::InstantiatedBuilder::Var("foo", [level::Builder::Var("u")].to_vec()))
                     ),
-                    ["u"].to_vec()
+                    vec!["u"]
                 )
             ))
         );

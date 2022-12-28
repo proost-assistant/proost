@@ -80,6 +80,20 @@ pub const fn var(name: &str) -> impl BuilderTrait<'_> {
     }
 }
 
+/// Returns a closure building a variable associated to the name `name`, potentially from a
+/// declaration instantiated with the given parameters.
+#[inline]
+#[must_use]
+pub const fn var_instance<'build>(name: &'build str, levels: &'build [level::Builder<'build>]) -> impl BuilderTrait<'build> {
+    move |arena, env, lvl_env, depth| {
+        if levels.len() == 0 {
+            var(name)(arena, env, lvl_env, depth)
+        } else {
+            decl(declaration::var(name, levels))(arena, env, lvl_env, depth)
+        }
+    }
+}
+
 /// Returns a closure building the Prop term.
 #[inline]
 #[must_use]
@@ -189,11 +203,15 @@ pub struct Builder<'build> {
 /// it offers different ways to build some terms, for convenience.
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
 pub enum Payload<'build> {
-    #[display(fmt = "{_0}")]
-    Var(&'build str),
-
     #[display(fmt = "Prop")]
     Prop,
+
+    /// A regular variable
+    Var(&'build str),
+
+    /// A variable that may or may not be an instantiated declaration
+    #[display(fmt = "{_0}")]
+    VarInstance(&'build str, Vec<level::Builder<'build>>),
 
     #[display(fmt = "Type {_0}")]
     Type(Box<level::Builder<'build>>),
@@ -257,8 +275,9 @@ impl<'build> Builder<'build> {
         depth: DeBruijnIndex,
     ) -> ResultTerm<'arena> {
         match **self {
-            Payload::Var(s) => var(s)(arena, env, lvl_env, depth),
             Payload::Prop => prop()(arena, env, lvl_env, depth),
+            Payload::Var(s) => var(s)(arena, env, lvl_env, depth),
+            Payload::VarInstance(name, ref levels) => var_instance(name, levels)(arena, env, lvl_env, depth),
             Payload::Type(ref level) => type_(level.partial_application())(arena, env, lvl_env, depth),
             Payload::Sort(ref level) => sort(level.partial_application())(arena, env, lvl_env, depth),
             Payload::App(ref l, ref r) => app(l.partial_application(), r.partial_application())(arena, env, lvl_env, depth),
@@ -268,13 +287,7 @@ impl<'build> Builder<'build> {
             Payload::Prod(s, ref arg, ref body) => {
                 prod(s, arg.partial_application(), body.partial_application())(arena, env, lvl_env, depth)
             },
-            Payload::Decl(ref decl_builder) => {
-                if let declaration::InstantiatedBuilder::Var(str, vec) = &**decl_builder && vec.len() == 0 &&
-                   let Ok(res) = var(str)(arena, env, lvl_env, depth) {
-                    return Ok(res);
-                }
-                decl(decl_builder.partial_application())(arena, env, lvl_env, depth)
-            },
+            Payload::Decl(ref decl_builder) => decl(decl_builder.partial_application())(arena, env, lvl_env, depth),
         }
     }
 }
