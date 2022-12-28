@@ -12,6 +12,9 @@ use crate::memory::declaration::Declaration;
 use crate::memory::term::Payload::{Abs, App, Axiom, Decl, Prod, Sort, Var};
 use crate::memory::term::Term;
 
+/// A couple of terms, where the second is the type of the first.
+///
+/// This type is only used for pretty-printing.
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 #[display(fmt = "{_0}: {_1}")]
 pub struct TypedTerm<'arena>(Term<'arena>, Term<'arena>);
@@ -21,18 +24,23 @@ pub struct TypedTerm<'arena>(Term<'arena>, Term<'arena>);
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum ErrorKind<'arena> {
+    /// This term is not a universe
     #[display(fmt = "{_0} is not a universe")]
     NotUniverse(Term<'arena>),
 
+    /// These two terms are not definitionally equal
     #[display(fmt = "{_0} and {_1} are not definitionally equal")]
     NotDefEq(Term<'arena>, Term<'arena>),
 
+    /// This function expected an argument of this type, received an argument of this other type
     #[display(fmt = "function {_0} expects a term of type {_1}, received {_2}")]
     WrongArgumentType(Term<'arena>, Term<'arena>, TypedTerm<'arena>),
 
+    /// This is not a function, it cannot be applied to this
     #[display(fmt = "{_0} is not a function, it cannot be applied to {_1}")]
     NotAFunction(TypedTerm<'arena>, Term<'arena>),
 
+    /// These types mismatch
     #[display(fmt = "expected {_0}, got {_1}")]
     TypeMismatch(Term<'arena>, Term<'arena>),
 }
@@ -82,6 +90,9 @@ impl<'arena> Term<'arena> {
     }
 
     /// Checks whether two terms are definitionally equal.
+    ///
+    /// # Errors
+    /// Yields an error indicating the two terms are not definitionally equal.
     #[inline]
     pub fn is_def_eq(self, rhs: Self, arena: &mut Arena<'arena>) -> Result<'arena, ()> {
         self.conversion(rhs, arena)
@@ -102,7 +113,10 @@ impl<'arena> Term<'arena> {
         }
     }
 
-    /// Infers the type of the term `t`, living in arena `arena`.
+    /// Infers the type of the term `self`, living in the arena `arena`.
+    ///
+    /// # Errors
+    /// If the term cannot be typed, this function yields an error indicating where the problem is.
     #[inline]
     pub fn infer(self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
         self.get_type_or_try_init(|| match *self {
@@ -155,7 +169,11 @@ impl<'arena> Term<'arena> {
         })
     }
 
-    /// Checks whether the term `t` living in `arena` is of type `ty`.
+    /// Checks whether the term `self` living in `arena` is of type `ty`.
+    ///
+    /// # Errors
+    /// If `self` cannot be typed, or `ty` is not the type of `self`, this yields the corresponding
+    /// error.
     #[inline]
     pub fn check(self, ty: Self, arena: &mut Arena<'arena>) -> Result<'arena, ()> {
         let tty = self.infer(arena)?;
@@ -172,12 +190,20 @@ impl<'arena> Declaration<'arena> {
     /// Because it is not allowed to access the underlying term of a declaration, this function
     /// does not return anything, and only serves as a way to ensure the declaration is
     /// well-formed.
+    ///
+    /// # Errors
+    /// If the declaration cannot be typed, this function yields an error indicating where the problem is.
     #[inline]
     pub fn infer(self, arena: &mut Arena<'arena>) -> Result<'arena, ()> {
         self.0.infer(arena)?;
         Ok(())
     }
 
+    /// Checks whether the declaration `self` living in `arena` is of type `ty`.
+    ///
+    /// # Errors
+    /// If `self` cannot be typed, or `ty` is not the type of `self`, this yields the corresponding
+    /// error.
     #[inline]
     pub fn check(self, ty: Self, arena: &mut Arena<'arena>) -> Result<'arena, ()> {
         self.0.check(ty.0, arena)

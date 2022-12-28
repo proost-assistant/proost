@@ -3,6 +3,7 @@
 //! This module consists of internal utility functions used by the type checker, and correspond to
 //! usual functions over lambda-terms. These functions interact appropriately with a given arena.
 
+use crate::axiom;
 use crate::memory::arena::Arena;
 use crate::memory::declaration::InstantiatedDeclaration;
 use crate::memory::level::Level;
@@ -10,6 +11,9 @@ use crate::memory::term::Payload::{Abs, App, Axiom, Decl, Prod, Sort, Var};
 use crate::memory::term::Term;
 
 impl<'arena> Term<'arena> {
+    /// unfolds a term.
+    ///
+    /// Unfolding only happens on instantiated declarations.
     fn unfold(self, arena: &mut Arena<'arena>) -> Self {
         match *self {
             Decl(decl) => decl.get_term(arena),
@@ -184,17 +188,17 @@ impl<'arena> Term<'arena> {
         })
     }
 
+    /// Reduces a term if it is an instance of the Nat reducer, returns None otherwise.
     fn reduce_nat(self, arena: &mut Arena<'arena>) -> Option<Self> {
-        use crate::axiom::Axiom::*;
         if let App(f,n) = *self &&
            let App(f,motive_succ) = *f &&
            let App(f,motive_0) = *f &&
            let App(f,motive) = *f &&
-           let Axiom(NatRec) = *f {
+           *f == Axiom(axiom::Axiom::NatRec) {
             match *n.whnf(arena) {
-                | Axiom(Zero) => Some(motive_0),
-                | App(f,n) if let Axiom(Succ) = *f => {
-                    let new_rec = Term::app(Term::app(Term::app(Term::app(Term::axiom(NatRec,arena),motive,arena), motive_0,arena),motive_succ,arena),n,arena);
+                | Axiom(axiom::Axiom::Zero) => Some(motive_0),
+                | App(f,n) if let Axiom(axiom::Axiom::Succ) = *f => {
+                    let new_rec = Term::app(Term::app(Term::app(Term::app(Term::axiom(axiom::Axiom::NatRec,arena),motive,arena), motive_0,arena),motive_succ,arena),n,arena);
                     let app = Term::app(Term::app(motive_succ, n,arena),new_rec,arena);
                     Some(app)
                 },
@@ -205,6 +209,7 @@ impl<'arena> Term<'arena> {
         }
     }
 
+    /// Reduces a term if possible, returns None otherwise.
     fn reduce_recursor(self, arena: &mut Arena<'arena>) -> Option<Self> {
         let rec_reds = [Term::reduce_nat];
         rec_reds.into_iter().find_map(|f| f(self, arena))

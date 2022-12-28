@@ -21,11 +21,11 @@ use super::Level;
 use crate::error::ResultLevel;
 use crate::memory::arena::Arena;
 
-/// The kind of the error that can occur when building a [`Level`].
+/// The kind of errors that can occur when building a [`Level`].
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum ErrorKind<'arena> {
-    /// The identifier is not bound in the given context.
+    /// Unknown universe variable
     #[display(fmt = "unknown universe variable {_0}")]
     VarNotFound(&'arena str),
 }
@@ -43,6 +43,9 @@ pub trait BuilderTrait<'build> = for<'arena> FnOnce(&mut Arena<'arena>, &Environ
 
 impl<'arena> Arena<'arena> {
     /// Returns the level built from the given closure, provided with a Level environment, which binds names to `usize`s
+    ///
+    /// # Errors
+    /// If the level could not be built, yields an error indicating the reason
     #[inline]
     pub fn build_level<'build, F: BuilderTrait<'build>>(&mut self, f: F) -> ResultLevel<'arena> {
         f(self, &Environment::new())
@@ -115,6 +118,7 @@ pub const fn imax<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(u1
 /// a trace when an error occurs. This makes their structure simpler, but also limits the accuracy of the
 /// error reports associated to them. This is not an issue, as levels typically have a very limited size.
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
+#[allow(clippy::missing_docs_in_private_items)]
 pub enum Builder<'builder> {
     #[display(fmt = "0")]
     Zero,
@@ -139,15 +143,20 @@ pub enum Builder<'builder> {
 impl<'build> Builder<'build> {
     /// Realise a builder into a [`Level`]. This internally uses functions described in
     /// the [builder](`crate::memory::level::builder`) module.
+    ///
+    /// # Errors
+    /// If the level could not be built, yields an error indicating the reason
     #[inline]
     pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultLevel<'arena> {
         arena.build_level(self.partial_application())
     }
 
+    /// Associates a builder to a builder trait.
     pub(in crate::memory) fn partial_application(&self) -> impl BuilderTrait<'build> + '_ {
         |arena, env| self.realise_in_context(arena, env)
     }
 
+    /// Provides a correspondence between builder items and functions with the builder trait
     pub(in crate::memory) fn realise_in_context<'arena>(
         &self,
         arena: &mut Arena<'arena>,

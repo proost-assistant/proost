@@ -25,11 +25,11 @@ use crate::memory::arena::Arena;
 use crate::memory::declaration::builder as declaration;
 use crate::memory::level::builder as level;
 
-/// The kind of the error that can occur when building a [`Term`].
+/// The kind of errors that can occur when building a [`Term`].
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum ErrorKind<'arena> {
-    /// The identifier is not bound in the given context.
+    /// Unknown identifier
     #[display(fmt = "unknown identifier {_0}")]
     ConstNotFound(&'arena str),
 }
@@ -57,6 +57,9 @@ pub trait BuilderTrait<'build> = for<'arena> FnOnce(
 
 impl<'arena> Arena<'arena> {
     /// Returns the term built from the given closure, provided with an empty context, at depth 0.
+    ///
+    /// # Errors
+    /// If the term could not be built, yields an error indicating the reason
     #[inline]
     pub fn build<'build, F: BuilderTrait<'build>>(&mut self, f: F) -> ResultTerm<'arena> {
         f(self, &Environment::new(), &level::Environment::new(), 0.into())
@@ -86,7 +89,7 @@ pub const fn var(name: &str) -> impl BuilderTrait<'_> {
 #[must_use]
 pub const fn var_instance<'build>(name: &'build str, levels: &'build [level::Builder<'build>]) -> impl BuilderTrait<'build> {
     move |arena, env, lvl_env, depth| {
-        if levels.len() == 0 {
+        if levels.is_empty() {
             var(name)(arena, env, lvl_env, depth)
         } else {
             decl(declaration::var(name, levels))(arena, env, lvl_env, depth)
@@ -202,6 +205,7 @@ pub struct Builder<'build> {
 /// involved). Because its purpose is to provide an easy way to build terms, even through the API,
 /// it offers different ways to build some terms, for convenience.
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
+#[allow(clippy::missing_docs_in_private_items)]
 pub enum Payload<'build> {
     #[display(fmt = "Prop")]
     Prop,
@@ -258,15 +262,20 @@ impl<'build> Traceable for Builder<'build> {
 impl<'build> Builder<'build> {
     /// Realise a builder into a [`Term`]. This internally uses functions described in
     /// the [builder](`crate::memory::term::builder`) module.
+    ///
+    /// # Errors
+    /// If the term could not be built, yields an error indicating the reason
     #[inline]
     pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
         arena.build(self.partial_application())
     }
 
+    /// Associates a builder to a builder trait.
     pub(in crate::memory) fn partial_application(&'build self) -> impl BuilderTrait<'build> {
         |arena, env, lvl_env, depth| self.realise_in_context(arena, env, lvl_env, depth)
     }
 
+    /// Provides a correspondence between builder items and functions with the builder trait
     fn realise_in_context<'arena>(
         &'build self,
         arena: &mut Arena<'arena>,

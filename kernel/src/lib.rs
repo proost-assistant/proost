@@ -22,11 +22,13 @@
     clippy::suspicious
 )]
 #![allow(
+    clippy::arithmetic_side_effects,
     clippy::blanket_clippy_restriction_lints,
     clippy::else_if_without_else,
     clippy::exhaustive_enums,
     clippy::exhaustive_structs,
     clippy::implicit_return,
+    clippy::integer_arithmetic,
     clippy::match_same_arms,
     clippy::match_wildcard_for_single_variants,
     clippy::missing_trait_methods,
@@ -39,12 +41,7 @@
     clippy::unreachable,
     clippy::wildcard_enum_match_arm
 )]
-#![warn(
-    clippy::arithmetic_side_effects,
-    clippy::integer_arithmetic,
-    clippy::missing_errors_doc,
-    clippy::missing_docs_in_private_items
-)]
+#![warn(clippy::missing_errors_doc, clippy::missing_docs_in_private_items)]
 #![cfg_attr(
     test,
     allow(

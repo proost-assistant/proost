@@ -10,6 +10,7 @@ use derive_more::{Add, Display, From, Into, Sub};
 
 use super::declaration::InstantiatedDeclaration;
 use super::level::Level;
+use crate::axiom;
 use crate::error::ResultTerm;
 use crate::memory::arena::Arena;
 
@@ -21,6 +22,7 @@ pub struct DeBruijnIndex(usize);
 
 super::arena::new_dweller!(Term, Header, Payload);
 
+/// The header of a term.
 struct Header<'arena> {
     /// lazy structure to store the weak-head normal form of a term
     head_normal_form: OnceCell<Term<'arena>>,
@@ -62,8 +64,8 @@ pub enum Payload<'arena> {
     /// An instance of a universe-polymorphic declaration
     Decl(InstantiatedDeclaration<'arena>),
 
-    /// An axiom, is not yet available through user input, but can be (and should be used) to implement new inductive types
-    Axiom(crate::axiom::Axiom),
+    /// An axiom
+    Axiom(axiom::Axiom),
 }
 
 impl<'arena> fmt::Display for Payload<'arena> {
@@ -128,7 +130,7 @@ impl<'arena> Term<'arena> {
     }
 
     /// Returns an axiom term with the given axiom
-    pub(crate) fn axiom(axiom: crate::axiom::Axiom, arena: &mut Arena<'arena>) -> Self {
+    pub(crate) fn axiom(axiom: axiom::Axiom, arena: &mut Arena<'arena>) -> Self {
         Self::hashcons(Axiom(axiom), arena)
     }
 
@@ -213,21 +215,16 @@ impl<'arena> Arena<'arena> {
 
 #[cfg(test)]
 mod tests {
-    use utils::location::Location;
-
     use crate::memory::arena::use_arena;
-    use crate::memory::declaration::{builder as declaration, InstantiatedDeclaration};
+    use crate::memory::declaration::{InstantiatedDeclaration, Declaration};
     use crate::memory::level::builder::raw as level;
-    use crate::memory::term::builder::raw::*;
-    use crate::memory::term::builder::{Builder, Payload};
+    use crate::memory::term::{Term, builder::raw::*};
 
     #[test]
     fn display_1() {
         use_arena(|arena| {
-            let decl = declaration::Builder::Decl(Box::new(Builder::new(Location::default(), Payload::Prop)), vec![]);
-            let decl = InstantiatedDeclaration::instantiate(decl.realise(arena).unwrap(), &[], arena);
-
-            let prop = crate::memory::term::Term::decl(decl, arena);
+            let decl = InstantiatedDeclaration::instantiate(Declaration(Term::prop(arena), 0), &Vec::new(), arena);
+            let prop = Term::decl(decl, arena);
 
             assert_eq!(prop.to_string(), "(Prop).{}");
         });

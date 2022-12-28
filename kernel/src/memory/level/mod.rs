@@ -10,6 +10,7 @@ super::arena::new_dweller!(Level, Header, Payload);
 
 pub mod builder;
 
+/// The header of a level
 struct Header<'arena> {
     /// The plus-form of a level
     plus_form: OnceCell<(Level<'arena>, usize)>,
@@ -164,7 +165,7 @@ impl<'arena> Level<'arena> {
     ///  - `imax(u, imax(v, w)) = max(imax(u, w), imax(v, w))`
     ///  - `imax(u, max(v, w)) = max(imax(u, v), imax(u, w))`
     ///
-    /// The function also reduces max. This is further helpful when trying to print the type.
+    /// The function also reduces `max`s. This is further helpful when trying to print the type.
     ///
     /// Here, the imax normalization pushes imaxes to all have a `Var(i)` as the second argument. To solve this last case, one needs
     /// to substitute `Var(i)` with `0` and `S(Var(i))`. This gives us a consistent way to unstuck the geq-checking.
