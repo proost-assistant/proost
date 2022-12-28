@@ -6,7 +6,7 @@
 use crate::memory::arena::Arena;
 use crate::memory::declaration::InstantiatedDeclaration;
 use crate::memory::level::Level;
-use crate::memory::term::Payload::{Abs, App, Decl, Prod, Sort, Var};
+use crate::memory::term::Payload::{Abs, App, Axiom, Decl, Prod, Sort, Var};
 use crate::memory::term::Term;
 
 impl<'arena> Term<'arena> {

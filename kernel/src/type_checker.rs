@@ -9,7 +9,7 @@ use utils::trace::{Trace, TraceableError};
 use crate::error::{Result, ResultTerm};
 use crate::memory::arena::Arena;
 use crate::memory::declaration::Declaration;
-use crate::memory::term::Payload::{Abs, App, Decl, Prod, Sort, Var};
+use crate::memory::term::Payload::{Abs, App, Axiom, Decl, Prod, Sort, Var};
 use crate::memory::term::Term;
 
 #[derive(Clone, Debug, Display, Eq, PartialEq)]

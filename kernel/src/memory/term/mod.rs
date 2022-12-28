@@ -95,7 +95,7 @@ impl<'arena> fmt::Display for Term<'arena> {
     }
 }
 
-use Payload::{Abs, App, Decl, Prod, Sort, Var};
+use Payload::{Abs, App, Axiom, Decl, Prod, Sort, Var};
 
 impl<'arena> Term<'arena> {
     /// This function is the base low-level function for creating terms.

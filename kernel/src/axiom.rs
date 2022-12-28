@@ -74,10 +74,6 @@ impl Axiom {
         }
     }
 
-    pub fn is_recursor(&self) -> bool {
-        matches!(self, FalseRec | NatRec)
-    }
-
     pub fn add_named_axioms<'arena>(arena: &mut Arena<'arena>) {
         let false_decl = Declaration(Term::axiom(False, arena), 0);
         let false_rec_decl = Declaration(Term::axiom(FalseRec, arena), 1);
