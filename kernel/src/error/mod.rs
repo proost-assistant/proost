@@ -12,6 +12,7 @@ use crate::type_checker::TypeCheckerError;
 /// Type representing kernel errors.
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
 #[display(fmt = "{kind}")]
+// TODO: Generic Kind
 pub struct Error<'arena> {
     /// The kind of form error that occurred.
     pub kind: Kind<'arena>,
@@ -27,7 +28,7 @@ impl<'arena> Error<'arena> {
     pub const fn new(kind: Kind<'arena>) -> Self {
         Self {
             kind,
-            trace: Vec::new(),
+            trace: vec![],
         }
     }
 }

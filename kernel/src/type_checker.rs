@@ -191,7 +191,10 @@ impl<'arena> Declaration<'arena> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::error::location::Location;
     use crate::memory::arena::use_arena;
+    use crate::memory::declaration::{builder as declaration, InstantiatedDeclaration};
+    use crate::memory::term::builder as term;
     use crate::memory::term::builder::raw::*;
 
     fn id() -> impl BuilderTrait {
@@ -205,45 +208,6 @@ mod tests {
             let normal_form = arena.build_term_raw(abs(prop(), var(1.into(), prop())));
 
             assert!(term.is_def_eq(normal_form, arena).is_ok());
-        });
-    }
-
-    #[test]
-    fn conv_decl() {
-        use_arena(|arena| {
-            let decl_ = crate::memory::declaration::InstantiatedDeclaration::instantiate(
-                crate::memory::declaration::builder::Builder::Decl(crate::memory::term::builder::Builder::Prop.into(), Vec::new())
-                    .realise(arena)
-                    .unwrap(),
-                &Vec::new(),
-                arena,
-            );
-            let decl = crate::memory::term::Term::decl(decl_, arena);
-
-            let prop = arena.build_term_raw(prop());
-
-            assert!(decl.is_def_eq(prop, arena).is_ok());
-            assert!(prop.is_def_eq(decl, arena).is_ok());
-        });
-    }
-
-    #[test]
-    fn infer_decl() {
-        //use std::env;
-        //env::set_var("RUST_BACKTRACE", "1");
-        use_arena(|arena| {
-            let decl_ = crate::memory::declaration::InstantiatedDeclaration::instantiate(
-                crate::memory::declaration::builder::Builder::Decl(crate::memory::term::builder::Builder::Prop.into(), Vec::new())
-                    .realise(arena)
-                    .unwrap(),
-                &Vec::new(),
-                arena,
-            );
-
-            let term = crate::memory::term::Term::decl(decl_, arena);
-            let ty = arena.build_term_raw(type_usize(0));
-
-            assert!(term.check(ty, arena).is_ok());
         });
     }
 
@@ -264,6 +228,33 @@ mod tests {
             let term = arena.build_term_raw(abs(prop(), app(app(var(2.into(), prop()), id()), id())));
 
             assert!(term.is_def_eq(term, arena).is_ok());
+        });
+    }
+
+    #[test]
+    fn conv_decl() {
+        use_arena(|arena| {
+            let decl = declaration::Builder::Decl(Box::new(term::Builder::new(Location::default(), term::Payload::Prop)), vec![]);
+            let decl = InstantiatedDeclaration::instantiate(decl.realise(arena).unwrap(), &[], arena);
+
+            let decl = crate::memory::term::Term::decl(decl, arena);
+            let prop = arena.build_term_raw(prop());
+
+            assert!(decl.is_def_eq(prop, arena).is_ok());
+            assert!(prop.is_def_eq(decl, arena).is_ok());
+        });
+    }
+
+    #[test]
+    fn infer_decl() {
+        use_arena(|arena| {
+            let decl = declaration::Builder::Decl(Box::new(term::Builder::new(Location::default(), term::Payload::Prop)), vec![]);
+            let decl = InstantiatedDeclaration::instantiate(decl.realise(arena).unwrap(), &[], arena);
+
+            let term = crate::memory::term::Term::decl(decl, arena);
+            let ty = arena.build_term_raw(type_usize(0));
+
+            assert!(term.check(ty, arena).is_ok());
         });
     }
 

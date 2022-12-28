@@ -362,7 +362,7 @@ mod tests {
     #[test]
     fn successful_import() {
         assert_eq!(parse_line("import file1 dir/file2"), Ok(Import(["file1", "dir/file2"].to_vec())));
-        assert_eq!(parse_line("import "), Ok(Import(Vec::new())));
+        assert_eq!(parse_line("import "), Ok(Import(vec![])));
     }
 
     #[test]
@@ -382,7 +382,7 @@ mod tests {
 
     #[test]
     fn successful_declare() {
-        assert_eq!(parse_line("def x.{} := Prop"), Ok(Declaration("x", None, declaration::Builder::Decl(box Prop, Vec::new()))));
+        assert_eq!(parse_line("def x.{} := Prop"), Ok(Declaration("x", None, declaration::Builder::Decl(box Prop, vec![]))));
     }
 
     #[test]

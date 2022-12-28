@@ -13,7 +13,7 @@
 //! *high-level term* or *template*, described by the public enumeration [`Builder`], and at any
 //! moment, [realise](Builder::realise) it.
 
-use derive_more::Display;
+use derive_more::{Constructor, Deref, Display};
 use im_rc::hashmap::HashMap as ImHashMap;
 
 use super::{DeBruijnIndex, Term};
@@ -165,6 +165,18 @@ pub const fn decl<'build, F: declaration::InstantiatedBuilderTrait<'build>>(decl
     move |arena, _, lvl_env, _| Ok(Term::decl(decl(arena, lvl_env)?, arena))
 }
 
+/// Wrapper template of [`Payload`], including [`Location`].
+#[derive(Clone, Constructor, Debug, Deref, Display, PartialEq, Eq)]
+#[display(fmt = "{payload}")]
+pub struct Builder<'build> {
+    /// Location of the term.
+    location: Location,
+
+    /// Term's effective builder.
+    #[deref]
+    payload: Payload<'build>,
+}
+
 /// Template of terms.
 ///
 /// A Builder describes a term in a naive but easy to build manner. It strongly resembles the
@@ -173,7 +185,7 @@ pub const fn decl<'build, F: declaration::InstantiatedBuilderTrait<'build>>(decl
 /// involved). Because its purpose is to provide an easy way to build terms, even through the API,
 /// it offers different ways to build some terms, for convenience.
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
-pub enum Builder<'build> {
+pub enum Payload<'build> {
     #[display(fmt = "{_0}")]
     Var(&'build str),
 
@@ -224,19 +236,19 @@ impl<'build> Builder<'build> {
         lvl_env: &level::Environment<'build>,
         depth: DeBruijnIndex,
     ) -> ResultTerm<'arena> {
-        match *self {
-            Builder::Var(s) => var(s)(arena, env, lvl_env, depth),
-            Builder::Prop => prop()(arena, env, lvl_env, depth),
-            Builder::Type(ref level) => type_(level.partial_application())(arena, env, lvl_env, depth),
-            Builder::Sort(ref level) => sort(level.partial_application())(arena, env, lvl_env, depth),
-            Builder::App(ref l, ref r) => app(l.partial_application(), r.partial_application())(arena, env, lvl_env, depth),
-            Builder::Abs(s, ref arg, ref body) => {
+        match **self {
+            Payload::Var(s) => var(s)(arena, env, lvl_env, depth),
+            Payload::Prop => prop()(arena, env, lvl_env, depth),
+            Payload::Type(ref level) => type_(level.partial_application())(arena, env, lvl_env, depth),
+            Payload::Sort(ref level) => sort(level.partial_application())(arena, env, lvl_env, depth),
+            Payload::App(ref l, ref r) => app(l.partial_application(), r.partial_application())(arena, env, lvl_env, depth),
+            Payload::Abs(s, ref arg, ref body) => {
                 abs(s, arg.partial_application(), body.partial_application())(arena, env, lvl_env, depth)
             },
-            Builder::Prod(s, ref arg, ref body) => {
+            Payload::Prod(s, ref arg, ref body) => {
                 prod(s, arg.partial_application(), body.partial_application())(arena, env, lvl_env, depth)
             },
-            Builder::Decl(ref decl_builder) => decl(decl_builder.partial_application())(arena, env, lvl_env, depth),
+            Payload::Decl(ref decl_builder) => decl(decl_builder.partial_application())(arena, env, lvl_env, depth),
         }
     }
 }

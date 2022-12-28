@@ -140,7 +140,7 @@ impl<'arena> Evaluator {
     ) -> Result<'arena, 'build, Option<Term<'arena>>> {
         let command = parse::line(line)?;
 
-        self.process(arena, &command, &mut Vec::new())
+        self.process(arena, &command, &mut vec![])
     }
 
     pub fn process_file<'build>(

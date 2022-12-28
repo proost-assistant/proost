@@ -17,7 +17,8 @@ struct CommandParser;
 fn convert_span(span: Span) -> Location {
     let (x1, y1) = span.start_pos().line_col();
     let (x2, y2) = span.end_pos().line_col();
-    ((x1, y1), (x2, y2)).into()
+
+    Location::new((x1, y1), (x2, y2))
 }
 
 /// build universe level from errorless pest's output
@@ -65,49 +66,53 @@ fn parse_level(pair: Pair<Rule>) -> level::Builder {
 
 /// Returns a kernel term builder from pest output
 fn parse_term(pair: Pair<Rule>) -> term::Builder {
-    use term::Builder::{Abs, App, Decl, Prod, Prop, Sort, Type, Var};
+    use term::Builder;
+    use term::Payload::{Abs, App, Decl, Prod, Prop, Sort, Type, Var};
 
-    // location to be used in a future version
-    let _loc = convert_span(pair.as_span());
+    let loc = convert_span(pair.as_span());
 
     match pair.as_rule() {
-        Rule::Prop => Prop,
+        Rule::Prop => Builder::new(loc, Prop),
 
-        Rule::Var => Var(pair.into_inner().as_str()),
+        Rule::Var => Builder::new(loc, Var(pair.into_inner().as_str())),
 
         Rule::VarDecl => {
             let mut iter = pair.into_inner();
             let name = iter.next().unwrap().as_str();
             let levels = iter.next().unwrap().into_inner().map(parse_level).collect();
-            Decl(box declaration::InstantiatedBuilder::Var(name, levels))
+
+            Builder::new(loc, Decl(box declaration::InstantiatedBuilder::Var(name, levels)))
         },
 
-        Rule::Type => pair
-            .into_inner()
-            .next_back()
-            .map_or(Type(box level::Builder::Const(0)), |next| Type(box parse_level(next))),
+        Rule::Type => pair.into_inner().next_back().map_or_else(
+            || Builder::new(loc, Type(box level::Builder::Const(0))),
+            |next| Builder::new(loc, Type(box parse_level(next))),
+        ),
 
-        Rule::Sort => pair
-            .into_inner()
-            .next_back()
-            .map_or(Sort(box level::Builder::Const(0)), |next| Sort(box parse_level(next))),
+        Rule::Sort => pair.into_inner().next_back().map_or_else(
+            || Builder::new(loc, Sort(box level::Builder::Const(0))),
+            |next| Builder::new(loc, Sort(box parse_level(next))),
+        ),
 
         Rule::App => {
             let mut iter = pair.into_inner().map(parse_term);
             let t = iter.next().unwrap();
-            iter.fold(t, |acc, x| App(box acc, box x))
+
+            iter.fold(t, |acc, x| Builder::new(loc, App(box acc, box x)))
         },
 
         Rule::Abs => {
             let mut iter = pair.into_inner();
             let body = parse_term(iter.next_back().unwrap());
+
             iter.flat_map(|pair| {
                 let mut pair = pair.into_inner();
                 let type_ = box parse_term(pair.next_back().unwrap());
+
                 pair.map(move |var| (var.as_str(), type_.clone()))
             })
             .rev()
-            .fold(body, |acc, (var, type_)| Abs(var, type_, box acc))
+            .fold(body, |acc, (var, type_)| Builder::new(loc, Abs(var, type_, box acc)))
         },
 
         Rule::dProd => {
@@ -116,16 +121,19 @@ fn parse_term(pair: Pair<Rule>) -> term::Builder {
             iter.flat_map(|pair| {
                 let mut pair = pair.into_inner();
                 let type_ = box parse_term(pair.next_back().unwrap());
+
                 pair.map(move |var| (var.as_str(), type_.clone()))
             })
             .rev()
-            .fold(body, |acc, (var, type_)| Prod(var, type_, box acc))
+            .fold(body, |acc, (var, type_)| Builder::new(loc, Prod(var, type_, box acc)))
         },
 
         Rule::Prod => {
             let mut iter = pair.into_inner();
             let ret = parse_term(iter.next_back().unwrap());
-            iter.map(parse_term).rev().fold(ret, |acc, argtype| Prod("_", box argtype, box acc))
+            iter.map(parse_term)
+                .rev()
+                .fold(ret, |acc, argtype| Builder::new(loc, Prod("_", box argtype, box acc)))
         },
 
         term => unreachable!("unexpected term: {term:?}"),
@@ -134,9 +142,6 @@ fn parse_term(pair: Pair<Rule>) -> term::Builder {
 
 /// build commands from errorless pest's output
 fn parse_expr(pair: Pair<Rule>) -> Command {
-    // location to be used in a future version
-    let _loc = convert_span(pair.as_span());
-
     match pair.as_rule() {
         Rule::GetType => {
             let mut iter = pair.into_inner();
@@ -269,10 +274,10 @@ fn convert_error(err: pest::error::Error<Rule>) -> error::Error {
                 right = y;
             }
 
-            Location::new((x, left).into(), (x, right).into())
+            Location::new((x, left), (x, right))
         },
 
-        LineColLocation::Span(start, end) => Location::new(start.into(), end.into()),
+        LineColLocation::Span(start, end) => Location::new(start, end),
     };
 
     // extracting the message from the pest output
@@ -311,10 +316,9 @@ pub fn file(file: &str) -> error::Result<Vec<Command>> {
 
 #[cfg(test)]
 mod tests {
-
     use error::{Error, Kind};
-    use kernel::memory::term::builder as term;
-    use term::Builder::*;
+    use term::Builder;
+    use term::Payload::*;
 
     use super::Command::*;
     use super::*;
@@ -331,14 +335,21 @@ mod tests {
             line("check fun x : Prop -> Type"),
             Err(Error {
                 kind: Kind::CannotParse(UNIVERSE_ERR.to_owned()),
-                location: Location::new((1, 27).into(), (1, 27).into()),
+                location: Location::new((1, 27), (1, 27)),
             })
         );
     }
 
     #[test]
     fn successful_define_with_type_annotation() {
-        assert_eq!(line("def x : Type := Prop"), Ok(Define("x", Some(Type(box level::Builder::Const(0))), Prop)));
+        assert_eq!(
+            line("def x : Type := Prop"),
+            Ok(Define(
+                "x",
+                Some(Builder::new(Location::new((1, 9), (1, 14)), Type(box level::Builder::Const(0)))),
+                Builder::new(Location::new((1, 17), (1, 21)), Prop)
+            ))
+        );
     }
 
     #[test]
@@ -347,12 +358,15 @@ mod tests {
             line("def x.{u} : Type u := foo.{u}"),
             Ok(Declaration(
                 "x",
-                Some(declaration::Builder::Decl(box Type(box level::Builder::Var("u")), ["u"].to_vec())),
+                Some(declaration::Builder::Decl(
+                    box Builder::new(Location::new((1, 13), (1, 19)), Type(box level::Builder::Var("u"))),
+                    ["u"].to_vec()
+                )),
                 declaration::Builder::Decl(
-                    box kernel::memory::term::builder::Builder::Decl(box declaration::InstantiatedBuilder::Var(
-                        "foo",
-                        [level::Builder::Var("u")].to_vec()
-                    )),
+                    box Builder::new(
+                        Location::new((1, 23), (1, 30)),
+                        Decl(box declaration::InstantiatedBuilder::Var("foo", [level::Builder::Var("u")].to_vec()))
+                    ),
                     ["u"].to_vec()
                 )
             ))
@@ -362,7 +376,7 @@ mod tests {
     #[test]
     fn successful_import() {
         assert_eq!(line("import file1 dir/file2"), Ok(Import(["file1", "dir/file2"].to_vec())));
-        assert_eq!(line("import "), Ok(Import(Vec::new())));
+        assert_eq!(line("import "), Ok(Import(vec![])));
     }
 
     #[test]
@@ -372,103 +386,310 @@ mod tests {
 
     #[test]
     fn successful_eval() {
-        assert_eq!(line("eval Prop"), Ok(Eval(Prop)));
+        assert_eq!(line("eval Prop"), Ok(Eval(Builder::new(Location::new((1, 6), (1, 10)), Prop))));
     }
 
     #[test]
     fn successful_define() {
-        assert_eq!(line("def x := Prop"), Ok(Define("x", None, Prop)));
+        assert_eq!(line("def x := Prop"), Ok(Define("x", None, Builder::new(Location::new((1, 10), (1, 14)), Prop))));
     }
 
     #[test]
     fn successful_declare() {
-        assert_eq!(line("def x.{} := Prop"), Ok(Declaration("x", None, declaration::Builder::Decl(box Prop, Vec::new()))));
+        assert_eq!(
+            line("def x.{} := Prop"),
+            Ok(Declaration("x", None, declaration::Builder::Decl(box Builder::new(Location::new((1, 13), (1, 17)), Prop), vec![])))
+        );
     }
 
     #[test]
     fn successful_checktype() {
-        assert_eq!(line("check Prop : Type"), Ok(CheckType(Prop, Type(box level::Builder::Const(0)))));
+        assert_eq!(
+            line("check Prop : Type"),
+            Ok(CheckType(
+                Builder::new(Location::new((1, 7), (1, 11)), Prop),
+                Builder::new(Location::new((1, 14), (1, 18)), Type(box level::Builder::Const(0)))
+            ))
+        );
     }
 
     #[test]
     fn successful_gettype_prop() {
-        assert_eq!(line("check Prop"), Ok(GetType(Prop)));
+        assert_eq!(line("check Prop"), Ok(GetType(Builder::new(Location::new((1, 7), (1, 11)), Prop))));
     }
 
     #[test]
     fn successful_gettype_sort() {
-        assert_eq!(line("check Sort"), Ok(GetType(Sort(box level::Builder::Const(0)))));
+        assert_eq!(
+            line("check Sort"),
+            Ok(GetType(Builder::new(Location::new((1, 7), (1, 11)), Sort(box level::Builder::Const(0)))))
+        );
     }
 
     #[test]
     fn successful_var() {
-        assert_eq!(line("check fun A: Prop => A"), Ok(GetType(Abs("A", Box::new(Prop), Box::new(Var("A"))))));
+        assert_eq!(
+            line("check fun A: Prop => A"),
+            Ok(GetType(Builder::new(
+                Location::new((1, 7), (1, 23)),
+                Abs(
+                    "A",
+                    Box::new(Builder::new(Location::new((1, 14), (1, 18)), Prop)),
+                    Box::new(Builder::new(Location::new((1, 22), (1, 23)), Var("A")))
+                )
+            )))
+        );
     }
 
     #[test]
     fn successful_type() {
-        assert_eq!(line("check Type"), Ok(GetType(Type(box level::Builder::Const(0)))));
-        assert_eq!(line("check Type 0"), Ok(GetType(Type(box level::Builder::Const(0)))));
-        assert_eq!(line("check Type 1"), Ok(GetType(Type(box level::Builder::Const(1)))));
+        assert_eq!(
+            line("check Type"),
+            Ok(GetType(Builder::new(Location::new((1, 7), (1, 11)), Type(box level::Builder::Const(0)))))
+        );
+
+        assert_eq!(
+            line("check Type 0"),
+            Ok(GetType(Builder::new(Location::new((1, 7), (1, 13)), Type(box level::Builder::Const(0)))))
+        );
+
+        assert_eq!(
+            line("check Type 1"),
+            Ok(GetType(Builder::new(Location::new((1, 7), (1, 13)), Type(box level::Builder::Const(1)))))
+        );
     }
 
     #[test]
     fn successful_sort() {
-        assert_eq!(line("check Sort"), Ok(GetType(Sort(box level::Builder::Const(0)))));
-        assert_eq!(line("check Sort 0"), Ok(GetType(Sort(box level::Builder::Const(0)))));
-        assert_eq!(line("check Sort 1"), Ok(GetType(Sort(box level::Builder::Const(1)))));
-        assert_eq!(line("check Sort (0 + 1)"), Ok(GetType(Sort(box level::Builder::Plus(box level::Builder::Const(0), 1)))));
+        assert_eq!(
+            line("check Sort"),
+            Ok(GetType(Builder::new(Location::new((1, 7), (1, 11)), Sort(box level::Builder::Const(0)))))
+        );
+
+        assert_eq!(
+            line("check Sort 0"),
+            Ok(GetType(Builder::new(Location::new((1, 7), (1, 13)), Sort(box level::Builder::Const(0)))))
+        );
+
+        assert_eq!(
+            line("check Sort 1"),
+            Ok(GetType(Builder::new(Location::new((1, 7), (1, 13)), Sort(box level::Builder::Const(1)))))
+        );
+
+        assert_eq!(
+            line("check Sort (0 + 1)"),
+            Ok(GetType(Builder::new(
+                Location::new((1, 7), (1, 19)),
+                Sort(box level::Builder::Plus(box level::Builder::Const(0), 1))
+            )))
+        );
+
         assert_eq!(
             line("check Sort max 0 0"),
-            Ok(GetType(Sort(box level::Builder::Max(box level::Builder::Const(0), box level::Builder::Const(0)))))
+            Ok(GetType(Builder::new(
+                Location::new((1, 7), (1, 19)),
+                Sort(box level::Builder::Max(box level::Builder::Const(0), box level::Builder::Const(0)))
+            )))
         );
+
         assert_eq!(
             line("check Sort imax 0 0"),
-            Ok(GetType(Sort(box level::Builder::IMax(box level::Builder::Const(0), box level::Builder::Const(0)))))
+            Ok(GetType(Builder::new(
+                Location::new((1, 7), (1, 20)),
+                Sort(box level::Builder::IMax(box level::Builder::Const(0), box level::Builder::Const(0)))
+            )))
         );
     }
 
     #[test]
     fn successful_app() {
-        let res_left = Ok(GetType(App(Box::new(App(Box::new(Var("A")), Box::new(Var("B")))), Box::new(Var("C")))));
-        let res_right = Ok(GetType(App(Box::new(Var("A")), Box::new(App(Box::new(Var("B")), Box::new(Var("C")))))));
-        assert_eq!(line("check A B C"), res_left);
-        assert_eq!(line("check (A B) C"), res_left);
-        assert_eq!(line("check A (B C)"), res_right);
+        assert_eq!(
+            line("check A B C"),
+            Ok(GetType(Builder::new(
+                Location::new((1, 7), (1, 12)),
+                App(
+                    Box::new(Builder::new(
+                        Location::new((1, 7), (1, 12)),
+                        App(
+                            Box::new(Builder::new(Location::new((1, 7), (1, 8)), Var("A"))),
+                            Box::new(Builder::new(Location::new((1, 9), (1, 10)), Var("B"))),
+                        ),
+                    )),
+                    Box::new(Builder::new(Location::new((1, 11), (1, 12)), Var("C"))),
+                ),
+            )))
+        );
+
+        assert_eq!(
+            line("check (A B) C"),
+            Ok(GetType(Builder::new(
+                Location::new((1, 7), (1, 14)),
+                App(
+                    Box::new(Builder::new(
+                        Location::new((1, 8), (1, 11)),
+                        App(
+                            Box::new(Builder::new(Location::new((1, 8), (1, 9)), Var("A"))),
+                            Box::new(Builder::new(Location::new((1, 10), (1, 11)), Var("B"))),
+                        ),
+                    )),
+                    Box::new(Builder::new(Location::new((1, 13), (1, 14)), Var("C"))),
+                ),
+            )))
+        );
+
+        assert_eq!(
+            line("check A (B C)"),
+            Ok(GetType(Builder::new(
+                Location::new((1, 7), (1, 14)),
+                App(
+                    Box::new(Builder::new(Location::new((1, 7), (1, 8)), Var("A"))),
+                    Box::new(Builder::new(
+                        Location::new((1, 10), (1, 13)),
+                        App(
+                            Box::new(Builder::new(Location::new((1, 10), (1, 11)), Var("B"))),
+                            Box::new(Builder::new(Location::new((1, 12), (1, 13)), Var("C"))),
+                        ),
+                    )),
+                ),
+            )))
+        );
     }
 
     #[test]
     fn successful_prod() {
-        let res_left = Ok(GetType(Prod("_", Box::new(Prod("_", Box::new(Var("A")), Box::new(Var("B")))), Box::new(Var("C")))));
-        let res_right = Ok(GetType(Prod("_", Box::new(Var("A")), Box::new(Prod("_", Box::new(Var("B")), Box::new(Var("C")))))));
-        assert_eq!(line("check A -> B -> C"), res_right);
-        assert_eq!(line("check A -> (B -> C)"), res_right);
-        assert_eq!(line("check (A -> B) -> C"), res_left);
+        assert_eq!(
+            line("check A -> B -> C"),
+            Ok(GetType(Builder::new(
+                Location::new((1, 7), (1, 18)),
+                Prod(
+                    "_",
+                    Box::new(Builder::new(Location::new((1, 7), (1, 8)), Var("A"))),
+                    Box::new(Builder::new(
+                        Location::new((1, 7), (1, 18)),
+                        Prod(
+                            "_",
+                            Box::new(Builder::new(Location::new((1, 12), (1, 13)), Var("B"))),
+                            Box::new(Builder::new(Location::new((1, 17), (1, 18)), Var("C"))),
+                        ),
+                    )),
+                ),
+            )))
+        );
+
+        assert_eq!(
+            line("check A -> (B -> C)"),
+            Ok(GetType(Builder::new(
+                Location::new((1, 7), (1, 20)),
+                Prod(
+                    "_",
+                    Box::new(Builder::new(Location::new((1, 7), (1, 8)), Var("A"))),
+                    Box::new(Builder::new(
+                        Location::new((1, 13), (1, 19)),
+                        Prod(
+                            "_",
+                            Box::new(Builder::new(Location::new((1, 13), (1, 14)), Var("B"))),
+                            Box::new(Builder::new(Location::new((1, 18), (1, 19)), Var("C"))),
+                        ),
+                    )),
+                ),
+            )))
+        );
+
+        assert_eq!(
+            line("check (A -> B) -> C"),
+            Ok(GetType(Builder::new(
+                Location::new((1, 7), (1, 20)),
+                Prod(
+                    "_",
+                    Box::new(Builder::new(
+                        Location::new((1, 8), (1, 14)),
+                        Prod(
+                            "_",
+                            Box::new(Builder::new(Location::new((1, 8), (1, 9)), Var("A"))),
+                            Box::new(Builder::new(Location::new((1, 13), (1, 14)), Var("B"))),
+                        ),
+                    )),
+                    Box::new(Builder::new(Location::new((1, 19), (1, 20)), Var("C"))),
+                ),
+            )))
+        );
     }
 
     #[test]
     fn successful_dprod() {
-        let res = Ok(GetType(Prod(
-            "x",
-            Box::new(Type(box level::Builder::Const(0))),
-            Box::new(Prod("y", Box::new(Type(box level::Builder::Const(1))), Box::new(Var("x")))),
-        )));
-        assert_eq!(line("check (x:Type) -> (y:Type 1) -> x"), res);
-        assert_eq!(line("check (x:Type) -> ((y:Type 1) -> x)"), res);
+        assert_eq!(
+            line("check (x: Type) -> (y: Type 1) -> x"),
+            Ok(GetType(Builder::new(
+                Location::new((1, 7), (1, 36)),
+                Prod(
+                    "x",
+                    Box::new(Builder::new(Location::new((1, 11), (1, 15)), Type(box level::Builder::Const(0)))),
+                    Box::new(Builder::new(
+                        Location::new((1, 20), (1, 36)),
+                        Prod(
+                            "y",
+                            Box::new(Builder::new(Location::new((1, 24), (1, 30)), Type(box level::Builder::Const(1)))),
+                            Box::new(Builder::new(Location::new((1, 35), (1, 36)), Var("x"))),
+                        ),
+                    )),
+                ),
+            )))
+        );
+
+        assert_eq!(
+            line("check (x: Type) -> ((y: Type 1) -> x)"),
+            Ok(GetType(Builder::new(
+                Location::new((1, 7), (1, 38)),
+                Prod(
+                    "x",
+                    Box::new(Builder::new(Location::new((1, 11), (1, 15)), Type(box level::Builder::Const(0)))),
+                    Box::new(Builder::new(
+                        Location::new((1, 21), (1, 37)),
+                        Prod(
+                            "y",
+                            Box::new(Builder::new(Location::new((1, 25), (1, 31)), Type(box level::Builder::Const(1)))),
+                            Box::new(Builder::new(Location::new((1, 36), (1, 37)), Var("x"))),
+                        ),
+                    )),
+                ),
+            )))
+        );
     }
 
     #[test]
     fn successful_abs() {
-        let res = Abs(
-            "w",
-            Box::new(Prop),
-            Box::new(Abs(
-                "x",
-                Box::new(Prop),
-                Box::new(Abs("y", Box::new(Prop), Box::new(Abs("z", Box::new(Prop), Box::new(Var("x")))))),
-            )),
+        assert_eq!(
+            line("check fun w x: Prop, y z: Prop => x"),
+            Ok(GetType(Builder::new(
+                Location::new((1, 7), (1, 36)),
+                Abs(
+                    "w",
+                    Box::new(Builder::new(Location::new((1, 16), (1, 20)), Prop)),
+                    Box::new(Builder::new(
+                        Location::new((1, 7), (1, 36)),
+                        Abs(
+                            "x",
+                            Box::new(Builder::new(Location::new((1, 16), (1, 20)), Prop)),
+                            Box::new(Builder::new(
+                                Location::new((1, 7), (1, 36)),
+                                Abs(
+                                    "y",
+                                    Box::new(Builder::new(Location::new((1, 27), (1, 31)), Prop)),
+                                    Box::new(Builder::new(
+                                        Location::new((1, 7), (1, 36)),
+                                        Abs(
+                                            "z",
+                                            Box::new(Builder::new(Location::new((1, 27), (1, 31)), Prop)),
+                                            Box::new(Builder::new(Location::new((1, 35), (1, 36)), Var("x"))),
+                                        ),
+                                    )),
+                                ),
+                            )),
+                        ),
+                    )),
+                )
+            )))
         );
-        assert_eq!(line("check fun w x: Prop, y z: Prop => x"), Ok(GetType(res)));
     }
 
     #[test]
@@ -477,90 +698,278 @@ mod tests {
             line("check (x:A)"),
             Err(Error {
                 kind: Kind::CannotParse(SIMPLE_TERM_ERR.to_owned()),
-                location: Location::new((1, 7).into(), (1, 11).into()),
+                location: Location::new((1, 7), (1, 11)),
             })
         );
         assert_eq!(
             line("check (x:A) -> (y:B)"),
             Err(Error {
                 kind: Kind::CannotParse(SIMPLE_TERM_ERR.to_owned()),
-                location: Location::new((1, 16).into(), (1, 20).into()),
+                location: Location::new((1, 16), (1, 20)),
             })
         );
     }
 
     #[test]
     fn context_for_abs_args() {
-        let res = Ok(GetType(Abs(
-            "x",
-            Box::new(Prop),
-            Box::new(Abs("x", Box::new(Var("x")), Box::new(Abs("x", Box::new(Var("x")), Box::new(Var("x")))))),
-        )));
-        let res2 = Ok(GetType(Abs(
-            "x",
-            Box::new(Prop),
-            Box::new(Abs("y", Box::new(Var("x")), Box::new(Abs("z", Box::new(Var("x")), Box::new(Var("z")))))),
-        )));
-        assert_eq!(line("check fun x : Prop, x : x, x : x => x"), res);
-        assert_eq!(line("check fun x : Prop, x x : x => x"), res);
-        assert_eq!(line("check fun x : Prop, y z : x => z"), res2);
+        assert_eq!(
+            line("check fun x : Prop, x : x, x : x => x"),
+            Ok(GetType(Builder::new(
+                Location::new((1, 7), (1, 38)),
+                Abs(
+                    "x",
+                    Box::new(Builder::new(Location::new((1, 15), (1, 19)), Prop)),
+                    Box::new(Builder::new(
+                        Location::new((1, 7), (1, 38)),
+                        Abs(
+                            "x",
+                            Box::new(Builder::new(Location::new((1, 25), (1, 26)), Var("x"))),
+                            Box::new(Builder::new(
+                                Location::new((1, 7), (1, 38)),
+                                Abs(
+                                    "x",
+                                    Box::new(Builder::new(Location::new((1, 32), (1, 33)), Var("x"))),
+                                    Box::new(Builder::new(Location::new((1, 37), (1, 38)), Var("x"))),
+                                ),
+                            )),
+                        ),
+                    )),
+                ),
+            )))
+        );
+
+        assert_eq!(
+            line("check fun x : Prop, x x : x => x"),
+            Ok(GetType(Builder::new(
+                Location::new((1, 7), (1, 33)),
+                Abs(
+                    "x",
+                    Box::new(Builder::new(Location::new((1, 15), (1, 19)), Prop)),
+                    Box::new(Builder::new(
+                        Location::new((1, 7), (1, 33)),
+                        Abs(
+                            "x",
+                            Box::new(Builder::new(Location::new((1, 27), (1, 28)), Var("x"))),
+                            Box::new(Builder::new(
+                                Location::new((1, 7), (1, 33)),
+                                Abs(
+                                    "x",
+                                    Box::new(Builder::new(Location::new((1, 27), (1, 28)), Var("x"))),
+                                    Box::new(Builder::new(Location::new((1, 32), (1, 33)), Var("x"))),
+                                ),
+                            )),
+                        ),
+                    )),
+                ),
+            )))
+        );
+
+        assert_eq!(
+            line("check fun x : Prop, y z : x => z"),
+            Ok(GetType(Builder::new(
+                Location::new((1, 7), (1, 33)),
+                Abs(
+                    "x",
+                    Box::new(Builder::new(Location::new((1, 15), (1, 19)), Prop)),
+                    Box::new(Builder::new(
+                        Location::new((1, 7), (1, 33)),
+                        Abs(
+                            "y",
+                            Box::new(Builder::new(Location::new((1, 27), (1, 28)), Var("x"))),
+                            Box::new(Builder::new(
+                                Location::new((1, 7), (1, 33)),
+                                Abs(
+                                    "z",
+                                    Box::new(Builder::new(Location::new((1, 27), (1, 28)), Var("x"))),
+                                    Box::new(Builder::new(Location::new((1, 32), (1, 33)), Var("z")))
+                                )
+                            )),
+                        )
+                    ))
+                )
+            )))
+        );
     }
 
     #[test]
     fn context_for_dprod_args() {
-        let res = Ok(GetType(Prod(
-            "x",
-            Box::new(Prop),
-            Box::new(Prod("x", Box::new(Var("x")), Box::new(Prod("x", Box::new(Var("x")), Box::new(Var("x")))))),
-        )));
-        let res2 = Ok(GetType(Prod(
-            "x",
-            Box::new(Prop),
-            Box::new(Prod("y", Box::new(Var("x")), Box::new(Prod("z", Box::new(Var("x")), Box::new(Var("z")))))),
-        )));
-        assert_eq!(line("check (x : Prop, x : x, x : x) -> x"), res);
-        assert_eq!(line("check (x : Prop, x x : x) -> x"), res);
-        assert_eq!(line("check (x : Prop, y z : x) -> z"), res2);
+        assert_eq!(
+            line("check (x : Prop, x : x, x : x) -> x"),
+            Ok(GetType(Builder::new(
+                Location::new((1, 7), (1, 36)),
+                Prod(
+                    "x",
+                    Box::new(Builder::new(Location::new((1, 12), (1, 16)), Prop)),
+                    Box::new(Builder::new(
+                        Location::new((1, 7), (1, 36)),
+                        Prod(
+                            "x",
+                            Box::new(Builder::new(Location::new((1, 22), (1, 23)), Var("x"))),
+                            Box::new(Builder::new(
+                                Location::new((1, 7), (1, 36)),
+                                Prod(
+                                    "x",
+                                    Box::new(Builder::new(Location::new((1, 29), (1, 30)), Var("x"))),
+                                    Box::new(Builder::new(Location::new((1, 35), (1, 36)), Var("x"))),
+                                ),
+                            )),
+                        ),
+                    )),
+                ),
+            )))
+        );
+
+        assert_eq!(
+            line("check (x : Prop, x x : x) -> x"),
+            Ok(GetType(Builder::new(
+                Location::new((1, 7), (1, 31)),
+                Prod(
+                    "x",
+                    Box::new(Builder::new(Location::new((1, 12), (1, 16)), Prop)),
+                    Box::new(Builder::new(
+                        Location::new((1, 7), (1, 31)),
+                        Prod(
+                            "x",
+                            Box::new(Builder::new(Location::new((1, 24), (1, 25)), Var("x"))),
+                            Box::new(Builder::new(
+                                Location::new((1, 7), (1, 31)),
+                                Prod(
+                                    "x",
+                                    Box::new(Builder::new(Location::new((1, 24), (1, 25)), Var("x"))),
+                                    Box::new(Builder::new(Location::new((1, 30), (1, 31)), Var("x"))),
+                                ),
+                            )),
+                        ),
+                    )),
+                ),
+            )))
+        );
+
+        assert_eq!(
+            line("check (x : Prop, y z : x) -> z"),
+            Ok(GetType(Builder::new(
+                Location::new((1, 7), (1, 31)),
+                Prod(
+                    "x",
+                    Box::new(Builder::new(Location::new((1, 12), (1, 16)), Prop)),
+                    Box::new(Builder::new(
+                        Location::new((1, 7), (1, 31)),
+                        Prod(
+                            "y",
+                            Box::new(Builder::new(Location::new((1, 24), (1, 25)), Var("x"))),
+                            Box::new(Builder::new(
+                                Location::new((1, 7), (1, 31)),
+                                Prod(
+                                    "z",
+                                    Box::new(Builder::new(Location::new((1, 24), (1, 25)), Var("x"))),
+                                    Box::new(Builder::new(Location::new((1, 30), (1, 31)), Var("z")))
+                                )
+                            )),
+                        )
+                    ))
+                )
+            )))
+        );
     }
 
     #[test]
     fn parenthesis_in_abs() {
-        let res = Abs(
-            "w",
-            Box::new(Prop),
-            Box::new(Abs(
-                "x",
-                Box::new(Prop),
-                Box::new(Abs("y", Box::new(Prop), Box::new(Abs("z", Box::new(Prop), Box::new(Var("x")))))),
-            )),
+        assert_eq!(
+            line("check fun (((w x : Prop))), y z : Prop => x"),
+            Ok(GetType(Builder::new(
+                Location::new((1, 7), (1, 44)),
+                Abs(
+                    "w",
+                    Box::new(Builder::new(Location::new((1, 20), (1, 24)), Prop)),
+                    Box::new(Builder::new(
+                        Location::new((1, 7), (1, 44)),
+                        Abs(
+                            "x",
+                            Box::new(Builder::new(Location::new((1, 20), (1, 24)), Prop)),
+                            Box::new(Builder::new(
+                                Location::new((1, 7), (1, 44)),
+                                Abs(
+                                    "y",
+                                    Box::new(Builder::new(Location::new((1, 35), (1, 39)), Prop)),
+                                    Box::new(Builder::new(
+                                        Location::new((1, 7), (1, 44)),
+                                        Abs(
+                                            "z",
+                                            Box::new(Builder::new(Location::new((1, 35), (1, 39)), Prop)),
+                                            Box::new(Builder::new(Location::new((1, 43), (1, 44)), Var("x"))),
+                                        ),
+                                    )),
+                                ),
+                            )),
+                        ),
+                    )),
+                ),
+            )))
         );
-        assert_eq!(line("check fun (((w x : Prop))), y z : Prop => x"), Ok(GetType(res)));
     }
 
     #[test]
     fn parenthesis_in_prod() {
-        let res = Prod(
-            "_",
-            Box::new(Type(box level::Builder::Const(0))),
-            Box::new(Prod("_", Box::new(Type(box level::Builder::Const(1))), Box::new(Type(box level::Builder::Const(2))))),
+        assert_eq!(
+            line("check (((Type))) -> (((Type 1 -> Type 2)))"),
+            Ok(GetType(Builder::new(
+                Location::new((1, 7), (1, 43)),
+                Prod(
+                    "_",
+                    Box::new(Builder::new(Location::new((1, 10), (1, 14)), Type(box level::Builder::Const(0)))),
+                    Box::new(Builder::new(
+                        Location::new((1, 24), (1, 40)),
+                        Prod(
+                            "_",
+                            Box::new(Builder::new(Location::new((1, 24), (1, 30)), Type(box level::Builder::Const(1)))),
+                            Box::new(Builder::new(Location::new((1, 34), (1, 40)), Type(box level::Builder::Const(2))))
+                        )
+                    )),
+                )
+            )))
         );
-        assert_eq!(line("check (((Type))) -> (((Type 1 -> Type 2)))"), Ok(GetType(res)));
     }
 
     #[test]
     fn parenthesis_in_dprod() {
-        let res = Prod(
-            "x",
-            Box::new(Type(box level::Builder::Const(0))),
-            Box::new(Prod("y", Box::new(Type(box level::Builder::Const(1))), Box::new(Var("x")))),
+        assert_eq!(
+            line("check (((x:Type))) -> ((((y:Type 1) -> x)))"),
+            Ok(GetType(Builder::new(
+                Location::new((1, 7), (1, 44)),
+                Prod(
+                    "x",
+                    Box::new(Builder::new(Location::new((1, 12), (1, 16)), Type(box level::Builder::Const(0)))),
+                    Box::new(Builder::new(
+                        Location::new((1, 26), (1, 41)),
+                        Prod(
+                            "y",
+                            Box::new(Builder::new(Location::new((1, 29), (1, 35)), Type(box level::Builder::Const(1)))),
+                            Box::new(Builder::new(Location::new((1, 40), (1, 41)), Var("x")))
+                        )
+                    ),)
+                )
+            )))
         );
-        assert_eq!(line("check (((x:Type))) -> ((((y:Type 1) -> x)))"), Ok(GetType(res)));
     }
 
     #[test]
     fn parenthesis_in_app() {
-        let res = App(Box::new(Var("A")), Box::new(App(Box::new(Var("B")), Box::new(Var("C")))));
-        assert_eq!(line("check ((((((A))) (((B C))))))"), Ok(GetType(res)));
+        assert_eq!(
+            line("check ((((((A))) (((B C))))))"),
+            Ok(GetType(Builder::new(
+                Location::new((1, 10), (1, 27)),
+                App(
+                    Box::new(Builder::new(Location::new((1, 13), (1, 14)), Var("A"))),
+                    Box::new(Builder::new(
+                        Location::new((1, 21), (1, 24)),
+                        App(
+                            Box::new(Builder::new(Location::new((1, 21), (1, 22)), Var("B"))),
+                            Box::new(Builder::new(Location::new((1, 23), (1, 24)), Var("C")))
+                        )
+                    ))
+                )
+            )))
+        );
     }
 
     #[test]
@@ -572,8 +981,9 @@ mod tests {
             check fun x:Prop => x
         "#;
 
-        assert_eq!(file(input).unwrap()[0], line("def x := Prop -> Prop").unwrap());
-        assert_eq!(file(input).unwrap()[1], line("check fun x:Prop => x").unwrap());
+        // Since the location will differ, we just check that the kind is correct by displaying output
+        assert_eq!(format!("{}", file(input).unwrap()[0]), format!("{}", line("def x := Prop -> Prop").unwrap()));
+        assert_eq!(format!("{}", file(input).unwrap()[1]), format!("{}", line("check fun x:Prop => x").unwrap()));
     }
 
     #[test]
@@ -582,21 +992,21 @@ mod tests {
             line("chehk 2x"),
             Err(Error {
                 kind: Kind::CannotParse(COMMAND_ERR.to_owned()),
-                location: Location::new((1, 1).into(), (1, 5).into()),
+                location: Location::new((1, 1), (1, 5)),
             })
         );
         assert_eq!(
             line("check 2x"),
             Err(Error {
                 kind: Kind::CannotParse(TERM_ERR.to_owned()),
-                location: Location::new((1, 7).into(), (1, 8).into()),
+                location: Location::new((1, 7), (1, 8)),
             })
         );
         assert_eq!(
             line("check x:"),
             Err(Error {
                 kind: Kind::CannotParse(TERM_ERR.to_owned()),
-                location: Location::new((1, 9).into(), (1, 9).into()),
+                location: Location::new((1, 9), (1, 9)),
             })
         );
     }
@@ -611,7 +1021,7 @@ mod tests {
             ),
             Err(Error {
                 kind: Kind::CannotParse(TERM_ERR.to_owned()),
-                location: Location::new((3, 31).into(), (3, 32).into()),
+                location: Location::new((3, 31), (3, 32)),
             })
         );
     }
