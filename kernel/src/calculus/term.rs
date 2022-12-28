@@ -184,7 +184,7 @@ impl<'arena> Term<'arena> {
         })
     }
 
-    fn reduce_recursor(self, arena: &mut Arena<'arena>) -> Option<Self> {
+    fn reduce_nat(self, arena: &mut Arena<'arena>) -> Option<Self> {
         use crate::axiom::Axiom::*;
         if let App(f,n) = *self &&
            let App(f,motive_succ) = *f &&
@@ -203,6 +203,11 @@ impl<'arena> Term<'arena> {
         } else {
             None
         }
+    }
+
+    fn reduce_recursor(self, arena: &mut Arena<'arena>) -> Option<Self> {
+        let rec_reds = [Term::reduce_nat];
+        rec_reds.into_iter().find_map(|f| f(self, arena))
     }
 }
 
