@@ -1,7 +1,6 @@
 //! Errors that can be yielded by the parser.
 
 use derive_more::Display;
-
 use pest::error::LineColLocation;
 use utils::location::Location;
 

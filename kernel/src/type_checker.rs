@@ -92,7 +92,7 @@ impl<'arena> Term<'arena> {
     /// Checks whether two terms are definitionally equal.
     ///
     /// # Errors
-    /// Yields an error indicating the two terms are not definitionally equal.
+    /// Yields an error indicating that the two terms are not definitionally equal.
     #[inline]
     pub fn is_def_eq(self, rhs: Self, arena: &mut Arena<'arena>) -> Result<'arena, ()> {
         self.conversion(rhs, arena)

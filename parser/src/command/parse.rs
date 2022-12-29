@@ -291,7 +291,7 @@ mod tests {
                 declaration::Builder::Decl(
                     box Builder::new(
                         Location::new((1, 23), (1, 30)),
-                        Decl(box declaration::InstantiatedBuilder::Var("foo", [level::Builder::Var("u")].to_vec()))
+                        VarInstance("foo", [level::Builder::Var("u")].to_vec())
                     ),
                     vec!["u"]
                 )

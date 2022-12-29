@@ -216,9 +216,10 @@ impl<'arena> Arena<'arena> {
 #[cfg(test)]
 mod tests {
     use crate::memory::arena::use_arena;
-    use crate::memory::declaration::{InstantiatedDeclaration, Declaration};
+    use crate::memory::declaration::{Declaration, InstantiatedDeclaration};
     use crate::memory::level::builder::raw as level;
-    use crate::memory::term::{Term, builder::raw::*};
+    use crate::memory::term::builder::raw::*;
+    use crate::memory::term::Term;
 
     #[test]
     fn display_1() {
