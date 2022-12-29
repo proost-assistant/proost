@@ -1,3 +1,5 @@
+//! Tools to evaluate commands, as provided by the parser
+
 use std::collections::HashSet;
 use std::fs::read_to_string;
 use std::path::PathBuf;
@@ -23,31 +25,44 @@ pub struct Error {
     pub location: Location,
 }
 
+/// Type representing errors from the evaluator
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum ErrorKind {
+    /// This file cannot be found
     #[display(fmt = "{_0} is not a file")]
     FileNotFound(String),
 
+    /// The given file could not be imported
     #[display(fmt = "errors occurred while reading file")]
     FileError,
 
+    /// These files have a cyclic dependency
     #[display(fmt = "cyclic dependency:\n{_0}")]
     CyclicDependencies(String),
 
+    /// This variable is already defined
     #[display(fmt = "identifier {_0} already defined")]
     BoundVariable(String),
 }
 
 impl std::error::Error for Error {}
 
+/// An evaluator.
+/// Responds to commands and use the kernel for side-effects.
 pub struct Evaluator {
+    /// The current path
     path: PathBuf,
+
+    /// The set of all imported paths
     imported: HashSet<PathBuf>,
+
+    /// Whether the evaluator should be verbose in designated contexts
     verbose: bool,
 }
 
 impl<'arena> Evaluator {
+    /// Creates a new evaluator
     pub fn new(path: PathBuf, verbose: bool) -> Self {
         Self {
             path,
@@ -133,6 +148,10 @@ impl<'arena> Evaluator {
         Ok(())
     }
 
+    /// Processes a given line.
+    ///
+    /// # Errors
+    /// Transmits any error that may occur during the overall process
     pub fn process_line<'build>(
         &mut self,
         arena: &mut Arena<'arena>,
@@ -143,6 +162,10 @@ impl<'arena> Evaluator {
         self.process(arena, &command, &mut vec![])
     }
 
+    /// Processes a given file.
+    ///
+    /// # Errors
+    /// Transmits any error that may occur during the overall process
     pub fn process_file<'build>(
         &mut self,
         arena: &mut Arena<'arena>,
@@ -162,6 +185,11 @@ impl<'arena> Evaluator {
             .map(|_| None)
     }
 
+    /// Processes a command.
+    /// This is where most interaction with the kernel happens.
+    ///
+    /// # Errors
+    /// Transmits any error from the kernel. Also signals any variable being defined twice.
     fn process<'build>(
         &mut self,
         arena: &mut Arena<'arena>,

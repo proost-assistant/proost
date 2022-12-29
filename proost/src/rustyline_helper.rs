@@ -1,3 +1,5 @@
+//! A collection of function for interactive assistance during a toplevel session
+
 use alloc::borrow::Cow::{self, Borrowed, Owned};
 
 use colored::Colorize;
@@ -16,13 +18,19 @@ const KEYWORDS: [&str; 5] = ["check", "def", "eval", "import", "search"];
 /// - custom validator, completer and highlighter.
 #[derive(Helper, Hinter)]
 pub struct RustyLineHelper {
+    /// Whether colour is displayed
     color: bool,
+
+    /// The completer object
     completer: FilenameCompleter,
+
+    /// The hinter object
     #[rustyline(Hinter)]
     hinter: HistoryHinter,
 }
 
 impl RustyLineHelper {
+    /// Creates a new helper
     pub fn new(color: bool) -> Self {
         Self {
             color,
@@ -32,7 +40,7 @@ impl RustyLineHelper {
     }
 }
 
-/// An Handler for the tab event
+/// A Handler for the tab event
 pub struct TabEventHandler;
 impl ConditionalEventHandler for TabEventHandler {
     fn handle(&self, _: &Event, n: RepeatCount, _: bool, ctx: &EventContext) -> Option<Cmd> {
@@ -68,18 +76,19 @@ impl Validator for RustyLineHelper {
     }
 }
 
+/// Verifies whether the last symbol on the line is an arrow
 fn validate_arrows(input: &str) -> Option<ValidationResult> {
     let mut iter = input.as_bytes().iter().rev();
 
-    if let Some(b) = iter.find(|b| !(**b).is_ascii_whitespace()) {
-        if *b == b'>' && let Some(b) = iter.next() && (*b == b'-' || *b == b'=') {
+    if let Some(b) = iter.find(|b| !(**b).is_ascii_whitespace()) &&
+       *b == b'>' && let Some(b) = iter.next() && (*b == b'-' || *b == b'=') {
             return Some(ValidationResult::Incomplete)
         }
-    }
 
     None
 }
 
+/// Verifies whether the given line(s) correspond to a bracket-closed word
 fn validate_brackets(input: &str) -> Option<ValidationResult> {
     let mut stack = vec![];
 
@@ -148,6 +157,7 @@ pub fn replace_inplace(input: &mut String, from: &str, to: &str) {
     }
 }
 
+/// Finds the position of the bracket associated to the given position, if any
 fn find_matching_bracket(line: &str, pos: usize, bracket: u8) -> Option<(char, usize)> {
     let matching_bracket = matching_bracket(bracket);
     let mut to_match: i32 = 1;
@@ -188,6 +198,7 @@ const fn get_bracket(line: &str, pos: usize) -> Option<(u8, usize)> {
     None
 }
 
+/// Associates the opening (resp. closing) bracket to its closing (resp. opening) counterpart.
 const fn matching_bracket(bracket: u8) -> char {
     match bracket {
         b'(' => ')',
@@ -196,10 +207,12 @@ const fn matching_bracket(bracket: u8) -> char {
     }
 }
 
+/// Tests whether the given symbol is a bracket
 const fn is_bracket(bracket: u8) -> bool {
     matches!(bracket, b'(' | b')')
 }
 
+/// Tests whether the given symbol is an opening bracket
 const fn is_open_bracket(bracket: u8) -> bool {
     matches!(bracket, b'(')
 }

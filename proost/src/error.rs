@@ -1,3 +1,5 @@
+//! Error management
+
 use derive_more::{Display, From};
 
 use crate::evaluator;
@@ -21,7 +23,7 @@ pub enum Error<'arena, 'build> {
     /// An input/output error (see [`std::io::Error`]).
     Io(std::io::Error),
 
-    /// An RustyLine error (see [`rustyline::error::ReadlineError`]).
+    /// A RustyLine error (see [`rustyline::error::ReadlineError`]).
     RustyLine(rustyline::error::ReadlineError),
 }
 
@@ -33,4 +35,5 @@ impl core::fmt::Debug for Error<'_, '_> {
 
 impl std::error::Error for Error<'_, '_> {}
 
+/// The type of results yielded by the toplevel.
 pub type Result<'arena, 'build, T> = core::result::Result<T, Error<'arena, 'build>>;
