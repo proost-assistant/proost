@@ -207,3 +207,28 @@ impl<'build> InstantiatedBuilder<'build> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Builder::Decl;
+    use super::*;
+    use crate::memory::term::builder::{Builder, Payload};
+
+    #[test]
+    fn builder_trace() {
+        // This following term is completely ill-typed, location do not have any meaning.
+        // We want to test that the trace is correctly applied.
+        let builder = Decl(
+            Box::new(Builder::new(
+                Location::new((1, 1), (1, 1)),
+                Payload::App(
+                    Box::new(Builder::new(Location::new((2, 2), (2, 2)), Payload::Prop)),
+                    Box::new(Builder::new(Location::new((3, 3), (3, 3)), Payload::Prop)),
+                ),
+            )),
+            vec![],
+        );
+
+        assert_eq!(builder.apply_trace(&[]), Location::new((1, 1), (1, 1)));
+    }
+}

@@ -328,3 +328,45 @@ pub(crate) mod raw {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn builder_trace() {
+        // This following term is completely ill-typed, location do not have any meaning.
+        // We want to test that the trace is correctly applied.
+        let builder = Builder::new(
+            Location::new((1, 1), (1, 1)),
+            Payload::Abs(
+                "x",
+                Box::new(Builder::new(
+                    Location::new((2, 2), (2, 2)),
+                    Payload::App(
+                        Box::new(Builder::new(Location::new((3, 3), (3, 3)), Payload::Prop)),
+                        Box::new(Builder::new(Location::new((4, 4), (4, 4)), Payload::Prop)),
+                    ),
+                )),
+                Box::new(Builder::new(
+                    Location::new((5, 5), (5, 5)),
+                    Payload::Prod(
+                        "x",
+                        Box::new(Builder::new(Location::new((6, 6), (6, 6)), Payload::Prop)),
+                        Box::new(Builder::new(Location::new((7, 7), (7, 7)), Payload::Prop)),
+                    ),
+                )),
+            ),
+        );
+
+        assert_eq!(builder.apply_trace(&[]), Location::new((1, 1), (1, 1)));
+
+        assert_eq!(builder.apply_trace(&[Trace::Left]), Location::new((2, 2), (2, 2)));
+        assert_eq!(builder.apply_trace(&[Trace::Left, Trace::Left]), Location::new((3, 3), (3, 3)));
+        assert_eq!(builder.apply_trace(&[Trace::Left, Trace::Right]), Location::new((4, 4), (4, 4)));
+
+        assert_eq!(builder.apply_trace(&[Trace::Right]), Location::new((5, 5), (5, 5)));
+        assert_eq!(builder.apply_trace(&[Trace::Right, Trace::Left]), Location::new((6, 6), (6, 6)));
+        assert_eq!(builder.apply_trace(&[Trace::Right, Trace::Right]), Location::new((7, 7), (7, 7)));
+    }
+}
