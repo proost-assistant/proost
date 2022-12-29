@@ -144,6 +144,7 @@ fn parse_expr(pair: Pair<Rule>) -> Command {
         Rule::GetType => {
             let mut iter = pair.into_inner();
             let t = parse_term(iter.next().unwrap());
+
             Command::GetType(t)
         },
 
@@ -151,39 +152,41 @@ fn parse_expr(pair: Pair<Rule>) -> Command {
             let mut iter = pair.into_inner();
             let t1 = parse_term(iter.next().unwrap());
             let t2 = parse_term(iter.next().unwrap());
+
             Command::CheckType(t1, t2)
         },
 
         Rule::Define => {
             let mut iter = pair.into_inner();
-            let s = iter.next().unwrap().as_str();
+            let s = iter.next().unwrap();
             let term = parse_term(iter.next().unwrap());
-            Command::Define(s, None, term)
+
+            Command::Define((convert_span(s.as_span()), s.as_str()), None, term)
         },
 
         Rule::DefineCheckType => {
             let mut iter = pair.into_inner();
-            let s = iter.next().unwrap().as_str();
+            let s = iter.next().unwrap();
             let ty = parse_term(iter.next().unwrap());
             let term = parse_term(iter.next().unwrap());
 
-            Command::Define(s, Some(ty), term)
+            Command::Define((convert_span(s.as_span()), s.as_str()), Some(ty), term)
         },
 
         Rule::Declaration => {
             let mut iter = pair.into_inner();
             let mut string_decl = iter.next().unwrap().into_inner();
-            let s = string_decl.next().unwrap().as_str();
+            let s = string_decl.next().unwrap();
             let vars: Vec<&str> = string_decl.next().unwrap().into_inner().map(|name| name.as_str()).collect();
             let body = iter.next().map(parse_term).unwrap();
 
-            Command::Declaration(s, None, declaration::Builder::Decl(box body, vars))
+            Command::Declaration((convert_span(s.as_span()), s.as_str()), None, declaration::Builder::Decl(box body, vars))
         },
 
         Rule::DeclarationCheckType => {
             let mut iter = pair.into_inner();
             let mut string_decl = iter.next().unwrap().into_inner();
-            let s = string_decl.next().unwrap().as_str();
+            let s = string_decl.next().unwrap();
             let vars: Vec<&str> = string_decl.next().unwrap().into_inner().map(|name| name.as_str()).collect();
 
             let ty = parse_term(iter.next().unwrap());
@@ -191,7 +194,8 @@ fn parse_expr(pair: Pair<Rule>) -> Command {
 
             let ty = declaration::Builder::Decl(box ty, vars.clone());
             let decl = declaration::Builder::Decl(box decl, vars);
-            Command::Declaration(s, Some(ty), decl)
+
+            Command::Declaration((convert_span(s.as_span()), s.as_str()), Some(ty), decl)
         },
 
         Rule::Eval => {
@@ -343,7 +347,7 @@ mod tests {
         assert_eq!(
             line("def x : Type := Prop"),
             Ok(Define(
-                "x",
+                (Location::new((1, 5), (1, 6)), "x"),
                 Some(Builder::new(Location::new((1, 9), (1, 14)), Type(box level::Builder::Const(0)))),
                 Builder::new(Location::new((1, 17), (1, 21)), Prop)
             ))
@@ -355,7 +359,7 @@ mod tests {
         assert_eq!(
             line("def x.{u} : Type u := foo.{u}"),
             Ok(Declaration(
-                "x",
+                (Location::new((1, 5), (1, 6)), "x"),
                 Some(declaration::Builder::Decl(
                     box Builder::new(Location::new((1, 13), (1, 19)), Type(box level::Builder::Var("u"))),
                     ["u"].to_vec()
@@ -389,14 +393,21 @@ mod tests {
 
     #[test]
     fn successful_define() {
-        assert_eq!(line("def x := Prop"), Ok(Define("x", None, Builder::new(Location::new((1, 10), (1, 14)), Prop))));
+        assert_eq!(
+            line("def x := Prop"),
+            Ok(Define((Location::new((1, 5), (1, 6)), "x"), None, Builder::new(Location::new((1, 10), (1, 14)), Prop)))
+        );
     }
 
     #[test]
     fn successful_declare() {
         assert_eq!(
             line("def x.{} := Prop"),
-            Ok(Declaration("x", None, declaration::Builder::Decl(box Builder::new(Location::new((1, 13), (1, 17)), Prop), vec![])))
+            Ok(Declaration(
+                (Location::new((1, 5), (1, 6)), "x"),
+                None,
+                declaration::Builder::Decl(box Builder::new(Location::new((1, 13), (1, 17)), Prop), vec![])
+            ))
         );
     }
 

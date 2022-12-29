@@ -169,11 +169,11 @@ impl<'arena> Evaluator {
         importing: &mut Vec<PathBuf>,
     ) -> Result<'arena, 'build, Option<Term<'arena>>> {
         match *command {
-            Command::Define(s, ref type_builder, ref term_builder) => {
+            Command::Define((location, s), ref type_builder, ref term_builder) => {
                 if arena.get_binding(s).is_some() {
                     return Err(TopLevel(Error {
                         kind: ErrorKind::BoundVariable(s.to_owned()),
-                        location: Location::default(), // TODO (see #38)
+                        location,
                     }));
                 }
 
@@ -194,11 +194,11 @@ impl<'arena> Evaluator {
                 Ok(None)
             },
 
-            Command::Declaration(s, ref type_builder, ref decl_builder) => {
+            Command::Declaration((location, s), ref type_builder, ref decl_builder) => {
                 if arena.get_binding_decl(s).is_some() {
                     return Err(TopLevel(Error {
                         kind: ErrorKind::BoundVariable(s.to_owned()),
-                        location: Location::default(), // TODO (see #38)
+                        location,
                     }));
                 }
 
