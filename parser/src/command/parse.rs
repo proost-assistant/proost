@@ -200,16 +200,19 @@ fn parse_expr(pair: Pair<Rule>) -> Command {
 
         Rule::Eval => {
             let term = parse_term(pair.into_inner().next().unwrap());
+
             Command::Eval(term)
         },
 
         Rule::ImportFile => {
-            let files = pair.into_inner().map(|pair| pair.as_str()).collect();
+            let files = pair.into_inner().map(|pair| (convert_span(pair.as_span()), pair.as_str())).collect();
+
             Command::Import(files)
         },
 
         Rule::Search => {
             let s = pair.into_inner().next().unwrap().as_str();
+
             Command::Search(s)
         },
 
@@ -377,8 +380,12 @@ mod tests {
 
     #[test]
     fn successful_import() {
-        assert_eq!(line("import file1 dir/file2"), Ok(Import(["file1", "dir/file2"].to_vec())));
         assert_eq!(line("import "), Ok(Import(vec![])));
+
+        assert_eq!(
+            line("import file1 dir/file2"),
+            Ok(Import(vec![(Location::new((1, 8), (1, 13)), "file1"), (Location::new((1, 14), (1, 23)), "dir/file2")]))
+        );
     }
 
     #[test]

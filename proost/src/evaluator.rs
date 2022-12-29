@@ -244,9 +244,10 @@ impl<'arena> Evaluator {
 
             Command::Import(ref files) => files
                 .iter()
-                .try_for_each(|relative_path| {
-                    let file_path = self.create_path(Location::default(), (*relative_path).to_owned(), importing)?;
-                    self.import_file(arena, Location::default(), file_path, importing)
+                .try_for_each(|(loc, relative_path)| {
+                    let file_path = self.create_path(*loc, (*relative_path).to_owned(), importing)?;
+
+                    self.import_file(arena, *loc, file_path, importing)
                 })
                 .map(|_| None),
         }

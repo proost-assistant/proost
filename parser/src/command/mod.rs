@@ -29,7 +29,7 @@ pub enum Command<'build> {
     Eval(Builder<'build>),
 
     /// Import a (series of) file(s).
-    Import(Vec<&'build str>),
+    Import(Vec<(Location, &'build str)>),
 
     /// Search for a variable
     Search(&'build str),
@@ -57,7 +57,7 @@ impl<'build> fmt::Display for Command<'build> {
 
             Import(ref files) => {
                 write!(f, "imports")?;
-                files.iter().try_for_each(|file| write!(f, " {file}"))
+                files.iter().try_for_each(|(_, file)| write!(f, " {file}"))
             },
 
             Search(name) => write!(f, "search {name}"),
