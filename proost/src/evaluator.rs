@@ -34,7 +34,7 @@ pub enum ErrorKind {
     FileNotFound(String),
 
     /// The given file could not be imported
-    #[display(fmt = "errors occurred while reading file")]
+    #[display(fmt = "errors occurred while reading file {_0}")]
     FileError(String),
 
     /// These files have a cyclic dependency

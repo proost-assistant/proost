@@ -41,7 +41,6 @@
     clippy::print_stdout,
     clippy::string_slice
 )]
-#![warn(clippy::missing_docs_in_private_items)]
 #![cfg_attr(
     test,
     allow(
@@ -149,6 +148,8 @@ fn main() -> Result<'static, 'static, ()> {
 }
 
 /// Toplevel function to display a result, as yielded by the toplevel processing of a command
+///
+/// The `toggle_location` indicates whether or not to display a hint for the location of the error
 pub fn display<'arena>(res: Result<'arena, '_, Option<Term<'arena>>>, toggle_location: bool) {
     match res {
         Ok(None) => println!("{}", "\u{2713}".green()),
