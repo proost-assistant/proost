@@ -17,7 +17,7 @@ use derive_more::{Constructor, Deref, Display};
 use im_rc::hashmap::HashMap as ImHashMap;
 use utils::error::Error;
 use utils::location::Location;
-use utils::trace::{Trace, Traceable};
+use utils::trace::{Trace, Traceable, TraceableError};
 
 use super::{DeBruijnIndex, Term};
 use crate::error::ResultTerm;
@@ -121,8 +121,8 @@ pub const fn sort_usize<'build>(level: usize) -> impl BuilderTrait<'build> {
 #[no_coverage]
 pub const fn app<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(u1: F1, u2: F2) -> impl BuilderTrait<'build> {
     |arena, env, lvl_env, depth| {
-        let u1 = u1(arena, env, lvl_env, depth)?;
-        let u2 = u2(arena, env, lvl_env, depth)?;
+        let u1 = u1(arena, env, lvl_env, depth).trace_err(Trace::Left)?;
+        let u2 = u2(arena, env, lvl_env, depth).trace_err(Trace::Right)?;
         Ok(u1.app(u2, arena))
     }
 }
@@ -137,9 +137,9 @@ pub const fn abs<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(
     body: F2,
 ) -> impl BuilderTrait<'build> {
     move |arena, env, lvl_env, depth| {
-        let arg_type = arg_type(arena, env, lvl_env, depth)?;
+        let arg_type = arg_type(arena, env, lvl_env, depth).trace_err(Trace::Left)?;
         let env = env.update(name, (depth, arg_type));
-        let body = body(arena, &env, lvl_env, depth + 1.into())?;
+        let body = body(arena, &env, lvl_env, depth + 1.into()).trace_err(Trace::Right)?;
         Ok(arg_type.abs(body, arena))
     }
 }
@@ -154,9 +154,9 @@ pub const fn prod<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(
     body: F2,
 ) -> impl BuilderTrait<'build> {
     move |arena, env, lvl_env, depth| {
-        let arg_type = arg_type(arena, env, lvl_env, depth)?;
+        let arg_type = arg_type(arena, env, lvl_env, depth).trace_err(Trace::Left)?;
         let env = env.update(name, (depth, arg_type));
-        let body = body(arena, &env, lvl_env, depth + 1.into())?;
+        let body = body(arena, &env, lvl_env, depth + 1.into()).trace_err(Trace::Right)?;
         Ok(arg_type.prod(body, arena))
     }
 }
