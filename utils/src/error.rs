@@ -1,4 +1,4 @@
-//! Definition of error with corresponding [`Trace`] to find [`Location`].
+//! Definition of error with corresponding [`Trace`](crate::trace) to find [`Location`](crate::location).
 
 use derive_more::Display;
 

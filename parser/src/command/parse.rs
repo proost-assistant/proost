@@ -26,9 +26,6 @@ fn convert_span(span: Span) -> Location {
 fn parse_level(pair: Pair<Rule>) -> level::Builder {
     use level::Builder::{Const, IMax, Max, Plus, Var};
 
-    // location to be used in a future version
-    let _loc = convert_span(pair.as_span());
-
     match pair.as_rule() {
         Rule::Num => {
             let n = pair.into_inner().as_str().parse().unwrap();

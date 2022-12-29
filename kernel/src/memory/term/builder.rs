@@ -216,7 +216,24 @@ pub enum Payload<'build> {
 impl<'build> Traceable for Builder<'build> {
     #[inline]
     fn apply_trace(&self, trace: &[Trace]) -> Location {
-        Location::default()
+        let mut builder: &Builder<'build> = self;
+
+        for trace in trace.iter() {
+            builder = match (trace, &builder.payload) {
+                (Trace::Left, Payload::App(lhs, _)) => lhs,
+                (Trace::Right, Payload::App(_, rhs)) => rhs,
+
+                (Trace::Left, Payload::Abs(_, lhs, _)) => lhs,
+                (Trace::Right, Payload::Abs(_, _, rhs)) => rhs,
+
+                (Trace::Left, Payload::Prod(_, lhs, _)) => lhs,
+                (Trace::Right, Payload::Prod(_, _, rhs)) => rhs,
+
+                _ => unreachable!("invalid trace"),
+            };
+        }
+
+        builder.location
     }
 }
 

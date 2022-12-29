@@ -2,8 +2,8 @@
 
 use derive_more::{Display, From};
 
+use crate::memory::{declaration, level, term};
 use crate::type_checker;
-use crate::memory::{term, level, declaration};
 
 /// The kind of errors that can be encountered by the kernel.
 ///

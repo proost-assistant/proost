@@ -1,6 +1,4 @@
 #![doc(html_logo_url = "https://gitlab.crans.org/loutr/proost/-/raw/main/docs/media/logo.png")]
-#![feature(box_patterns)]
-#![feature(box_syntax)]
 #![feature(let_chains)]
 #![deny(
     clippy::complexity,

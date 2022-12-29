@@ -177,16 +177,16 @@ impl<'arena> Evaluator {
                     }));
                 }
 
-                let term = term_builder.realise(arena).map_err(|err| Kernel(box term_builder.clone(), err))?;
+                let term = term_builder.realise(arena).map_err(|err| Kernel(Box::new(term_builder.clone()), err))?;
 
                 match *type_builder {
                     None => {
-                        term.infer(arena).map_err(|err| Kernel(box term_builder.clone(), err))?;
+                        term.infer(arena).map_err(|err| Kernel(Box::new(term_builder.clone()), err))?;
                     },
                     Some(ref type_builder) => {
-                        let type_ = type_builder.realise(arena).map_err(|err| Kernel(box type_builder.clone(), err))?;
+                        let type_ = type_builder.realise(arena).map_err(|err| Kernel(Box::new(type_builder.clone()), err))?;
 
-                        term.check(type_, arena).map_err(|err| Kernel(box term_builder.clone(), err))?;
+                        term.check(type_, arena).map_err(|err| Kernel(Box::new(term_builder.clone()), err))?;
                     },
                 }
 
@@ -202,16 +202,16 @@ impl<'arena> Evaluator {
                     }));
                 }
 
-                let decl = decl_builder.realise(arena).map_err(|err| Kernel(box decl_builder.clone(), err))?;
+                let decl = decl_builder.realise(arena).map_err(|err| Kernel(Box::new(decl_builder.clone()), err))?;
 
                 match *type_builder {
                     None => {
-                        decl.infer(arena).map_err(|err| Kernel(box decl_builder.clone(), err))?;
+                        decl.infer(arena).map_err(|err| Kernel(Box::new(decl_builder.clone()), err))?;
                     },
                     Some(ref type_builder) => {
-                        let type_ = type_builder.realise(arena).map_err(|err| Kernel(box type_builder.clone(), err))?;
+                        let type_ = type_builder.realise(arena).map_err(|err| Kernel(Box::new(type_builder.clone()), err))?;
 
-                        decl.check(type_, arena).map_err(|err| Kernel(box decl_builder.clone(), err))?;
+                        decl.check(type_, arena).map_err(|err| Kernel(Box::new(decl_builder.clone()), err))?;
                     },
                 }
 
@@ -220,22 +220,22 @@ impl<'arena> Evaluator {
             },
 
             Command::CheckType(ref term_builder, ref type_builder) => {
-                let term = term_builder.realise(arena).map_err(|err| Kernel(box term_builder.clone(), err))?;
-                let type_ = type_builder.realise(arena).map_err(|err| Kernel(box type_builder.clone(), err))?;
+                let term = term_builder.realise(arena).map_err(|err| Kernel(Box::new(term_builder.clone()), err))?;
+                let type_ = type_builder.realise(arena).map_err(|err| Kernel(Box::new(type_builder.clone()), err))?;
 
-                term.check(type_, arena).map_err(|err| Kernel(box term_builder.clone(), err))?;
+                term.check(type_, arena).map_err(|err| Kernel(Box::new(term_builder.clone()), err))?;
                 Ok(None)
             },
 
             Command::GetType(ref term_builder) => {
-                let term = term_builder.realise(arena).map_err(|err| Kernel(box term_builder.clone(), err))?;
+                let term = term_builder.realise(arena).map_err(|err| Kernel(Box::new(term_builder.clone()), err))?;
 
-                Ok(term.infer(arena).map(Some).map_err(|err| Kernel(box term_builder.clone(), err))?)
+                Ok(term.infer(arena).map(Some).map_err(|err| Kernel(Box::new(term_builder.clone()), err))?)
             },
 
             Command::Eval(ref term_builder) => {
-                let term = term_builder.realise(arena).map_err(|err| Kernel(box term_builder.clone(), err))?;
-                let _ = term.infer(arena).map_err(|err| Kernel(box term_builder.clone(), err))?;
+                let term = term_builder.realise(arena).map_err(|err| Kernel(Box::new(term_builder.clone()), err))?;
+                let _ = term.infer(arena).map_err(|err| Kernel(Box::new(term_builder.clone()), err))?;
 
                 Ok(Some(term.normal_form(arena)))
             },

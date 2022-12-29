@@ -80,7 +80,9 @@ pub enum Builder<'build> {
 impl<'build> Traceable for Builder<'build> {
     #[inline]
     fn apply_trace(&self, trace: &[Trace]) -> Location {
-        Location::default()
+        match self {
+            Builder::Decl(term, _) => term.apply_trace(trace),
+        }
     }
 }
 

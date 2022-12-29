@@ -8,15 +8,20 @@ use crate::evaluator;
 /// [`std::io::Error`] does not implement them.
 #[derive(Display, From)]
 pub enum Error<'arena, 'build> {
+    /// An error raised by the [`kernel`].
     #[display(fmt = "{_1}")]
     Kernel(Box<dyn utils::trace::Traceable + 'build>, kernel::error::Error<'arena>),
 
+    /// An error raised by the [`parser`].
     Parser(parser::error::Error),
 
+    /// An error raised by the [evaluator](crate::evaluator).
     TopLevel(evaluator::Error),
 
+    /// An input/output error (see [`std::io::Error`]).
     Io(std::io::Error),
 
+    /// An RustyLine error (see [`rustyline::error::ReadlineError`]).
     RustyLine(rustyline::error::ReadlineError),
 }
 

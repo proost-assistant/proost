@@ -717,6 +717,7 @@ mod tests {
 
                 let prop = Term::prop(arena);
                 let type_ = Term::type_usize(0, arena);
+
                 assert_eq!(
                     term.infer(arena),
                     Err(Error {
