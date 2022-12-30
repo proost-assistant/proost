@@ -83,11 +83,12 @@ pub enum Payload<'arena> {
     Axiom(axiom::Axiom, &'arena [Level<'arena>]),
 }
 
-impl<'arena> fmt::Display for Payload<'arena> {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl<'arena> Payload<'arena> {
+    /// This function generates the prettyprint of a term payload.
+    /// See Term::prettyprint() for more information.
+    fn prettyprint(&self, f: &mut fmt::Formatter<'_>, depth: usize) -> fmt::Result {
         match *self {
-            Var(index, _) => write!(f, "{index}"),
+            Var(index, _) => write!(f, "x{}", depth - index.0),
             Sort(level) => match level.to_numeral() {
                 Some(n) => match n {
                     0 => write!(f, "Prop"),
@@ -96,9 +97,27 @@ impl<'arena> fmt::Display for Payload<'arena> {
                 },
                 None => write!(f, "Sort {level}"),
             },
-            App(fun, arg) => write!(f, "({fun}) ({arg})"),
-            Abs(argtype, body) => write!(f, "\u{003BB} {argtype} \u{02192} {body}"),
-            Prod(argtype, body) => write!(f, "\u{003A0} {argtype} \u{02192} {body}"),
+            App(fun, arg) => {
+                write!(f, "(")?;
+                fun.prettyprint(f, depth)?;
+                write!(f, ") (")?;
+                arg.prettyprint(f, depth)?;
+                write!(f, ")")
+            },
+            Abs(argtype, body) => {
+                write!(f, "(\u{003BB} (x{depth} : ")?;
+                argtype.prettyprint(f, depth)?;
+                write!(f, ") => ")?;
+                body.prettyprint(f, depth + 1)?;
+                write!(f, ")")
+            },
+            Prod(argtype, body) => {
+                write!(f, "[(x{depth} : ")?;
+                argtype.prettyprint(f, depth)?;
+                write!(f, ") -> ")?;
+                body.prettyprint(f, depth + 1)?;
+                write!(f, "]")
+            },
             Decl(decl) => write!(f, "{decl}"),
             Axiom(s, _) => write!(f, "{s}"),
         }
@@ -107,14 +126,20 @@ impl<'arena> fmt::Display for Payload<'arena> {
 
 impl<'arena> fmt::Display for Term<'arena> {
     #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0.payload)
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.prettyprint(f, 0)
     }
 }
 
 use Payload::{Abs, App, Axiom, Decl, Prod, Sort, Var};
 
 impl<'arena> Term<'arena> {
+    /// This function generates the prettyprint of a term.
+    /// The depth parameter indicates the number of existing variables.
+    fn prettyprint(&self, f: &mut fmt::Formatter<'_>, depth: usize) -> fmt::Result {
+        self.0.payload.prettyprint(f, depth)
+    }
+
     /// This function is the base low-level function for creating terms.
     ///
     /// It enforces the uniqueness property of terms in the arena.
@@ -302,7 +327,11 @@ mod tests {
                 ),
             ));
 
-            assert_eq!(term.to_string(), "λ Sort max (u0) (u1) + 1 → λ Type → λ Type 1 → Π 1 → (1) (2)");
+            //assert_eq!(term.to_string(), "λ Sort max (u0) (u1) + 1 → λ Type → λ Type 1 → Π 1 → (1) (2)");
+            assert_eq!(
+                term.to_string(),
+                "(λ (x0 : Sort max (u0) (u1) + 1) => (λ (x1 : Type) => (λ (x2 : Type 1) => [(x3 : x2) -> (x3) (x2)])))"
+            );
         });
     }
 }
