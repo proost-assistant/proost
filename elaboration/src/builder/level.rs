@@ -52,6 +52,7 @@ pub enum Builder<'builder> {
 }
 
 impl<'build> Builder<'build> {
+    #[inline]
     fn max_depth(&self) -> usize {
         match self {
             Builder::Zero => 0,
