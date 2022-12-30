@@ -86,6 +86,7 @@ pub enum Payload<'arena> {
 impl<'arena> Payload<'arena> {
     /// This function generates the prettyprint of a term payload.
     /// See `Term::prettyprint()` for more information.
+    #[no_coverage]
     fn prettyprint(&self, f: &mut fmt::Formatter<'_>, depth: usize, type_height: usize) -> fmt::Result {
         match *self {
             Var(index, _) => write!(f, "x{}", depth - type_height - index.0),
