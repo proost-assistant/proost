@@ -218,7 +218,7 @@ impl<'build> Traceable for Builder<'build> {
     fn apply_trace(&self, trace: &[Trace]) -> Location {
         let mut builder: &Builder<'build> = self;
 
-        for trace in trace.iter() {
+        for trace in trace.iter().rev() {
             builder = match (trace, &builder.payload) {
                 (Trace::Left, Payload::App(lhs, _)) => lhs,
                 (Trace::Right, Payload::App(_, rhs)) => rhs,
@@ -359,14 +359,15 @@ mod tests {
             ),
         );
 
+        // Beware, the trace has to be applied in the reverse order (depth-first).
         assert_eq!(builder.apply_trace(&[]), Location::new((1, 1), (1, 1)));
 
         assert_eq!(builder.apply_trace(&[Trace::Left]), Location::new((2, 2), (2, 2)));
         assert_eq!(builder.apply_trace(&[Trace::Left, Trace::Left]), Location::new((3, 3), (3, 3)));
-        assert_eq!(builder.apply_trace(&[Trace::Left, Trace::Right]), Location::new((4, 4), (4, 4)));
+        assert_eq!(builder.apply_trace(&[Trace::Right, Trace::Left]), Location::new((4, 4), (4, 4)));
 
         assert_eq!(builder.apply_trace(&[Trace::Right]), Location::new((5, 5), (5, 5)));
-        assert_eq!(builder.apply_trace(&[Trace::Right, Trace::Left]), Location::new((6, 6), (6, 6)));
+        assert_eq!(builder.apply_trace(&[Trace::Left, Trace::Right]), Location::new((6, 6), (6, 6)));
         assert_eq!(builder.apply_trace(&[Trace::Right, Trace::Right]), Location::new((7, 7), (7, 7)));
     }
 }
