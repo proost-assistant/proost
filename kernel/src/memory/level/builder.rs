@@ -110,6 +110,10 @@ pub const fn imax<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(u1
 /// [`Level`] type, except that the `Var` constructor include a name, as in the syntactic way of
 /// writing levels. Because its purpose is to provide an easy way to build terms, even through the
 /// API, it offers different ways to build some terms, for convenience.
+///
+/// Unlike [`Term` builders](crate::memory::term::builder::Builder), level builders do not back-propagate
+/// a trace when an error occurs. This makes their structure simpler, but also limits the accuracy of the
+/// error reports associated to them. This is not an issue, as levels typically have a very limited size.
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
 pub enum Builder<'builder> {
     #[display(fmt = "0")]
