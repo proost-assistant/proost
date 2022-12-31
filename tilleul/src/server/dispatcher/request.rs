@@ -1,7 +1,6 @@
 use crossbeam_channel::Sender;
 use log::warn;
 
-use crate::server::lsp::LspServer;
 use crate::server::payload::message::Message;
 use crate::server::payload::request::Request;
 use crate::server::payload::response::{Response, ResponseError};

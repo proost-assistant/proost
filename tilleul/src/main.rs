@@ -18,7 +18,7 @@ fn main() -> Result<()> {
 
     let connection = Connection::new();
 
-    kernel::term::arena::use_arena(|arena| {
+    kernel::memory::arena::use_arena(|arena| {
         let mut backend = Tilleul::new(arena, &connection);
 
         LspServer::new(&mut backend, &connection).serve();

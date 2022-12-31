@@ -1,8 +1,7 @@
-use kernel::term::arena::Arena;
-use log::info;
+use kernel::memory::arena::Arena;
 use lsp_types::notification::PublishDiagnostics;
 use lsp_types::*;
-use parser::parse_line;
+use parser::command::parse;
 
 use crate::server::connection::Connection;
 use crate::server::payload::message::Message;
@@ -37,7 +36,7 @@ impl LanguageServerBackend for Tilleul<'_, '_> {
 
     fn did_open_text_document(&self, params: DidOpenTextDocumentParams) {
         for line in params.text_document.text.lines() {
-            let command = parse_line(line);
+            let command = parse::line(line);
 
             // TODO: Handle errors correctly
             if let Err(err) = command {
@@ -55,11 +54,12 @@ impl LanguageServerBackend for Tilleul<'_, '_> {
                     err.to_string(),
                 );
 
-                self.connection.send(Message::Notification(Notification::new::<PublishDiagnostics>(PublishDiagnosticsParams {
-                    uri: params.text_document.uri.clone(),
-                    diagnostics: vec![diagnostic],
-                    version: None,
-                })));
+                self.connection
+                    .send(Message::Notification(Notification::new::<PublishDiagnostics>(PublishDiagnosticsParams {
+                        uri: params.text_document.uri.clone(),
+                        diagnostics: vec![diagnostic],
+                        version: None,
+                    })));
             };
         }
     }
