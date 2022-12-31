@@ -12,7 +12,7 @@ use crate::type_checker;
 #[derive(Clone, Debug, Display, Eq, PartialEq, From)]
 pub enum Kind<'arena> {
     /// Kind of errors raised during type checking phase.
-    TypeChecker(type_checker::Kind<'arena>),
+    TypeChecker(type_checker::ErrorKind<'arena>),
 
     /// Kind of errors raised during [`Term`](term::Term) building.
     Term(term::builder::ErrorKind<'arena>),

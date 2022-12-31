@@ -20,7 +20,7 @@ pub struct TypedTerm<'arena>(Term<'arena>, Term<'arena>);
 #[allow(clippy::module_name_repetitions)]
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
-pub enum Kind<'arena> {
+pub enum ErrorKind<'arena> {
     #[display(fmt = "{_0} is not a universe")]
     NotUniverse(Term<'arena>),
 
@@ -86,7 +86,7 @@ impl<'arena> Term<'arena> {
     pub fn is_def_eq(self, rhs: Self, arena: &mut Arena<'arena>) -> Result<'arena, ()> {
         self.conversion(rhs, arena)
             .then_some(())
-            .ok_or_else(|| Error::new(Kind::NotDefEq(self, rhs).into()))
+            .ok_or_else(|| Error::new(ErrorKind::NotDefEq(self, rhs).into()))
     }
 
     /// Computes the universe in which `(x: A) -> B` lives when `A: lhs` and `B: rhs`.
@@ -97,8 +97,8 @@ impl<'arena> Term<'arena> {
                 Ok(Term::sort(lvl, arena))
             },
 
-            (&Sort(_), _) => Err(Error::new(Kind::NotUniverse(rhs).into())).trace_err(Trace::Right),
-            (_, _) => Err(Error::new(Kind::NotUniverse(self).into())).trace_err(Trace::Left),
+            (&Sort(_), _) => Err(Error::new(ErrorKind::NotUniverse(rhs).into())).trace_err(Trace::Right),
+            (_, _) => Err(Error::new(ErrorKind::NotUniverse(self).into())).trace_err(Trace::Left),
         }
     }
 
@@ -127,7 +127,7 @@ impl<'arena> Term<'arena> {
                         Ok(t.prod(type_u, arena))
                     },
 
-                    _ => Err(Error::new(Kind::NotUniverse(type_t).into())).trace_err(Trace::Left),
+                    _ => Err(Error::new(ErrorKind::NotUniverse(type_t).into())).trace_err(Trace::Left),
                 }
             },
 
@@ -142,11 +142,11 @@ impl<'arena> Term<'arena> {
                         if type_u.conversion(arg_type, arena) {
                             Ok(cls.substitute(u, 1, arena))
                         } else {
-                            Err(Error::new(Kind::WrongArgumentType(t, arg_type, TypedTerm(u, type_u)).into()))
+                            Err(Error::new(ErrorKind::WrongArgumentType(t, arg_type, TypedTerm(u, type_u)).into()))
                         }
                     },
 
-                    _ => Err(Error::new(Kind::NotAFunction(TypedTerm(t, type_t), u).into())).trace_err(Trace::Left),
+                    _ => Err(Error::new(ErrorKind::NotAFunction(TypedTerm(t, type_t), u).into())).trace_err(Trace::Left),
                 }
             },
 
@@ -167,7 +167,7 @@ impl<'arena> Term<'arena> {
 
         tty.conversion(ty, arena)
             .then_some(())
-            .ok_or_else(|| Error::new(Kind::TypeMismatch(tty, ty).into()))
+            .ok_or_else(|| Error::new(ErrorKind::TypeMismatch(tty, ty).into()))
     }
 }
 
@@ -269,7 +269,7 @@ mod tests {
             assert_eq!(
                 term_lhs.is_def_eq(term_rhs, arena),
                 Err(Error {
-                    kind: Kind::NotDefEq(term_lhs, term_rhs).into(),
+                    kind: ErrorKind::NotDefEq(term_lhs, term_rhs).into(),
                     trace: vec![]
                 })
             );
@@ -285,7 +285,7 @@ mod tests {
             assert_eq!(
                 term_lhs.is_def_eq(term_rhs, arena),
                 Err(Error {
-                    kind: Kind::NotDefEq(term_lhs, term_rhs).into(),
+                    kind: ErrorKind::NotDefEq(term_lhs, term_rhs).into(),
                     trace: vec![]
                 })
             );
@@ -301,7 +301,7 @@ mod tests {
             assert_eq!(
                 term_lhs.is_def_eq(term_rhs, arena),
                 Err(Error {
-                    kind: Kind::NotDefEq(term_lhs, term_rhs).into(),
+                    kind: ErrorKind::NotDefEq(term_lhs, term_rhs).into(),
                     trace: vec![]
                 })
             );
@@ -558,7 +558,7 @@ mod tests {
                 assert_eq!(
                     term.infer(arena),
                     Err(Error {
-                        kind: Kind::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena))
+                        kind: ErrorKind::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena))
                             .into(),
                         trace: vec![Trace::Left, Trace::Left]
                     })
@@ -574,7 +574,7 @@ mod tests {
                 assert_eq!(
                     term.infer(arena),
                     Err(Error {
-                        kind: Kind::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena))
+                        kind: ErrorKind::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena))
                             .into(),
                         trace: vec![Trace::Left, Trace::Right]
                     })
@@ -590,7 +590,7 @@ mod tests {
                 assert_eq!(
                     term.infer(arena),
                     Err(Error {
-                        kind: Kind::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena))
+                        kind: ErrorKind::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena))
                             .into(),
                         trace: vec![Trace::Left, Trace::Left]
                     })
@@ -606,7 +606,7 @@ mod tests {
                 assert_eq!(
                     term.infer(arena),
                     Err(Error {
-                        kind: Kind::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena))
+                        kind: ErrorKind::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena))
                             .into(),
                         trace: vec![Trace::Left]
                     })
@@ -622,7 +622,7 @@ mod tests {
                 assert_eq!(
                     term.infer(arena),
                     Err(Error {
-                        kind: Kind::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena))
+                        kind: ErrorKind::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena))
                             .into(),
                         trace: vec![Trace::Left, Trace::Left]
                     })
@@ -638,7 +638,7 @@ mod tests {
                 assert_eq!(
                     term.infer(arena),
                     Err(Error {
-                        kind: Kind::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena))
+                        kind: ErrorKind::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena))
                             .into(),
                         trace: vec![Trace::Left, Trace::Right]
                     })
@@ -662,7 +662,7 @@ mod tests {
                 assert_eq!(
                     term.infer(arena),
                     Err(Error {
-                        kind: Kind::WrongArgumentType(
+                        kind: ErrorKind::WrongArgumentType(
                             arena.build_term_raw(abs(prop(), app(var(2.into(), prod(prop(), prop())), var(1.into(), prop())))),
                             Term::prop(arena),
                             TypedTerm(
@@ -688,7 +688,7 @@ mod tests {
                 assert_eq!(
                     term.infer(arena),
                     Err(Error {
-                        kind: Kind::NotUniverse(arena.build_term_raw(var(2.into(), prop()))).into(),
+                        kind: ErrorKind::NotUniverse(arena.build_term_raw(var(2.into(), prop()))).into(),
                         trace: vec![Trace::Left, Trace::Right, Trace::Right]
                     })
                 );
@@ -703,7 +703,7 @@ mod tests {
                 assert_eq!(
                     term.infer(arena),
                     Err(Error {
-                        kind: Kind::NotUniverse(arena.build_term_raw(prod(prop(), prop()))).into(),
+                        kind: ErrorKind::NotUniverse(arena.build_term_raw(prod(prop(), prop()))).into(),
                         trace: vec![Trace::Left]
                     })
                 );
@@ -721,7 +721,7 @@ mod tests {
                 assert_eq!(
                     term.infer(arena),
                     Err(Error {
-                        kind: Kind::NotUniverse(prop.prod(type_, arena)).into(),
+                        kind: ErrorKind::NotUniverse(prop.prod(type_, arena)).into(),
                         trace: vec![Trace::Right]
                     })
                 );
@@ -737,7 +737,7 @@ mod tests {
                 assert_eq!(
                     term.check(expected_type, arena),
                     Err(Error {
-                        kind: Kind::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena))
+                        kind: ErrorKind::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena))
                             .into(),
                         trace: vec![Trace::Left]
                     })
@@ -752,7 +752,7 @@ mod tests {
                 assert_eq!(
                     prop.check(prop, arena),
                     Err(Error {
-                        kind: Kind::TypeMismatch(Term::type_usize(0, arena), prop).into(),
+                        kind: ErrorKind::TypeMismatch(Term::type_usize(0, arena), prop).into(),
                         trace: vec![]
                     })
                 );
