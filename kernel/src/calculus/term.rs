@@ -179,9 +179,12 @@ impl<'arena> Term<'arena> {
 #[cfg(test)]
 mod tests {
     // /!\ most terms used in these tests are ill-typed; they should not be used elsewhere
+    use utils::location::Location;
+
     use crate::memory::arena::use_arena;
-    use crate::memory::declaration;
+    use crate::memory::declaration::{builder as declaration, InstantiatedDeclaration};
     use crate::memory::term::builder::raw::*;
+    use crate::memory::term::{builder as term, Term};
 
     #[test]
     fn simple_subst() {
@@ -327,35 +330,33 @@ mod tests {
     #[test]
     fn decl_subst() {
         use_arena(|arena| {
-            let decl_ = crate::memory::declaration::InstantiatedDeclaration::instantiate(
-                crate::memory::declaration::builder::Builder::Decl(crate::memory::term::builder::Builder::Prop.into(), Vec::new())
-                    .realise(arena)
-                    .unwrap(),
-                &Vec::new(),
-                arena,
-            );
-            let decl = crate::memory::term::Term::decl(decl_, arena);
-            let reduced = arena.build_term_raw(prop());
+            let decl = declaration::Builder::Decl(Box::new(term::Builder::new(Location::default(), term::Payload::Prop)), vec![]);
+            let decl = Term::decl(InstantiatedDeclaration::instantiate(decl.realise(arena).unwrap(), &[], arena), arena);
 
-            assert_eq!(decl.beta_reduction(arena), reduced);
+            assert_eq!(decl.beta_reduction(arena), arena.build_term_raw(prop()));
         });
     }
 
     #[test]
     fn decl_app_whnf() {
-        use crate::memory::term::builder::Builder::*;
         use_arena(|arena| {
             let false_ = arena.build_term_raw(prod(prop(), var(0.into(), prop())));
 
-            let decl_ = crate::memory::declaration::InstantiatedDeclaration::instantiate(
-                crate::memory::declaration::builder::Builder::Decl(Abs("x", Prop.into(), Prop.into()).into(), Vec::new())
-                    .realise(arena)
-                    .unwrap(),
-                &Vec::new(),
-                arena,
+            let decl = declaration::Builder::Decl(
+                Box::new(term::Builder::new(
+                    Location::default(),
+                    term::Payload::Abs(
+                        "x",
+                        Box::new(term::Builder::new(Location::default(), term::Payload::Prop)),
+                        Box::new(term::Builder::new(Location::default(), term::Payload::Prop)),
+                    ),
+                )),
+                vec![],
             );
-            let decl = crate::memory::term::Term::decl(decl_, arena);
-            let app = crate::memory::term::Term::app(decl, false_, arena);
+            let decl = Term::decl(InstantiatedDeclaration::instantiate(decl.realise(arena).unwrap(), &[], arena), arena);
+
+            let app = Term::app(decl, false_, arena);
+
             let reduced = arena.build_term_raw(prop());
 
             assert_eq!(app.beta_reduction(arena), reduced);
@@ -415,17 +416,19 @@ mod tests {
         use crate::memory::level::builder::raw::*;
 
         use_arena(|arena| {
-            let decl_ = crate::memory::declaration::InstantiatedDeclaration::instantiate(
-                declaration::builder::Builder::Decl(crate::memory::term::builder::Builder::Prop.into(), ["u", "v"].to_vec())
-                    .realise(arena)
-                    .unwrap(),
+            let decl = declaration::Builder::Decl(
+                Box::new(term::Builder::new(Location::default(), term::Payload::Prop)),
+                ["u", "v"].to_vec(),
+            );
+            let decl = InstantiatedDeclaration::instantiate(
+                decl.realise(arena).unwrap(),
                 &[arena.build_level_raw(zero()), arena.build_level_raw(zero())],
                 arena,
             );
 
-            let prop_ = crate::memory::term::Term::decl(decl_, arena);
+            let prop = crate::memory::term::Term::decl(decl, arena);
 
-            assert_eq!(prop_.substitute_univs(&[arena.build_level_raw(zero()), arena.build_level_raw(zero())], arena), prop_);
+            assert_eq!(prop.substitute_univs(&[arena.build_level_raw(zero()), arena.build_level_raw(zero())], arena), prop);
 
             let vart = crate::memory::term::builder::raw::var;
 

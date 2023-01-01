@@ -13,18 +13,23 @@
 //! *high-level term* or *template*, described by the public enumeration [`Builder`], and at any
 //! moment, [realise](Builder::realise) it.
 
-use derive_more::Display;
+use derive_more::{Constructor, Deref, Display};
 use im_rc::hashmap::HashMap as ImHashMap;
+use utils::error::Error;
+use utils::location::Location;
+use utils::trace::{Trace, Traceable, TraceableError};
 
 use super::{DeBruijnIndex, Term};
-use crate::error::{Error, ResultTerm};
+use crate::error::ResultTerm;
 use crate::memory::arena::Arena;
 use crate::memory::declaration::builder as declaration;
 use crate::memory::level::builder as level;
 
+/// The kind of the error that can occur when building a [`Term`].
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
-pub enum TermError<'arena> {
+pub enum ErrorKind<'arena> {
+    /// The identifier is not bound in the given context.
     #[display(fmt = "unknown identifier {_0}")]
     ConstNotFound(&'arena str),
 }
@@ -64,16 +69,14 @@ impl<'arena> Arena<'arena> {
 pub const fn var(name: &str) -> impl BuilderTrait<'_> {
     move |arena, env, _, depth| {
         env.get(name)
-            .map(|(bind_depth, term)| {
+            .map(|&(bind_depth, term)| {
                 // This is arguably an eager computation, it could be worth making it lazy,
                 // or at least memoizing it so as to not compute it again
-                let var_type = term.shift(usize::from(depth - *bind_depth), 0, arena);
-                Term::var(depth - *bind_depth, var_type, arena)
+                let var_type = term.shift(usize::from(depth - bind_depth), 0, arena);
+                Term::var(depth - bind_depth, var_type, arena)
             })
             .or_else(|| arena.get_binding(name))
-            .ok_or(Error {
-                kind: TermError::ConstNotFound(arena.store_name(name)).into(),
-            })
+            .ok_or_else(|| Error::new(ErrorKind::ConstNotFound(arena.store_name(name)).into()))
     }
 }
 
@@ -118,8 +121,8 @@ pub const fn sort_usize<'build>(level: usize) -> impl BuilderTrait<'build> {
 #[no_coverage]
 pub const fn app<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(u1: F1, u2: F2) -> impl BuilderTrait<'build> {
     |arena, env, lvl_env, depth| {
-        let u1 = u1(arena, env, lvl_env, depth)?;
-        let u2 = u2(arena, env, lvl_env, depth)?;
+        let u1 = u1(arena, env, lvl_env, depth).trace_err(Trace::Left)?;
+        let u2 = u2(arena, env, lvl_env, depth).trace_err(Trace::Right)?;
         Ok(u1.app(u2, arena))
     }
 }
@@ -134,9 +137,9 @@ pub const fn abs<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(
     body: F2,
 ) -> impl BuilderTrait<'build> {
     move |arena, env, lvl_env, depth| {
-        let arg_type = arg_type(arena, env, lvl_env, depth)?;
+        let arg_type = arg_type(arena, env, lvl_env, depth).trace_err(Trace::Left)?;
         let env = env.update(name, (depth, arg_type));
-        let body = body(arena, &env, lvl_env, depth + 1.into())?;
+        let body = body(arena, &env, lvl_env, depth + 1.into()).trace_err(Trace::Right)?;
         Ok(arg_type.abs(body, arena))
     }
 }
@@ -151,9 +154,9 @@ pub const fn prod<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(
     body: F2,
 ) -> impl BuilderTrait<'build> {
     move |arena, env, lvl_env, depth| {
-        let arg_type = arg_type(arena, env, lvl_env, depth)?;
+        let arg_type = arg_type(arena, env, lvl_env, depth).trace_err(Trace::Left)?;
         let env = env.update(name, (depth, arg_type));
-        let body = body(arena, &env, lvl_env, depth + 1.into())?;
+        let body = body(arena, &env, lvl_env, depth + 1.into()).trace_err(Trace::Right)?;
         Ok(arg_type.prod(body, arena))
     }
 }
@@ -165,6 +168,18 @@ pub const fn decl<'build, F: declaration::InstantiatedBuilderTrait<'build>>(decl
     move |arena, _, lvl_env, _| Ok(Term::decl(decl(arena, lvl_env)?, arena))
 }
 
+/// Wrapper template of [`Payload`], including [`Location`].
+#[derive(Clone, Constructor, Debug, Deref, Display, PartialEq, Eq)]
+#[display(fmt = "{payload}")]
+pub struct Builder<'build> {
+    /// Location of the term.
+    location: Location,
+
+    /// Term's effective builder.
+    #[deref]
+    payload: Payload<'build>,
+}
+
 /// Template of terms.
 ///
 /// A Builder describes a term in a naive but easy to build manner. It strongly resembles the
@@ -173,7 +188,7 @@ pub const fn decl<'build, F: declaration::InstantiatedBuilderTrait<'build>>(decl
 /// involved). Because its purpose is to provide an easy way to build terms, even through the API,
 /// it offers different ways to build some terms, for convenience.
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
-pub enum Builder<'build> {
+pub enum Payload<'build> {
     #[display(fmt = "{_0}")]
     Var(&'build str),
 
@@ -198,6 +213,30 @@ pub enum Builder<'build> {
     Decl(Box<declaration::InstantiatedBuilder<'build>>),
 }
 
+impl<'build> Traceable for Builder<'build> {
+    #[inline]
+    fn apply_trace(&self, trace: &[Trace]) -> Location {
+        let mut builder: &Builder<'build> = self;
+
+        for trace in trace.iter().rev() {
+            builder = match (trace, &builder.payload) {
+                (Trace::Left, Payload::App(lhs, _)) => lhs,
+                (Trace::Right, Payload::App(_, rhs)) => rhs,
+
+                (Trace::Left, Payload::Abs(_, lhs, _)) => lhs,
+                (Trace::Right, Payload::Abs(_, _, rhs)) => rhs,
+
+                (Trace::Left, Payload::Prod(_, lhs, _)) => lhs,
+                (Trace::Right, Payload::Prod(_, _, rhs)) => rhs,
+
+                _ => unreachable!("invalid trace"),
+            };
+        }
+
+        builder.location
+    }
+}
+
 impl<'build> Builder<'build> {
     /// Realise a builder into a [`Term`]. This internally uses functions described in
     /// the [builder](`crate::memory::term::builder`) module.
@@ -217,19 +256,19 @@ impl<'build> Builder<'build> {
         lvl_env: &level::Environment<'build>,
         depth: DeBruijnIndex,
     ) -> ResultTerm<'arena> {
-        match *self {
-            Builder::Var(s) => var(s)(arena, env, lvl_env, depth),
-            Builder::Prop => prop()(arena, env, lvl_env, depth),
-            Builder::Type(ref level) => type_(level.partial_application())(arena, env, lvl_env, depth),
-            Builder::Sort(ref level) => sort(level.partial_application())(arena, env, lvl_env, depth),
-            Builder::App(ref l, ref r) => app(l.partial_application(), r.partial_application())(arena, env, lvl_env, depth),
-            Builder::Abs(s, ref arg, ref body) => {
+        match **self {
+            Payload::Var(s) => var(s)(arena, env, lvl_env, depth),
+            Payload::Prop => prop()(arena, env, lvl_env, depth),
+            Payload::Type(ref level) => type_(level.partial_application())(arena, env, lvl_env, depth),
+            Payload::Sort(ref level) => sort(level.partial_application())(arena, env, lvl_env, depth),
+            Payload::App(ref l, ref r) => app(l.partial_application(), r.partial_application())(arena, env, lvl_env, depth),
+            Payload::Abs(s, ref arg, ref body) => {
                 abs(s, arg.partial_application(), body.partial_application())(arena, env, lvl_env, depth)
             },
-            Builder::Prod(s, ref arg, ref body) => {
+            Payload::Prod(s, ref arg, ref body) => {
                 prod(s, arg.partial_application(), body.partial_application())(arena, env, lvl_env, depth)
             },
-            Builder::Decl(ref decl_builder) => decl(decl_builder.partial_application())(arena, env, lvl_env, depth),
+            Payload::Decl(ref decl_builder) => decl(decl_builder.partial_application())(arena, env, lvl_env, depth),
         }
     }
 }
@@ -287,5 +326,48 @@ pub(crate) mod raw {
             let u2 = u2(arena);
             u1.prod(u2, arena)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn builder_trace() {
+        // This following term is completely ill-typed, location do not have any meaning.
+        // We want to test that the trace is correctly applied.
+        let builder = Builder::new(
+            Location::new((1, 1), (1, 1)),
+            Payload::Abs(
+                "x",
+                Box::new(Builder::new(
+                    Location::new((2, 2), (2, 2)),
+                    Payload::App(
+                        Box::new(Builder::new(Location::new((3, 3), (3, 3)), Payload::Prop)),
+                        Box::new(Builder::new(Location::new((4, 4), (4, 4)), Payload::Prop)),
+                    ),
+                )),
+                Box::new(Builder::new(
+                    Location::new((5, 5), (5, 5)),
+                    Payload::Prod(
+                        "x",
+                        Box::new(Builder::new(Location::new((6, 6), (6, 6)), Payload::Prop)),
+                        Box::new(Builder::new(Location::new((7, 7), (7, 7)), Payload::Prop)),
+                    ),
+                )),
+            ),
+        );
+
+        // Beware, the trace has to be applied in the reverse order (depth-first).
+        assert_eq!(builder.apply_trace(&[]), Location::new((1, 1), (1, 1)));
+
+        assert_eq!(builder.apply_trace(&[Trace::Left]), Location::new((2, 2), (2, 2)));
+        assert_eq!(builder.apply_trace(&[Trace::Left, Trace::Left]), Location::new((3, 3), (3, 3)));
+        assert_eq!(builder.apply_trace(&[Trace::Right, Trace::Left]), Location::new((4, 4), (4, 4)));
+
+        assert_eq!(builder.apply_trace(&[Trace::Right]), Location::new((5, 5), (5, 5)));
+        assert_eq!(builder.apply_trace(&[Trace::Left, Trace::Right]), Location::new((6, 6), (6, 6)));
+        assert_eq!(builder.apply_trace(&[Trace::Right, Trace::Right]), Location::new((7, 7), (7, 7)));
     }
 }

@@ -1,19 +1,36 @@
 use derive_more::{Display, From};
 
+use crate::evaluator;
+
 /// The type of errors encountered by Proost during an interactive session.
 ///
 /// Please note that some traits like `Clone` or `PartialEq` cannot be implemented here because
 /// [`std::io::Error`] does not implement them.
-#[derive(Debug, Display, From)]
-pub enum Error<'arena> {
-    Parser(parser::error::Error),
-    Kernel(kernel::error::Error<'arena>),
-    Toplevel(crate::evaluator::Error),
+#[derive(Display, From)]
+pub enum Error<'arena, 'build> {
+    /// An error raised by the [`kernel`].
+    #[display(fmt = "{_1}")]
+    Kernel(Box<dyn utils::trace::Traceable + 'build>, kernel::error::Error<'arena>),
 
+    /// An error raised by the [`parser`].
+    Parser(parser::error::Error),
+
+    /// An error raised by the [evaluator](crate::evaluator).
+    TopLevel(evaluator::Error),
+
+    /// An input/output error (see [`std::io::Error`]).
     Io(std::io::Error),
+
+    /// An RustyLine error (see [`rustyline::error::ReadlineError`]).
     RustyLine(rustyline::error::ReadlineError),
 }
 
-impl std::error::Error for Error<'_> {}
+impl core::fmt::Debug for Error<'_, '_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Display::fmt(self, f)
+    }
+}
 
-pub type Result<'arena, T> = core::result::Result<T, Error<'arena>>;
+impl std::error::Error for Error<'_, '_> {}
+
+pub type Result<'arena, 'build, T> = core::result::Result<T, Error<'arena, 'build>>;

@@ -204,34 +204,38 @@ impl<'arena> Arena<'arena> {
 
 #[cfg(test)]
 mod tests {
+    use utils::location::Location;
+
     use crate::memory::arena::use_arena;
-    use crate::memory::level::builder::raw::{var, *};
+    use crate::memory::declaration::{builder as declaration, InstantiatedDeclaration};
+    use crate::memory::level::builder::raw as level;
     use crate::memory::term::builder::raw::*;
+    use crate::memory::term::builder::{Builder, Payload};
 
     #[test]
-    fn display() {
+    fn display_1() {
         use_arena(|arena| {
-            let decl_ = crate::memory::declaration::InstantiatedDeclaration::instantiate(
-                crate::memory::declaration::builder::Builder::Decl(crate::memory::term::builder::Builder::Prop.into(), Vec::new())
-                    .realise(arena)
-                    .unwrap(),
-                &Vec::new(),
-                arena,
-            );
+            let decl = declaration::Builder::Decl(Box::new(Builder::new(Location::default(), Payload::Prop)), vec![]);
+            let decl = InstantiatedDeclaration::instantiate(decl.realise(arena).unwrap(), &[], arena);
 
-            let prop_ = crate::memory::term::Term::decl(decl_, arena);
+            let prop = crate::memory::term::Term::decl(decl, arena);
 
-            assert_eq!(prop_.to_string(), "(Prop).{}");
-            let vart = crate::memory::term::builder::raw::var;
+            assert_eq!(prop.to_string(), "(Prop).{}");
+        });
+    }
 
-            let lvl = max(succ(var(0)), succ(var(1)));
+    #[test]
+    fn display_2() {
+        use_arena(|arena| {
+            let lvl = level::max(level::succ(level::var(0)), level::succ(level::var(1)));
+
             let term = arena.build_term_raw(abs(
                 sort_(lvl),
                 abs(
                     type_usize(0),
                     abs(
                         type_usize(1),
-                        prod(vart(1.into(), type_usize(1)), app(vart(1.into(), type_usize(1)), vart(2.into(), type_usize(0)))),
+                        prod(var(1.into(), type_usize(1)), app(var(1.into(), type_usize(1)), var(2.into(), type_usize(0)))),
                     ),
                 ),
             ));

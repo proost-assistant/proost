@@ -15,14 +15,17 @@
 use std::collections::HashMap;
 
 use derive_more::Display;
+use utils::error::Error;
 
 use super::Level;
-use crate::error::{Error, ResultLevel};
+use crate::error::ResultLevel;
 use crate::memory::arena::Arena;
 
+/// The kind of the error that can occur when building a [`Level`].
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
-pub enum LevelError<'arena> {
+pub enum ErrorKind<'arena> {
+    /// The identifier is not bound in the given context.
     #[display(fmt = "unknown universe variable {_0}")]
     VarNotFound(&'arena str),
 }
@@ -51,9 +54,9 @@ impl<'arena> Arena<'arena> {
 #[must_use]
 pub const fn var(name: &str) -> impl BuilderTrait<'_> {
     move |arena, env| {
-        env.get(name).map(|lvl| Level::var(*lvl, arena)).ok_or(Error {
-            kind: LevelError::VarNotFound(arena.store_name(name)).into(),
-        })
+        env.get(name)
+            .map(|lvl| Level::var(*lvl, arena))
+            .ok_or_else(|| Error::new(ErrorKind::VarNotFound(arena.store_name(name)).into()))
     }
 }
 
@@ -107,6 +110,10 @@ pub const fn imax<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(u1
 /// [`Level`] type, except that the `Var` constructor include a name, as in the syntactic way of
 /// writing levels. Because its purpose is to provide an easy way to build terms, even through the
 /// API, it offers different ways to build some terms, for convenience.
+///
+/// Unlike [`Term` builders](crate::memory::term::builder::Builder), level builders do not back-propagate
+/// a trace when an error occurs. This makes their structure simpler, but also limits the accuracy of the
+/// error reports associated to them. This is not an issue, as levels typically have a very limited size.
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
 pub enum Builder<'builder> {
     #[display(fmt = "0")]

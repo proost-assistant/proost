@@ -1,15 +1,7 @@
 #![doc(html_logo_url = "https://gitlab.crans.org/loutr/proost/-/raw/main/docs/media/logo.png")]
 
-//! A kernel for the calculus of constructions.
-//!
-//! Terms can be built with functions from the [`memory::term`] module. The [`calculus`] module
-//! provides essential manipulation functions from lambda-calculus, while the [`type_checker`]
-//! module provides typed interactions.
+//! Utilities defining, in a uniformal way, errors and location of elements.
 
-#![feature(if_let_guard)]
-#![feature(no_coverage)]
-#![feature(once_cell)]
-#![feature(trait_alias)]
 #![deny(
     clippy::complexity,
     clippy::correctness,
@@ -38,12 +30,6 @@
     clippy::unreachable,
     clippy::wildcard_enum_match_arm
 )]
-#![warn(
-    clippy::arithmetic_side_effects,
-    clippy::integer_arithmetic,
-    clippy::missing_errors_doc,
-    clippy::missing_docs_in_private_items
-)]
 #![cfg_attr(
     test,
     allow(
@@ -56,8 +42,6 @@
         clippy::wildcard_imports,
     )
 )]
-
-pub mod calculus;
 pub mod error;
-pub mod memory;
-pub mod type_checker;
+pub mod location;
+pub mod trace;

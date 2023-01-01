@@ -3,13 +3,13 @@ use std::fs::read_to_string;
 use std::path::PathBuf;
 
 use derive_more::Display;
-use kernel::location::Location;
 use kernel::memory::arena::Arena;
 use kernel::memory::term::Term;
 use parser::command::{parse, Command};
 use path_absolutize::Absolutize;
+use utils::location::Location;
 
-use crate::error::Error::Toplevel;
+use crate::error::Error::{Kernel, TopLevel};
 use crate::error::Result;
 
 /// Type representing parser errors.
@@ -28,8 +28,13 @@ pub struct Error {
 pub enum ErrorKind {
     #[display(fmt = "{_0} is not a file")]
     FileNotFound(String),
+
+    #[display(fmt = "errors occurred while reading file")]
+    FileError,
+
     #[display(fmt = "cyclic dependency:\n{_0}")]
     CyclicDependencies(String),
+
     #[display(fmt = "identifier {_0} already defined")]
     BoundVariable(String),
 }
@@ -52,7 +57,12 @@ impl<'arena> Evaluator {
     }
 
     /// Create a new path from a relative path
-    fn create_path(&self, location: Location, relative_path: String, importing: &[PathBuf]) -> Result<'arena, PathBuf> {
+    fn create_path<'build>(
+        &self,
+        location: Location,
+        relative_path: String,
+        importing: &[PathBuf],
+    ) -> Result<'arena, 'build, PathBuf> {
         let file_path = importing
             .last()
             .and_then(|path| path.parent())
@@ -64,7 +74,7 @@ impl<'arena> Evaluator {
         if file_path.is_file() {
             Ok(file_path)
         } else {
-            Err(Toplevel(Error {
+            Err(TopLevel(Error {
                 kind: ErrorKind::FileNotFound(file_path.to_string_lossy().to_string()),
                 location,
             }))
@@ -73,20 +83,20 @@ impl<'arena> Evaluator {
 
     /// Begin a new file importation.
     ///
-    /// `file_path` must be absolute
-    fn import_file(
+    /// `file_path` must be an absolute path.
+    fn import_file<'build>(
         &mut self,
         arena: &mut Arena<'arena>,
         location: Location,
         file_path: PathBuf,
         importing: &mut Vec<PathBuf>,
-    ) -> Result<'arena, ()> {
+    ) -> Result<'arena, 'build, ()> {
         if self.imported.contains(&file_path) {
             return Ok(());
         }
 
         if let Some(i) = importing.iter().position(|path| path == &file_path) {
-            return Err(Toplevel(Error {
+            return Err(TopLevel(Error {
                 kind: ErrorKind::CyclicDependencies(
                     importing[i..]
                         .iter()
@@ -97,6 +107,7 @@ impl<'arena> Evaluator {
                 location,
             }));
         }
+
         // add file to the list of files to import
         importing.push(file_path.clone());
         // read it
@@ -105,24 +116,42 @@ impl<'arena> Evaluator {
         let result = self.process_file(arena, &file, importing);
         // remove it from the list of files to import
         let file_path = importing.pop().unwrap_or_else(|| unreachable!());
-        // if importation failed, return error, else add file to imported files
-        result?;
+
+        // if importation failed, display the associated errors now (the imported file is discarded
+        // right after, and errors may depend on it), and return an error about the command itself.
+        result.map_err(|err| {
+            crate::display(Err(err));
+
+            Error {
+                kind: ErrorKind::FileError,
+                location,
+            }
+        })?;
+
         self.imported.insert(file_path);
+
         Ok(())
     }
 
-    pub fn process_line(&mut self, arena: &mut Arena<'arena>, line: &str) -> Result<'arena, Option<Term<'arena>>> {
-        let command = parse::line(line)?;
-        self.process(arena, &command, &mut Vec::new())
-    }
-
-    pub fn process_file(
+    pub fn process_line<'build>(
         &mut self,
         arena: &mut Arena<'arena>,
-        file: &str,
+        line: &'build str,
+    ) -> Result<'arena, 'build, Option<Term<'arena>>> {
+        let command = parse::line(line)?;
+
+        self.process(arena, &command, &mut vec![])
+    }
+
+    pub fn process_file<'build>(
+        &mut self,
+        arena: &mut Arena<'arena>,
+        file: &'build str,
         importing: &mut Vec<PathBuf>,
-    ) -> Result<'arena, Option<Term<'arena>>> {
-        parse::file(file)?
+    ) -> Result<'arena, 'build, Option<Term<'arena>>> {
+        let commands = parse::file(file)?;
+
+        commands
             .iter()
             .try_for_each(|command| {
                 if self.verbose {
@@ -133,74 +162,92 @@ impl<'arena> Evaluator {
             .map(|_| None)
     }
 
-    fn process(
+    fn process<'build>(
         &mut self,
         arena: &mut Arena<'arena>,
-        command: &Command,
+        command: &Command<'build>,
         importing: &mut Vec<PathBuf>,
-    ) -> Result<'arena, Option<Term<'arena>>> {
+    ) -> Result<'arena, 'build, Option<Term<'arena>>> {
         match *command {
-            Command::Define(s, ref ty, ref term) => {
+            Command::Define((location, s), ref type_builder, ref term_builder) => {
                 if arena.get_binding(s).is_some() {
-                    return Err(Toplevel(Error {
+                    return Err(TopLevel(Error {
                         kind: ErrorKind::BoundVariable(s.to_owned()),
-                        location: Location::default(), // TODO (see #38)
+                        location,
                     }));
                 }
-                let term = term.realise(arena)?;
-                match *ty {
+
+                let term = term_builder.realise(arena).map_err(|err| Kernel(Box::new(term_builder.clone()), err))?;
+
+                match *type_builder {
                     None => {
-                        term.infer(arena)?;
+                        term.infer(arena).map_err(|err| Kernel(Box::new(term_builder.clone()), err))?;
                     },
-                    Some(ref ty) => term.check(ty.realise(arena)?, arena)?,
+                    Some(ref type_builder) => {
+                        let type_ = type_builder.realise(arena).map_err(|err| Kernel(Box::new(type_builder.clone()), err))?;
+
+                        term.check(type_, arena).map_err(|err| Kernel(Box::new(term_builder.clone()), err))?;
+                    },
                 }
+
                 arena.bind(s, term);
                 Ok(None)
             },
 
-            Command::Declaration(s, ref ty, ref decl) => {
+            Command::Declaration((location, s), ref type_builder, ref decl_builder) => {
                 if arena.get_binding_decl(s).is_some() {
-                    return Err(Toplevel(Error {
+                    return Err(TopLevel(Error {
                         kind: ErrorKind::BoundVariable(s.to_owned()),
-                        location: Location::default(), // TODO (see #38)
+                        location,
                     }));
                 }
-                let decl = decl.realise(arena)?;
-                match *ty {
+
+                let decl = decl_builder.realise(arena).map_err(|err| Kernel(Box::new(decl_builder.clone()), err))?;
+
+                match *type_builder {
                     None => {
-                        decl.infer(arena)?;
+                        decl.infer(arena).map_err(|err| Kernel(Box::new(decl_builder.clone()), err))?;
                     },
-                    Some(ref ty) => decl.check(ty.realise(arena)?, arena)?,
+                    Some(ref type_builder) => {
+                        let type_ = type_builder.realise(arena).map_err(|err| Kernel(Box::new(type_builder.clone()), err))?;
+
+                        decl.check(type_, arena).map_err(|err| Kernel(Box::new(decl_builder.clone()), err))?;
+                    },
                 }
+
                 arena.bind_decl(s, decl);
                 Ok(None)
             },
 
-            Command::CheckType(ref t1, ref t2) => {
-                let t1 = t1.realise(arena)?;
-                let t2 = t2.realise(arena)?;
-                t1.check(t2, arena)?;
+            Command::CheckType(ref term_builder, ref type_builder) => {
+                let term = term_builder.realise(arena).map_err(|err| Kernel(Box::new(term_builder.clone()), err))?;
+                let type_ = type_builder.realise(arena).map_err(|err| Kernel(Box::new(type_builder.clone()), err))?;
+
+                term.check(type_, arena).map_err(|err| Kernel(Box::new(term_builder.clone()), err))?;
                 Ok(None)
             },
 
-            Command::GetType(ref t) => {
-                let t = t.realise(arena)?;
-                Ok(t.infer(arena).map(Some)?)
+            Command::GetType(ref term_builder) => {
+                let term = term_builder.realise(arena).map_err(|err| Kernel(Box::new(term_builder.clone()), err))?;
+
+                Ok(term.infer(arena).map(Some).map_err(|err| Kernel(Box::new(term_builder.clone()), err))?)
             },
 
-            Command::Eval(ref t) => {
-                let t = t.realise(arena)?;
-                let _ = t.infer(arena)?;
-                Ok(Some(t.normal_form(arena)))
+            Command::Eval(ref term_builder) => {
+                let term = term_builder.realise(arena).map_err(|err| Kernel(Box::new(term_builder.clone()), err))?;
+                let _ = term.infer(arena).map_err(|err| Kernel(Box::new(term_builder.clone()), err))?;
+
+                Ok(Some(term.normal_form(arena)))
             },
 
             Command::Search(s) => Ok(arena.get_binding(s)), // TODO (see #49)
 
             Command::Import(ref files) => files
                 .iter()
-                .try_for_each(|relative_path| {
-                    let file_path = self.create_path(Location::default(), (*relative_path).to_owned(), importing)?;
-                    self.import_file(arena, Location::default(), file_path, importing)
+                .try_for_each(|(loc, relative_path)| {
+                    let file_path = self.create_path(*loc, (*relative_path).to_owned(), importing)?;
+
+                    self.import_file(arena, *loc, file_path, importing)
                 })
                 .map(|_| None),
         }

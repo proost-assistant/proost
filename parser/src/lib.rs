@@ -40,7 +40,6 @@
     clippy::std_instead_of_core,
     clippy::unwrap_used
 )]
-#![warn(clippy::missing_docs_in_private_items, clippy::missing_errors_doc)]
 #![cfg_attr(
     test,
     allow(

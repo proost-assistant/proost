@@ -9,19 +9,25 @@
 //! logic; namely verifying the correct amount of variables have been supplied or bound.
 
 use derive_more::Display;
+use utils::error::Error;
+use utils::location::Location;
+use utils::trace::{Trace, Traceable};
 
 use super::{Declaration, InstantiatedDeclaration};
-use crate::error::{Error, Result, ResultDecl, ResultInstantiatedDecl};
+use crate::error::{Result, ResultDecl, ResultInstantiatedDecl};
 use crate::memory::arena::Arena;
 use crate::memory::level::builder as level;
 use crate::memory::term::builder as term;
 
+/// The kind of the error that can occur when building a [`Declaration`].
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
-pub enum DeclarationError<'arena> {
+pub enum ErrorKind<'arena> {
+    /// There is a mismatch in the number of universe variables required.
     #[display(fmt = "expected {_0} universe variables, got {_1}")]
     IncorrectVariableNumber(usize, usize),
 
+    /// The identifier is not bound in the given context.
     #[display(fmt = "unknown declaration {_0}")]
     UnknownDeclaration(&'arena str),
 }
@@ -71,6 +77,15 @@ pub enum Builder<'build> {
     Decl(Box<term::Builder<'build>>, Vec<&'build str>),
 }
 
+impl<'build> Traceable for Builder<'build> {
+    #[inline]
+    fn apply_trace(&self, trace: &[Trace]) -> Location {
+        match self {
+            Builder::Decl(term, _) => term.apply_trace(trace),
+        }
+    }
+}
+
 impl<'build> Builder<'build> {
     /// Realise a builder into a [`Declaration`]. This internally uses functions described in
     /// the [builder](`crate::memory::declaration::builder`) module.
@@ -104,9 +119,7 @@ fn try_build_instance<'arena, 'build>(
     if decl.1 == levels.len() {
         Ok(InstantiatedDeclaration::instantiate(decl, levels.as_slice(), arena))
     } else {
-        Err(Error {
-            kind: DeclarationError::IncorrectVariableNumber(decl.1, levels.len()).into(),
-        })
+        Err(Error::new(ErrorKind::IncorrectVariableNumber(decl.1, levels.len()).into()))
     }
 }
 
@@ -130,9 +143,10 @@ pub fn instance<'build, F: BuilderTrait<'build>>(
 #[must_use]
 pub fn var<'build>(name: &'build str, levels: &'build [level::Builder<'build>]) -> impl InstantiatedBuilderTrait<'build> {
     move |arena, env| {
-        let decl = arena.get_binding_decl(name).ok_or(Error {
-            kind: DeclarationError::UnknownDeclaration(arena.store_name(name)).into(),
-        })?;
+        let decl = arena
+            .get_binding_decl(name)
+            .ok_or_else(|| Error::new(ErrorKind::UnknownDeclaration(arena.store_name(name)).into()))?;
+
         try_build_instance(decl, levels, arena, env)
     }
 }
@@ -191,5 +205,30 @@ impl<'build> InstantiatedBuilder<'build> {
             InstantiatedBuilder::Instance(ref decl, ref levels) => instance(decl.partial_application(), levels)(arena, lvl_env),
             InstantiatedBuilder::Var(name, ref levels) => var(name, levels)(arena, lvl_env),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Builder::Decl;
+    use super::*;
+    use crate::memory::term::builder::{Builder, Payload};
+
+    #[test]
+    fn builder_trace() {
+        // This following term is completely ill-typed, location do not have any meaning.
+        // We want to test that the trace is correctly applied.
+        let builder = Decl(
+            Box::new(Builder::new(
+                Location::new((1, 1), (1, 1)),
+                Payload::App(
+                    Box::new(Builder::new(Location::new((2, 2), (2, 2)), Payload::Prop)),
+                    Box::new(Builder::new(Location::new((3, 3), (3, 3)), Payload::Prop)),
+                ),
+            )),
+            vec![],
+        );
+
+        assert_eq!(builder.apply_trace(&[]), Location::new((1, 1), (1, 1)));
     }
 }
