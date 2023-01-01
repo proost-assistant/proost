@@ -3,14 +3,19 @@ pub mod dispatcher;
 pub mod lsp;
 pub mod payload;
 
-use log::warn;
+use log::info;
 use lsp_types::*;
 
 pub trait LanguageServerBackend {
-    fn initialize(&self, params: InitializeParams) -> InitializeResult;
+    fn initialize(&mut self, params: InitializeParams) -> InitializeResult;
 
-    fn did_open_text_document(&self, params: DidOpenTextDocumentParams) {
+    fn initialized(&mut self, params: InitializedParams) {
         let _ = params;
-        warn!("textDocument/didOpen not handled");
+        info!("initialized not handled");
+    }
+
+    fn did_open_text_document(&mut self, params: DidOpenTextDocumentParams) {
+        let _ = params;
+        info!("textDocument/didOpen not handled");
     }
 }

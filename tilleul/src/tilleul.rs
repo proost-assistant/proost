@@ -20,7 +20,7 @@ impl<'a, 'arena> Tilleul<'a, 'arena> {
 }
 
 impl LanguageServerBackend for Tilleul<'_, '_> {
-    fn initialize(&self, _: InitializeParams) -> InitializeResult {
+    fn initialize(&mut self, _: InitializeParams) -> InitializeResult {
         InitializeResult {
             capabilities: ServerCapabilities {
                 definition_provider: Some(OneOf::Left(true)),
@@ -34,7 +34,7 @@ impl LanguageServerBackend for Tilleul<'_, '_> {
         }
     }
 
-    fn did_open_text_document(&self, params: DidOpenTextDocumentParams) {
+    fn did_open_text_document(&mut self, params: DidOpenTextDocumentParams) {
         for line in params.text_document.text.lines() {
             let command = parse::line(line);
 

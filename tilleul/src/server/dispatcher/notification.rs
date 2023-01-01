@@ -18,8 +18,16 @@ impl<'a, T: LanguageServerBackend> Dispatcher<'a, T> {
         }
     }
 
-    pub fn handle<N>(&mut self, closure: fn(&T, N::Params)) -> &mut Self
+    pub fn handle<N>(&mut self, closure: fn(&mut T, N::Params)) -> &mut Self
     where
+        N: lsp_types::notification::Notification,
+    {
+        self.handle_callback::<N, _>(closure, || ())
+    }
+
+    pub fn handle_callback<N, C>(&mut self, handler: fn(&mut T, N::Params), callback: C) -> &mut Self
+    where
+        C: FnOnce() -> (),
         N: lsp_types::notification::Notification,
     {
         let Some(ref notification) = self.notification else { return self; };
@@ -32,14 +40,16 @@ impl<'a, T: LanguageServerBackend> Dispatcher<'a, T> {
 
         let params = serde_json::from_value::<N::Params>(notification.params.take()).unwrap();
 
-        closure(self.backend, params);
+        handler(self.backend, params);
+
+        callback();
 
         self
     }
 
-    pub fn handle_fallthrough(&mut self) {
-        let Some(ref notification) = self.notification else { return; };
+    pub fn handle_fallthrough(&mut self, error_message: &str) {
+        let Some(_) = self.notification else { return; };
 
-        warn!("Unknown {} notification received", notification.method);
+        warn!("{error_message}");
     }
 }

@@ -23,14 +23,14 @@ impl<'a, T: LanguageServerBackend> Dispatcher<'a, T> {
         }
     }
 
-    pub fn handle<R>(&mut self, closure: fn(&T, R::Params) -> R::Result) -> &mut Self
+    pub fn handle<R>(&mut self, closure: fn(&mut T, R::Params) -> R::Result) -> &mut Self
     where
         R: lsp_types::request::Request,
     {
-        self.handle_callback::<_, R>(closure, |_| ())
+        self.handle_callback::<R, _>(closure, |_| ())
     }
 
-    pub fn handle_callback<C, R>(&mut self, closure: fn(&T, R::Params) -> R::Result, callback: C) -> &mut Self
+    pub fn handle_callback<R, C>(&mut self, handler: fn(&mut T, R::Params) -> R::Result, callback: C) -> &mut Self
     where
         C: FnOnce(&R::Result) -> (),
         R: lsp_types::request::Request,
@@ -45,7 +45,7 @@ impl<'a, T: LanguageServerBackend> Dispatcher<'a, T> {
 
         let params = serde_json::from_value::<R::Params>(request.params.take()).unwrap();
 
-        let result = closure(self.backend, params);
+        let result = handler(self.backend, params);
 
         callback(&result);
 

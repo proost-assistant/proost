@@ -16,7 +16,8 @@ pub struct LspServer<'a, T: LanguageServerBackend> {
 }
 
 enum LspServerState {
-    Initializing,
+    WaitingForInitialisation,
+    Initialised,
     Running,
     Closing,
 }
@@ -26,7 +27,7 @@ impl<'a, T: LanguageServerBackend> LspServer<'a, T> {
         LspServer {
             backend,
             connection,
-            state: LspServerState::Initializing,
+            state: LspServerState::WaitingForInitialisation,
         }
     }
 
@@ -48,14 +49,22 @@ impl<'a, T: LanguageServerBackend> LspServer<'a, T> {
         let mut dispatcher = request::Dispatcher::new(request, self.backend, &self.connection.sender);
 
         match self.state {
-            LspServerState::Initializing => {
+            LspServerState::WaitingForInitialisation => {
                 dispatcher
-                    .handle_callback::<_, Initialize>(T::initialize, |_| self.state = LspServerState::Running)
+                    .handle_callback::<Initialize, _>(T::initialize, |_| self.state = LspServerState::Initialised)
                     .handle_fallthrough(ResponseError {
                         code: ErrorCode::ServerNotInitialized,
-                        message: "Server not initialized".to_string(),
+                        message: "Server not initialised".to_string(),
                         data: None,
                     });
+            },
+
+            LspServerState::Initialised => {
+                dispatcher.handle_fallthrough(ResponseError {
+                    code: ErrorCode::ServerNotInitialized,
+                    message: "Server not initialised".to_string(),
+                    data: None,
+                });
             },
 
             // LspServerState::Running => dispatcher.handle::<Initialize>(T::initialize).handle_fallthrough(),
@@ -71,9 +80,17 @@ impl<'a, T: LanguageServerBackend> LspServer<'a, T> {
         let mut dispatcher = notification::Dispatcher::new(notification, self.backend);
 
         match self.state {
-            LspServerState::Initializing => (),
+            LspServerState::WaitingForInitialisation => dispatcher.handle_fallthrough("Server not initialised"),
 
-            LspServerState::Running => dispatcher.handle::<DidOpenTextDocument>(T::did_open_text_document).handle_fallthrough(),
+            LspServerState::Initialised => {
+                dispatcher
+                    .handle_callback::<Initialized, _>(T::initialized, || self.state = LspServerState::Running)
+                    .handle_fallthrough("Server not initialised");
+            },
+
+            LspServerState::Running => dispatcher
+                .handle::<DidOpenTextDocument>(T::did_open_text_document)
+                .handle_fallthrough("Unknown notification received"),
 
             LspServerState::Closing => (),
         }
