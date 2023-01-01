@@ -1,15 +1,15 @@
 use log::warn;
 
-use crate::server::payload::notification::Notification;
-use crate::server::LanguageServerBackend;
+use crate::backend::payload::notification::Notification;
+use crate::backend::LanguageServer;
 
-pub struct Dispatcher<'a, T: LanguageServerBackend> {
+pub struct Dispatcher<'a, T: LanguageServer> {
     notification: Option<Notification>,
 
     backend: &'a mut T,
 }
 
-impl<'a, T: LanguageServerBackend> Dispatcher<'a, T> {
+impl<'a, T: LanguageServer> Dispatcher<'a, T> {
     pub fn new(notification: Notification, backend: &'a mut T) -> Self {
         Self {
             notification: Some(notification),

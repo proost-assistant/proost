@@ -6,7 +6,7 @@ pub mod payload;
 use log::info;
 use lsp_types::*;
 
-pub trait LanguageServerBackend {
+pub trait LanguageServer {
     fn initialize(&mut self, params: InitializeParams) -> InitializeResult;
 
     fn initialized(&mut self, params: InitializedParams) {

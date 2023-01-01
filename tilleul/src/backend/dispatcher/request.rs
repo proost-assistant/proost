@@ -1,19 +1,19 @@
 use crossbeam_channel::Sender;
 use log::warn;
 
-use crate::server::payload::message::Message;
-use crate::server::payload::request::Request;
-use crate::server::payload::response::{Response, ResponseError};
-use crate::server::LanguageServerBackend;
+use crate::backend::payload::message::Message;
+use crate::backend::payload::request::Request;
+use crate::backend::payload::response::{Response, ResponseError};
+use crate::backend::LanguageServer;
 
-pub struct Dispatcher<'a, T: LanguageServerBackend> {
+pub struct Dispatcher<'a, T: LanguageServer> {
     request: Option<Request>,
 
     backend: &'a mut T,
     sender: &'a Sender<Message>,
 }
 
-impl<'a, T: LanguageServerBackend> Dispatcher<'a, T> {
+impl<'a, T: LanguageServer> Dispatcher<'a, T> {
     pub fn new(request: Request, backend: &'a mut T, sender: &'a Sender<Message>) -> Self {
         Self {
             request: Some(request),

@@ -1,15 +1,15 @@
 use log::info;
 
-use super::connection::Connection;
-use super::payload::notification::Notification;
-use super::payload::request::Request;
-use super::LanguageServerBackend;
-use crate::server::dispatcher::{notification, request};
-use crate::server::payload::message::Message;
-use crate::server::payload::response::{ErrorCode, ResponseError};
+use super::LanguageServer;
+use crate::backend::connection::Connection;
+use crate::backend::dispatcher::{notification, request};
+use crate::backend::payload::message::Message;
+use crate::backend::payload::notification::Notification;
+use crate::backend::payload::request::Request;
+use crate::backend::payload::response::{ErrorCode, ResponseError};
 
 /// LSP server.
-pub struct LspServer<'a, T: LanguageServerBackend> {
+pub struct LspServer<'a, T: LanguageServer> {
     backend: &'a mut T,
     connection: &'a Connection,
     state: LspServerState,
@@ -22,7 +22,7 @@ enum LspServerState {
     Closing,
 }
 
-impl<'a, T: LanguageServerBackend> LspServer<'a, T> {
+impl<'a, T: LanguageServer> LspServer<'a, T> {
     pub fn new(backend: &'a mut T, connection: &'a Connection) -> Self {
         LspServer {
             backend,

@@ -1,11 +1,11 @@
-mod server;
+mod backend;
 mod tilleul;
 
 use anyhow::Result;
 use log::info;
 
-use crate::server::connection::Connection;
-use crate::server::lsp::LspServer;
+use crate::backend::connection::Connection;
+use crate::backend::lsp::LspServer;
 use crate::tilleul::Tilleul;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

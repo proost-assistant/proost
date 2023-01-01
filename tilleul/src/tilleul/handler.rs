@@ -1,25 +1,13 @@
-use kernel::memory::arena::Arena;
 use lsp_types::notification::PublishDiagnostics;
 use lsp_types::*;
 use parser::command::parse;
 
-use crate::server::connection::Connection;
-use crate::server::payload::message::Message;
-use crate::server::payload::notification::Notification;
-use crate::server::LanguageServerBackend;
+use super::Tilleul;
+use crate::backend::payload::message::Message;
+use crate::backend::payload::notification::Notification;
+use crate::backend::LanguageServer;
 
-pub struct Tilleul<'a, 'arena> {
-    arena: &'a mut Arena<'arena>,
-    connection: &'a Connection,
-}
-
-impl<'a, 'arena> Tilleul<'a, 'arena> {
-    pub fn new(arena: &'a mut Arena<'arena>, connection: &'a Connection) -> Self {
-        Self { arena, connection }
-    }
-}
-
-impl LanguageServerBackend for Tilleul<'_, '_> {
+impl LanguageServer for Tilleul<'_, '_> {
     fn initialize(&mut self, _: InitializeParams) -> InitializeResult {
         InitializeResult {
             capabilities: ServerCapabilities {

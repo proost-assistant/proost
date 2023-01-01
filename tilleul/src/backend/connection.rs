@@ -3,7 +3,7 @@ use std::{io, thread};
 use crossbeam_channel::{bounded, Receiver, Sender};
 use log::{debug, error, info};
 
-use super::payload::message::Message;
+use crate::backend::payload::message::Message;
 
 pub struct Connection {
     pub(crate) sender: Sender<Message>,
