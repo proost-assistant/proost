@@ -101,23 +101,20 @@ impl<'arena> Payload<'arena> {
             App(fun, arg) => {
                 write!(f, "(")?;
                 fun.prettyprint(f, depth, type_height)?;
-                write!(f, ") (")?;
-                arg.prettyprint(f, depth, type_height)?;
-                write!(f, ")")
+                write!(f, ") ")?;
+                arg.prettyprint(f, depth, type_height)
             },
             Abs(argtype, body) => {
-                write!(f, "(\u{003BB} (x{depth} : ")?;
+                write!(f, "\u{003BB} x{depth} : ")?;
                 argtype.prettyprint(f, depth + 1, type_height + 1)?;
-                write!(f, ") => ")?;
-                body.prettyprint(f, depth + 1, type_height)?;
-                write!(f, ")")
+                write!(f, " => ")?;
+                body.prettyprint(f, depth + 1, type_height)
             },
             Prod(argtype, body) => {
-                write!(f, "[(x{depth} : ")?;
+                write!(f, "(x{depth} : ")?;
                 argtype.prettyprint(f, depth + 1, type_height + 1)?;
                 write!(f, ") -> ")?;
-                body.prettyprint(f, depth + 1, type_height)?;
-                write!(f, "]")
+                body.prettyprint(f, depth + 1, type_height)
             },
             Decl(decl) => write!(f, "{decl}"),
             Axiom(s, _) => write!(f, "{s}"),
@@ -328,10 +325,7 @@ mod tests {
                 ),
             ));
 
-            assert_eq!(
-                term.to_string(),
-                "(λ (x0 : Sort max (u0) (u1) + 1) => (λ (x1 : Type) => (λ (x2 : Type 1) => [(x3 : x2) -> (x3) (x2)])))"
-            );
+            assert_eq!(term.to_string(), "λ x0 : Sort max (u0) (u1) + 1 => λ x1 : Type => λ x2 : Type 1 => (x3 : x2) -> (x3) x2");
         });
     }
 }
