@@ -11,6 +11,7 @@ use crate::lsp::connection::Connection;
 pub mod handler;
 
 /// The [`LanguageServer`] implementation for `Madelaine` language.
+#[allow(dead_code)]
 pub struct Tilleul<'tilleul, 'arena> {
     /// [Memory] of the [`kernel`].
     ///

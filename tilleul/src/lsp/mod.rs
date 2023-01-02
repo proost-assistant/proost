@@ -25,10 +25,11 @@ use lsp_types::*;
 /// An example implementation of this trait can be found in the [`crate::tilleul`] directory.
 ///
 /// [Language Server Protocol]: https://microsoft.github.io/language-server-protocol/
-/// [notifications]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#notificationMessage
-/// [specification]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#lifeCycleMessages
-/// [requests]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#requestMessage
+/// [notifications]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#notificationMessage
+/// [specification]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#lifeCycleMessages
+/// [requests]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#requestMessage
 /// [`Server`]: server::Server
+#[allow(unused_variables)]
 pub trait LanguageServer {
     /// [`initialize`] request.
     ///
@@ -41,15 +42,36 @@ pub trait LanguageServer {
     ///
     /// [`initialized`]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#initialized
     fn initialized(&mut self, params: InitializedParams) {
-        let _ = params;
         info!("initialized not handled");
+    }
+
+    /// [`shutdown`] request.
+    ///
+    /// This method is guaranteed to be called only once.
+    ///
+    /// [`shutdown`]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#shutdown
+    fn shutdown(&mut self, params: ()) {
+        info!("shutdown not handled");
     }
 
     /// [`textDocument/didOpen`] notification.
     ///
-    /// [`textDocument/didOpen`]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_didOpen
+    /// [`textDocument/didOpen`]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_didOpen
     fn text_document_did_open(&mut self, params: DidOpenTextDocumentParams) {
-        let _ = params;
         info!("textDocument/didOpen not handled");
+    }
+
+    /// [`textDocument/didChange`] notification.
+    ///
+    /// [`textDocument/didChange`]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_didChange
+    fn text_document_did_change(&mut self, params: DidChangeTextDocumentParams) {
+        info!("textDocument/didChange not handled");
+    }
+
+    /// [`textDocument/didClose`] notification.
+    ///
+    /// [`textDocument/didClose`]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_didClose
+    fn text_document_did_close(&mut self, params: DidCloseTextDocumentParams) {
+        info!("textDocument/didClose not handled");
     }
 }

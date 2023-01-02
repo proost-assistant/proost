@@ -51,7 +51,7 @@ impl Message {
     /// # Errors
     /// Returns an error if the message is not conformed to the [specification], or if one of `read` operation failed.
     ///
-    /// [specification]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#baseProtocol
+    /// [specification]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#baseProtocol
     pub fn read(reader: &mut dyn BufRead) -> Result<Self> {
         let mut buffer = String::new();
 
@@ -87,7 +87,7 @@ impl Message {
     /// # Errors
     /// Returns an error if one of `write` operation failed.
     ///
-    /// [specification]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#baseProtocol
+    /// [specification]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#baseProtocol
     pub fn write(self, writer: &mut dyn Write) -> Result<()> {
         let response = JsonRPC {
             jsonrpc: "2.0",

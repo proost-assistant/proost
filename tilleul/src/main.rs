@@ -31,8 +31,6 @@
     clippy::missing_trait_methods,
     clippy::mod_module_files,
     clippy::panic_in_result_fn,
-    clippy::pattern_type_mismatch,
-    clippy::pattern_type_mismatch,
     clippy::separated_literal_suffix,
     clippy::shadow_reuse,
     clippy::shadow_unrelated,

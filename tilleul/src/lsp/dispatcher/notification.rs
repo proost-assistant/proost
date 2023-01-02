@@ -80,8 +80,8 @@ impl<'dispatcher, T: LanguageServer> Dispatcher<'dispatcher, T> {
     ///
     /// [`handle`]: (Dispatcher::handle)
     pub fn handle_fallthrough(&mut self, error_message: &str) {
-        let Some(_) = self.notification else { return; };
+        let Some(ref notification) = self.notification else { return; };
 
-        warn!("{error_message}");
+        warn!("{error_message} on {}", notification.method);
     }
 }

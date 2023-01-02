@@ -1,6 +1,6 @@
 //! A [response] sent from a server to a client.
 //!
-//! [response]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#responseMessage
+//! [response]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#responseMessage
 
 use lsp_types::error_codes;
 use serde::{Deserialize, Serialize};
@@ -8,7 +8,7 @@ use serde_json::Value;
 
 /// [Response] message.
 ///
-/// [Response]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#responseMessage
+/// [Response]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#responseMessage
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Response {
     /// The request id.
@@ -25,7 +25,7 @@ pub struct Response {
 
 /// [Response error] message.
 ///
-/// [Response error]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#responseError
+/// [Response error]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#responseError
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Error {
     /// A number indicating the error type that occurred.
@@ -41,7 +41,7 @@ pub struct Error {
 
 /// [Error code] message.
 ///
-/// [Error code]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#errorCodes
+/// [Error code]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#errorCodes
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[allow(clippy::as_conversions, clippy::cast_possible_truncation)]
 pub enum ErrorCode {

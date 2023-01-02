@@ -1,6 +1,6 @@
 //! A [notification] sent from a client to a server, or from a server to a client.
 //!
-//! [notification]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#notificationMessage
+//! [notification]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#notificationMessage
 
 use lsp_types::notification;
 use serde::{Deserialize, Serialize};
@@ -8,7 +8,7 @@ use serde_json::Value;
 
 /// [Notification] message.
 ///
-/// [Notification]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#notificationMessage
+/// [Notification]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#notificationMessage
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Notification {
     /// The method to be invoked.
@@ -31,7 +31,7 @@ impl Notification {
 
     /// Returns true if the notification is the [`exit`] notification.
     ///
-    /// [`exit`]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#exit
+    /// [`exit`]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#exit
     #[must_use]
     pub fn is_exit(&self) -> bool {
         use notification::Notification;

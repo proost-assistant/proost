@@ -46,6 +46,7 @@ impl<'dispatcher, T: LanguageServer> Dispatcher<'dispatcher, T> {
 
     /// Dispatches the [`Request`] to the [`LanguageServer`], if the [`Request`]'s method correspond to the
     /// [`lsp_types::request::Request::METHOD`].
+    #[allow(dead_code)]
     pub fn handle<R>(&mut self, closure: fn(&mut T, R::Params) -> R::Result) -> &mut Self
     where
         R: lsp_types::request::Request,
@@ -97,7 +98,7 @@ impl<'dispatcher, T: LanguageServer> Dispatcher<'dispatcher, T> {
     pub fn handle_fallthrough(&mut self, error_response: Error) {
         let Some(ref request) = self.request else { return; };
 
-        warn!("{}", error_response.message);
+        warn!("{} on {}", error_response.message, request.method);
 
         let response = Message::Response(Response {
             id: request.id,

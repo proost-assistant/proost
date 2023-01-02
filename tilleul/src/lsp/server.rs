@@ -33,36 +33,30 @@ pub struct Server<'server, T: LanguageServer> {
 ///
 /// Depending of the state, the server will dispatch [requests] and [notifications] according to the [specification].
 ///
-/// [notifications]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#notificationMessage
-/// [specification]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#lifeCycleMessages
-/// [requests]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#requestMessage
+/// [notifications]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#notificationMessage
+/// [specification]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#lifeCycleMessages
+/// [requests]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#requestMessage
 enum State {
     /// Waiting for [`initialize`] request.
     ///
-    /// [`initialize`]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#initialize
+    /// [`initialize`]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#initialize
     WaitingForInitialisation,
 
     /// Got [`initialize`] request: Waiting for [`initialized`] notification.
     ///
-    /// [`initialize`]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#initialize
-    /// [`initialized`]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#initialized
+    /// [`initialize`]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#initialize
+    /// [`initialized`]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#initialized
     Initialised,
 
     /// Got [`initialized`] request: The [`Server`] is now running.
     ///
-    /// [`initialized`]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#initialized
+    /// [`initialized`]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#initialized
     Running,
 
-    /// Got [`shutdown`] request: The [`Server`] will close itself.
+    /// Got [`shutdown`] request: The [`Server`] will gracefully shut down.
     ///
-    /// [`shutdown`]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#shutdown
+    /// [`shutdown`]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#shutdown
     Closing,
-
-    /// The server has closed normally from [`shutdown`] request or got [`exit`] request to close itself promptly.
-    ///
-    /// [`exit`]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#exit
-    /// [`shutdown`]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#shutdown
-    Closed,
 }
 
 impl<'server, T: LanguageServer> Server<'server, T> {
@@ -98,25 +92,29 @@ impl<'server, T: LanguageServer> Server<'server, T> {
         let mut dispatcher = request::Dispatcher::new(request, self.backend, &self.connection.sender);
 
         match self.state {
-            State::WaitingForInitialisation => {
-                dispatcher
-                    .handle_callback::<Initialize, _>(T::initialize, |_| self.state = State::Initialised)
-                    .handle_fallthrough(Error {
-                        code: ErrorCode::ServerNotInitialized,
-                        message: "Server not initialised".to_owned(),
-                        data: None,
-                    });
-            },
-
-            State::Initialised => {
-                dispatcher.handle_fallthrough(Error {
+            State::WaitingForInitialisation => dispatcher
+                .handle_callback::<Initialize, _>(T::initialize, |_| self.state = State::Initialised)
+                .handle_fallthrough(Error {
                     code: ErrorCode::ServerNotInitialized,
                     message: "Server not initialised".to_owned(),
                     data: None,
-                });
-            },
+                }),
 
-            _ => (),
+            State::Initialised => dispatcher.handle_fallthrough(Error {
+                code: ErrorCode::ServerNotInitialized,
+                message: "Server not initialised".to_owned(),
+                data: None,
+            }),
+
+            State::Running => dispatcher
+                .handle_callback::<Shutdown, _>(T::shutdown, |_| self.state = State::Closing)
+                .handle_fallthrough(Error {
+                    code: ErrorCode::MethodNotFound,
+                    message: "Method not found".to_owned(),
+                    data: None,
+                }),
+
+            State::Closing => (),
         }
     }
 
@@ -130,19 +128,17 @@ impl<'server, T: LanguageServer> Server<'server, T> {
         match self.state {
             State::WaitingForInitialisation => dispatcher.handle_fallthrough("Server not initialised"),
 
-            State::Initialised => {
-                dispatcher
-                    .handle_callback::<Initialized, _>(T::initialized, || self.state = State::Running)
-                    .handle_fallthrough("Server not initialised");
-            },
+            State::Initialised => dispatcher
+                .handle_callback::<Initialized, _>(T::initialized, || self.state = State::Running)
+                .handle_fallthrough("Server not initialised"),
 
             State::Running => dispatcher
                 .handle::<DidOpenTextDocument>(T::text_document_did_open)
+                .handle::<DidChangeTextDocument>(T::text_document_did_change)
+                .handle::<DidCloseTextDocument>(T::text_document_did_close)
                 .handle_fallthrough("Unknown notification received"),
 
             State::Closing => (),
-
-            State::Closed => (),
         }
     }
 }
