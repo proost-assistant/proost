@@ -1,11 +1,18 @@
+//! Handlers for [`Request`]s or [`Notification`]s that can be received by the client.
+//!
+//! [`Notification`]: crate::lsp::message::Notification
+//! [`Request`]: crate::lsp::message::Request
+
+#![allow(clippy::wildcard_imports)]
+
 use lsp_types::notification::PublishDiagnostics;
 use lsp_types::*;
 use parser::command::parse;
 
 use super::Tilleul;
-use crate::backend::payload::message::Message;
-use crate::backend::payload::notification::Notification;
-use crate::backend::LanguageServer;
+use crate::lsp::message::notification::Notification;
+use crate::lsp::message::Message;
+use crate::lsp::LanguageServer;
 
 impl LanguageServer for Tilleul<'_, '_> {
     fn initialize(&mut self, _: InitializeParams) -> InitializeResult {
@@ -16,13 +23,13 @@ impl LanguageServer for Tilleul<'_, '_> {
                 ..ServerCapabilities::default()
             },
             server_info: Some(ServerInfo {
-                name: crate::NAME.to_string(),
-                version: Some(crate::VERSION.to_string()),
+                name: crate::NAME.to_owned(),
+                version: Some(crate::VERSION.to_owned()),
             }),
         }
     }
 
-    fn did_open_text_document(&mut self, params: DidOpenTextDocumentParams) {
+    fn text_document_did_open(&mut self, params: DidOpenTextDocumentParams) {
         for line in params.text_document.text.lines() {
             let command = parse::line(line);
 

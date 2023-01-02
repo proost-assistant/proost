@@ -1,7 +1,14 @@
+//! A [response] sent from a server to a client.
+//!
+//! [response]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#responseMessage
+
 use lsp_types::error_codes;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+/// [Response] message.
+///
+/// [Response]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#responseMessage
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Response {
     /// The request id.
@@ -13,11 +20,14 @@ pub struct Response {
 
     /// The error object in case a request fails.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub error: Option<ResponseError>,
+    pub error: Option<Error>,
 }
 
+/// [Response error] message.
+///
+/// [Response error]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#responseError
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct ResponseError {
+pub struct Error {
     /// A number indicating the error type that occurred.
     pub code: ErrorCode,
 
@@ -29,7 +39,11 @@ pub struct ResponseError {
     pub data: Option<Value>,
 }
 
+/// [Error code] message.
+///
+/// [Error code]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#errorCodes
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[allow(clippy::as_conversions, clippy::cast_possible_truncation)]
 pub enum ErrorCode {
     ServerNotInitialized = -32002,
 

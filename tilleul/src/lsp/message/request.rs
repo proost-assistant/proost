@@ -1,6 +1,13 @@
+//! A [request] sent from a client to a server.
+//!
+//! [request]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#requestMessage
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+/// [Request] message.
+///
+/// [Request]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#requestMessage
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Request {
     /// The request id.
