@@ -328,7 +328,6 @@ mod tests {
                 ),
             ));
 
-            //assert_eq!(term.to_string(), "λ Sort max (u0) (u1) + 1 → λ Type → λ Type 1 → Π 1 → (1) (2)");
             assert_eq!(
                 term.to_string(),
                 "(λ (x0 : Sort max (u0) (u1) + 1) => (λ (x1 : Type) => (λ (x2 : Type 1) => [(x3 : x2) -> (x3) (x2)])))"
