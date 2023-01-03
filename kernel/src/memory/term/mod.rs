@@ -83,13 +83,39 @@ pub enum Payload<'arena> {
     Axiom(axiom::Axiom, &'arena [Level<'arena>]),
 }
 
-impl<'arena> Payload<'arena> {
+impl<'arena> fmt::Display for Term<'arena> {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.prettyprint(f, 0, 0, false)
+    }
+}
+
+use Payload::{Abs, App, Axiom, Decl, Prod, Sort, Var};
+
+pub struct PrettyTerm<'arena>(pub Term<'arena>);
+
+impl<'arena> fmt::Display for PrettyTerm<'arena> {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.prettyprint(f, 0, 0, true)
+    }
+}
+
+impl<'arena> Term<'arena> {
+    /// This function generates the prettyprint of a term. §§§ TODO
+    /// The depth parameter indicates the number of existing variables.
     /// This function generates the prettyprint of a term payload.
     /// See `Term::prettyprint()` for more information.
     #[no_coverage]
-    fn prettyprint(&self, f: &mut fmt::Formatter<'_>, depth: usize, type_height: usize) -> fmt::Result {
+    fn prettyprint(self, f: &mut fmt::Formatter, depth: usize, distance: usize, is_root_closed: bool) -> fmt::Result {
         match *self {
-            Var(index, _) => write!(f, "x{}", depth - type_height - index.0),
+            Var(index, _) => {
+                if is_root_closed {
+                    write!(f, "x{}", depth - distance - index.0)
+                } else {
+                    write!(f, "{index}")
+                }
+            },
             Sort(level) => match level.to_numeral() {
                 Some(n) => match n {
                     0 => write!(f, "Prop"),
@@ -100,42 +126,25 @@ impl<'arena> Payload<'arena> {
             },
             App(fun, arg) => {
                 write!(f, "(")?;
-                fun.prettyprint(f, depth, type_height)?;
+                fun.prettyprint(f, depth, distance, is_root_closed)?;
                 write!(f, ") ")?;
-                arg.prettyprint(f, depth, type_height)
+                arg.prettyprint(f, depth, distance, is_root_closed)
             },
             Abs(argtype, body) => {
                 write!(f, "\u{003BB} x{depth} : ")?;
-                argtype.prettyprint(f, depth + 1, type_height + 1)?;
+                argtype.prettyprint(f, depth + 1, distance + 1, is_root_closed)?;
                 write!(f, " => ")?;
-                body.prettyprint(f, depth + 1, type_height)
+                body.prettyprint(f, depth + 1, distance, is_root_closed)
             },
             Prod(argtype, body) => {
                 write!(f, "(x{depth} : ")?;
-                argtype.prettyprint(f, depth + 1, type_height + 1)?;
+                argtype.prettyprint(f, depth + 1, distance + 1, is_root_closed)?;
                 write!(f, ") -> ")?;
-                body.prettyprint(f, depth + 1, type_height)
+                body.prettyprint(f, depth + 1, distance, is_root_closed)
             },
             Decl(decl) => write!(f, "{decl}"),
             Axiom(s, _) => write!(f, "{s}"),
         }
-    }
-}
-
-impl<'arena> fmt::Display for Term<'arena> {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.prettyprint(f, 0, 0)
-    }
-}
-
-use Payload::{Abs, App, Axiom, Decl, Prod, Sort, Var};
-
-impl<'arena> Term<'arena> {
-    /// This function generates the prettyprint of a term.
-    /// The depth parameter indicates the number of existing variables.
-    fn prettyprint(self, f: &mut fmt::Formatter<'_>, depth: usize, type_height: usize) -> fmt::Result {
-        self.0.payload.prettyprint(f, depth, type_height)
     }
 
     /// This function is the base low-level function for creating terms.
