@@ -4,8 +4,7 @@
 
 use log::info;
 
-use super::LanguageServer;
-use crate::lsp::connection::Connection;
+use super::{connection, LanguageServer};
 use crate::lsp::dispatcher::{notification, request};
 use crate::lsp::message::notification::Notification;
 use crate::lsp::message::request::Request;
@@ -18,12 +17,12 @@ use crate::lsp::message::Message;
 /// user-defined backend server implementing [`LanguageServer`].
 ///
 /// [Language Server Protocol]: https://microsoft.github.io/language-server-protocol/
-pub struct Server<'server, T: LanguageServer> {
+pub struct Server<'server, S: LanguageServer, C: connection::Server> {
     /// User-defined backend server
-    backend: &'server mut T,
+    backend: S,
 
     /// Connection
-    connection: &'server Connection,
+    connection: &'server C,
 
     /// Actual state of the server.
     state: State,
@@ -59,9 +58,13 @@ enum State {
     Closing,
 }
 
-impl<'server, T: LanguageServer> Server<'server, T> {
+impl<'server, S, C> Server<'server, S, C>
+where
+    S: LanguageServer,
+    C: connection::Server,
+{
     /// Creates a new [`Server`], without starting it.
-    pub fn new(backend: &'server mut T, connection: &'server Connection) -> Self {
+    pub const fn new(backend: S, connection: &'server C) -> Self {
         Server {
             backend,
             connection,
@@ -75,7 +78,7 @@ impl<'server, T: LanguageServer> Server<'server, T> {
     pub fn serve(&mut self) {
         info!("Server launched");
 
-        while let Ok(msg) = self.connection.receiver.recv() {
+        while let Ok(msg) = self.connection.receive() {
             match msg {
                 Message::Request(request) => self.dispatch_request(request),
                 Message::Notification(notification) => self.dispatch_notification(notification),
@@ -89,11 +92,11 @@ impl<'server, T: LanguageServer> Server<'server, T> {
         #[allow(clippy::wildcard_imports)]
         use lsp_types::request::*;
 
-        let mut dispatcher = request::Dispatcher::new(request, self.backend, &self.connection.sender);
+        let mut dispatcher = request::Dispatcher::new(request, &mut self.backend, self.connection);
 
         match self.state {
             State::WaitingForInitialisation => dispatcher
-                .handle_callback::<Initialize, _>(T::initialize, |_| self.state = State::Initialised)
+                .handle_callback::<Initialize, _>(S::initialize, |_| self.state = State::Initialised)
                 .handle_fallthrough(Error {
                     code: ErrorCode::ServerNotInitialized,
                     message: "Server not initialised".to_owned(),
@@ -107,7 +110,7 @@ impl<'server, T: LanguageServer> Server<'server, T> {
             }),
 
             State::Running => dispatcher
-                .handle_callback::<Shutdown, _>(T::shutdown, |_| self.state = State::Closing)
+                .handle_callback::<Shutdown, _>(S::shutdown, |_| self.state = State::Closing)
                 .handle_fallthrough(Error {
                     code: ErrorCode::MethodNotFound,
                     message: "Method not found".to_owned(),
@@ -123,19 +126,19 @@ impl<'server, T: LanguageServer> Server<'server, T> {
         #[allow(clippy::wildcard_imports)]
         use lsp_types::notification::*;
 
-        let mut dispatcher = notification::Dispatcher::new(notification, self.backend);
+        let mut dispatcher = notification::Dispatcher::new(notification, &mut self.backend);
 
         match self.state {
             State::WaitingForInitialisation => dispatcher.handle_fallthrough("Server not initialised"),
 
             State::Initialised => dispatcher
-                .handle_callback::<Initialized, _>(T::initialized, || self.state = State::Running)
+                .handle_callback::<Initialized, _>(S::initialized, || self.state = State::Running)
                 .handle_fallthrough("Server not initialised"),
 
             State::Running => dispatcher
-                .handle::<DidOpenTextDocument>(T::text_document_did_open)
-                .handle::<DidChangeTextDocument>(T::text_document_did_change)
-                .handle::<DidCloseTextDocument>(T::text_document_did_close)
+                .handle::<DidOpenTextDocument>(S::text_document_did_open)
+                .handle::<DidChangeTextDocument>(S::text_document_did_change)
+                .handle::<DidCloseTextDocument>(S::text_document_did_close)
                 .handle_fallthrough("Unknown notification received"),
 
             State::Closing => (),

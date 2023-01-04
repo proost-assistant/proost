@@ -17,19 +17,19 @@ use crate::lsp::LanguageServer;
 /// [`handle`]: (Dispatcher::handle)
 /// [`State`]: (super::server::State)
 /// [`Server`]: (super::server::Server)
-pub(in crate::lsp) struct Dispatcher<'dispatcher, T: LanguageServer> {
+pub(in crate::lsp) struct Dispatcher<'dispatcher, S: LanguageServer> {
     /// [`Notification`] to be dispatched.
     ///
     /// Will be transformed into `None` if consumed.
     notification: Option<Notification>,
 
     /// [`LanguageServer`] where the [`Notification`] is dispatched.
-    backend: &'dispatcher mut T,
+    backend: &'dispatcher mut S,
 }
 
-impl<'dispatcher, T: LanguageServer> Dispatcher<'dispatcher, T> {
+impl<'dispatcher, S: LanguageServer> Dispatcher<'dispatcher, S> {
     /// Creates a new [`Dispatcher`].
-    pub fn new(notification: Notification, backend: &'dispatcher mut T) -> Self {
+    pub fn new(notification: Notification, backend: &'dispatcher mut S) -> Self {
         Self {
             notification: Some(notification),
 
@@ -41,7 +41,7 @@ impl<'dispatcher, T: LanguageServer> Dispatcher<'dispatcher, T> {
     /// [`lsp_types::notification::Notification::METHOD`].
     ///
     /// [`Request`]: (crate::lsp::payload::request::Request)
-    pub fn handle<N>(&mut self, closure: fn(&mut T, N::Params)) -> &mut Self
+    pub fn handle<N>(&mut self, closure: fn(&mut S, N::Params)) -> &mut Self
     where
         N: lsp_types::notification::Notification,
     {
@@ -51,7 +51,7 @@ impl<'dispatcher, T: LanguageServer> Dispatcher<'dispatcher, T> {
     /// Like [`handle`], but also accepts a callback to be executed after the request has been handled.
     ///
     /// [`handle`]: (Dispatcher::handle)
-    pub fn handle_callback<N, C>(&mut self, handler: fn(&mut T, N::Params), callback: C) -> &mut Self
+    pub fn handle_callback<N, C>(&mut self, handler: fn(&mut S, N::Params), callback: C) -> &mut Self
     where
         C: FnOnce(),
         N: lsp_types::notification::Notification,

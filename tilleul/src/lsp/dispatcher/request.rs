@@ -1,12 +1,11 @@
 //! [`Request`] dispatcher.
 
-use crossbeam_channel::Sender;
 use log::{error, warn};
 
 use crate::lsp::message::request::Request;
 use crate::lsp::message::response::{Error, Response};
 use crate::lsp::message::Message;
-use crate::lsp::LanguageServer;
+use crate::lsp::{connection, LanguageServer};
 
 /// Dispatches [`Request`] to [`LanguageServer`].
 ///
@@ -20,34 +19,34 @@ use crate::lsp::LanguageServer;
 /// [`handle`]: (Dispatcher::handle)
 /// [`State`]: (super::server::State)
 /// [`Server`]: (super::server::Server)
-pub(in crate::lsp) struct Dispatcher<'dispatcher, T: LanguageServer> {
+pub(in crate::lsp) struct Dispatcher<'dispatcher, S: LanguageServer, C: connection::Server> {
     /// [`Request`] to be dispatched.
     ///
     /// Will be transformed into `None` if consumed.
     request: Option<Request>,
 
     /// [`LanguageServer`] where the [`Request`] is dispatched.
-    backend: &'dispatcher mut T,
+    backend: &'dispatcher mut S,
 
-    /// The [`Sender`] to send [`Response`] to.
-    sender: &'dispatcher Sender<Message>,
+    /// The [`Connection`] to send [`Response`] to.
+    connection: &'dispatcher C,
 }
 
-impl<'dispatcher, T: LanguageServer> Dispatcher<'dispatcher, T> {
+impl<'dispatcher, S: LanguageServer, C: connection::Server> Dispatcher<'dispatcher, S, C> {
     /// Creates a new [`Dispatcher`].
-    pub fn new(request: Request, backend: &'dispatcher mut T, sender: &'dispatcher Sender<Message>) -> Self {
+    pub fn new(request: Request, backend: &'dispatcher mut S, connection: &'dispatcher C) -> Self {
         Self {
             request: Some(request),
 
             backend,
-            sender,
+            connection,
         }
     }
 
     /// Dispatches the [`Request`] to the [`LanguageServer`], if the [`Request`]'s method correspond to the
     /// [`lsp_types::request::Request::METHOD`].
     #[allow(dead_code)]
-    pub fn handle<R>(&mut self, closure: fn(&mut T, R::Params) -> R::Result) -> &mut Self
+    pub fn handle<R>(&mut self, closure: fn(&mut S, R::Params) -> R::Result) -> &mut Self
     where
         R: lsp_types::request::Request,
     {
@@ -57,9 +56,9 @@ impl<'dispatcher, T: LanguageServer> Dispatcher<'dispatcher, T> {
     /// Like [`handle`], but also accepts a callback to be executed after the request has been handled.
     ///
     /// [`handle`]: (Dispatcher::handle)
-    pub fn handle_callback<R, C>(&mut self, handler: fn(&mut T, R::Params) -> R::Result, callback: C) -> &mut Self
+    pub fn handle_callback<R, F>(&mut self, handler: fn(&mut S, R::Params) -> R::Result, callback: F) -> &mut Self
     where
-        C: FnOnce(&R::Result),
+        F: FnOnce(&R::Result),
         R: lsp_types::request::Request,
     {
         let Some(ref request) = self.request else { return self; };
@@ -83,7 +82,7 @@ impl<'dispatcher, T: LanguageServer> Dispatcher<'dispatcher, T> {
             error: None,
         });
 
-        self.sender
+        self.connection
             .send(msg)
             .unwrap_or_else(|err| error!("Failed to send message to writer thread: {err}"));
 
@@ -106,7 +105,7 @@ impl<'dispatcher, T: LanguageServer> Dispatcher<'dispatcher, T> {
             error: Some(error_response),
         });
 
-        self.sender
+        self.connection
             .send(response)
             .unwrap_or_else(|err| error!("Failed to send message to writer thread: {err}"));
     }

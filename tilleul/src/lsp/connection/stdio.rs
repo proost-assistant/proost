@@ -1,21 +1,20 @@
-//! Handle I/O with two threads, one for reading and one for writing.
-//!
-//! Using two threads for I/O is a common pattern to avoid using non-blocking polling.
-//!
-//! [`crossbeam-channel`] is used to communicate between the threads, using message passing.
+//! I/O communication via `stdio`.
 
 use std::{io, thread};
 
-use crossbeam_channel::{unbounded, Receiver, Sender};
+use crossbeam_channel::{unbounded, Receiver, RecvError, SendError, Sender};
 use log::{debug, error, info};
 
+use super::thread::Threads;
+use super::{LanguageServer, Server};
+use crate::lsp::message::notification::Notification;
 use crate::lsp::message::Message;
 
 /// Message passing from the spawned threads.
 ///
 /// Please note that the `Receiver` and `Sender` have unbounded capacity, because [`Server`](super::server::Server) does not
 /// have a worker pool.
-pub struct Connection {
+pub struct Stdio {
     /// Read from the reader thread.
     pub(crate) receiver: Receiver<Message>,
 
@@ -26,16 +25,7 @@ pub struct Connection {
     _threads: Threads,
 }
 
-/// Spawned threads in a [`Connection`].
-struct Threads {
-    /// Reader thread.
-    reader: Option<thread::JoinHandle<()>>,
-
-    /// Writer thread.
-    writer: Option<thread::JoinHandle<()>>,
-}
-
-impl Connection {
+impl Stdio {
     /// Create a new `stdio` communication channel.
     #[must_use]
     pub fn new() -> Self {
@@ -91,29 +81,28 @@ impl Connection {
 
         info!("Writer thread exited");
     }
-
-    /// Send a [`Message`] to the writer thread.
-    pub fn send(&self, message: Message) {
-        self.sender.send(message).unwrap_or_else(|err| {
-            error!("Failed to send message to writer thread: {err}");
-        });
-    }
 }
 
-impl Default for Connection {
+impl Default for Stdio {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Drop for Threads {
-    fn drop(&mut self) {
-        if let Some(thread) = self.reader.take() {
-            thread.join().unwrap_or_else(|_| error!("Failed to join reader thread"));
-        }
+impl LanguageServer for Stdio {
+    fn send(&self, notification: Notification) {
+        self.sender.send(Message::Notification(notification)).unwrap_or_else(|err| {
+            error!("Failed to send message to writer thread: {err}");
+        });
+    }
+}
 
-        if let Some(thread) = self.writer.take() {
-            thread.join().unwrap_or_else(|_| error!("Failed to join writer thread"));
-        }
+impl Server for Stdio {
+    fn receive(&self) -> Result<Message, RecvError> {
+        self.receiver.recv()
+    }
+
+    fn send(&self, message: Message) -> Result<(), SendError<Message>> {
+        self.sender.send(message)
     }
 }

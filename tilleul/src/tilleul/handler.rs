@@ -8,9 +8,9 @@
 use lsp_types::*;
 
 use super::Tilleul;
-use crate::lsp::LanguageServer;
+use crate::lsp::{connection, LanguageServer};
 
-impl LanguageServer for Tilleul<'_, '_> {
+impl<C: connection::LanguageServer> LanguageServer for Tilleul<'_, '_, C> {
     fn initialize(&mut self, _: InitializeParams) -> InitializeResult {
         InitializeResult {
             capabilities: ServerCapabilities {

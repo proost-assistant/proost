@@ -54,7 +54,7 @@ pub mod tilleul;
 
 use log::info;
 
-use crate::lsp::connection::Connection;
+use crate::lsp::connection::stdio::Stdio;
 use crate::lsp::server::Server;
 use crate::tilleul::Tilleul;
 
@@ -70,12 +70,12 @@ fn main() {
 
     info!("Starting {} {}", NAME, VERSION);
 
-    let connection = Connection::new();
+    let connection = Stdio::new();
 
     kernel::memory::arena::use_arena(|arena| {
-        let mut backend = Tilleul::new(arena, &connection);
+        let backend = Tilleul::new(arena, &connection);
 
-        Server::new(&mut backend, &connection).serve();
+        Server::new(backend, &connection).serve();
     });
 
     info!("Exiting {}", NAME);
