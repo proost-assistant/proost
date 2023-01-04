@@ -3,7 +3,8 @@
 //! This is mostly used in order to provide inductive types to the user.
 //! For now, no new axiom can be dynamically added by the user.
 
-use derive_more::Display;
+use derive_more::{Display, Deref};
+use core::marker::PhantomData;
 
 use crate::memory::arena::Arena;
 use crate::memory::declaration::Declaration;
@@ -12,7 +13,7 @@ use crate::memory::term::Term;
 
 /// An enumeration representing the different kind of axioms hardcoded in the kernel.
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Axiom {
+pub enum Atom {
     /// False
     False,
 
@@ -33,17 +34,40 @@ pub enum Axiom {
     // TODO add new axioms here
 }
 
-impl Axiom {
+impl Atom {
+    fn n_of_uargs(&self) -> usize {
+        match self {
+            Self::False => 0,
+            Self::FalseRec => 1,
+            Self::Nat => 0,
+            Self::NatRec => 1,
+            Self::Zero => 0,
+            Self::Succ => 0,
+        }
+    }
+}
+
+struct Axiom<'arena>(Atom, &'arena [Level<'arena>]);
+
+use Atom::{False, FalseRec, Nat, NatRec, Zero, Succ};
+
+impl<'arena> Axiom<'arena> {
+
+    fn new(atom: Atom, arena: &mut Arena<'arena>) -> Self {
+        let n_of_uargs = atom.n_of_uargs();
+        Self(atom, params)
+    }
+
     /// Returns the type of a given axiom
     ///
     /// Because of memoisation, this is typically performed once per axiom.
     #[inline]
-    pub fn get_type<'arena>(&self, arena: &mut Arena<'arena>) -> Term<'arena> {
-        match self {
-            Self::False => Term::sort_usize(0, arena),
-            Self::FalseRec => {
+    pub fn get_type(&self, arena: &mut Arena<'arena>) -> Term<'arena> {
+        match self.0 {
+            False => Term::sort_usize(0, arena),
+            FalseRec => {
                 // False
-                let term_false = Term::axiom(Self::False, arena);
+                let term_false = Term::axiom(False, arena);
                 // Sort u
                 let sort_u = Term::sort(Level::var(0, arena), arena);
                 // False -> Sort u
@@ -56,8 +80,8 @@ impl Axiom {
                 Term::prod(motive, prod_app_motive, arena)
             },
 
-            Self::Nat => Term::sort_usize(1, arena),
-            Self::NatRec => {
+            Nat => Term::sort_usize(1, arena),
+            NatRec => {
                 // Nat
                 let term_nat = Term::axiom(Self::Nat, arena);
                 // Sort u
@@ -87,8 +111,8 @@ impl Axiom {
                 // (motive : Nat -> Sort u) -> motive 0 -> ((n : Nat) -> motive n -> motive (succ n)) -> (t : False) -> motive t
                 Term::prod(motive, Term::prod(motive_0, Term::prod(motive_succ, prod_app_motive, arena), arena), arena)
             },
-            Self::Zero => Term::axiom(Self::Nat, arena),
-            Self::Succ => Term::prod(Term::axiom(Self::Nat, arena), Term::axiom(Self::Nat, arena), arena),
+            Zero => Term::axiom(Self::Nat, arena),
+            Succ => Term::prod(Term::axiom(Self::Nat, arena), Term::axiom(Self::Nat, arena), arena),
         }
     }
 
