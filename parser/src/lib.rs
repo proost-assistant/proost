@@ -28,7 +28,6 @@
     clippy::missing_trait_methods,
     clippy::mod_module_files,
     clippy::panic_in_result_fn,
-    clippy::pattern_type_mismatch,
     clippy::separated_literal_suffix,
     clippy::shadow_reuse,
     clippy::shadow_unrelated,
@@ -37,6 +36,7 @@
     // Due to pest dependency
     clippy::self_named_module_files,
     clippy::pub_use,
+    clippy::std_instead_of_alloc,
     clippy::std_instead_of_core,
     clippy::unwrap_used
 )]
