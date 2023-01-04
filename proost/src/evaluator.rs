@@ -33,13 +33,8 @@ pub enum ErrorKind {
     FileNotFound(String),
 
     /// The given file could not be imported
-<<<<<<< HEAD
     #[display(fmt = "errors occurred while reading file {_0}")]
     FileError(String),
-=======
-    #[display(fmt = "errors occurred while reading file")]
-    FileError,
->>>>>>> ff62aef (rebase:Resolve "Add axioms" ✨️)
 
     /// These files have a cyclic dependency
     #[display(fmt = "cyclic dependency:\n{_0}")]
@@ -173,7 +168,7 @@ impl<'arena> Evaluator {
             .iter()
             .try_for_each(|command| {
                 if self.verbose {
-                    println!("{command}");
+                    println!("  {command}");
                 }
                 self.process(arena, command, importing).map(|_| ()).map_err(|err| {
                     // if importation failed, display the associated errors now (the imported file is discarded

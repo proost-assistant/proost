@@ -68,6 +68,8 @@ use clap::Parser;
 use colored::Colorize;
 use evaluator::Evaluator;
 use parser::command::{self, Command};
+use kernel::memory::arena::Arena;
+use kernel::memory::term::Term;
 use rustyline::error::ReadlineError;
 use rustyline::{Cmd, Config, Editor, EventHandler, KeyCode, KeyEvent, Modifiers};
 use rustyline_helper::{RustyLineHelper, TabEventHandler};
