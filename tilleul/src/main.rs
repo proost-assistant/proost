@@ -8,6 +8,7 @@
 //!
 //! [Language Server Protocol]: https://microsoft.github.io/language-server-protocol/
 
+#![feature(no_coverage)]
 #![deny(
     clippy::complexity,
     clippy::correctness,
@@ -52,12 +53,6 @@
 pub mod lsp;
 pub mod tilleul;
 
-use log::info;
-
-use crate::lsp::connection::stdio::Stdio;
-use crate::lsp::server::Server;
-use crate::tilleul::Tilleul;
-
 /// The version of the server, defined in `Cargo.toml`.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -65,7 +60,14 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const NAME: &str = env!("CARGO_PKG_NAME");
 
 /// The main function of the server.
+#[no_coverage]
 fn main() {
+    use log::info;
+
+    use crate::lsp::connection::stdio::Stdio;
+    use crate::lsp::server::Server;
+    use crate::tilleul::Tilleul;
+
     env_logger::init();
 
     info!("Starting {} {}", NAME, VERSION);

@@ -42,11 +42,13 @@ tests:
   stage: tests
   variables:
     CARGO_INCREMENTAL: 0
-    EXCL_LINE: "#\\[|use|unreachable!|^(pub |pub(crate) )?(enum|struct)"
-    EXCL_START: "^(pub |pub(crate) )?(enum|struct) ([[:alpha:]]|[[:space:]]|[<>',])+\\{"
+    EXCL_ENUM_STRUCT: "^([[:space:]]*)(pub |pub(([[:alpha:]]|[[:space:]]|[:])+) )?(enum|struct) "
+    EXCL_ENUM_FN_STRUCT: "^([[:space:]]*)(pub |pub(([[:alpha:]]|[[:space:]]|[:])+) )?(enum|fn|struct) "
+    EXCL_LINE: "//!|#\\[|use|unreachable!|^\\}|${EXCL_ENUM_STRUCT}"
+    EXCL_START: "${EXCL_ENUM_STRUCT}"
     EXCL_STOP: "^\\}"
-    EXCL_BR_LINE: "#\\[|assert(_eq)?!|^(pub |pub(crate) )?(enum|struct)|^[[:space:]]*\\}(,)?$"
-    EXCL_BR_START: "#\\[no_coverage\\]|^mod tests \\{|^(pub |pub(crate) )?(enum|struct) ([[:alpha:]]|[[:space:]]|[<>',])+\\{"
+    EXCL_BR_LINE: "#\\[|assert(_eq)?!|(error|warn|info|debug|trace)!|^[[:space:]]*\\}(,)?$|${EXCL_ENUM_FN_STRUCT}"
+    EXCL_BR_START: "#\\[no_coverage\\]|^mod tests \\{|${EXCL_ENUM_STRUCT}"
     EXCL_BR_STOP: "^\\}"
     RUSTDOCFLAGS: "${RUSTFLAGS}"
     RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort"
