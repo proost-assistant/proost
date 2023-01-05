@@ -28,7 +28,6 @@ impl<'arena> Term<'arena> {
         if let Some(red) = self.reduce_recursor(arena) {
             return red;
         };
-        // TODO beta-reduce recursors
         match *self {
             App(t1, t2) => {
                 if let Abs(_, t1) = *t1.unfold(arena) {
