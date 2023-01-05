@@ -12,8 +12,9 @@ use crate::lsp::message::Message;
 
 /// Message passing from the spawned threads.
 ///
-/// Please note that the `Receiver` and `Sender` have unbounded capacity, because [`Server`](super::server::Server) does not
-/// have a worker pool.
+/// Please note that the `Receiver` and `Sender` have unbounded capacity, because [`Server`] does not have a worker pool.
+///
+/// [`Server`]: crate::lsp::server::Server
 pub struct Stdio {
     /// Read from the reader thread.
     pub(crate) receiver: Receiver<Message>,

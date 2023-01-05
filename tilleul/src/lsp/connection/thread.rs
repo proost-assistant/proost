@@ -4,7 +4,7 @@ use std::thread;
 
 use log::error;
 
-/// Spawned threads in a [`Connection`].
+/// Spawned threads helper for I/O communication.
 pub(super) struct Threads {
     /// Reader thread.
     pub reader: Option<thread::JoinHandle<()>>,

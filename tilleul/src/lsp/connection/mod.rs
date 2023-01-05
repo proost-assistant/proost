@@ -26,7 +26,7 @@ pub trait LanguageServer {
 
 /// A trait defining a communication channel for the [`Server`].
 ///
-/// [`Server`]: crate::lsp::Server
+/// [`Server`]: crate::lsp::server::Server
 #[cfg_attr(test, mockall::automock)]
 pub trait Server {
     /// Reads a [`Message`] from the client.

@@ -3,6 +3,7 @@
 //! This crate defines [`Tilleul`] which implements the [`LanguageServer`] trait.
 //!
 //! [Language Server Protocol]: https://microsoft.github.io/language-server-protocol/
+//! [`LanguageServer`]: crate::lsp::LanguageServer
 
 use kernel::memory::arena::Arena;
 
@@ -11,6 +12,8 @@ use crate::lsp::connection;
 pub mod handler;
 
 /// The [`LanguageServer`] implementation for `Madelaine` language.
+///
+/// [`LanguageServer`]: crate::lsp::LanguageServer
 #[allow(dead_code)]
 pub struct Tilleul<'tilleul, 'arena, C: connection::LanguageServer> {
     /// [Memory] of the [`kernel`].
@@ -18,8 +21,9 @@ pub struct Tilleul<'tilleul, 'arena, C: connection::LanguageServer> {
     /// [Memory]: kernel::memory
     arena: &'tilleul mut Arena<'arena>,
 
-    /// [`Connection`] to the [Language Server Protocol] client.
+    /// The [connection] to the [Language Server Protocol] client.
     ///
+    /// [connection]: connection::LanguageServer
     /// [Language Server Protocol]: https://microsoft.github.io/language-server-protocol/
     connection: &'tilleul C,
 }

@@ -1,10 +1,10 @@
 //! [Language Server Protocol] server wrapper implementation for Rust.
 //!
-//! This crate defines a [`Server`], communicating through a [`Connection`] to a [Language Server Protocol] client.
+//! This crate defines a [`Server`], communicating through a [connection] to a [Language Server Protocol] client.
 //! The [`Server`] uses a user-defined backend server implementing [`LanguageServer`] which defines the behavior of the server.
 //!
+//! [connection]: connection::Server
 //! [Language Server Protocol]: https://microsoft.github.io/language-server-protocol/
-//! [`Connection`]: connection::Connection
 //! [`Server`]: server::Server
 
 #![allow(clippy::wildcard_imports)]

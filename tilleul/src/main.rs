@@ -45,6 +45,7 @@
         clippy::enum_glob_use,
         clippy::indexing_slicing,
         clippy::non_ascii_literal,
+        clippy::std_instead_of_alloc,
         clippy::std_instead_of_core,
         clippy::too_many_lines,
         clippy::unwrap_used,

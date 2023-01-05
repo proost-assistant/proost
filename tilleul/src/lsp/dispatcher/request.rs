@@ -28,7 +28,9 @@ pub(in crate::lsp) struct Dispatcher<'dispatcher, S: LanguageServer, C: connecti
     /// [`LanguageServer`] where the [`Request`] is dispatched.
     backend: &'dispatcher mut S,
 
-    /// The [`Connection`] to send [`Response`] to.
+    /// The [connection] to send [`Response`] to.
+    ///
+    /// [connection]: connection::Server
     connection: &'dispatcher C,
 }
 

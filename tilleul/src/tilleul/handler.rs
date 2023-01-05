@@ -1,7 +1,7 @@
 //! Handlers for [`Request`]s or [`Notification`]s that can be received by the client.
 //!
-//! [`Notification`]: crate::lsp::message::Notification
-//! [`Request`]: crate::lsp::message::Request
+//! [`Notification`]: crate::lsp::message::notification::Notification
+//! [`Request`]: crate::lsp::message::request::Request
 
 #![allow(clippy::wildcard_imports)]
 
