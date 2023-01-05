@@ -215,10 +215,7 @@ impl<'arena> Term<'arena> {
     }
 
     pub(crate) fn set_as_closed(self) {
-        match self.0.header.is_certainly_closed.set(()) {
-            Ok(()) => (),
-            Err(()) => (),
-        }
+        self.0.header.is_certainly_closed.set(()).unwrap_or_else(|_| ())
     }
 }
 
