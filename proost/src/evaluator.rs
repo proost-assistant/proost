@@ -6,13 +6,12 @@ use std::path::{Path, PathBuf};
 
 use derive_more::Display;
 use kernel::memory::arena::Arena;
-use kernel::memory::term::Term;
 use parser::command::{parse, Command};
 use path_absolutize::Absolutize;
 use utils::location::Location;
 
 use crate::error::Error::{Kernel, TopLevel};
-use crate::error::Result;
+use crate::error::{Result, ResultProcess};
 
 /// Type representing parser errors.
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
@@ -147,7 +146,7 @@ impl<'arena> Evaluator {
         &mut self,
         arena: &mut Arena<'arena>,
         command: &'build Command<'build>,
-    ) -> Result<'arena, 'build, Option<Term<'arena>>> {
+    ) -> ResultProcess<'arena, 'build> {
         self.process(arena, command, &mut vec![])
     }
 
@@ -162,7 +161,7 @@ impl<'arena> Evaluator {
         file: &'build str,
         file_path: &Path,
         importing: &mut Vec<PathBuf>,
-    ) -> Result<'arena, 'static, Option<Term<'arena>>> {
+    ) -> ResultProcess<'arena, 'static> {
         let commands = parse::file(file)?;
 
         commands
@@ -196,7 +195,7 @@ impl<'arena> Evaluator {
         arena: &mut Arena<'arena>,
         command: &'build Command<'build>,
         importing: &mut Vec<PathBuf>,
-    ) -> Result<'arena, 'build, Option<Term<'arena>>> {
+    ) -> ResultProcess<'arena, 'build> {
         match *command {
             Command::Define((location, s), ref type_builder, ref term_builder) => {
                 if arena.get_binding(s).is_some() {

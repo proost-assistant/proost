@@ -1,6 +1,7 @@
 //! Error management
 
 use derive_more::{Display, From};
+use kernel::memory::term::Term;
 
 use crate::evaluator;
 
@@ -37,3 +38,6 @@ impl std::error::Error for Error<'_, '_> {}
 
 /// The type of results yielded by the toplevel.
 pub type Result<'arena, 'build, T> = core::result::Result<T, Error<'arena, 'build>>;
+
+/// The type of objects which typically results from the processing of a command.
+pub type ResultProcess<'arena, 'build> = Result<'arena, 'build, Option<Term<'arena>>>;

@@ -34,9 +34,9 @@
     clippy::shadow_unrelated,
     clippy::unreachable,
     clippy::wildcard_enum_match_arm,
-    // Due to clap dependency
+    // Allowed because of the `clap` crate
     clippy::std_instead_of_core,
-    // Due to this crate is a binary manipulating string
+    // Allowed because this crate is a binary manipulating string
     clippy::indexing_slicing,
     clippy::print_stdout,
     clippy::string_slice
@@ -67,13 +67,12 @@ use atty::Stream;
 use clap::Parser;
 use colored::Colorize;
 use evaluator::Evaluator;
-use kernel::memory::term::Term;
 use parser::command;
 use rustyline::error::ReadlineError;
 use rustyline::{Cmd, Config, Editor, EventHandler, KeyCode, KeyEvent, Modifiers};
 use rustyline_helper::{RustyLineHelper, TabEventHandler};
 
-use crate::error::{Error, Result};
+use crate::error::{Error, Result, ResultProcess};
 
 /// Command line arguments, interpreted with `clap`.
 #[derive(Parser)]
@@ -150,7 +149,7 @@ fn main() -> Result<'static, 'static, ()> {
 /// Toplevel function to display a result, as yielded by the toplevel processing of a command
 ///
 /// The `toggle_location` indicates whether or not to display a hint for the location of the error
-pub fn display<'arena>(res: Result<'arena, '_, Option<Term<'arena>>>, toggle_location: bool) {
+pub fn display(res: ResultProcess, toggle_location: bool) {
     match res {
         Ok(None) => println!("{}", "\u{2713}".green()),
 
