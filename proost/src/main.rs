@@ -158,7 +158,7 @@ pub fn display<'arena>(res: Result<'arena, '_, Option<Term<'arena>>>) {
         Err(err) => {
             let location = match err {
                 Error::Kernel(ref builder, ref err) => Some(builder.apply_trace(&err.trace)),
-                Error::Parser(ref err) => Some(err.loc),
+                Error::Parser(ref err) => Some(err.location),
                 Error::TopLevel(ref err) => Some(err.location),
 
                 _ => None,

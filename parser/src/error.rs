@@ -14,7 +14,7 @@ pub struct Error {
     pub kind: Kind,
 
     /// The trace.
-    pub loc: Location,
+    pub location: Location,
 }
 
 /// The type of errors that can occur in the parser.
@@ -101,7 +101,7 @@ impl From<pest::error::Error<Rule>> for Error {
 
         Self {
             kind: Kind::CannotParse(chars.as_str().to_owned()),
-            loc,
+            location: loc,
         }
     }
 }
