@@ -92,6 +92,8 @@ impl<'arena> fmt::Display for Term<'arena> {
 
 use Payload::{Abs, App, Axiom, Decl, Prod, Sort, Var};
 
+/// A term that is ready to be pretty printed with named variables. This term must be closed.
+#[allow(clippy::module_name_repetitions)]
 pub struct PrettyTerm<'arena>(pub Term<'arena>);
 
 impl<'arena> fmt::Display for PrettyTerm<'arena> {
@@ -102,10 +104,14 @@ impl<'arena> fmt::Display for PrettyTerm<'arena> {
 }
 
 impl<'arena> Term<'arena> {
-    /// This function generates the prettyprint of a term. §§§ TODO
-    /// The depth parameter indicates the number of existing variables.
-    /// This function generates the prettyprint of a term payload.
-    /// See `Term::prettyprint()` for more information.
+    /// This function generates the prettyprint of a term.
+    /// `depth` parameter indicates the number of existing variables (number of Abs/Prop from the root of the term to the
+    /// considered subterm).
+    /// `distance` parameter corresponds to the number of Abs/Prop between the environement where the variables live and these
+    /// variables.
+    /// `is_root_closed` indicates if the root is certain to be closed. If true, the De Bruijn indexes will not appear but
+    /// transformed in named variables instead.
+    // TODO #45 Once is_certainly_closed is implemented, use it to supersede is_root_closed when true.
     #[no_coverage]
     fn prettyprint(self, f: &mut fmt::Formatter, depth: usize, distance: usize, is_root_closed: bool) -> fmt::Result {
         match *self {
@@ -131,15 +137,23 @@ impl<'arena> Term<'arena> {
                 arg.prettyprint(f, depth, distance, is_root_closed)
             },
             Abs(argtype, body) => {
-                write!(f, "\u{003BB} x{depth} : ")?;
+                write!(f, "\u{003BB} ")?;
+                if is_root_closed {
+                    write!(f, "x{depth} : ")?;
+                };
                 argtype.prettyprint(f, depth + 1, distance + 1, is_root_closed)?;
                 write!(f, " => ")?;
                 body.prettyprint(f, depth + 1, distance, is_root_closed)
             },
             Prod(argtype, body) => {
-                write!(f, "(x{depth} : ")?;
+                if is_root_closed {
+                    write!(f, "(x{depth} : ")?;
+                };
                 argtype.prettyprint(f, depth + 1, distance + 1, is_root_closed)?;
-                write!(f, ") -> ")?;
+                if is_root_closed {
+                    write!(f, ")")?;
+                };
+                write!(f, " -> ")?;
                 body.prettyprint(f, depth + 1, distance, is_root_closed)
             },
             Decl(decl) => write!(f, "{decl}"),
@@ -306,7 +320,7 @@ mod tests {
     use crate::memory::declaration::{Declaration, InstantiatedDeclaration};
     use crate::memory::level::builder::raw as level;
     use crate::memory::term::builder::raw::*;
-    use crate::memory::term::Term;
+    use crate::memory::term::{PrettyTerm, Term};
 
     #[test]
     fn display_1() {
@@ -334,7 +348,11 @@ mod tests {
                 ),
             ));
 
-            assert_eq!(term.to_string(), "λ x0 : Sort max (u0) (u1) + 1 => λ x1 : Type => λ x2 : Type 1 => (x3 : x2) -> (x3) x2");
+            assert_eq!(term.to_string(), "λ Sort max (u0) (u1) + 1 => λ Type => λ Type 1 => 1 -> (1) 2");
+            assert_eq!(
+                PrettyTerm(term).to_string(),
+                "λ x0 : Sort max (u0) (u1) + 1 => λ x1 : Type => λ x2 : Type 1 => (x3 : x2) -> (x3) x2"
+            );
         });
     }
 }
