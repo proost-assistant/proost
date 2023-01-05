@@ -10,9 +10,9 @@ use derive_more::{Add, Display, From, Into, Sub};
 
 use super::declaration::InstantiatedDeclaration;
 use super::level::Level;
+use crate::axiom;
 use crate::error::ResultTerm;
 use crate::memory::arena::Arena;
-use crate::memory::axiom;
 
 pub mod builder;
 

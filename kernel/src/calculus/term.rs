@@ -3,8 +3,8 @@
 //! This module consists of internal utility functions used by the type checker, and correspond to
 //! usual functions over lambda-terms. These functions interact appropriately with a given arena.
 
+use crate::axiom;
 use crate::memory::arena::Arena;
-use crate::memory::axiom;
 use crate::memory::declaration::InstantiatedDeclaration;
 use crate::memory::level::Level;
 use crate::memory::term::Payload::{Abs, App, Axiom, Decl, Prod, Sort, Var};
