@@ -96,6 +96,7 @@ impl<'arena> Axiom {
 
     /// Adds with default names the list of hardcoded axioms to the given arena.
     #[inline]
+    #[no_coverage]
     pub fn add_named_axioms(arena: &mut Arena<'arena>) {
         let var0 = Level::var(0, arena);
 
