@@ -35,6 +35,7 @@ pub struct Payload<'arena> {
     pub(crate) params: &'arena [Level<'arena>],
 }
 
+/// The header of an instantiated declaration.
 struct Header<'arena> {
     /// The corresponding term, where levels have been substituted.
     term: OnceCell<Term<'arena>>,
@@ -59,6 +60,7 @@ impl<'arena> fmt::Display for InstantiatedDeclaration<'arena> {
 }
 
 impl<'arena> Declaration<'arena> {
+    /// Creates a declaration from a pair of arguments
     pub(crate) const fn new(term: Term<'arena>, vars: usize) -> Self {
         Self(term, vars)
     }
@@ -103,8 +105,6 @@ impl<'arena> InstantiatedDeclaration<'arena> {
     where
         F: FnOnce(Term<'arena>, &mut Arena<'arena>) -> ResultTerm<'arena>,
     {
-        let term = self.0.payload.decl.0;
-        term.get_type_or_try_init(|| f(term, arena))
-            .map(|type_| type_.substitute_univs(self.0.payload.params, arena))
+        f(self.0.payload.decl.0, arena).map(|type_| type_.substitute_univs(self.0.payload.params, arena))
     }
 }

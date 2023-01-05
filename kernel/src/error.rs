@@ -27,17 +27,17 @@ pub enum Kind<'arena> {
 /// Specify the [`Error`](utils::error::Error) type for the kernel.
 pub type Error<'arena> = utils::error::Error<Kind<'arena>>;
 
-/// Specify the [`Result`](core::result::Result) type for the kernel.
+/// The type of results yielded by the kernel.
 pub type Result<'arena, T> = core::result::Result<T, Error<'arena>>;
 
-/// [`Result`] wrapper for [`Term`](term::Term).
+/// The type of results yielded by the kernel (specialised to terms).
 pub(crate) type ResultTerm<'arena> = Result<'arena, term::Term<'arena>>;
 
-/// [`Result`] wrapper for [`Level`](level::Level).
+/// The type of results yielded by the kernel (specialised to levels).
 pub(crate) type ResultLevel<'arena> = Result<'arena, level::Level<'arena>>;
 
-/// [`Result`] wrapper for [`Declaration`](declaration::Declaration).
+/// The type of results yielded by the kernel (specialised to declarations).
 pub(crate) type ResultDecl<'arena> = Result<'arena, declaration::Declaration<'arena>>;
 
-/// [`Result`] wrapper for [`InstantiatedDeclaration`](declaration::InstantiatedDeclaration).
+/// The type of results yielded by the kernel (specialised to instantiated declarations).
 pub(crate) type ResultInstantiatedDecl<'arena> = Result<'arena, declaration::InstantiatedDeclaration<'arena>>;

@@ -10,6 +10,7 @@ use bumpalo::Bump;
 use super::declaration::Declaration;
 use super::level::Level;
 use super::term::Term;
+use crate::axiom::Axiom;
 
 /// A comprehensive memory management unit for terms.
 ///
@@ -31,7 +32,9 @@ use super::term::Term;
 ///
 /// Early versions of this system are freely inspired by an assignment designed by
 /// [Jacques-Henri Jourdan](<https://jhjourdan.mketjh.fr>).
+#[allow(clippy::missing_docs_in_private_items)]
 pub struct Arena<'arena> {
+    /// The memory allocator
     pub(super) alloc: &'arena Bump,
 
     /// enforces invariances over lifetime parameter
@@ -72,6 +75,20 @@ where
     let alloc = Bump::new();
     let mut arena = Arena::new(&alloc);
     f(&mut arena)
+}
+
+/// This function provides the same entry point as [`use_arena`], with the only difference that it
+/// exports all hardcoded [axioms](crate::axiom::Axiom) before calling the given function.
+#[allow(clippy::module_name_repetitions)]
+#[inline]
+pub fn use_arena_with_axioms<F, T>(f: F) -> T
+where
+    F: for<'arena> FnOnce(&mut Arena<'arena>) -> T,
+{
+    use_arena(|arena| {
+        Axiom::add_named_axioms(arena);
+        f(arena)
+    })
 }
 
 impl<'arena> Arena<'arena> {
@@ -119,6 +136,9 @@ impl<'arena> Arena<'arena> {
     pub fn bind_decl(&mut self, name: &str, decl: Declaration<'arena>) {
         let name = self.store_name(name);
         self.named_decls.insert(name, decl);
+        if let Declaration(term, 0) = decl {
+            self.bind(name, term);
+        }
     }
 
     /// Retrieves the binding of a given name, if one exists.
@@ -206,6 +226,7 @@ the case of terms for instance, and because they may refer to themselves in the 
 default debug implementation recursively calls itself until the stack overflows.")]
         impl<'arena> core::fmt::Debug for $dweller<'arena> {
             #[inline]
+            #[allow(clippy::missing_errors_doc)]
             fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
                 self.0.payload.fmt(f)
             }

@@ -1,3 +1,8 @@
+//! Proost, a small proof assistant written in Rust.
+//!
+//! `proost` denotes the toplevel executable. Please refer to the manual for detailed usage
+//! instructions.
+
 #![doc(html_logo_url = "https://gitlab.crans.org/loutr/proost/-/raw/main/docs/media/logo.png")]
 #![feature(let_chains)]
 #![deny(
@@ -70,6 +75,7 @@ use rustyline_helper::{RustyLineHelper, TabEventHandler};
 
 use crate::error::{Error, Result};
 
+/// Command line arguments, interpreted with `clap`.
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Args {
@@ -83,7 +89,10 @@ struct Args {
     verbose: bool,
 }
 
+/// The version of the program
 const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// The name of the program
 const NAME: &str = env!("CARGO_PKG_NAME");
 
 fn main() -> Result<'static, 'static, ()> {
@@ -110,7 +119,7 @@ fn main() -> Result<'static, 'static, ()> {
     rl.bind_sequence(KeyEvent::from('\t'), EventHandler::Conditional(Box::new(TabEventHandler)));
     rl.bind_sequence(KeyEvent(KeyCode::Enter, Modifiers::ALT), EventHandler::Simple(Cmd::Newline));
 
-    kernel::memory::arena::use_arena(|arena| {
+    kernel::memory::arena::use_arena_with_axioms(|arena| {
         let current_path = current_dir()?;
         let mut evaluator = Evaluator::new(current_path, args.verbose);
 
@@ -135,6 +144,7 @@ fn main() -> Result<'static, 'static, ()> {
     })
 }
 
+/// Toplevel function to display a result, as yielded by the toplevel processing of a command
 pub fn display<'arena>(res: Result<'arena, '_, Option<Term<'arena>>>) {
     match res {
         Ok(None) => println!("{}", "\u{2713}".green()),
@@ -169,6 +179,7 @@ pub fn display<'arena>(res: Result<'arena, '_, Option<Term<'arena>>>) {
     }
 }
 
+/// Tests whether the string corresponds to a command (here, not a comment)
 fn is_command(input: &str) -> bool {
     input
         .chars()

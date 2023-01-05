@@ -23,11 +23,11 @@ use crate::memory::term::builder as term;
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum ErrorKind<'arena> {
-    /// There is a mismatch in the number of universe variables required.
+    /// An incorrect amount of universe variables has been provided
     #[display(fmt = "expected {_0} universe variables, got {_1}")]
     IncorrectVariableNumber(usize, usize),
 
-    /// The identifier is not bound in the given context.
+    /// The declaration is unknown
     #[display(fmt = "unknown declaration {_0}")]
     UnknownDeclaration(&'arena str),
 }
@@ -40,12 +40,16 @@ pub enum ErrorKind<'arena> {
 #[allow(clippy::module_name_repetitions)]
 pub trait BuilderTrait<'build> = for<'arena> FnOnce(&mut Arena<'arena>) -> ResultDecl<'arena>;
 
+/// The trait of builders producing instantiated declarations.
 pub trait InstantiatedBuilderTrait<'build> =
     for<'arena> FnOnce(&mut Arena<'arena>, &level::Environment<'build>) -> ResultInstantiatedDecl<'arena>;
 
 impl<'arena> Arena<'arena> {
     /// Returns the declaration built from the given closure, provided with an empty context, at
     /// depth 0.
+    ///
+    /// # Errors
+    /// If the declaration could not be built, yields an error indicating the reason
     #[inline]
     pub fn build_declaration<'build, F: BuilderTrait<'build>>(&mut self, f: F) -> ResultDecl<'arena> {
         f(self)
@@ -53,6 +57,8 @@ impl<'arena> Arena<'arena> {
 
     /// Returns the instantiated declaration built from the given closure, provided with an empty
     /// context, at depth 0.
+    /// # Errors
+    /// If the instantiated declaration could not be built, yields an error indicating the reason
     #[inline]
     pub fn build_instantiated_declaration<'build, F: InstantiatedBuilderTrait<'build>>(
         &mut self,
@@ -72,6 +78,7 @@ pub fn declaration<'build, F: term::BuilderTrait<'build>>(term: F, vars: &[&'bui
 
 /// Template of declarations.
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
+#[allow(clippy::missing_docs_in_private_items)]
 pub enum Builder<'build> {
     #[display(fmt = "{_0}")]
     Decl(Box<term::Builder<'build>>, Vec<&'build str>),
@@ -80,8 +87,8 @@ pub enum Builder<'build> {
 impl<'build> Traceable for Builder<'build> {
     #[inline]
     fn apply_trace(&self, trace: &[Trace]) -> Location {
-        match self {
-            Builder::Decl(term, _) => term.apply_trace(trace),
+        match *self {
+            Builder::Decl(ref term, _) => term.apply_trace(trace),
         }
     }
 }
@@ -89,15 +96,20 @@ impl<'build> Traceable for Builder<'build> {
 impl<'build> Builder<'build> {
     /// Realise a builder into a [`Declaration`]. This internally uses functions described in
     /// the [builder](`crate::memory::declaration::builder`) module.
+    ///
+    /// # Errors
+    /// If the declaration could not be built, yields an error indicating the reason
     #[inline]
     pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultDecl<'arena> {
         arena.build_declaration(self.partial_application())
     }
 
+    /// Associates a builder to a builder trait.
     fn partial_application(&self) -> impl BuilderTrait<'build> + '_ {
         |arena| self.realise_in_context(arena)
     }
 
+    /// Provides a correspondence between builder items and functions with the builder trait
     fn realise_in_context<'arena>(&self, arena: &mut Arena<'arena>) -> ResultDecl<'arena> {
         match *self {
             Builder::Decl(ref term, ref vars) => declaration(term.partial_application(), vars.as_slice())(arena),
@@ -105,6 +117,7 @@ impl<'build> Builder<'build> {
     }
 }
 
+/// Base function for the instantiated declaration builders.
 fn try_build_instance<'arena, 'build>(
     decl: Declaration<'arena>,
     levels: &'build [level::Builder<'build>],
@@ -160,6 +173,7 @@ pub fn var<'build>(name: &'build str, levels: &'build [level::Builder<'build>]) 
 /// On the other hand, the [second variant](`InstantiatedBuilder::Var`) is typically used by the
 /// parser, as it corresponds to the only possible scenario in a file.
 #[allow(clippy::module_name_repetitions)]
+#[allow(clippy::missing_docs_in_private_items)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum InstantiatedBuilder<'build> {
     Instance(Box<Builder<'build>>, Vec<level::Builder<'build>>),
@@ -187,15 +201,20 @@ impl<'arena> core::fmt::Display for InstantiatedBuilder<'arena> {
 impl<'build> InstantiatedBuilder<'build> {
     /// Realise a builder into an [`InstantiatedDeclaration`]. This internally uses functions described in
     /// the [builder](`crate::memory::declaration::builder`) module.
+    ///
+    /// # Errors
+    /// If the instantiated declaration could not be built, yields an error indicating the reason
     #[inline]
     pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultInstantiatedDecl<'arena> {
         arena.build_instantiated_declaration(self.partial_application())
     }
 
+    /// Associates a builder to a builder trait.
     pub(in crate::memory) fn partial_application(&'build self) -> impl InstantiatedBuilderTrait<'build> {
         |arena, lvl_env| self.realise_in_context(arena, lvl_env)
     }
 
+    /// Provides a correspondence between builder items and functions with the builder trait
     fn realise_in_context<'arena>(
         &'build self,
         arena: &mut Arena<'arena>,

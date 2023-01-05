@@ -3,13 +3,17 @@
 //! This module consists of internal utility functions used by the type checker, and correspond to
 //! usual functions over lambda-terms. These functions interact appropriately with a given arena.
 
+use crate::axiom;
 use crate::memory::arena::Arena;
 use crate::memory::declaration::InstantiatedDeclaration;
 use crate::memory::level::Level;
-use crate::memory::term::Payload::{Abs, App, Decl, Prod, Sort, Var};
+use crate::memory::term::Payload::{Abs, App, Axiom, Decl, Prod, Sort, Var};
 use crate::memory::term::Term;
 
 impl<'arena> Term<'arena> {
+    /// Unfolds a term.
+    ///
+    /// Unfolding only happens on instantiated declarations.
     fn unfold(self, arena: &mut Arena<'arena>) -> Self {
         match *self {
             Decl(decl) => decl.get_term(arena),
@@ -21,6 +25,9 @@ impl<'arena> Term<'arena> {
     #[inline]
     #[must_use]
     pub fn beta_reduction(self, arena: &mut Arena<'arena>) -> Self {
+        if let Some(red) = self.reduce_recursor(arena) {
+            return red;
+        };
         match *self {
             App(t1, t2) => {
                 if let Abs(_, t1) = *t1.unfold(arena) {
@@ -105,6 +112,12 @@ impl<'arena> Term<'arena> {
     /// the underlying Term.
     pub(crate) fn substitute_univs(self, univs: &[Level<'arena>], arena: &mut Arena<'arena>) -> Self {
         match *self {
+            Axiom(ax, lvl) => {
+                let lvl = lvl.iter().map(|l| l.substitute(univs, arena)).collect::<Vec<_>>();
+                let lvl = arena.store_level_slice(&lvl);
+                Term::axiom(ax, lvl, arena)
+            },
+
             Var(i, ty) => {
                 let ty = ty.substitute_univs(univs, arena);
                 Term::var(i, ty, arena)
@@ -163,16 +176,52 @@ impl<'arena> Term<'arena> {
     #[inline]
     #[must_use]
     pub fn whnf(self, arena: &mut Arena<'arena>) -> Self {
-        self.get_whnf_or_init(|| match *self {
-            App(t1, t2) => match *t1.unfold(arena).whnf(arena) {
-                Abs(_, t1) => {
-                    let subst = t1.substitute(t2, 1, arena);
-                    subst.whnf(arena)
+        self.get_whnf_or_init(|| {
+            self.reduce_recursor(arena).unwrap_or_else(|| match *self {
+                App(t1, t2) => match *t1.unfold(arena).whnf(arena) {
+                    Abs(_, t1) => {
+                        let subst = t1.substitute(t2, 1, arena);
+                        subst.whnf(arena)
+                    },
+                    _ => self,
                 },
                 _ => self,
-            },
-            _ => self,
+            })
         })
+    }
+
+    /// Reduces a term if it is an instance of the Nat reducer, returns None otherwise.
+    fn reduce_nat(self, arena: &mut Arena<'arena>) -> Option<Self> {
+        // Be aware that this function will not be automatically formatted, because of the
+        // experimental status of let-chains, as well as that of if-let conditions in pattern matching.
+        if let App(f, n) = *self && let App(f, motive_succ) = *f &&
+           let App(f, motive_0) = *f && let App(f, motive) = *f && let Axiom(axiom::Axiom::NatRec, lvl) = *f {
+            match *n.whnf(arena) {
+                Axiom(axiom::Axiom::Zero, _) => Some(motive_0),
+                App(f, n) if let Axiom(axiom::Axiom::Succ, _) = *f => {
+                    let new_rec = Term::app(
+                        Term::app(
+                            Term::app(Term::app(Term::axiom(axiom::Axiom::NatRec, lvl, arena), motive, arena), motive_0, arena),
+                            motive_succ,
+                            arena,
+                        ),
+                        n,
+                        arena,
+                    );
+                    let app = Term::app(Term::app(motive_succ, n, arena), new_rec, arena);
+                    Some(app)
+                },
+                _ => None,
+            }
+        } else {
+            None
+        }
+    }
+
+    /// Reduces a term if possible, returns None otherwise.
+    fn reduce_recursor(self, arena: &mut Arena<'arena>) -> Option<Self> {
+        let rec_reds = [Term::reduce_nat];
+        rec_reds.into_iter().find_map(|f| f(self, arena))
     }
 }
 
@@ -413,6 +462,7 @@ mod tests {
 
     #[test]
     fn subst_univs() {
+        use crate::axiom::Axiom;
         use crate::memory::level::builder::raw::*;
 
         use_arena(|arena| {
@@ -445,6 +495,40 @@ mod tests {
             ));
 
             assert_eq!(term.substitute_univs(&[arena.build_level_raw(zero()), arena.build_level_raw(zero())], arena), term);
+
+            let nat = Term::axiom(Axiom::Nat, &[], arena);
+            assert_eq!(nat.substitute_univs(&[arena.build_level_raw(zero()), arena.build_level_raw(zero())], arena), nat);
+        });
+    }
+
+    #[test]
+    fn reduce_nat() {
+        use crate::axiom::Axiom;
+        use crate::memory::level::Level;
+        use_arena(|arena| {
+            let lvl_one = Level::succ(Level::zero(arena), arena);
+            let nat = Term::axiom(Axiom::Nat, &[], arena);
+            let zero = Term::axiom(Axiom::Zero, &[], arena);
+            let one = Term::app(Term::axiom(Axiom::Succ, &[], arena), zero, arena);
+            let to_zero = Term::app(
+                Term::app(
+                    Term::app(
+                        Term::axiom(Axiom::NatRec, arena.store_level_slice(&[lvl_one]), arena),
+                        Term::abs(nat, nat, arena),
+                        arena,
+                    ),
+                    zero,
+                    arena,
+                ),
+                Term::abs(nat, Term::abs(nat, zero, arena), arena),
+                arena,
+            );
+            let zero_to_zero = Term::app(to_zero, zero, arena);
+            let one_to_zero = Term::app(to_zero, one, arena);
+            let nat_to_zero = Term::app(to_zero, nat, arena);
+            assert_eq!(zero_to_zero.normal_form(arena), zero);
+            assert_eq!(one_to_zero.normal_form(arena), zero);
+            assert_eq!(nat_to_zero.whnf(arena), nat_to_zero);
         });
     }
 }

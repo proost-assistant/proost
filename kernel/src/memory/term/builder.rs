@@ -25,11 +25,11 @@ use crate::memory::arena::Arena;
 use crate::memory::declaration::builder as declaration;
 use crate::memory::level::builder as level;
 
-/// The kind of the error that can occur when building a [`Term`].
+/// The kind of errors that can occur when building a [`Term`].
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum ErrorKind<'arena> {
-    /// The identifier is not bound in the given context.
+    /// Unknown identifier
     #[display(fmt = "unknown identifier {_0}")]
     ConstNotFound(&'arena str),
 }
@@ -57,6 +57,9 @@ pub trait BuilderTrait<'build> = for<'arena> FnOnce(
 
 impl<'arena> Arena<'arena> {
     /// Returns the term built from the given closure, provided with an empty context, at depth 0.
+    ///
+    /// # Errors
+    /// If the term could not be built, yields an error indicating the reason
     #[inline]
     pub fn build<'build, F: BuilderTrait<'build>>(&mut self, f: F) -> ResultTerm<'arena> {
         f(self, &Environment::new(), &level::Environment::new(), 0.into())
@@ -77,6 +80,20 @@ pub const fn var(name: &str) -> impl BuilderTrait<'_> {
             })
             .or_else(|| arena.get_binding(name))
             .ok_or_else(|| Error::new(ErrorKind::ConstNotFound(arena.store_name(name)).into()))
+    }
+}
+
+/// Returns a closure building a variable associated to the name `name`, potentially from a
+/// declaration instantiated with the given parameters.
+#[inline]
+#[must_use]
+pub const fn var_instance<'build>(name: &'build str, levels: &'build [level::Builder<'build>]) -> impl BuilderTrait<'build> {
+    move |arena, env, lvl_env, depth| {
+        if levels.is_empty() {
+            var(name)(arena, env, lvl_env, depth)
+        } else {
+            decl(declaration::var(name, levels))(arena, env, lvl_env, depth)
+        }
     }
 }
 
@@ -182,18 +199,27 @@ pub struct Builder<'build> {
 
 /// Template of terms.
 ///
-/// A Builder describes a term in a naive but easy to build manner. It strongly resembles the
-/// [payload](`crate::memory::term::Payload`) type, except that `Var`, `Abs` and `Prod` constructors
-/// include a name, as in the classic way of writing lambda-terms (i.e. no de Bruijn indices
-/// involved). Because its purpose is to provide an easy way to build terms, even through the API,
-/// it offers different ways to build some terms, for convenience.
+/// A Builder describes a term in a naive but easy-to-build manner.
+///
+/// Please refer to the item descriptions in [terms](crate::memory::term::Payload) for a
+/// description of the corresponding items. Please understand that there are still differences,
+/// most notably, these fields correspond to a classic way of writing lambda-terms (i.e. no de
+/// Bruijn indices involved).
+///
+/// Because the purpose of a builder is to provide an easy way to build terms, even through the
+/// API, it offers different ways to build some terms, for convenience.
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
+#[allow(clippy::missing_docs_in_private_items)]
 pub enum Payload<'build> {
-    #[display(fmt = "{_0}")]
-    Var(&'build str),
-
     #[display(fmt = "Prop")]
     Prop,
+
+    /// A regular variable
+    Var(&'build str),
+
+    /// A variable that may or may not be an instantiated declaration
+    #[display(fmt = "{_0}")]
+    VarInstance(&'build str, Vec<level::Builder<'build>>),
 
     #[display(fmt = "Type {_0}")]
     Type(Box<level::Builder<'build>>),
@@ -240,15 +266,20 @@ impl<'build> Traceable for Builder<'build> {
 impl<'build> Builder<'build> {
     /// Realise a builder into a [`Term`]. This internally uses functions described in
     /// the [builder](`crate::memory::term::builder`) module.
+    ///
+    /// # Errors
+    /// If the term could not be built, yields an error indicating the reason
     #[inline]
     pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
         arena.build(self.partial_application())
     }
 
+    /// Associates a builder to a builder trait.
     pub(in crate::memory) fn partial_application(&'build self) -> impl BuilderTrait<'build> {
         |arena, env, lvl_env, depth| self.realise_in_context(arena, env, lvl_env, depth)
     }
 
+    /// Provides a correspondence between builder items and functions with the builder trait
     fn realise_in_context<'arena>(
         &'build self,
         arena: &mut Arena<'arena>,
@@ -257,8 +288,9 @@ impl<'build> Builder<'build> {
         depth: DeBruijnIndex,
     ) -> ResultTerm<'arena> {
         match **self {
-            Payload::Var(s) => var(s)(arena, env, lvl_env, depth),
             Payload::Prop => prop()(arena, env, lvl_env, depth),
+            Payload::Var(s) => var(s)(arena, env, lvl_env, depth),
+            Payload::VarInstance(name, ref levels) => var_instance(name, levels)(arena, env, lvl_env, depth),
             Payload::Type(ref level) => type_(level.partial_application())(arena, env, lvl_env, depth),
             Payload::Sort(ref level) => sort(level.partial_application())(arena, env, lvl_env, depth),
             Payload::App(ref l, ref r) => app(l.partial_application(), r.partial_application())(arena, env, lvl_env, depth),

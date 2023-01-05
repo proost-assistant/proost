@@ -10,6 +10,7 @@ use derive_more::{Add, Display, From, Into, Sub};
 
 use super::declaration::InstantiatedDeclaration;
 use super::level::Level;
+use crate::axiom;
 use crate::error::ResultTerm;
 use crate::memory::arena::Arena;
 
@@ -21,6 +22,7 @@ pub struct DeBruijnIndex(usize);
 
 super::arena::new_dweller!(Term, Header, Payload);
 
+/// The header of a term.
 struct Header<'arena> {
     /// lazy structure to store the weak-head normal form of a term
     head_normal_form: OnceCell<Term<'arena>>,
@@ -61,6 +63,9 @@ pub enum Payload<'arena> {
 
     /// An instance of a universe-polymorphic declaration
     Decl(InstantiatedDeclaration<'arena>),
+
+    /// An axiom
+    Axiom(axiom::Axiom, &'arena [Level<'arena>]),
 }
 
 impl<'arena> fmt::Display for Payload<'arena> {
@@ -80,6 +85,7 @@ impl<'arena> fmt::Display for Payload<'arena> {
             Abs(argtype, body) => write!(f, "\u{003BB} {argtype} \u{02192} {body}"),
             Prod(argtype, body) => write!(f, "\u{003A0} {argtype} \u{02192} {body}"),
             Decl(decl) => write!(f, "{decl}"),
+            Axiom(s, _) => write!(f, "{s}"),
         }
     }
 }
@@ -91,7 +97,7 @@ impl<'arena> fmt::Display for Term<'arena> {
     }
 }
 
-use Payload::{Abs, App, Decl, Prod, Sort, Var};
+use Payload::{Abs, App, Axiom, Decl, Prod, Sort, Var};
 
 impl<'arena> Term<'arena> {
     /// This function is the base low-level function for creating terms.
@@ -121,6 +127,12 @@ impl<'arena> Term<'arena> {
     /// Returns a variable term with the given index and type
     pub(crate) fn var(index: DeBruijnIndex, type_: Term<'arena>, arena: &mut Arena<'arena>) -> Self {
         Self::hashcons(Var(index, type_), arena)
+    }
+
+    /// Returns an axiom term with the given axiom
+    pub(crate) fn axiom(axiom: axiom::Axiom, lvl: &[Level<'arena>], arena: &mut Arena<'arena>) -> Self {
+        let lvl = arena.store_level_slice(lvl);
+        Self::hashcons(Axiom(axiom, lvl), arena)
     }
 
     /// Returns the term corresponding to a proposition
@@ -204,21 +216,17 @@ impl<'arena> Arena<'arena> {
 
 #[cfg(test)]
 mod tests {
-    use utils::location::Location;
-
     use crate::memory::arena::use_arena;
-    use crate::memory::declaration::{builder as declaration, InstantiatedDeclaration};
+    use crate::memory::declaration::{Declaration, InstantiatedDeclaration};
     use crate::memory::level::builder::raw as level;
     use crate::memory::term::builder::raw::*;
-    use crate::memory::term::builder::{Builder, Payload};
+    use crate::memory::term::Term;
 
     #[test]
     fn display_1() {
         use_arena(|arena| {
-            let decl = declaration::Builder::Decl(Box::new(Builder::new(Location::default(), Payload::Prop)), vec![]);
-            let decl = InstantiatedDeclaration::instantiate(decl.realise(arena).unwrap(), &[], arena);
-
-            let prop = crate::memory::term::Term::decl(decl, arena);
+            let decl = InstantiatedDeclaration::instantiate(Declaration(Term::prop(arena), 0), &Vec::new(), arena);
+            let prop = Term::decl(decl, arena);
 
             assert_eq!(prop.to_string(), "(Prop).{}");
         });
