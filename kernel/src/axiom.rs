@@ -86,7 +86,7 @@ impl<'arena> Axiom {
                 let app_motive = Term::app(Term::var(4.into(), motive, arena), Term::var(1.into(), term_nat, arena), arena);
                 // (t : Nat) -> motive t
                 let prod_app_motive = Term::prod(term_nat, app_motive, arena);
-                // (motive : Nat -> Sort u) -> motive 0 -> ((n : Nat) -> motive n -> motive (succ n)) -> (t : False) -> motive t
+                // (motive : Nat -> Sort u) -> motive 0 -> ((n : Nat) -> motive n -> motive (succ n)) -> (t : Nat) -> motive t
                 Term::prod(motive, Term::prod(motive_0, Term::prod(motive_succ, prod_app_motive, arena), arena), arena)
             },
             Zero => Term::axiom(Self::Nat, &[], arena),
