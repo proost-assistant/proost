@@ -199,11 +199,15 @@ pub struct Builder<'build> {
 
 /// Template of terms.
 ///
-/// A Builder describes a term in a naive but easy to build manner. It strongly resembles the
-/// [payload](`crate::memory::term::Payload`) type, except that `Var`, `Abs` and `Prod` constructors
-/// include a name, as in the classic way of writing lambda-terms (i.e. no de Bruijn indices
-/// involved). Because its purpose is to provide an easy way to build terms, even through the API,
-/// it offers different ways to build some terms, for convenience.
+/// A Builder describes a term in a naive but easy-to-build manner.
+///
+/// Please refer to the item descriptions in [terms](crate::memory::term::Payload) for a
+/// description of the corresponding items. Please understand that there are still differences,
+/// most notably, these fields correspond to a classic way of writing lambda-terms (i.e. no de
+/// Bruijn indices involved).
+///
+/// Because the purpose of a builder is to provide an easy way to build terms, even through the
+/// API, it offers different ways to build some terms, for convenience.
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
 #[allow(clippy::missing_docs_in_private_items)]
 pub enum Payload<'build> {

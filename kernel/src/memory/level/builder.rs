@@ -109,9 +109,12 @@ pub const fn imax<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(u1
 
 /// Template of levels.
 ///
-/// A [`Builder`] describes a level in a naive but easy to build manner. It strongly resembles the
-/// [`Level`] type, except that the `Var` constructor include a name, as in the syntactic way of
-/// writing levels. Because its purpose is to provide an easy way to build terms, even through the
+/// A Builder describes a term in a naive but easy-to-build manner.
+///
+/// Please refer to the item descriptions in [levels](crate::memory::level::Payload) for a
+/// description of the corresponding items. Please understand that there are still differences,
+///
+/// Because the purpose of a builder is to provide an easy way to build terms, even through the
 /// API, it offers different ways to build some terms, for convenience.
 ///
 /// Unlike [`Term` builders](crate::memory::term::builder::Builder), level builders do not back-propagate

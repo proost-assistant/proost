@@ -41,7 +41,6 @@
     clippy::unreachable,
     clippy::wildcard_enum_match_arm
 )]
-#![warn(clippy::missing_errors_doc, clippy::missing_docs_in_private_items)]
 #![cfg_attr(
     test,
     allow(
