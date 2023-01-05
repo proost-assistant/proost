@@ -101,12 +101,12 @@ impl<'arena> Axiom {
         let var0 = Level::var(0, arena);
 
         let false_decl = Term::axiom(Self::False, &[], arena);
-        let false_rec_decl = Declaration(Term::axiom(Self::FalseRec, arena.store_level_slice(&[var0]), arena), 1);
+        let false_rec_decl = Declaration(Term::axiom(Self::FalseRec, &[var0], arena), 1);
         arena.bind("False", false_decl);
         arena.bind_decl("False_rec", false_rec_decl);
 
         let nat_decl = Term::axiom(Self::Nat, &[], arena);
-        let nat_rec_decl = Declaration(Term::axiom(Self::NatRec, arena.store_level_slice(&[var0]), arena), 1);
+        let nat_rec_decl = Declaration(Term::axiom(Self::NatRec, &[var0], arena), 1);
         let zero_decl = Term::axiom(Self::Zero, &[], arena);
         let succ_decl = Term::axiom(Self::Succ, &[], arena);
         arena.bind("Nat", nat_decl);

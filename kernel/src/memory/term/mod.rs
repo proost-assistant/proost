@@ -130,7 +130,8 @@ impl<'arena> Term<'arena> {
     }
 
     /// Returns an axiom term with the given axiom
-    pub(crate) fn axiom(axiom: axiom::Axiom, lvl: &'arena [Level<'arena>], arena: &mut Arena<'arena>) -> Self {
+    pub(crate) fn axiom(axiom: axiom::Axiom, lvl: &[Level<'arena>], arena: &mut Arena<'arena>) -> Self {
+        let lvl = arena.store_level_slice(lvl);
         Self::hashcons(Axiom(axiom, lvl), arena)
     }
 
