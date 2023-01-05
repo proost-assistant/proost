@@ -35,7 +35,7 @@ struct Header<'arena> {
 
     // TODO(#45) is_certainly_closed: boolean underapproximation of whether a term is closed. This
     // may greatly improve performance in shifting, along with a mem_shift hash map.
-    is_certainly_closed: OnceCell<bool>,
+    is_certainly_closed: OnceCell<()>,
 }
 
 /// A term.
@@ -210,11 +210,15 @@ impl<'arena> Term<'arena> {
         *self.0.header.is_relevant.get_or_init(f)
     }
 
-    pub(crate) fn get_closedness<F>(self, f: F) -> bool
-    where
-        F: FnOnce() -> bool,
-    {
-        *self.0.header.is_certainly_closed.get_or_init(f)
+    pub(crate) fn is_certainly_closed(self) -> bool {
+        self.0.header.is_certainly_closed.get().is_some()
+    }
+
+    pub(crate) fn set_as_closed(self) {
+        match self.0.header.is_certainly_closed.set(()) {
+            Ok(()) => (),
+            Err(()) => (),
+        }
     }
 }
 
