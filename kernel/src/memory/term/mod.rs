@@ -30,10 +30,12 @@ struct Header<'arena> {
     /// lazy structure to store the type of a term.
     type_: OnceCell<Term<'arena>>,
 
-    /// Relevance of a given term
+    /// the relevance of a given term
     is_relevant: OnceCell<bool>,
+
     // TODO(#45) is_certainly_closed: boolean underapproximation of whether a term is closed. This
     // may greatly improve performance in shifting, along with a mem_shift hash map.
+    is_certainly_closed: OnceCell<bool>,
 }
 
 /// A term.
@@ -113,6 +115,7 @@ impl<'arena> Term<'arena> {
                 head_normal_form: OnceCell::new(),
                 type_: OnceCell::new(),
                 is_relevant: OnceCell::new(),
+                is_certainly_closed: OnceCell::new(),
             },
         };
 
@@ -205,6 +208,13 @@ impl<'arena> Term<'arena> {
         F: FnOnce() -> bool,
     {
         *self.0.header.is_relevant.get_or_init(f)
+    }
+
+    pub(crate) fn get_closedness<F>(self, f: F) -> bool
+    where
+        F: FnOnce() -> bool,
+    {
+        *self.0.header.is_certainly_closed.get_or_init(f)
     }
 }
 

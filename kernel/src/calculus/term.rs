@@ -58,6 +58,9 @@ impl<'arena> Term<'arena> {
     /// Returns the term `self` where all variables with de Bruijn index larger than `depth` are offset
     /// by `offset`.
     pub(crate) fn shift(self, offset: usize, depth: usize, arena: &mut Arena<'arena>) -> Self {
+        if self.get_closedness(|| false) {
+            return self;
+        }
         match *self {
             Var(i, type_) if i > depth.into() => Term::var(i + offset.into(), type_, arena),
             App(t1, t2) => {
