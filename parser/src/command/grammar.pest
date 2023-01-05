@@ -1,31 +1,51 @@
+// Pest configuration override
 WHITESPACE = _{ WHITE_SPACE }
 COMMENT = _{ "//" ~ (!"\n" ~ ANY)* }
-number = @{ ASCII_DIGIT+ }
-filename = @{ ( ASCII_ALPHANUMERIC | PUNCTUATION )+ }
-string = @{ !keywords ~ ASCII_ALPHA ~ ( "_" | ASCII_ALPHANUMERIC )* }
-keywords = @{ ( "fun" | "def" | "check" | "Prop" | "Type" | "Sort" ) ~ !ASCII_ALPHANUMERIC }
 eoi = _{ !ANY }
 
+// Numbers used in type level
+number = @{ ASCII_DIGIT+ }
 
+// File path used in import
+filename = @{ ( ASCII_ALPHANUMERIC | PUNCTUATION )+ }
 
+// String used in variable an module names
+string = @{ !keywords ~ ASCII_ALPHA ~ ( "_" | ASCII_ALPHANUMERIC )* }
+
+// Keywords used by variable and module names
+keywords = @{ ( "super" | "use" | "end" | "mod" | "fun" | "def" | "check" | "Prop" | "Type" | "Sort" ) ~ !ASCII_ALPHANUMERIC }
+
+// Special keywords
+public = @{ "pub" }
+superkw = @{ "super" }
+
+// Lambda terms
 Term = _{ Abs | dProd | Prod | App | VarDecl | Var | Prop | Type | Sort | "(" ~ Term ~ ")" }
 term_prod = _{ App | Abs | dProd | VarDecl | Var | Prop | Type | Sort | "(" ~ Prod ~ ")" | "(" ~ term_prod ~ ")" }
 term_app = _{ Abs | VarDecl | Var | Prop | Type | Sort | "(" ~ App ~ ")" | "(" ~ Prod ~ ")" | "(" ~ dProd ~ ")" | "(" ~ term_app ~ ")" } 
 term_dprod = _{ App | Abs | Prod | dProd | VarDecl | Var | Prop | Type | Sort | "(" ~ term_dprod ~ ")" }
 term_abs = _{ App | Abs | Prod | dProd | VarDecl | Var | Prop | Type | Sort | "(" ~ term_abs ~ ")" }
 
+// Abstraction
 Abs = { ( "fun" ~ ( arg_abs_par ~ ( "," ~ arg_abs_par )* ) ~ "=>" ~ Term ) }
 arg_abs_par = _{ arg_abs | "(" ~ arg_abs_par ~ ")" }
 arg_abs = { string+ ~ ":" ~ term_abs }
 
+// Dependant product 
 dProd = { "(" ~ ( arg_dprod_par ~ ( "," ~ arg_dprod_par )* ) ~ ")" ~ "->" ~ Term }
 arg_dprod_par = _{ arg_dprod | "(" ~ arg_dprod_par ~ ")" }
 arg_dprod = { string+ ~ ":" ~ term_dprod }
 
+// Application
 App = { term_app ~ term_app+ }
+
+// Non dependant product
 Prod = { term_prod ~ ( "->" ~ term_prod )+ }
+
+// Proposition
 Prop = { "Prop" }
 
+// Type
 Type = { "Type" ~ univ? }
 Sort = { "Sort" ~ univ? }
 univ = _{ Plus | Max | IMax | Num | string | "(" ~ univ ~ ")" }
@@ -35,22 +55,29 @@ Plus = { univ_plus ~ ( "+" ~ number )+ }
 Max = { ( "max" ~ "(" ~ univ ~ "," ~ univ ~ ")" ) | ( "max" ~ univ ~ univ ) }
 IMax = { ( "imax" ~ "(" ~ univ ~ "," ~ univ ~ ")" ) | ( "imax" ~ univ ~ univ ) }
 
-Var = { string }
-VarDecl = ${ string ~ arg_univ }
+// Variable
+Var = ${ (superkw ~ "::")* ~ (string ~ "::")* ~ string }
+VarDecl = ${ Var ~ arg_univ }
 stringDecl = ${ string ~ univ_decl }
 
 arg_univ = !{".{" ~ (univ ~ ("," ~ univ)* )? ~ "}"}
 univ_decl = !{".{" ~ (string ~ ("," ~ string)* )? ~ "}"}
 
-Command = _{ Define | Declaration | DeclarationCheckType | CheckType | GetType | DefineCheckType | Eval | ImportFile | Search}
-Define = { "def" ~ string ~ ":=" ~ Term }
-DefineCheckType = { "def" ~ string ~ ":" ~ Term ~ ":=" ~ Term }
-Declaration = { "def" ~ stringDecl ~ ":=" ~ Term }
-DeclarationCheckType = { "def" ~ stringDecl ~ ":" ~ Term ~ ":=" ~ Term }
+// Commands
+Command = _{ Define | Declaration | DeclarationCheckType | CheckType | GetType | DefineCheckType | Eval | ImportFile | Search | BeginModule | EndModule | UseModule }
+Define = { ( public? ) ~ "def" ~ string ~ ":=" ~ Term }
+DefineCheckType = { ( public? ) ~ "def" ~ string ~ ":" ~ Term ~ ":=" ~ Term }
+Declaration = { ( public? ) ~ "def" ~ stringDecl ~ ":=" ~ Term }
+DeclarationCheckType = { ( public? ) ~ "def" ~ stringDecl ~ ":" ~ Term ~ ":=" ~ Term }
 CheckType = { "check" ~ Term ~ ":" ~ Term }
 GetType = { "check" ~ Term }
 Eval = { "eval" ~ Term }
 ImportFile = { "import" ~ filename* }
 Search = { "search" ~ string }
+BeginModule = { "mod" ~ string }
+EndModule = { "end" }
+UseModule = { "use" ~ Var }
+
+// Definitions used to generate corresponding parsers
 command = _{SOI ~ Command ~ eoi }
 file = _{ SOI ~ Command* ~ eoi }

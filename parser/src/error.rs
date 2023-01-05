@@ -30,14 +30,15 @@ impl From<pest::error::Error<Rule>> for Error {
     fn from(err: pest::error::Error<Rule>) -> Self {
         // renaming error messages
         let err = err.renamed_rules(|rule| match *rule {
-            Rule::string | Rule::Var => "variable".to_owned(),
-            Rule::number => "number".to_owned(),
-            Rule::Define => "def var := term".to_owned(),
-            Rule::Declaration => "def decl.{ vars, ... } := term".to_owned(),
-            Rule::DeclarationCheckType => "def decl.{ vars, ... } : term := term".to_owned(),
+            Rule::string => "var".to_owned(),
+            Rule::Var => "(module::)var".to_owned(),
+            Rule::number => "num".to_owned(),
+            Rule::Define => "(pub) def var := term".to_owned(),
+            Rule::Declaration => "(pub) def decl.{ vars, ... } := term".to_owned(),
+            Rule::DeclarationCheckType => "(pub) def decl.{ vars, ... } : term := term".to_owned(),
             Rule::CheckType => "check term : term".to_owned(),
             Rule::GetType => "check term".to_owned(),
-            Rule::DefineCheckType => "def var : term := term".to_owned(),
+            Rule::DefineCheckType => "(pub) def var : term := term".to_owned(),
             Rule::Abs => "abstraction".to_owned(),
             Rule::dProd => "dependent product".to_owned(),
             Rule::Prod => "product".to_owned(),
@@ -48,13 +49,19 @@ impl From<pest::error::Error<Rule>> for Error {
             Rule::Eval => "eval term".to_owned(),
             Rule::filename => "path_to_file".to_owned(),
             Rule::ImportFile => "import path_to_file".to_owned(),
-            Rule::Search => "search var".to_owned(),
+            Rule::Search => "search (module::)var".to_owned(),
             Rule::Max => "max".to_owned(),
             Rule::Plus => "plus".to_owned(),
             Rule::IMax => "imax".to_owned(),
             Rule::arg_univ => "universe argument".to_owned(),
             Rule::univ_decl => "universe declaration".to_owned(),
-            _ => {
+            Rule::BeginModule => "mod var".to_owned(),
+            Rule::EndModule => "end".to_owned(),
+            Rule::UseModule => "use (module::)var".to_owned(),
+            Rule::public => "pub".to_owned(),
+            Rule::superkw => "super".to_owned(),
+            rule => {
+                print!("{:?}", rule);
                 unreachable!("low level rules cannot appear in error messages")
             },
         });

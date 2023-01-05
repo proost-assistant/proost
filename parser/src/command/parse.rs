@@ -68,11 +68,15 @@ fn parse_term(pair: Pair<Rule>) -> term::Builder {
     match pair.as_rule() {
         Rule::Prop => Builder::new(loc, Prop),
 
-        Rule::Var => Builder::new(loc, Var(pair.into_inner().as_str())),
+        Rule::Var => {
+            let name = pair.into_inner().map(|pair| pair.as_str()).collect();
+            Builder::new(loc, Var(name))
+        },
 
         Rule::VarDecl => {
             let mut iter = pair.into_inner();
-            let name = iter.next().unwrap().as_str();
+            print!("{}", iter);
+            let name = iter.next().unwrap().into_inner().map(|pair| pair.as_str()).collect();
             let levels = iter.next().unwrap().into_inner().map(parse_level).collect();
 
             Builder::new(loc, VarInstance(name, levels))
@@ -153,35 +157,57 @@ fn parse_expr(pair: Pair<Rule>) -> Command {
         },
 
         Rule::Define => {
+            let mut public = false;
             let mut iter = pair.into_inner();
-            let s = iter.next().unwrap();
+            let mut s = iter.next().unwrap();
+            if s.as_rule() == Rule::public {
+                public = true;
+                s = iter.next().unwrap();
+            }
             let term = parse_term(iter.next().unwrap());
 
-            Command::Define((convert_span(s.as_span()), s.as_str()), None, term)
+            Command::Define(public, (convert_span(s.as_span()), s.as_str()), None, term)
         },
 
         Rule::DefineCheckType => {
+            let mut public = false;
             let mut iter = pair.into_inner();
-            let s = iter.next().unwrap();
+            let mut s = iter.next().unwrap();
+            if s.as_rule() == Rule::public {
+                public = true;
+                s = iter.next().unwrap();
+            }
             let ty = parse_term(iter.next().unwrap());
             let term = parse_term(iter.next().unwrap());
 
-            Command::Define((convert_span(s.as_span()), s.as_str()), Some(ty), term)
+            Command::Define(public, (convert_span(s.as_span()), s.as_str()), Some(ty), term)
         },
 
         Rule::Declaration => {
+            let mut public = false;
             let mut iter = pair.into_inner();
-            let mut string_decl = iter.next().unwrap().into_inner();
+            let mut pair = iter.next().unwrap();
+            if pair.as_rule() == Rule::public {
+                public = true;
+                pair = iter.next().unwrap();
+            }
+            let mut string_decl = pair.into_inner();
             let s = string_decl.next().unwrap();
             let vars: Vec<&str> = string_decl.next().unwrap().into_inner().map(|name| name.as_str()).collect();
             let body = iter.next().map(parse_term).unwrap();
 
-            Command::Declaration((convert_span(s.as_span()), s.as_str()), None, declaration::Builder::Decl(box body, vars))
+            Command::Declaration(public, (convert_span(s.as_span()), s.as_str()), None, declaration::Builder::Decl(box body, vars))
         },
 
         Rule::DeclarationCheckType => {
+            let mut public = false;
             let mut iter = pair.into_inner();
-            let mut string_decl = iter.next().unwrap().into_inner();
+            let mut pair = iter.next().unwrap();
+            if pair.as_rule() == Rule::public {
+                public = true;
+                pair = iter.next().unwrap();
+            }
+            let mut string_decl = pair.into_inner();
             let s = string_decl.next().unwrap();
             let vars: Vec<&str> = string_decl.next().unwrap().into_inner().map(|name| name.as_str()).collect();
 
@@ -191,7 +217,7 @@ fn parse_expr(pair: Pair<Rule>) -> Command {
             let ty = declaration::Builder::Decl(box ty, vars.clone());
             let decl = declaration::Builder::Decl(box decl, vars);
 
-            Command::Declaration((convert_span(s.as_span()), s.as_str()), Some(ty), decl)
+            Command::Declaration(public, (convert_span(s.as_span()), s.as_str()), Some(ty), decl)
         },
 
         Rule::Eval => {
@@ -206,11 +232,25 @@ fn parse_expr(pair: Pair<Rule>) -> Command {
             Command::Import(files)
         },
 
-        Rule::Search => {
+        Rule::BeginModule => {
             let s = pair.into_inner().next().unwrap().as_str();
 
-            Command::Search(s)
+            Command::BeginModule(s)
         },
+
+        Rule::UseModule => {
+            let name = pair.into_inner().map(|pair| pair.as_str()).collect();
+
+            Command::UseModule(name)
+        },
+
+        Rule::Search => {
+            let name = pair.into_inner().map(|pair| pair.as_str()).collect();
+
+            Command::Search(name)
+        },
+
+        Rule::EndModule => Command::EndModule(),
 
         command => unreachable!("Unexpected command: {:?}", command),
     }
@@ -248,10 +288,10 @@ mod tests {
     use super::*;
 
     /// Error messages
-    const COMMAND_ERR: &str = "expected def var := term, def var : term := term, def decl.{ vars, ... } := term, def decl.{ vars, ... } : term := term, check term : term, check term, eval term, import path_to_file, or search var";
-    const TERM_ERR: &str = "expected variable, abstraction, dependent product, application, product, Prop, Type, or Sort";
-    const SIMPLE_TERM_ERR: &str = "expected variable, abstraction, Prop, Type, Sort, or universe argument";
-    const UNIVERSE_ERR: &str = "expected number, variable, abstraction, Prop, Type, Sort, plus, max, or imax";
+    const COMMAND_ERR: &str = "expected pub, check term : term, check term, eval term, import path_to_file, search (module::)var, mod var, end, or use (module::)var";
+    const TERM_ERR: &str = "expected abstraction, dependent product, application, product, Prop, Type, Sort, or (module::)var";
+    const SIMPLE_TERM_ERR: &str = "expected abstraction, Prop, Type, Sort, (module::)var, or universe argument";
+    const UNIVERSE_ERR: &str = "expected num, var, abstraction, Prop, Type, Sort, plus, max, imax, or (module::)var";
 
     #[test]
     fn failure_universe_level() {
@@ -269,6 +309,7 @@ mod tests {
         assert_eq!(
             line("def x : Type := Prop"),
             Ok(Define(
+                false,
                 (Location::new((1, 5), (1, 6)), "x"),
                 Some(Builder::new(Location::new((1, 9), (1, 14)), Type(box level::Builder::Const(0)))),
                 Builder::new(Location::new((1, 17), (1, 21)), Prop)
@@ -281,14 +322,18 @@ mod tests {
         assert_eq!(
             line("def x.{u} : Type u := foo.{u}"),
             Ok(Declaration(
+                false,
                 (Location::new((1, 5), (1, 6)), "x"),
                 Some(declaration::Builder::Decl(
                     box Builder::new(Location::new((1, 13), (1, 19)), Type(box level::Builder::Var("u"))),
                     vec!["u"]
                 )),
                 declaration::Builder::Decl(
-                    box Builder::new(Location::new((1, 23), (1, 30)), VarInstance("foo", vec![level::Builder::Var("u")])),
-                    vec!["u"]
+                    box Builder::new(
+                        Location::new((1, 23), (1, 30)),
+                        Decl(box declaration::InstantiatedBuilder::Var(["foo"].to_vec(), [level::Builder::Var("u")].to_vec()))
+                    ),
+                    ["u"].to_vec()
                 )
             ))
         );
@@ -318,7 +363,7 @@ mod tests {
 
     #[test]
     fn successful_search() {
-        assert_eq!(line("search variable1"), Ok(Search("variable1")));
+        assert_eq!(line("search variable1"), Ok(Search(["variable1"].to_vec())));
     }
 
     #[test]
@@ -330,7 +375,7 @@ mod tests {
     fn successful_define() {
         assert_eq!(
             line("def x := Prop"),
-            Ok(Define((Location::new((1, 5), (1, 6)), "x"), None, Builder::new(Location::new((1, 10), (1, 14)), Prop)))
+            Ok(Define(false, (Location::new((1, 5), (1, 6)), "x"), None, Builder::new(Location::new((1, 10), (1, 14)), Prop)))
         );
     }
 
@@ -339,6 +384,7 @@ mod tests {
         assert_eq!(
             line("def x.{} := Prop"),
             Ok(Declaration(
+                false,
                 (Location::new((1, 5), (1, 6)), "x"),
                 None,
                 declaration::Builder::Decl(box Builder::new(Location::new((1, 13), (1, 17)), Prop), vec![])
@@ -388,7 +434,7 @@ mod tests {
                 Abs(
                     "A",
                     Box::new(Builder::new(Location::new((1, 14), (1, 18)), Prop)),
-                    Box::new(Builder::new(Location::new((1, 22), (1, 23)), Var("A")))
+                    Box::new(Builder::new(Location::new((1, 22), (1, 23)), Var(["A"].to_vec())))
                 )
             )))
         );
@@ -464,11 +510,11 @@ mod tests {
                     Box::new(Builder::new(
                         Location::new((1, 7), (1, 12)),
                         App(
-                            Box::new(Builder::new(Location::new((1, 7), (1, 8)), Var("A"))),
-                            Box::new(Builder::new(Location::new((1, 9), (1, 10)), Var("B"))),
+                            Box::new(Builder::new(Location::new((1, 7), (1, 8)), Var(["A"].to_vec()))),
+                            Box::new(Builder::new(Location::new((1, 9), (1, 10)), Var(["B"].to_vec()))),
                         ),
                     )),
-                    Box::new(Builder::new(Location::new((1, 11), (1, 12)), Var("C"))),
+                    Box::new(Builder::new(Location::new((1, 11), (1, 12)), Var(["C"].to_vec()))),
                 ),
             )))
         );
@@ -481,11 +527,11 @@ mod tests {
                     Box::new(Builder::new(
                         Location::new((1, 8), (1, 11)),
                         App(
-                            Box::new(Builder::new(Location::new((1, 8), (1, 9)), Var("A"))),
-                            Box::new(Builder::new(Location::new((1, 10), (1, 11)), Var("B"))),
+                            Box::new(Builder::new(Location::new((1, 8), (1, 9)), Var(["A"].to_vec()))),
+                            Box::new(Builder::new(Location::new((1, 10), (1, 11)), Var(["B"].to_vec()))),
                         ),
                     )),
-                    Box::new(Builder::new(Location::new((1, 13), (1, 14)), Var("C"))),
+                    Box::new(Builder::new(Location::new((1, 13), (1, 14)), Var(["C"].to_vec()))),
                 ),
             )))
         );
@@ -495,12 +541,12 @@ mod tests {
             Ok(GetType(Builder::new(
                 Location::new((1, 7), (1, 14)),
                 App(
-                    Box::new(Builder::new(Location::new((1, 7), (1, 8)), Var("A"))),
+                    Box::new(Builder::new(Location::new((1, 7), (1, 8)), Var(["A"].to_vec()))),
                     Box::new(Builder::new(
                         Location::new((1, 10), (1, 13)),
                         App(
-                            Box::new(Builder::new(Location::new((1, 10), (1, 11)), Var("B"))),
-                            Box::new(Builder::new(Location::new((1, 12), (1, 13)), Var("C"))),
+                            Box::new(Builder::new(Location::new((1, 10), (1, 11)), Var(["B"].to_vec()))),
+                            Box::new(Builder::new(Location::new((1, 12), (1, 13)), Var(["C"].to_vec()))),
                         ),
                     )),
                 ),
@@ -516,13 +562,13 @@ mod tests {
                 Location::new((1, 7), (1, 18)),
                 Prod(
                     "_",
-                    Box::new(Builder::new(Location::new((1, 7), (1, 8)), Var("A"))),
+                    Box::new(Builder::new(Location::new((1, 7), (1, 8)), Var(["A"].to_vec()))),
                     Box::new(Builder::new(
                         Location::new((1, 7), (1, 18)),
                         Prod(
                             "_",
-                            Box::new(Builder::new(Location::new((1, 12), (1, 13)), Var("B"))),
-                            Box::new(Builder::new(Location::new((1, 17), (1, 18)), Var("C"))),
+                            Box::new(Builder::new(Location::new((1, 12), (1, 13)), Var(["B"].to_vec()))),
+                            Box::new(Builder::new(Location::new((1, 17), (1, 18)), Var(["C"].to_vec()))),
                         ),
                     )),
                 ),
@@ -535,13 +581,13 @@ mod tests {
                 Location::new((1, 7), (1, 20)),
                 Prod(
                     "_",
-                    Box::new(Builder::new(Location::new((1, 7), (1, 8)), Var("A"))),
+                    Box::new(Builder::new(Location::new((1, 7), (1, 8)), Var(["A"].to_vec()))),
                     Box::new(Builder::new(
                         Location::new((1, 13), (1, 19)),
                         Prod(
                             "_",
-                            Box::new(Builder::new(Location::new((1, 13), (1, 14)), Var("B"))),
-                            Box::new(Builder::new(Location::new((1, 18), (1, 19)), Var("C"))),
+                            Box::new(Builder::new(Location::new((1, 13), (1, 14)), Var(["B"].to_vec()))),
+                            Box::new(Builder::new(Location::new((1, 18), (1, 19)), Var(["C"].to_vec()))),
                         ),
                     )),
                 ),
@@ -558,11 +604,11 @@ mod tests {
                         Location::new((1, 8), (1, 14)),
                         Prod(
                             "_",
-                            Box::new(Builder::new(Location::new((1, 8), (1, 9)), Var("A"))),
-                            Box::new(Builder::new(Location::new((1, 13), (1, 14)), Var("B"))),
+                            Box::new(Builder::new(Location::new((1, 8), (1, 9)), Var(["A"].to_vec()))),
+                            Box::new(Builder::new(Location::new((1, 13), (1, 14)), Var(["B"].to_vec()))),
                         ),
                     )),
-                    Box::new(Builder::new(Location::new((1, 19), (1, 20)), Var("C"))),
+                    Box::new(Builder::new(Location::new((1, 19), (1, 20)), Var(["C"].to_vec()))),
                 ),
             )))
         );
@@ -582,7 +628,7 @@ mod tests {
                         Prod(
                             "y",
                             Box::new(Builder::new(Location::new((1, 24), (1, 30)), Type(box level::Builder::Const(1)))),
-                            Box::new(Builder::new(Location::new((1, 35), (1, 36)), Var("x"))),
+                            Box::new(Builder::new(Location::new((1, 35), (1, 36)), Var(["x"].to_vec()))),
                         ),
                     )),
                 ),
@@ -601,7 +647,7 @@ mod tests {
                         Prod(
                             "y",
                             Box::new(Builder::new(Location::new((1, 25), (1, 31)), Type(box level::Builder::Const(1)))),
-                            Box::new(Builder::new(Location::new((1, 36), (1, 37)), Var("x"))),
+                            Box::new(Builder::new(Location::new((1, 36), (1, 37)), Var(["x"].to_vec()))),
                         ),
                     )),
                 ),
@@ -633,7 +679,7 @@ mod tests {
                                         Abs(
                                             "z",
                                             Box::new(Builder::new(Location::new((1, 27), (1, 31)), Prop)),
-                                            Box::new(Builder::new(Location::new((1, 35), (1, 36)), Var("x"))),
+                                            Box::new(Builder::new(Location::new((1, 35), (1, 36)), Var(["x"].to_vec()))),
                                         ),
                                     )),
                                 ),
@@ -676,13 +722,13 @@ mod tests {
                         Location::new((1, 7), (1, 38)),
                         Abs(
                             "x",
-                            Box::new(Builder::new(Location::new((1, 25), (1, 26)), Var("x"))),
+                            Box::new(Builder::new(Location::new((1, 25), (1, 26)), Var(["x"].to_vec()))),
                             Box::new(Builder::new(
                                 Location::new((1, 7), (1, 38)),
                                 Abs(
                                     "x",
-                                    Box::new(Builder::new(Location::new((1, 32), (1, 33)), Var("x"))),
-                                    Box::new(Builder::new(Location::new((1, 37), (1, 38)), Var("x"))),
+                                    Box::new(Builder::new(Location::new((1, 32), (1, 33)), Var(["x"].to_vec()))),
+                                    Box::new(Builder::new(Location::new((1, 37), (1, 38)), Var(["x"].to_vec()))),
                                 ),
                             )),
                         ),
@@ -702,13 +748,13 @@ mod tests {
                         Location::new((1, 7), (1, 33)),
                         Abs(
                             "x",
-                            Box::new(Builder::new(Location::new((1, 27), (1, 28)), Var("x"))),
+                            Box::new(Builder::new(Location::new((1, 27), (1, 28)), Var(["x"].to_vec()))),
                             Box::new(Builder::new(
                                 Location::new((1, 7), (1, 33)),
                                 Abs(
                                     "x",
-                                    Box::new(Builder::new(Location::new((1, 27), (1, 28)), Var("x"))),
-                                    Box::new(Builder::new(Location::new((1, 32), (1, 33)), Var("x"))),
+                                    Box::new(Builder::new(Location::new((1, 27), (1, 28)), Var(["x"].to_vec()))),
+                                    Box::new(Builder::new(Location::new((1, 32), (1, 33)), Var(["x"].to_vec()))),
                                 ),
                             )),
                         ),
@@ -728,13 +774,13 @@ mod tests {
                         Location::new((1, 7), (1, 33)),
                         Abs(
                             "y",
-                            Box::new(Builder::new(Location::new((1, 27), (1, 28)), Var("x"))),
+                            Box::new(Builder::new(Location::new((1, 27), (1, 28)), Var(["x"].to_vec()))),
                             Box::new(Builder::new(
                                 Location::new((1, 7), (1, 33)),
                                 Abs(
                                     "z",
-                                    Box::new(Builder::new(Location::new((1, 27), (1, 28)), Var("x"))),
-                                    Box::new(Builder::new(Location::new((1, 32), (1, 33)), Var("z")))
+                                    Box::new(Builder::new(Location::new((1, 27), (1, 28)), Var(["x"].to_vec()))),
+                                    Box::new(Builder::new(Location::new((1, 32), (1, 33)), Var(["z"].to_vec())))
                                 )
                             )),
                         )
@@ -757,13 +803,13 @@ mod tests {
                         Location::new((1, 7), (1, 36)),
                         Prod(
                             "x",
-                            Box::new(Builder::new(Location::new((1, 22), (1, 23)), Var("x"))),
+                            Box::new(Builder::new(Location::new((1, 22), (1, 23)), Var(["x"].to_vec()))),
                             Box::new(Builder::new(
                                 Location::new((1, 7), (1, 36)),
                                 Prod(
                                     "x",
-                                    Box::new(Builder::new(Location::new((1, 29), (1, 30)), Var("x"))),
-                                    Box::new(Builder::new(Location::new((1, 35), (1, 36)), Var("x"))),
+                                    Box::new(Builder::new(Location::new((1, 29), (1, 30)), Var(["x"].to_vec()))),
+                                    Box::new(Builder::new(Location::new((1, 35), (1, 36)), Var(["x"].to_vec()))),
                                 ),
                             )),
                         ),
@@ -783,13 +829,13 @@ mod tests {
                         Location::new((1, 7), (1, 31)),
                         Prod(
                             "x",
-                            Box::new(Builder::new(Location::new((1, 24), (1, 25)), Var("x"))),
+                            Box::new(Builder::new(Location::new((1, 24), (1, 25)), Var(["x"].to_vec()))),
                             Box::new(Builder::new(
                                 Location::new((1, 7), (1, 31)),
                                 Prod(
                                     "x",
-                                    Box::new(Builder::new(Location::new((1, 24), (1, 25)), Var("x"))),
-                                    Box::new(Builder::new(Location::new((1, 30), (1, 31)), Var("x"))),
+                                    Box::new(Builder::new(Location::new((1, 24), (1, 25)), Var(["x"].to_vec()))),
+                                    Box::new(Builder::new(Location::new((1, 30), (1, 31)), Var(["x"].to_vec()))),
                                 ),
                             )),
                         ),
@@ -809,13 +855,13 @@ mod tests {
                         Location::new((1, 7), (1, 31)),
                         Prod(
                             "y",
-                            Box::new(Builder::new(Location::new((1, 24), (1, 25)), Var("x"))),
+                            Box::new(Builder::new(Location::new((1, 24), (1, 25)), Var(["x"].to_vec()))),
                             Box::new(Builder::new(
                                 Location::new((1, 7), (1, 31)),
                                 Prod(
                                     "z",
-                                    Box::new(Builder::new(Location::new((1, 24), (1, 25)), Var("x"))),
-                                    Box::new(Builder::new(Location::new((1, 30), (1, 31)), Var("z")))
+                                    Box::new(Builder::new(Location::new((1, 24), (1, 25)), Var(["x"].to_vec()))),
+                                    Box::new(Builder::new(Location::new((1, 30), (1, 31)), Var(["z"].to_vec())))
                                 )
                             )),
                         )
@@ -849,7 +895,7 @@ mod tests {
                                         Abs(
                                             "z",
                                             Box::new(Builder::new(Location::new((1, 35), (1, 39)), Prop)),
-                                            Box::new(Builder::new(Location::new((1, 43), (1, 44)), Var("x"))),
+                                            Box::new(Builder::new(Location::new((1, 43), (1, 44)), Var(["x"].to_vec()))),
                                         ),
                                     )),
                                 ),
@@ -897,7 +943,7 @@ mod tests {
                         Prod(
                             "y",
                             Box::new(Builder::new(Location::new((1, 29), (1, 35)), Type(box level::Builder::Const(1)))),
-                            Box::new(Builder::new(Location::new((1, 40), (1, 41)), Var("x")))
+                            Box::new(Builder::new(Location::new((1, 40), (1, 41)), Var(["x"].to_vec())))
                         )
                     ),)
                 )
@@ -912,12 +958,12 @@ mod tests {
             Ok(GetType(Builder::new(
                 Location::new((1, 10), (1, 27)),
                 App(
-                    Box::new(Builder::new(Location::new((1, 13), (1, 14)), Var("A"))),
+                    Box::new(Builder::new(Location::new((1, 13), (1, 14)), Var(["A"].to_vec()))),
                     Box::new(Builder::new(
                         Location::new((1, 21), (1, 24)),
                         App(
-                            Box::new(Builder::new(Location::new((1, 21), (1, 22)), Var("B"))),
-                            Box::new(Builder::new(Location::new((1, 23), (1, 24)), Var("C")))
+                            Box::new(Builder::new(Location::new((1, 21), (1, 22)), Var(["B"].to_vec()))),
+                            Box::new(Builder::new(Location::new((1, 23), (1, 24)), Var(["C"].to_vec())))
                         )
                     ))
                 )

@@ -14,10 +14,10 @@ use elaboration::location::Location;
 #[derive(Debug, Eq, PartialEq)]
 pub enum Command<'build> {
     /// Define the given term
-    Define((Location, &'build str), Option<Builder<'build>>, Builder<'build>),
+    Define(bool, (Location, &'build str), Option<Builder<'build>>, Builder<'build>),
 
     /// Define the given declaration
-    Declaration((Location, &'build str), Option<declaration::Builder<'build>>, declaration::Builder<'build>),
+    Declaration(bool, (Location, &'build str), Option<declaration::Builder<'build>>, declaration::Builder<'build>),
 
     /// Infer the type of a term and check that it matches the given one.
     CheckType(Builder<'build>, Builder<'build>),
@@ -32,22 +32,51 @@ pub enum Command<'build> {
     Import(Vec<(Location, &'build str)>),
 
     /// Search for a variable
-    Search(&'build str),
+    Search(Vec<&'build str>),
+
+    /// Begin a module
+    BeginModule(&'build str),
+
+    /// End a module
+    EndModule(),
+
+    /// Open a module
+    UseModule(Vec<&'build str>),
 }
 
 impl<'build> fmt::Display for Command<'build> {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use Command::{CheckType, Declaration, Define, Eval, GetType, Import, Search};
+        use Command::{BeginModule, CheckType, Declaration, Define, EndModule, Eval, GetType, Import, Search, UseModule};
 
         match *self {
-            Define((_, name), None, ref t) => write!(f, "def {name} := {t}"),
+            Define(public, (_, name), None, ref t) => {
+                if public {
+                    write!(f, "mod ")?;
+                }
+                write!(f, "def {name} := {t}")
+            },
 
-            Define((_, name), Some(ref ty), ref t) => write!(f, "def {name}: {ty} := {t}"),
+            Define(public, (_, name), Some(ref ty), ref t) => {
+                if public {
+                    write!(f, "mod ")?;
+                }
+                write!(f, "def {name}: {ty} := {t}")
+            },
 
-            Declaration((_, name), None, ref t) => write!(f, "def {name} := {t}"),
+            Declaration(public, (_, name), None, ref t) => {
+                if public {
+                    write!(f, "mod ")?;
+                }
+                write!(f, "def {name} := {t}")
+            },
 
-            Declaration((_, name), Some(ref ty), ref t) => write!(f, "def {name}: {ty} := {t}"),
+            Declaration(public, (_, name), Some(ref ty), ref t) => {
+                if public {
+                    write!(f, "mod ")?;
+                }
+                write!(f, "def {name}: {ty} := {t}")
+            },
 
             CheckType(ref t, ref ty) => write!(f, "check {t}: {ty}"),
 
@@ -60,7 +89,13 @@ impl<'build> fmt::Display for Command<'build> {
                 files.iter().try_for_each(|&(_, file)| write!(f, " {file}"))
             },
 
-            Search(name) => write!(f, "search {name}"),
+            Search(ref name) => write!(f, "search {}", name.join("::")),
+
+            BeginModule(name) => write!(f, "mod {name}"),
+
+            EndModule() => write!(f, "end"),
+
+            UseModule(ref name) => write!(f, "use {}", name.join("::")),
         }
     }
 }

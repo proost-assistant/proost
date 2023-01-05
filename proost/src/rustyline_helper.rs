@@ -11,7 +11,7 @@ use rustyline::{Cmd, ConditionalEventHandler, Context, Event, EventContext, Repe
 use rustyline_derive::{Helper, Hinter};
 
 /// Language keywords that should be highlighted
-const KEYWORDS: [&str; 5] = ["check", "def", "eval", "import", "search"];
+const KEYWORDS: [&str; 8] = ["use", "end", "mod", "check", "def", "eval", "import", "search"];
 
 /// An Helper for a `RustyLine` Editor that implements:
 /// - a standard hinter;

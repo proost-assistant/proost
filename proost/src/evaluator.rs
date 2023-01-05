@@ -198,7 +198,8 @@ impl<'arena> Evaluator {
         importing: &mut Vec<PathBuf>,
     ) -> ResultProcess<'arena, 'build> {
         match *command {
-            Command::Define((location, s), ref type_builder, ref term_builder) => {
+            // TODO
+            Command::Define(_, (location, s), ref type_builder, ref term_builder) => {
                 if arena.get_binding(s).is_some() {
                     return Err(TopLevel(Error {
                         kind: ErrorKind::BoundVariable(s.to_owned()),
@@ -220,7 +221,8 @@ impl<'arena> Evaluator {
                 Ok(None)
             },
 
-            Command::Declaration((location, s), ref type_builder, ref decl_builder) => {
+            // TODO
+            Command::Declaration(_, (location, s), ref type_builder, ref decl_builder) => {
                 if arena.get_binding_decl(s).is_some() {
                     return Err(TopLevel(Error {
                         kind: ErrorKind::BoundVariable(s.to_owned()),
@@ -263,7 +265,7 @@ impl<'arena> Evaluator {
                 Ok(Some(term.normal_form(arena)))
             },
 
-            Command::Search(s) => Ok(arena.get_binding(s)), // TODO (see #49)
+            Command::Search(ref s) => Ok(arena.get_binding(s.last().unwrap())), // TODO (see #49)
 
             Command::Import(ref files) => files
                 .iter()
@@ -273,6 +275,12 @@ impl<'arena> Evaluator {
                     self.import_file(arena, loc, &file_path, importing)
                 })
                 .map(|_| None),
+
+            Command::BeginModule(_) => Ok(None), //TODO
+
+            Command::EndModule() => Ok(None), //TODO
+
+            Command::UseModule(_) => Ok(None), //TODO
         }
     }
 }
