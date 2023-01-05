@@ -31,13 +31,13 @@ pub type Error<'arena> = utils::error::Error<Kind<'arena>>;
 pub type Result<'arena, T> = core::result::Result<T, Error<'arena>>;
 
 /// The type of results yielded by the kernel (specialised to terms).
-pub type ResultTerm<'arena> = Result<'arena, term::Term<'arena>>;
+pub(crate) type ResultTerm<'arena> = Result<'arena, term::Term<'arena>>;
 
 /// The type of results yielded by the kernel (specialised to levels).
-pub type ResultLevel<'arena> = Result<'arena, level::Level<'arena>>;
+pub(crate) type ResultLevel<'arena> = Result<'arena, level::Level<'arena>>;
 
 /// The type of results yielded by the kernel (specialised to declarations).
-pub type ResultDecl<'arena> = Result<'arena, declaration::Declaration<'arena>>;
+pub(crate) type ResultDecl<'arena> = Result<'arena, declaration::Declaration<'arena>>;
 
 /// The type of results yielded by the kernel (specialised to instantiated declarations).
-pub type ResultInstantiatedDecl<'arena> = Result<'arena, declaration::InstantiatedDeclaration<'arena>>;
+pub(crate) type ResultInstantiatedDecl<'arena> = Result<'arena, declaration::InstantiatedDeclaration<'arena>>;
