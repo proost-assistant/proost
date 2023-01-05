@@ -38,6 +38,17 @@ struct Header<'arena> {
     is_certainly_closed: OnceCell<()>,
 }
 
+impl<'arena> Header<'arena> {
+    fn new(is_closed: bool) -> Self {
+        Header {
+            head_normal_form: OnceCell::new(),
+            type_: OnceCell::new(),
+            is_relevant: OnceCell::new(),
+            is_certainly_closed: if is_closed { OnceCell::from(()) } else { OnceCell::new() },
+        }
+    }
+}
+
 /// A term.
 ///
 /// This enumeration has almost the same shape as the algebraic type of terms in the calculus of
@@ -105,24 +116,15 @@ impl<'arena> Term<'arena> {
     /// This function is the base low-level function for creating terms.
     ///
     /// It enforces the uniqueness property of terms in the arena.
-    fn hashcons(payload: Payload<'arena>, arena: &mut Arena<'arena>) -> Self {
+    fn hashcons(node: Node<'arena>, arena: &mut Arena<'arena>) -> Self {
         // There are concurrent designs here. hashcons could also take a node, which gives
         // subsequent function some liberty in providing the other objects of the header: WHNF,
         // type_ (unlikely, because not always desirable), is_certainly_closed.
-        let new_node = Node {
-            payload,
-            header: Header {
-                head_normal_form: OnceCell::new(),
-                type_: OnceCell::new(),
-                is_relevant: OnceCell::new(),
-                is_certainly_closed: OnceCell::new(),
-            },
-        };
 
-        if let Some(addr) = arena.hashcons_terms.get(&new_node) {
+        if let Some(addr) = arena.hashcons_terms.get(&node) {
             Term::new(addr)
         } else {
-            let addr = arena.alloc.alloc(new_node);
+            let addr = arena.alloc.alloc(node);
             arena.hashcons_terms.insert(addr);
             Term::new(addr)
         }
@@ -130,7 +132,9 @@ impl<'arena> Term<'arena> {
 
     /// Returns a variable term with the given index and type.
     pub(crate) fn var(index: DeBruijnIndex, type_: Term<'arena>, arena: &mut Arena<'arena>) -> Self {
-        Self::hashcons(Var(index, type_), arena)
+        let header = Header::new(false);
+        let payload = Var(index, type_);
+        Self::hashcons(Node { header, payload }, arena)
     }
 
     /// Returns an axiom term with the given axiom.
@@ -142,27 +146,37 @@ impl<'arena> Term<'arena> {
 
     /// Returns the term corresponding to a proposition.
     pub(crate) fn prop(arena: &mut Arena<'arena>) -> Self {
-        Self::hashcons(Sort(Level::zero(arena)), arena)
+        let header = Header::new(true);
+        let payload = Sort(Level::zero(arena));
+        Self::hashcons(Node { header, payload }, arena)
     }
 
     /// Returns the term associated to the sort of the given level.
     pub(crate) fn sort(level: Level<'arena>, arena: &mut Arena<'arena>) -> Self {
-        Self::hashcons(Sort(level), arena)
+        let header = Header::new(true);
+        let payload = Sort(level);
+        Self::hashcons(Node { header, payload }, arena)
     }
 
     /// Returns the term corresponding to Type(level), casting level appropriately first.
     pub(crate) fn type_usize(level: usize, arena: &mut Arena<'arena>) -> Self {
-        Self::hashcons(Sort(Level::from(level + 1, arena)), arena)
+        let header = Header::new(true);
+        let payload = Sort(Level::from(level + 1, arena));
+        Self::hashcons(Node { header, payload }, arena)
     }
 
     /// Returns the term corresponding to Sort(level), casting level appropriately first.
     pub(crate) fn sort_usize(level: usize, arena: &mut Arena<'arena>) -> Self {
-        Self::hashcons(Sort(Level::from(level, arena)), arena)
+        let header = Header::new(true);
+        let payload = Sort(Level::from(level, arena));
+        Self::hashcons(Node { header, payload }, arena)
     }
 
     /// Returns the application of one term to the other.
     pub(crate) fn app(self, arg: Self, arena: &mut Arena<'arena>) -> Self {
-        Self::hashcons(App(self, arg), arena)
+        let header = Header::new(self.is_certainly_closed() && arg.is_certainly_closed());
+        let payload = App(self, arg);
+        Self::hashcons(Node { header, payload }, arena)
     }
 
     /// Returns the lambda-abstraction of the term `body`, with an argument of type `arg_type`.
@@ -170,7 +184,9 @@ impl<'arena> Term<'arena> {
     /// Please note that no verification is done that occurrences of this variable in `body` have
     /// the same type.
     pub(crate) fn abs(self, body: Self, arena: &mut Arena<'arena>) -> Self {
-        Self::hashcons(Abs(self, body), arena)
+        let header = Header::new(body.is_certainly_closed());
+        let payload = Abs(self, body);
+        Self::hashcons(Node { header, payload }, arena)
     }
 
     /// Returns the dependant product of the term `body`, over elements of `arg_type`.
@@ -178,12 +194,16 @@ impl<'arena> Term<'arena> {
     /// Please note that no verification is done that occurrences of this variable in `body` have
     /// the same type.
     pub(crate) fn prod(self, body: Self, arena: &mut Arena<'arena>) -> Self {
-        Self::hashcons(Prod(self, body), arena)
+        let header = Header::new(body.is_certainly_closed());
+        let payload = Prod(self, body);
+        Self::hashcons(Node { header, payload }, arena)
     }
 
     /// Returns the term associated to the given instantiated declaration.
     pub(crate) fn decl(decl: InstantiatedDeclaration<'arena>, arena: &mut Arena<'arena>) -> Self {
-        Self::hashcons(Decl(decl), arena)
+        let header = Header::new(false);
+        let payload = Decl(decl);
+        Self::hashcons(Node { header, payload }, arena)
     }
 
     /// Returns the weak head normal form of the term, lazily computing the closure `f`.
@@ -215,7 +235,7 @@ impl<'arena> Term<'arena> {
     }
 
     pub(crate) fn set_as_closed(self) {
-        self.0.header.is_certainly_closed.set(()).unwrap_or_else(|_| ())
+        self.0.header.is_certainly_closed.set(()).unwrap_or(());
     }
 }
 

@@ -81,7 +81,7 @@ impl<'arena> Term<'arena> {
             _ => self,
         };
         if (shifted_term == self) && (depth == 0) && (offset > 0) {
-            self.set_as_closed()
+            self.set_as_closed();
         };
         shifted_term
     }
