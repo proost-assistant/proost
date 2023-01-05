@@ -88,6 +88,7 @@ impl Message {
     /// Returns an error if one of `write` operation failed.
     ///
     /// [specification]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#baseProtocol
+    #[no_coverage]
     pub fn write(self, writer: &mut dyn Write) -> Result<()> {
         let response = JsonRPC {
             jsonrpc: "2.0",
@@ -102,5 +103,83 @@ impl Message {
         writer.flush()?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::BufReader;
+
+    use lsp_types::*;
+
+    use super::*;
+
+    #[test]
+    fn expected_read() {
+        let data = b"Content-Length: 41\r\n\r\n{ \"method\": \"initialized\", \"params\": {} }";
+
+        assert_eq!(
+            Message::read(&mut BufReader::new(&data[..])).unwrap(),
+            Message::Notification(Notification::new::<lsp_types::notification::Initialized>(InitializedParams {}))
+        );
+    }
+
+    #[test]
+    fn expected_write() {
+        let mut output = Vec::new();
+
+        Message::Response(Response::new::<lsp_types::request::Shutdown>(1, ()))
+            .write(&mut output)
+            .unwrap();
+
+        assert_eq!(String::from_utf8(output).unwrap(), "Content-Length: 38\r\n\r\n{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":null}");
+    }
+
+    #[test]
+    fn end_of_stream() {
+        let data = b"";
+
+        assert_eq!(
+            Message::read(&mut BufReader::new(&data[..])).unwrap(),
+            Message::Notification(Notification::new::<lsp_types::notification::Exit>(()))
+        );
+    }
+
+    #[test]
+    fn missing_content_length() {
+        let data = b"{ \"method\": \"initialized\", \"params\": {} }";
+
+        assert_eq!(Message::read(&mut BufReader::new(&data[..])).unwrap_err().to_string(), "Missing Content-Length header");
+    }
+
+    #[test]
+    fn invalid_separator_header() {
+        let data = b"Content-Length: 41{ \"method\": \"initialized\", \"params\": {} }";
+
+        assert_eq!(Message::read(&mut BufReader::new(&data[..])).unwrap_err().to_string(), "Missing Content-Length header");
+    }
+
+    #[test]
+    fn invalid_too_much_content_length() {
+        let data = b"Content-Length: 100\r\n\r\n{ \"method\": \"initialized\", \"params\": {} }";
+
+        assert_eq!(Message::read(&mut BufReader::new(&data[..])).unwrap_err().to_string(), "failed to fill whole buffer");
+    }
+
+    #[test]
+    fn unexpected_content_length_value() {
+        let data = b"Content-Length: ???\r\n\r\n{ \"method\": \"initialized\", \"params\": {} }";
+
+        assert_eq!(Message::read(&mut BufReader::new(&data[..])).unwrap_err().to_string(), "invalid digit found in string");
+    }
+
+    #[test]
+    fn corrupt_payload() {
+        let data = b"Content-Length: 38\r\n\r\n{ \"method\": \"initialized\", \"params\": {";
+
+        assert_eq!(
+            Message::read(&mut BufReader::new(&data[..])).unwrap_err().to_string(),
+            "EOF while parsing an object at line 2 column 38"
+        );
     }
 }

@@ -38,3 +38,19 @@ impl Notification {
         self.method == *lsp_types::notification::Exit::METHOD
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn is_exit() {
+        let cancel = Notification::new::<lsp_types::notification::Cancel>(lsp_types::CancelParams {
+            id: lsp_types::NumberOrString::Number(0),
+        });
+        assert!(!cancel.is_exit());
+
+        let exit = Notification::new::<lsp_types::notification::Exit>(());
+        assert!(exit.is_exit());
+    }
+}
