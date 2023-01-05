@@ -1,8 +1,8 @@
 //! Tools to evaluate commands, as provided by the parser
 
 use std::collections::HashSet;
-use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
+use std::fs::read_to_string;
 
 use derive_more::Display;
 use kernel::memory::arena::Arena;
@@ -10,8 +10,8 @@ use parser::command::{parse, Command};
 use path_absolutize::Absolutize;
 use utils::location::Location;
 
-use crate::error::Error::{Kernel, TopLevel};
-use crate::error::{Result, ResultProcess};
+use crate::error::Error::{Kernel, TopLevel, Io};
+use crate::error::{Result, ResultProcess, IoError};
 
 /// Type representing parser errors.
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
