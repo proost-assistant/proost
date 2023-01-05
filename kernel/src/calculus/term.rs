@@ -195,13 +195,13 @@ impl<'arena> Term<'arena> {
         // Be aware that this function will not be automatically formatted, because of the
         // experimental status of let-chains, as well as that of if-let conditions in pattern matching.
         if let App(f, n) = *self && let App(f, motive_succ) = *f &&
-           let App(f, motive_0) = *f && let App(f, motive) = *f && let Axiom(axiom::Axiom::NatRec,lvl) = *f {
+           let App(f, motive_0) = *f && let App(f, motive) = *f && let Axiom(axiom::Axiom::NatRec, lvl) = *f {
             match *n.whnf(arena) {
-                Axiom(axiom::Axiom::Zero,_) => Some(motive_0),
-                App(f, n) if let Axiom(axiom::Axiom::Succ,_) = *f => {
+                Axiom(axiom::Axiom::Zero, _) => Some(motive_0),
+                App(f, n) if let Axiom(axiom::Axiom::Succ, _) = *f => {
                     let new_rec = Term::app(
                         Term::app(
-                            Term::app(Term::app(Term::axiom(axiom::Axiom::NatRec,lvl, arena), motive, arena), motive_0, arena),
+                            Term::app(Term::app(Term::axiom(axiom::Axiom::NatRec, lvl, arena), motive, arena), motive_0, arena),
                             motive_succ,
                             arena,
                         ),
