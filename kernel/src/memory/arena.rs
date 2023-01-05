@@ -10,7 +10,7 @@ use bumpalo::Bump;
 use super::declaration::Declaration;
 use super::level::Level;
 use super::term::Term;
-use crate::axiom::Axiom;
+use crate::memory::axiom::Axiom;
 
 /// A comprehensive memory management unit for terms.
 ///

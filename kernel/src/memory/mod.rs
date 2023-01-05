@@ -6,7 +6,7 @@
 //! levels](level::Level).
 
 pub mod arena;
+pub mod axiom;
 pub mod declaration;
 pub mod level;
 pub mod term;
-pub mod axiom;

@@ -3,8 +3,8 @@
 //! This module consists of internal utility functions used by the type checker, and correspond to
 //! usual functions over lambda-terms. These functions interact appropriately with a given arena.
 
-use crate::axiom;
 use crate::memory::arena::Arena;
+use crate::memory::axiom;
 use crate::memory::declaration::InstantiatedDeclaration;
 use crate::memory::level::Level;
 use crate::memory::term::Payload::{Abs, App, Axiom, Decl, Prod, Sort, Var};
@@ -113,7 +113,11 @@ impl<'arena> Term<'arena> {
     /// the underlying Term.
     pub(crate) fn substitute_univs(self, univs: &[Level<'arena>], arena: &mut Arena<'arena>) -> Self {
         match *self {
-            Axiom(_) => self,
+            Axiom(ax, lvl) => {
+                let lvl = lvl.iter().map(|l| l.substitute(univs, arena)).collect::<Vec<_>>();
+                let lvl = arena.store_level_slice(&lvl);
+                Term::axiom(ax, lvl, arena)
+            },
 
             Var(i, ty) => {
                 let ty = ty.substitute_univs(univs, arena);
@@ -192,13 +196,13 @@ impl<'arena> Term<'arena> {
         // Be aware that this function will not be automatically formatted, because of the
         // experimental status of let-chains, as well as that of if-let conditions in pattern matching.
         if let App(f, n) = *self && let App(f, motive_succ) = *f &&
-           let App(f, motive_0) = *f && let App(f, motive) = *f && *f == Axiom(axiom::Axiom::NatRec) {
+           let App(f, motive_0) = *f && let App(f, motive) = *f && let Axiom(axiom::Axiom::NatRec,lvl) = *f {
             match *n.whnf(arena) {
-                Axiom(axiom::Axiom::Zero) => Some(motive_0),
-                App(f, n) if let Axiom(axiom::Axiom::Succ) = *f => {
+                Axiom(axiom::Axiom::Zero,_) => Some(motive_0),
+                App(f, n) if let Axiom(axiom::Axiom::Succ,_) = *f => {
                     let new_rec = Term::app(
                         Term::app(
-                            Term::app(Term::app(Term::axiom(axiom::Axiom::NatRec, arena), motive, arena), motive_0, arena),
+                            Term::app(Term::app(Term::axiom(axiom::Axiom::NatRec,lvl, arena), motive, arena), motive_0, arena),
                             motive_succ,
                             arena,
                         ),

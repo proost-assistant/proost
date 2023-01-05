@@ -122,7 +122,7 @@ impl<'arena> Term<'arena> {
         self.get_type_or_try_init(|| match *self {
             Sort(lvl) => Ok(Term::sort(lvl.succ(arena), arena)),
             Var(_, type_) => Ok(type_),
-            Axiom(ax) => Ok(ax.get_type(arena)),
+            Axiom(ax, lvl) => Ok(ax.get_type(arena).substitute_univs(lvl, arena)),
 
             Prod(t, u) => {
                 let univ_t = t.infer(arena).trace_err(Trace::Left)?;

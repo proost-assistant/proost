@@ -10,9 +10,9 @@ use derive_more::{Add, Display, From, Into, Sub};
 
 use super::declaration::InstantiatedDeclaration;
 use super::level::Level;
-use crate::axiom;
 use crate::error::ResultTerm;
 use crate::memory::arena::Arena;
+use crate::memory::axiom;
 
 pub mod builder;
 
@@ -65,7 +65,7 @@ pub enum Payload<'arena> {
     Decl(InstantiatedDeclaration<'arena>),
 
     /// An axiom
-    Axiom(axiom::Axiom),
+    Axiom(axiom::Axiom, &'arena [Level<'arena>]),
 }
 
 impl<'arena> fmt::Display for Payload<'arena> {
@@ -85,7 +85,7 @@ impl<'arena> fmt::Display for Payload<'arena> {
             Abs(argtype, body) => write!(f, "\u{003BB} {argtype} \u{02192} {body}"),
             Prod(argtype, body) => write!(f, "\u{003A0} {argtype} \u{02192} {body}"),
             Decl(decl) => write!(f, "{decl}"),
-            Axiom(s) => write!(f, "{s}"),
+            Axiom(s, _) => write!(f, "{s}"),
         }
     }
 }
@@ -130,8 +130,8 @@ impl<'arena> Term<'arena> {
     }
 
     /// Returns an axiom term with the given axiom
-    pub(crate) fn axiom(axiom: axiom::Axiom, arena: &mut Arena<'arena>) -> Self {
-        Self::hashcons(Axiom(axiom), arena)
+    pub(crate) fn axiom(axiom: axiom::Axiom, lvl: &'arena [Level<'arena>], arena: &mut Arena<'arena>) -> Self {
+        Self::hashcons(Axiom(axiom, lvl), arena)
     }
 
     /// Returns the term corresponding to a proposition
