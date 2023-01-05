@@ -190,9 +190,9 @@ impl<'arena> Level<'arena> {
                     u
                 } else {
                     match (&*u, &*v) {
-                        (Zero, _) => v,
-                        (_, Zero) => u,
-                        (Succ(uu), Succ(vv)) => Level::max(*uu, *vv, arena).succ(arena),
+                        (&Zero, _) => v,
+                        (_, &Zero) => u,
+                        (&Succ(uu), &Succ(vv)) => Level::max(uu, vv, arena).succ(arena),
                         _ => self,
                     }
                 }
