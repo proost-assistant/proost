@@ -21,3 +21,14 @@ pub struct Request {
     #[serde(skip_serializing_if = "Value::is_null")]
     pub params: Value,
 }
+
+impl Request {
+    /// Creates a new [`Request`].
+    pub fn new<R: lsp_types::request::Request>(id: u64, params: R::Params) -> Self {
+        Self {
+            id,
+            method: R::METHOD.to_owned(),
+            params: serde_json::to_value(params).unwrap_or_else(|_| unreachable!("lsp_types crate is assumed to be correct")),
+        }
+    }
+}

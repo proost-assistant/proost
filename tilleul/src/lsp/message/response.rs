@@ -23,6 +23,17 @@ pub struct Response {
     pub error: Option<Error>,
 }
 
+impl Response {
+    /// Creates a new [`Response`].
+    pub fn new<R: lsp_types::request::Request>(id: u64, result: R::Result) -> Self {
+        Self {
+            id,
+            result: Some(serde_json::to_value(result).unwrap_or_else(|_| unreachable!("lsp_types crate is assumed to be correct"))),
+            error: None,
+        }
+    }
+}
+
 /// [Response error] message.
 ///
 /// [Response error]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#responseError

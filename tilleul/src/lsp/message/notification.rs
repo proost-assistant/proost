@@ -2,7 +2,6 @@
 //!
 //! [notification]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#notificationMessage
 
-use lsp_types::notification;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -22,7 +21,7 @@ pub struct Notification {
 
 impl Notification {
     /// Creates a new [`Notification`].
-    pub fn new<N: notification::Notification>(params: N::Params) -> Self {
+    pub fn new<N: lsp_types::notification::Notification>(params: N::Params) -> Self {
         Self {
             method: N::METHOD.to_owned(),
             params: serde_json::to_value(params).unwrap_or_else(|_| unreachable!("lsp_types crate is assumed to be correct")),
@@ -34,8 +33,8 @@ impl Notification {
     /// [`exit`]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#exit
     #[must_use]
     pub fn is_exit(&self) -> bool {
-        use notification::Notification;
+        use lsp_types::notification::Notification;
 
-        self.method == *notification::Exit::METHOD
+        self.method == *lsp_types::notification::Exit::METHOD
     }
 }
