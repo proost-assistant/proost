@@ -1,0 +1,38 @@
+// Basic logical connectives: and, or, not, iff
+
+// === And ===
+def And: Prop -> Prop -> Prop := fun A B: Prop => (C: Prop) -> (A -> B -> C) -> C
+
+def and_intro: (A B: Prop) -> A -> B -> And A B :=
+ fun A B: Prop, a: A, b: B, C: Prop, f: A -> B -> C => f a b
+
+def and_elim_l: (A B: Prop) -> And A B -> A :=
+  fun A B: Prop, f: And A B => f A (fun a: A, b: B => a)
+
+def and_elim_r: (A B: Prop) -> And A B -> B :=
+  fun A B: Prop, f: And A B => f B (fun a: A, b: B => b)
+
+def and_comm: (A B: Prop) -> (And A B) -> (And B A) :=
+  fun A B: Prop, f: (And A B), C: Prop, bac: (B -> A -> C) => f C (fun a:A, b:B => bac b a)
+
+// === Or ===
+def Or: Prop -> Prop -> Prop := fun A B : Prop => (C: Prop) -> (A -> C) -> (B -> C) -> C
+
+def or_intro_l : (A B : Prop) -> A -> Or A B :=
+  fun A B: Prop, a: A, C: Prop, fAC: A -> C, fBC: B -> C => fAC a
+
+def or_intro_r : (A B : Prop) -> B -> Or A B :=
+  fun A B: Prop, b: B, C: Prop, fAC: A -> C, fBC: B -> C => fBC b
+
+def or_comm: (A B : Prop) -> (Or A B) -> Or B A :=
+  (fun A B: Prop, orAB: (Or A B), C: Prop, fBC: B -> C, fAC: A -> C =>
+    orAB C fAC fBC)
+
+// === Not ===
+def Not: Prop -> Prop := fun P: Prop => P -> False
+
+// === Iff ===
+def Iff: Prop -> Prop -> Prop := fun P Q: Prop => And (P -> Q) (Q -> P)
+
+def iff_intro: (P Q: Prop) -> (P -> Q) -> (Q -> P) -> Iff P Q :=
+  fun P Q: Prop, PQ: P -> Q, QP: Q -> P => and_intro (P -> Q) (Q -> P) PQ QP

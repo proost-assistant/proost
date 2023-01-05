@@ -1,0 +1,7 @@
+// Booleans
+
+def False: Prop := (P: Prop) -> P
+
+def True: Prop := False -> False
+
+def true_is_true: True := fun F: False => F
