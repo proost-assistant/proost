@@ -30,7 +30,6 @@ pub enum Axiom {
 
     /// The successor function in the natural numbers
     Succ,
-    // TODO add new axioms here
 }
 
 use Axiom::{False, FalseRec, Nat, NatRec, Succ, Zero};
