@@ -86,7 +86,7 @@ pub enum Payload<'arena> {
 impl<'arena> fmt::Display for Term<'arena> {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.prettyprint(f, 0, 0, false)
+        self.pretty_print(f, 0, 0, false)
     }
 }
 
@@ -99,12 +99,13 @@ pub struct PrettyTerm<'arena>(pub Term<'arena>);
 impl<'arena> fmt::Display for PrettyTerm<'arena> {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.prettyprint(f, 0, 0, true)
+        self.0.pretty_print(f, 0, 0, true)
     }
 }
 
 impl<'arena> Term<'arena> {
-    /// This function generates the prettyprint of a term.
+    /// This function generates the pretty print of a term.
+    ///
     /// `depth` parameter indicates the number of existing variables (number of Abs/Prop from the root of the term to the
     /// considered subterm).
     /// `distance` parameter corresponds to the number of Abs/Prop between the environement where the variables live and these
@@ -113,7 +114,7 @@ impl<'arena> Term<'arena> {
     /// transformed in named variables instead.
     // TODO #45 Once is_certainly_closed is implemented, use it to supersede is_root_closed when true.
     #[no_coverage]
-    fn prettyprint(self, f: &mut fmt::Formatter, depth: usize, distance: usize, is_root_closed: bool) -> fmt::Result {
+    fn pretty_print(self, f: &mut fmt::Formatter, depth: usize, distance: usize, is_root_closed: bool) -> fmt::Result {
         match *self {
             Var(index, _) => {
                 if is_root_closed {
@@ -132,29 +133,29 @@ impl<'arena> Term<'arena> {
             },
             App(fun, arg) => {
                 write!(f, "(")?;
-                fun.prettyprint(f, depth, distance, is_root_closed)?;
+                fun.pretty_print(f, depth, distance, is_root_closed)?;
                 write!(f, ") ")?;
-                arg.prettyprint(f, depth, distance, is_root_closed)
+                arg.pretty_print(f, depth, distance, is_root_closed)
             },
             Abs(argtype, body) => {
                 write!(f, "\u{003BB} ")?;
                 if is_root_closed {
                     write!(f, "x{depth} : ")?;
                 };
-                argtype.prettyprint(f, depth + 1, distance + 1, is_root_closed)?;
+                argtype.pretty_print(f, depth + 1, distance + 1, is_root_closed)?;
                 write!(f, " => ")?;
-                body.prettyprint(f, depth + 1, distance, is_root_closed)
+                body.pretty_print(f, depth + 1, distance, is_root_closed)
             },
             Prod(argtype, body) => {
                 if is_root_closed {
                     write!(f, "(x{depth} : ")?;
                 };
-                argtype.prettyprint(f, depth + 1, distance + 1, is_root_closed)?;
+                argtype.pretty_print(f, depth + 1, distance + 1, is_root_closed)?;
                 if is_root_closed {
                     write!(f, ")")?;
                 };
                 write!(f, " -> ")?;
-                body.prettyprint(f, depth + 1, distance, is_root_closed)
+                body.pretty_print(f, depth + 1, distance, is_root_closed)
             },
             Decl(decl) => write!(f, "{decl}"),
             Axiom(s, _) => write!(f, "{s}"),
