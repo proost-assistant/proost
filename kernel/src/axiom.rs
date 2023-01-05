@@ -40,7 +40,7 @@ impl<'arena> Axiom {
     /// Because of memoisation, this is typically performed once per axiom.
     #[inline]
     #[no_coverage]
-    pub fn get_type(&self, arena: &mut Arena<'arena>) -> Term<'arena> {
+    pub fn get_type(self, arena: &mut Arena<'arena>) -> Term<'arena> {
         match self {
             False => Term::sort_usize(0, arena),
             FalseRec => {
