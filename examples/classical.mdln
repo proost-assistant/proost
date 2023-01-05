@@ -1,0 +1,51 @@
+// This file proves some lemmas on classical logic.
+
+def False: Prop := (P: Prop) -> P
+def True: Prop := False -> False
+
+def Or: Prop -> Prop -> Prop := fun A B : Prop => (C: Prop) -> (A -> C) -> (B -> C) -> C
+
+def or_intro_l : (A B : Prop) -> A -> Or A B :=
+  fun A B: Prop, a: A, C: Prop, fAC: A -> C, fBC: B -> C => fAC a
+
+def or_intro_r : (A B : Prop) -> B -> Or A B := fun A B: Prop, b: B, C: Prop, fAC: A -> C, fBC: B -> C => fBC b
+
+def or_swap: (A B : Prop) -> (Or A B) -> Or B A :=
+  (fun A B: Prop, orAB: (Or A B), C: Prop, fBC: B -> C, fAC: A -> C =>
+    orAB C fAC fBC)
+
+def Not: Prop -> Prop := fun P: Prop => P -> False
+
+// The law of excluded middle.  Note, this is a definition, not an
+// assumption!  If you want to prove a theorem in classical logic,
+// formulate it as "excluded_middle -> <what you want>".
+
+def excluded_middle: Prop := (P: Prop) -> Or P (Not P)
+
+// The following proves that the following axioms are equivalent:
+// excluded_middle:              (1) ∀P, P ∨ ¬P
+// double_negation_elimination:  (2) ∀P, ¬¬P → P
+// implies_as_or:                (3) ∀P,Q, (P → Q) → (¬P ∨ Q)
+// Proof by (1) => (2), (2) => (3), (3) => (1)
+
+def double_negation_elimination: Prop := (P : Prop) -> ((Not (Not P)) -> P)
+
+def implication_as_or: Prop := (P Q : Prop) -> (P -> Q) -> Or (Not P) Q
+
+def excluded_middle_implies_double_negation_elimination: (excluded_middle -> double_negation_elimination) := fun excl : excluded_middle, P: Prop, notnotP : (Not (Not P)) => (excl P) P (fun p: P => p) (fun notP: (Not P) => ((notnotP notP) P))
+
+def double_negation_elimination_implies_implication_as_or: (double_negation_elimination -> implication_as_or) :=
+(fun elim: double_negation_elimination, P Q: Prop, PtoQ : (P -> Q) =>
+  elim (Or (Not P) Q) // Prove ~P \/ Q by ~~(~P \/ Q)
+    (fun H: Not (Or (Not P) Q) => // Assume ~(~P \/ Q) and prove False
+      (fun p : P, qf: Not Q => qf (PtoQ p)) // From lemmas P and ~Q, prove False by P, P -> Q, Q -> False
+      (elim P // Prove P by ~~P
+        (fun HP: (Not P) => // Assume ~P, prove False
+          H (or_intro_l (Not P) Q HP))) // Deduce False from ~(~P \/ Q)
+      (fun q : Q => // Assume Q, prove False.
+        H (or_intro_r (Not P) Q q)))) // Deduce False from ~(~P \/ Q)
+
+def implication_as_or_implies_excluded_middle: implication_as_or -> excluded_middle :=
+(fun imp2or : implication_as_or, P: Prop => // Let's prove ~P \/ P
+  or_swap (Not P) P // Trivially follows from P \/ ~P
+    (imp2or P P (fun p: P => p))) // P -> P, therefore ~P \/ P
