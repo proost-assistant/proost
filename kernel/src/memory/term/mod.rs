@@ -134,8 +134,9 @@ impl<'arena> Term<'arena> {
             App(fun, arg) => {
                 write!(f, "(")?;
                 fun.pretty_print(f, depth, distance, is_root_closed)?;
-                write!(f, ") ")?;
-                arg.pretty_print(f, depth, distance, is_root_closed)
+                write!(f, ") (")?;
+                arg.pretty_print(f, depth, distance, is_root_closed)?;
+                write!(f, ")")
             },
             Abs(argtype, body) => {
                 write!(f, "\u{003BB} ")?;
@@ -349,10 +350,10 @@ mod tests {
                 ),
             ));
 
-            assert_eq!(term.to_string(), "λ Sort max (u0) (u1) + 1 => λ Type => λ Type 1 => 1 -> (1) 2");
+            assert_eq!(term.to_string(), "λ Sort max (u0) (u1) + 1 => λ Type => λ Type 1 => 1 -> (1) (2)");
             assert_eq!(
                 PrettyTerm(term).to_string(),
-                "λ x0 : Sort max (u0) (u1) + 1 => λ x1 : Type => λ x2 : Type 1 => (x3 : x2) -> (x3) x2"
+                "λ x0 : Sort max (u0) (u1) + 1 => λ x1 : Type => λ x2 : Type 1 => (x3 : x2) -> (x3) (x2)"
             );
         });
     }
