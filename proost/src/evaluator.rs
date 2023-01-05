@@ -2,7 +2,7 @@
 
 use std::collections::HashSet;
 use std::fs::read_to_string;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use derive_more::Display;
 use kernel::memory::arena::Arena;
@@ -35,7 +35,7 @@ pub enum ErrorKind {
 
     /// The given file could not be imported
     #[display(fmt = "errors occurred while reading file")]
-    FileError,
+    FileError(String),
 
     /// These files have a cyclic dependency
     #[display(fmt = "cyclic dependency:\n{_0}")]
@@ -103,14 +103,14 @@ impl<'arena> Evaluator {
         &mut self,
         arena: &mut Arena<'arena>,
         location: Location,
-        file_path: PathBuf,
+        file_path: &PathBuf,
         importing: &mut Vec<PathBuf>,
     ) -> Result<'arena, 'build, ()> {
-        if self.imported.contains(&file_path) {
+        if self.imported.contains(file_path) {
             return Ok(());
         }
 
-        if let Some(i) = importing.iter().position(|path| path == &file_path) {
+        if let Some(i) = importing.iter().position(|path| path == file_path) {
             return Err(TopLevel(Error {
                 kind: ErrorKind::CyclicDependencies(
                     importing[i..]
@@ -128,7 +128,7 @@ impl<'arena> Evaluator {
         // read it
         let file = read_to_string(file_path)?;
         // try to import it
-        let result = self.process_file(arena, location, &file, importing);
+        let result = self.process_file(arena, location, &file, file_path, importing);
         // remove it from the list of files to import
         let file_path = importing.pop().unwrap_or_else(|| unreachable!());
 
@@ -160,6 +160,7 @@ impl<'arena> Evaluator {
         arena: &mut Arena<'arena>,
         location: Location,
         file: &'build str,
+        file_path: &Path,
         importing: &mut Vec<PathBuf>,
     ) -> Result<'arena, 'static, Option<Term<'arena>>> {
         let commands = parse::file(file)?;
@@ -176,7 +177,7 @@ impl<'arena> Evaluator {
                     crate::display(Err(err), false);
 
                     Error {
-                        kind: ErrorKind::FileError,
+                        kind: ErrorKind::FileError(file_path.to_string_lossy().to_string()),
                         location,
                     }
                     .into()
@@ -275,7 +276,7 @@ impl<'arena> Evaluator {
                 .try_for_each(|&(loc, relative_path)| {
                     let file_path = self.create_path(loc, relative_path.to_owned(), importing)?;
 
-                    self.import_file(arena, loc, file_path, importing)
+                    self.import_file(arena, loc, &file_path, importing)
                 })
                 .map(|_| None),
         }

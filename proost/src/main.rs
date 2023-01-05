@@ -164,7 +164,10 @@ pub fn display<'arena>(res: Result<'arena, '_, Option<Term<'arena>>>, toggle_loc
                 Error::Kernel(builder, ref err) => Some(builder.apply_trace(&err.trace)),
                 Error::Parser(ref err) => Some(err.location),
 
-                Error::TopLevel(evaluator::Error { kind: evaluator::ErrorKind::FileError, .. }) => None,
+                Error::TopLevel(evaluator::Error {
+                    kind: evaluator::ErrorKind::FileError(_),
+                    ..
+                }) => None,
                 Error::TopLevel(ref err) => Some(err.location),
 
                 _ => None,
