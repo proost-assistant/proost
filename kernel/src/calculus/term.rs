@@ -462,6 +462,7 @@ mod tests {
 
     #[test]
     fn subst_univs() {
+        use crate::axiom::Axiom;
         use crate::memory::level::builder::raw::*;
 
         use_arena(|arena| {
@@ -494,6 +495,9 @@ mod tests {
             ));
 
             assert_eq!(term.substitute_univs(&[arena.build_level_raw(zero()), arena.build_level_raw(zero())], arena), term);
+
+            let nat = Term::axiom(Axiom::Nat, &[], arena);
+            assert_eq!(nat.substitute_univs(&[arena.build_level_raw(zero()), arena.build_level_raw(zero())], arena), nat);
         });
     }
 
@@ -521,9 +525,10 @@ mod tests {
             );
             let zero_to_zero = Term::app(to_zero, zero, arena);
             let one_to_zero = Term::app(to_zero, one, arena);
-
+            let nat_to_zero = Term::app(to_zero, nat, arena);
             assert_eq!(zero_to_zero.normal_form(arena), zero);
             assert_eq!(one_to_zero.normal_form(arena), zero);
+            assert_eq!(nat_to_zero.whnf(arena), nat_to_zero);
         });
     }
 }
