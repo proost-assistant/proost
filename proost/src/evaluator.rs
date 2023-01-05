@@ -13,6 +13,7 @@ use path_absolutize::Absolutize;
 
 use crate::error::Error::{Kernel, TopLevel};
 use crate::error::{Result, ResultProcess};
+use crate::module_tree::ModuleTree;
 
 /// Type representing parser errors.
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
@@ -54,11 +55,14 @@ pub struct Evaluator {
     /// The current path
     path: PathBuf,
 
+    /// Whether the evaluator should be verbose in designated contexts
+    verbose: bool,
+    
     /// The set of all imported paths
     imported: HashSet<PathBuf>,
 
-    /// Whether the evaluator should be verbose in designated contexts
-    verbose: bool,
+    /// The tree containing the module inclusion information
+    modtree: ModuleTree,
 }
 
 impl<'arena> Evaluator {
@@ -66,8 +70,9 @@ impl<'arena> Evaluator {
     pub fn new(path: PathBuf, verbose: bool) -> Self {
         Self {
             path,
-            imported: HashSet::new(),
             verbose,
+            imported: HashSet::new(),
+            modtree: ModuleTree::new(),
         }
     }
 
@@ -276,11 +281,17 @@ impl<'arena> Evaluator {
                 })
                 .map(|_| None),
 
-            Command::BeginModule(_) => Ok(None), //TODO
+            Command::BeginModule(ref s) => {
+                self.modtree.begin_module(s);
+                Ok(None)
+            },
 
-            Command::EndModule() => Ok(None), //TODO
+            Command::EndModule() => {
+                self.modtree.end_module()?;
+                Ok(None)
+            },
 
-            Command::UseModule(_) => Ok(None), //TODO
+            Command::UseModule(ref name) => Ok(None), //TODO
         }
     }
 }

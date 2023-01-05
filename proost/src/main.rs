@@ -4,7 +4,7 @@
 //! instructions.
 
 #![doc(html_logo_url = "https://gitlab.crans.org/loutr/proost/-/raw/main/docs/media/logo.png")]
-#![feature(let_chains)]
+#![feature(let_chains, exact_size_is_empty)]
 #![deny(
     clippy::complexity,
     clippy::correctness,
@@ -58,6 +58,7 @@ extern crate alloc;
 
 mod error;
 mod evaluator;
+mod module_tree;
 mod rustyline_helper;
 
 use std::cmp::max;

@@ -5,7 +5,7 @@ use elaboration::location::Location;
 use kernel::memory::term::Term;
 use kernel::trace::Traceable;
 
-use crate::evaluator;
+use crate::{evaluator, module_tree};
 
 /// The type of errors encountered by Proost during an interactive session.
 ///
@@ -28,6 +28,9 @@ pub enum Error<'arena, 'build> {
 
     /// A RustyLine error (see [`rustyline::error::ReadlineError`]).
     RustyLine(rustyline::error::ReadlineError),
+
+    /// An error raised by the [`module`].
+    ModuleTree(module_tree::Error),
 }
 
 impl core::fmt::Debug for Error<'_, '_> {
