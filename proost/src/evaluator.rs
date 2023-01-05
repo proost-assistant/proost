@@ -33,8 +33,13 @@ pub enum ErrorKind {
     FileNotFound(String),
 
     /// The given file could not be imported
+<<<<<<< HEAD
     #[display(fmt = "errors occurred while reading file {_0}")]
     FileError(String),
+=======
+    #[display(fmt = "errors occurred while reading file")]
+    FileError,
+>>>>>>> ff62aef (rebase:Resolve "Add axioms" ✨️)
 
     /// These files have a cyclic dependency
     #[display(fmt = "cyclic dependency:\n{_0}")]
@@ -190,7 +195,7 @@ impl<'arena> Evaluator {
     ///
     /// # Errors
     /// Transmits any error from the kernel. Also signals any variable being defined twice.
-    fn process<'build>(
+    pub(crate) fn process<'build>(
         &mut self,
         arena: &mut Arena<'arena>,
         command: &'build Command<'build>,

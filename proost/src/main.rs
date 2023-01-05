@@ -67,10 +67,11 @@ use atty::Stream;
 use clap::Parser;
 use colored::Colorize;
 use evaluator::Evaluator;
-use parser::command;
+use parser::command::{self, Command};
 use rustyline::error::ReadlineError;
 use rustyline::{Cmd, Config, Editor, EventHandler, KeyCode, KeyEvent, Modifiers};
 use rustyline_helper::{RustyLineHelper, TabEventHandler};
+use utils::location::Location;
 
 use crate::error::{Error, Result, ResultProcess};
 
@@ -97,13 +98,24 @@ const NAME: &str = env!("CARGO_PKG_NAME");
 fn main() -> Result<'static, 'static, ()> {
     let args = Args::parse();
 
+    let current_path = current_dir()?;
+    let mut evaluator = Evaluator::new(current_path, args.verbose);
+
     // check if files are provided as command-line arguments
     if !args.files.is_empty() {
-        return args
-            .files
-            .iter()
-            .try_for_each(|path| fs::read_to_string(path).map(|_| ()))
-            .map_err(Error::from);
+        return kernel::memory::arena::use_arena(|arena| {
+            let dummy_loc = Location::new((1, 1), (1, 1));
+            let files = args.files.iter().map(|f| (dummy_loc, f.as_str())).collect();
+            evaluator
+                .process(arena, &Command::Import(files), &mut vec![])
+                .map(|_| ())
+                .err()
+                .and_then(|err| {
+                    display(Err(err), true);
+                    None::<()>
+                });
+            Ok(())
+        });
     }
 
     // check if we are in a terminal
@@ -119,9 +131,6 @@ fn main() -> Result<'static, 'static, ()> {
     rl.bind_sequence(KeyEvent(KeyCode::Enter, Modifiers::ALT), EventHandler::Simple(Cmd::Newline));
 
     kernel::memory::arena::use_arena_with_axioms(|arena| {
-        let current_path = current_dir()?;
-        let mut evaluator = Evaluator::new(current_path, args.verbose);
-
         println!("Welcome to {NAME} {VERSION}");
 
         loop {
