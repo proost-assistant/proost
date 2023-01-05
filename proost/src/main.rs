@@ -69,6 +69,7 @@ use clap::Parser;
 use colored::Colorize;
 use evaluator::Evaluator;
 use kernel::memory::term::Term;
+use parser::command;
 use rustyline::error::ReadlineError;
 use rustyline::{Cmd, Config, Editor, EventHandler, KeyCode, KeyEvent, Modifiers};
 use rustyline_helper::{RustyLineHelper, TabEventHandler};
@@ -131,7 +132,10 @@ fn main() -> Result<'static, 'static, ()> {
                 Ok(line) if is_command(&line) => {
                     rl.add_history_entry(line.as_str());
 
-                    display(evaluator.process_line(arena, line.as_str()));
+                    match command::parse::line(line.as_str()).map_err(Error::Parser) {
+                        Ok(command) => display(evaluator.process_line(arena, &command), true),
+                        Err(err) => display(Err(err), true),
+                    }
                 },
                 Ok(_) => (),
                 Err(ReadlineError::Interrupted) => {},
@@ -145,7 +149,7 @@ fn main() -> Result<'static, 'static, ()> {
 }
 
 /// Toplevel function to display a result, as yielded by the toplevel processing of a command
-pub fn display<'arena>(res: Result<'arena, '_, Option<Term<'arena>>>) {
+pub fn display<'arena>(res: Result<'arena, '_, Option<Term<'arena>>>, toggle_location: bool) {
     match res {
         Ok(None) => println!("{}", "\u{2713}".green()),
 
@@ -157,14 +161,16 @@ pub fn display<'arena>(res: Result<'arena, '_, Option<Term<'arena>>>) {
 
         Err(err) => {
             let location = match err {
-                Error::Kernel(ref builder, ref err) => Some(builder.apply_trace(&err.trace)),
+                Error::Kernel(builder, ref err) => Some(builder.apply_trace(&err.trace)),
                 Error::Parser(ref err) => Some(err.location),
+
+                Error::TopLevel(evaluator::Error { kind: evaluator::ErrorKind::FileError, .. }) => None,
                 Error::TopLevel(ref err) => Some(err.location),
 
                 _ => None,
             };
 
-            if let Some(loc) = location {
+            if toggle_location && let Some(loc) = location {
                 let indicator = if loc.start.column == loc.end.column {
                     format!("{:0w1$}^", "", w1 = loc.start.column - 1)
                 } else {

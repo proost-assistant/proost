@@ -128,20 +128,11 @@ impl<'arena> Evaluator {
         // read it
         let file = read_to_string(file_path)?;
         // try to import it
-        let result = self.process_file(arena, &file, importing);
+        let result = self.process_file(arena, location, &file, importing);
         // remove it from the list of files to import
         let file_path = importing.pop().unwrap_or_else(|| unreachable!());
 
-        // if importation failed, display the associated errors now (the imported file is discarded
-        // right after, and errors may depend on it), and return an error about the command itself.
-        result.map_err(|err| {
-            crate::display(Err(err));
-
-            Error {
-                kind: ErrorKind::FileError,
-                location,
-            }
-        })?;
+        result?;
 
         self.imported.insert(file_path);
 
@@ -155,11 +146,9 @@ impl<'arena> Evaluator {
     pub fn process_line<'build>(
         &mut self,
         arena: &mut Arena<'arena>,
-        line: &'build str,
+        command: &'build Command<'build>,
     ) -> Result<'arena, 'build, Option<Term<'arena>>> {
-        let command = parse::line(line)?;
-
-        self.process(arena, &command, &mut vec![])
+        self.process(arena, command, &mut vec![])
     }
 
     /// Processes a given file.
@@ -169,9 +158,10 @@ impl<'arena> Evaluator {
     pub fn process_file<'build>(
         &mut self,
         arena: &mut Arena<'arena>,
+        location: Location,
         file: &'build str,
         importing: &mut Vec<PathBuf>,
-    ) -> Result<'arena, 'build, Option<Term<'arena>>> {
+    ) -> Result<'arena, 'static, Option<Term<'arena>>> {
         let commands = parse::file(file)?;
 
         commands
@@ -180,7 +170,17 @@ impl<'arena> Evaluator {
                 if self.verbose {
                     println!("{command}");
                 }
-                self.process(arena, command, importing).map(|_| ())
+                self.process(arena, command, importing).map(|_| ()).map_err(|err| {
+                    // if importation failed, display the associated errors now (the imported file is discarded
+                    // right after, and errors may depend on it), and return an error about the command itself.
+                    crate::display(Err(err), false);
+
+                    Error {
+                        kind: ErrorKind::FileError,
+                        location,
+                    }
+                    .into()
+                })
             })
             .map(|_| None)
     }
@@ -193,7 +193,7 @@ impl<'arena> Evaluator {
     fn process<'build>(
         &mut self,
         arena: &mut Arena<'arena>,
-        command: &Command<'build>,
+        command: &'build Command<'build>,
         importing: &mut Vec<PathBuf>,
     ) -> Result<'arena, 'build, Option<Term<'arena>>> {
         match *command {
@@ -205,16 +205,16 @@ impl<'arena> Evaluator {
                     }));
                 }
 
-                let term = term_builder.realise(arena).map_err(|err| Kernel(Box::new(term_builder.clone()), err))?;
+                let term = term_builder.realise(arena).map_err(|err| Kernel(term_builder, err))?;
 
                 match *type_builder {
                     None => {
-                        term.infer(arena).map_err(|err| Kernel(Box::new(term_builder.clone()), err))?;
+                        term.infer(arena).map_err(|err| Kernel(term_builder, err))?;
                     },
                     Some(ref type_builder) => {
-                        let type_ = type_builder.realise(arena).map_err(|err| Kernel(Box::new(type_builder.clone()), err))?;
+                        let type_ = type_builder.realise(arena).map_err(|err| Kernel(type_builder, err))?;
 
-                        term.check(type_, arena).map_err(|err| Kernel(Box::new(term_builder.clone()), err))?;
+                        term.check(type_, arena).map_err(|err| Kernel(term_builder, err))?;
                     },
                 }
 
@@ -230,16 +230,16 @@ impl<'arena> Evaluator {
                     }));
                 }
 
-                let decl = decl_builder.realise(arena).map_err(|err| Kernel(Box::new(decl_builder.clone()), err))?;
+                let decl = decl_builder.realise(arena).map_err(|err| Kernel(decl_builder, err))?;
 
                 match *type_builder {
                     None => {
-                        decl.infer(arena).map_err(|err| Kernel(Box::new(decl_builder.clone()), err))?;
+                        decl.infer(arena).map_err(|err| Kernel(decl_builder, err))?;
                     },
                     Some(ref type_builder) => {
-                        let type_ = type_builder.realise(arena).map_err(|err| Kernel(Box::new(type_builder.clone()), err))?;
+                        let type_ = type_builder.realise(arena).map_err(|err| Kernel(type_builder, err))?;
 
-                        decl.check(type_, arena).map_err(|err| Kernel(Box::new(decl_builder.clone()), err))?;
+                        decl.check(type_, arena).map_err(|err| Kernel(decl_builder, err))?;
                     },
                 }
 
@@ -248,22 +248,22 @@ impl<'arena> Evaluator {
             },
 
             Command::CheckType(ref term_builder, ref type_builder) => {
-                let term = term_builder.realise(arena).map_err(|err| Kernel(Box::new(term_builder.clone()), err))?;
-                let type_ = type_builder.realise(arena).map_err(|err| Kernel(Box::new(type_builder.clone()), err))?;
+                let term = term_builder.realise(arena).map_err(|err| Kernel(term_builder, err))?;
+                let type_ = type_builder.realise(arena).map_err(|err| Kernel(type_builder, err))?;
 
-                term.check(type_, arena).map_err(|err| Kernel(Box::new(term_builder.clone()), err))?;
+                term.check(type_, arena).map_err(|err| Kernel(term_builder, err))?;
                 Ok(None)
             },
 
             Command::GetType(ref term_builder) => {
-                let term = term_builder.realise(arena).map_err(|err| Kernel(Box::new(term_builder.clone()), err))?;
+                let term = term_builder.realise(arena).map_err(|err| Kernel(term_builder, err))?;
 
-                Ok(term.infer(arena).map(Some).map_err(|err| Kernel(Box::new(term_builder.clone()), err))?)
+                Ok(term.infer(arena).map(Some).map_err(|err| Kernel(term_builder, err))?)
             },
 
             Command::Eval(ref term_builder) => {
-                let term = term_builder.realise(arena).map_err(|err| Kernel(Box::new(term_builder.clone()), err))?;
-                let _ = term.infer(arena).map_err(|err| Kernel(Box::new(term_builder.clone()), err))?;
+                let term = term_builder.realise(arena).map_err(|err| Kernel(term_builder, err))?;
+                let _ = term.infer(arena).map_err(|err| Kernel(term_builder, err))?;
 
                 Ok(Some(term.normal_form(arena)))
             },

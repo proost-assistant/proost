@@ -12,7 +12,7 @@ use crate::evaluator;
 pub enum Error<'arena, 'build> {
     /// An error raised by the [`kernel`].
     #[display(fmt = "{_1}")]
-    Kernel(Box<dyn utils::trace::Traceable + 'build>, kernel::error::Error<'arena>),
+    Kernel(&'build dyn utils::trace::Traceable, kernel::error::Error<'arena>),
 
     /// An error raised by the [`parser`].
     Parser(parser::error::Error),
@@ -28,7 +28,7 @@ pub enum Error<'arena, 'build> {
 }
 
 impl core::fmt::Debug for Error<'_, '_> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         core::fmt::Display::fmt(self, f)
     }
 }
