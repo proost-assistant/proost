@@ -141,7 +141,7 @@ impl<'arena> Term<'arena> {
             Abs(argtype, body) => {
                 write!(f, "\u{003BB} ")?;
                 if is_root_closed {
-                    write!(f, "x{depth} : ")?;
+                    write!(f, "x{depth}: ")?;
                 };
                 argtype.pretty_print(f, depth + 1, distance + 1, is_root_closed)?;
                 write!(f, " => ")?;
@@ -149,7 +149,7 @@ impl<'arena> Term<'arena> {
             },
             Prod(argtype, body) => {
                 if is_root_closed {
-                    write!(f, "(x{depth} : ")?;
+                    write!(f, "(x{depth}: ")?;
                 };
                 argtype.pretty_print(f, depth + 1, distance + 1, is_root_closed)?;
                 if is_root_closed {
@@ -353,7 +353,7 @@ mod tests {
             assert_eq!(term.to_string(), "λ Sort max (u0) (u1) + 1 => λ Type => λ Type 1 => 1 -> (1) (2)");
             assert_eq!(
                 PrettyTerm(term).to_string(),
-                "λ x0 : Sort max (u0) (u1) + 1 => λ x1 : Type => λ x2 : Type 1 => (x3 : x2) -> (x3) (x2)"
+                "λ x0: Sort max (u0) (u1) + 1 => λ x1: Type => λ x2: Type 1 => (x3: x2) -> (x3) (x2)"
             );
         });
     }
