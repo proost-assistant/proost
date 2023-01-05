@@ -45,6 +45,7 @@
         clippy::enum_glob_use,
         clippy::indexing_slicing,
         clippy::non_ascii_literal,
+        clippy::std_instead_of_core,
         clippy::too_many_lines,
         clippy::unwrap_used,
         clippy::wildcard_imports,
@@ -60,7 +61,7 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const NAME: &str = env!("CARGO_PKG_NAME");
 
 /// The main function of the server.
-#[no_coverage]
+#[cfg(not(test))]
 fn main() {
     use log::info;
 

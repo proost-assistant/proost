@@ -30,6 +30,7 @@ use lsp_types::*;
 /// [requests]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#requestMessage
 /// [`Server`]: server::Server
 #[allow(unused_variables)]
+#[cfg_attr(test, mockall::automock)]
 pub trait LanguageServer {
     /// [`initialize`] request.
     ///

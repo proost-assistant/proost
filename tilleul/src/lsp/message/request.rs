@@ -8,7 +8,7 @@ use serde_json::Value;
 /// [Request] message.
 ///
 /// [Request]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#requestMessage
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Request {
     /// The request id.
     pub id: u64,

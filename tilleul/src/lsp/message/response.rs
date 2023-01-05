@@ -9,7 +9,7 @@ use serde_json::Value;
 /// [Response] message.
 ///
 /// [Response]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#responseMessage
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Response {
     /// The request id.
     pub id: u64,
@@ -26,7 +26,7 @@ pub struct Response {
 /// [Response error] message.
 ///
 /// [Response error]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#responseError
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Error {
     /// A number indicating the error type that occurred.
     pub code: ErrorCode,
@@ -42,7 +42,7 @@ pub struct Error {
 /// [Error code] message.
 ///
 /// [Error code]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#errorCodes
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[allow(clippy::as_conversions, clippy::cast_possible_truncation)]
 pub enum ErrorCode {
     ServerNotInitialized = -32002,

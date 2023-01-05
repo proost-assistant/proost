@@ -9,7 +9,7 @@ use serde_json::Value;
 /// [Notification] message.
 ///
 /// [Notification]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#notificationMessage
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Notification {
     /// The method to be invoked.
     pub method: String,

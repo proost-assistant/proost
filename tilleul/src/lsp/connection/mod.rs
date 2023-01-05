@@ -18,6 +18,7 @@ pub mod thread;
 /// This allows only to send [`Notification`]s to the client.
 ///
 /// [`LanguageServer`]: crate::lsp::LanguageServer
+#[cfg_attr(test, mockall::automock)]
 pub trait LanguageServer {
     /// Sends a [`Notification`] to the client.
     fn send(&self, notification: Notification);
@@ -26,6 +27,7 @@ pub trait LanguageServer {
 /// A trait defining a communication channel for the [`Server`].
 ///
 /// [`Server`]: crate::lsp::Server
+#[cfg_attr(test, mockall::automock)]
 pub trait Server {
     /// Reads a [`Message`] from the client.
     ///

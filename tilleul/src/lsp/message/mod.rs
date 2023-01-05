@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 /// A message sent to or received from a [Language Server Protocol] client.
 ///
 /// [Language Server Protocol]: https://microsoft.github.io/language-server-protocol/
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum Message {
     /// A [`Request`] sent from a client to a server.
