@@ -60,10 +60,7 @@ impl From<pest::error::Error<Rule>> for Error {
             Rule::UseModule => "use (module::)var".to_owned(),
             Rule::public => "pub".to_owned(),
             Rule::superkw => "super".to_owned(),
-            rule => {
-                print!("{:?}", rule);
-                unreachable!("low level rules cannot appear in error messages")
-            },
+            _ => unreachable!("low level rules cannot appear in error messages"),
         });
 
         // extracting the location from the pest output
