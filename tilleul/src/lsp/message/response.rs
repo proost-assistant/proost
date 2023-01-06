@@ -58,6 +58,7 @@ pub struct Error {
 pub enum ErrorCode {
     ServerNotInitialized = -32002,
 
+    InvalidRequest = -32600,
     MethodNotFound = -32601,
 
     RequestCancelled = error_codes::REQUEST_CANCELLED as isize,

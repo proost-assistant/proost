@@ -117,7 +117,11 @@ where
                     data: None,
                 }),
 
-            State::Closing => (),
+            State::Closing => dispatcher.handle_fallthrough(Error {
+                code: ErrorCode::InvalidRequest,
+                message: "Server is closing".to_owned(),
+                data: None,
+            }),
         }
     }
 
@@ -141,7 +145,7 @@ where
                 .handle::<DidCloseTextDocument>(S::text_document_did_close)
                 .handle_fallthrough("Unknown notification received"),
 
-            State::Closing => (),
+            State::Closing => dispatcher.handle_fallthrough("Server is closing"),
         }
     }
 }
@@ -258,6 +262,202 @@ mod tests {
         make!(&mut connection, &mut backend, MockLanguageServer::expect_initialized, &mut sequence, Initialized, notification);
 
         make!(&mut connection, &mut backend, MockLanguageServer::expect_shutdown, &mut sequence, Shutdown, (), ());
+
+        close!(connection, sequence);
+
+        Server::new(backend, &connection).serve();
+    }
+
+    #[test]
+    fn unexpected_queries() {
+        let mut backend = MockLanguageServer::new();
+        let mut connection = connection::MockServer::new();
+        let mut sequence = Sequence::new();
+
+        let request = InitializeParams::default();
+        let response = InitializeResult::default();
+        make!(&mut connection, &mut backend, MockLanguageServer::expect_initialize, &mut sequence, Initialize, request, response);
+
+        let notification = InitializedParams {};
+        make!(&mut connection, &mut backend, MockLanguageServer::expect_initialized, &mut sequence, Initialized, notification);
+
+        read!(
+            &mut connection,
+            &mut sequence,
+            Ok(Message::Request(Request {
+                id: 0,
+                method: "foo".to_owned(),
+                params: serde_json::to_value(()).unwrap(),
+            }))
+        );
+
+        write!(
+            &mut connection,
+            &mut sequence,
+            Message::Response(Response {
+                id: 0,
+                result: None,
+                error: Some(Error {
+                    code: ErrorCode::MethodNotFound,
+                    message: "Method not found".to_owned(),
+                    data: None,
+                }),
+            })
+        );
+
+        read!(
+            &mut connection,
+            &mut sequence,
+            Ok(Message::Notification(Notification {
+                method: "foo".to_owned(),
+                params: serde_json::to_value(()).unwrap(),
+            }))
+        );
+
+        close!(connection, sequence);
+
+        Server::new(backend, &connection).serve();
+    }
+
+    #[test]
+    fn waiting_for_initialisation_unexpected_queries() {
+        let backend = MockLanguageServer::new();
+        let mut connection = connection::MockServer::new();
+        let mut sequence = Sequence::new();
+
+        read!(
+            &mut connection,
+            &mut sequence,
+            Ok(Message::Request(Request {
+                id: 0,
+                method: "foo".to_owned(),
+                params: serde_json::to_value(()).unwrap(),
+            }))
+        );
+
+        write!(
+            &mut connection,
+            &mut sequence,
+            Message::Response(Response {
+                id: 0,
+                result: None,
+                error: Some(Error {
+                    code: ErrorCode::ServerNotInitialized,
+                    message: "Server not initialised".to_owned(),
+                    data: None,
+                }),
+            })
+        );
+
+        read!(
+            &mut connection,
+            &mut sequence,
+            Ok(Message::Notification(Notification {
+                method: "foo".to_owned(),
+                params: serde_json::to_value(()).unwrap(),
+            }))
+        );
+
+        close!(connection, sequence);
+
+        Server::new(backend, &connection).serve();
+    }
+
+    #[test]
+    fn initialising_unexpected_queries() {
+        let mut backend = MockLanguageServer::new();
+        let mut connection = connection::MockServer::new();
+        let mut sequence = Sequence::new();
+
+        let request = InitializeParams::default();
+        let response = InitializeResult::default();
+        make!(&mut connection, &mut backend, MockLanguageServer::expect_initialize, &mut sequence, Initialize, request, response);
+
+        read!(
+            &mut connection,
+            &mut sequence,
+            Ok(Message::Request(Request {
+                id: 0,
+                method: "foo".to_owned(),
+                params: serde_json::to_value(()).unwrap(),
+            }))
+        );
+
+        write!(
+            &mut connection,
+            &mut sequence,
+            Message::Response(Response {
+                id: 0,
+                result: None,
+                error: Some(Error {
+                    code: ErrorCode::ServerNotInitialized,
+                    message: "Server not initialised".to_owned(),
+                    data: None,
+                }),
+            })
+        );
+
+        read!(
+            &mut connection,
+            &mut sequence,
+            Ok(Message::Notification(Notification {
+                method: "foo".to_owned(),
+                params: serde_json::to_value(()).unwrap(),
+            }))
+        );
+
+        close!(connection, sequence);
+
+        Server::new(backend, &connection).serve();
+    }
+
+    #[test]
+    fn closing_unexpected_queries() {
+        let mut backend = MockLanguageServer::new();
+        let mut connection = connection::MockServer::new();
+        let mut sequence = Sequence::new();
+
+        let request = InitializeParams::default();
+        let response = InitializeResult::default();
+        make!(&mut connection, &mut backend, MockLanguageServer::expect_initialize, &mut sequence, Initialize, request, response);
+
+        let notification = InitializedParams {};
+        make!(&mut connection, &mut backend, MockLanguageServer::expect_initialized, &mut sequence, Initialized, notification);
+
+        make!(&mut connection, &mut backend, MockLanguageServer::expect_shutdown, &mut sequence, Shutdown, (), ());
+
+        read!(
+            &mut connection,
+            &mut sequence,
+            Ok(Message::Request(Request {
+                id: 0,
+                method: "foo".to_owned(),
+                params: serde_json::to_value(()).unwrap(),
+            }))
+        );
+
+        write!(
+            &mut connection,
+            &mut sequence,
+            Message::Response(Response {
+                id: 0,
+                result: None,
+                error: Some(Error {
+                    code: ErrorCode::InvalidRequest,
+                    message: "Server is closing".to_owned(),
+                    data: None,
+                }),
+            })
+        );
+
+        read!(
+            &mut connection,
+            &mut sequence,
+            Ok(Message::Notification(Notification {
+                method: "foo".to_owned(),
+                params: serde_json::to_value(()).unwrap(),
+            }))
+        );
 
         close!(connection, sequence);
 
