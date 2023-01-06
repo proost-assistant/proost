@@ -203,7 +203,6 @@ impl<'arena> Evaluator {
         importing: &mut Vec<PathBuf>,
     ) -> ResultProcess<'arena, 'build> {
         match *command {
-            // TODO
             Command::Define(_, (location, s), ref type_builder, ref term_builder) => {
                 if arena.get_binding(s).is_some() {
                     return Err(TopLevel(Error {

@@ -1,8 +1,11 @@
+use std::cell::{Cell, RefCell};
 use std::fmt;
 use std::iter::once;
+use std::rc::Rc;
 
 use indextree::{Arena, DebugPrettyPrint, NodeId};
 use itertools::Itertools;
+use kernel::memory::term::builder::Builder;
 
 use crate::error::Result;
 
@@ -80,8 +83,16 @@ pub struct ModuleTree {
 
 impl ModuleTree {
     pub fn new() -> Self {
-        let mut arena = Arena::new();
-        let root = arena.new_node(ModuleNode::Module("".to_string(), true, false));
+        Self::build(Arena::new(), "")
+    }
+
+    // /// Creates a ModuleTree living in another ModuleTree arena
+    // pub fn subtree(self, name: &str) -> Self {
+    //     Self::build(self.arena, name)
+    // }
+
+    fn build(mut arena: Arena<ModuleNode>, name: &str) -> Self {
+        let root = arena.new_node(ModuleNode::Module(name.to_string(), true, false));
         Self {
             arena,
             root,
@@ -89,13 +100,20 @@ impl ModuleTree {
         }
     }
 
+    // /// Grafts a ModuleTree living in another ModuleTree arena to the main tree
+    // pub fn graft(&mut self, tree: ModuleTree) {
+    //     if self.arena == tree.arena {
+    //         self.position.append(tree.root, &mut self.arena)
+    //     }
+    // }
+
     /// Pretty print a node and it's descendants. Provided for debugging purpose only. Should not be used to conduct tests.
     #[allow(dead_code)]
     fn debug_pretty_print(&self) -> DebugPrettyPrint<ModuleNode> {
         self.root.debug_pretty_print(&self.arena)
     }
 
-    /// Return the NodeId(s) corresponding to the given absolute path from the given position if it exists
+    /// Returns the NodeId(s) corresponding to the given absolute path from the given position if it exists
     fn get_path<'build, I>(&self, position: NodeId, path: I) -> Vec<NodeId>
     where
         I: Iterator<Item = &'build str>,
@@ -134,7 +152,7 @@ impl ModuleTree {
         candidates
     }
 
-    /// Return the NodeId(s) corresponding to the given absolute path if it exists
+    /// Returns the NodeId(s) corresponding to the given absolute path if it exists
     fn get_absolute<'build, I>(&self, path: I) -> Vec<NodeId>
     where
         I: Iterator<Item = &'build str>,
@@ -142,7 +160,7 @@ impl ModuleTree {
         self.get_path(self.root, path)
     }
 
-    /// Return the NodeId(s) corresponding to the given relative path if it exists
+    /// Returns the NodeId(s) corresponding to the given relative path if it exists
     fn get_relative<'build, I>(&self, path: I) -> Vec<NodeId>
     where
         I: Iterator<Item = &'build str>,
@@ -150,7 +168,7 @@ impl ModuleTree {
         self.get_path(self.position, path)
     }
 
-    /// Return the unique NodeId corresponding to the given path
+    /// Returns the unique NodeId corresponding to the given path
     ///
     /// Paths can be relative or absolute depending on the use of "super" and "self" keywords
     fn get_identifier<'arena, 'build>(&self, path: &Vec<&'build str>) -> Result<'arena, 'build, NodeId> {
@@ -174,7 +192,7 @@ impl ModuleTree {
         Ok(*candidates.first().unwrap())
     }
 
-    /// Return the position of the given position starting from the root
+    /// Returns the position of the given position starting from the root
     fn get_position(&self, position: NodeId) -> Vec<String> {
         let mut pos = position.ancestors(&self.arena).map(|nodeid| self.arena[nodeid].get().name().clone());
         pos.next();
@@ -184,14 +202,14 @@ impl ModuleTree {
     }
 
     /// Add a definition in the current module of the tree
-    pub fn define<'arena, 'build>(&mut self, name: &'build str, public: bool) -> Result<'arena, 'build, ()> {
+    pub fn define<'arena, 'build>(&mut self, name: &'build str, public: bool) -> Result<'arena, 'build, NodeId> {
         let res = self.get_relative(once(name));
         if !res.is_empty() {
             return Err(Error::BoundVariable(name.to_string()).into());
         }
         let node = self.arena.new_node(ModuleNode::Def(name.to_string(), public));
         self.position.append(node, &mut self.arena);
-        Ok(())
+        Ok(node)
     }
 
     /// Create and move into a (new) (sub) module
@@ -261,24 +279,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn defines_and_modules() {
+    fn example() {
         let mut tree = ModuleTree::new();
+
         assert!(tree.define("x", true).is_ok());
         assert!(tree.define("x", false).is_err());
         assert!(tree.define("y", false).is_ok());
         assert!(tree.end_module().is_err());
-
         assert!(tree.begin_module("mod1", true).is_ok());
         assert!(tree.define("x", true).is_ok());
         assert!(tree.define("x", false).is_err());
         assert!(tree.define("y", false).is_ok());
         assert!(tree.end_module().is_ok());
-
         assert!(tree.define("x", true).is_err());
         assert!(tree.define("w", true).is_ok());
         assert!(tree.begin_module("mod1", false).is_err());
         assert!(tree.begin_module("mod2", false).is_ok());
-
         assert!(tree.begin_module("mod3", true).is_ok());
         assert!(tree.end_module().is_ok());
         assert!(tree.end_module().is_ok());
@@ -358,7 +374,6 @@ mod tests {
         assert!(tree.begin_module("mod3", true).is_ok());
         assert!(tree.define("x", true).is_ok());
         assert!(tree.end_module().is_ok());
-
         assert!(tree.use_module(&vec!["super", "super", "mod1", "mod2", "mod3", "x"], true).is_ok());
     }
 
@@ -371,7 +386,6 @@ mod tests {
         assert!(tree.begin_module("mod3", true).is_ok());
         assert!(tree.define("x", true).is_ok());
         assert!(tree.end_module().is_ok());
-
         assert!(tree.use_module(&vec!["mod1", "mod2", "mod3", "x"], true).is_ok());
     }
 }
