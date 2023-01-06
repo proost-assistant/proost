@@ -130,9 +130,9 @@ fn main() -> Result<'static, 'static, ()> {
                 Ok(line) if is_command(&line) => {
                     rl.add_history_entry(line.as_str());
 
-                    match command::parse::line(line.as_str()).map_err(Error::Parser) {
+                    match command::parse::line(line.as_str()) {
                         Ok(command) => display(evaluator.process_line(arena, &command), true),
-                        Err(err) => display(Err(err), true),
+                        Err(err) => display(Err(Error::Parser(err)), true),
                     }
                 },
                 Ok(_) => (),
