@@ -1,7 +1,7 @@
 use std::fmt;
 use std::iter::once;
 
-use indextree::{Arena, NodeId};
+use indextree::{Arena, DebugPrettyPrint, NodeId};
 use itertools::Itertools;
 
 use crate::error::Result;
@@ -16,9 +16,9 @@ pub enum Error<'build> {
 
     AmbigiousPath(Vec<&'build str>, Vec<Vec<String>>),
 
-    BoundVariable(&'build str),
+    BoundVariable(String),
 
-    BoundModule(&'build str),
+    BoundModule(String),
 }
 
 impl<'build> fmt::Display for Error<'build> {
@@ -89,6 +89,12 @@ impl ModuleTree {
         }
     }
 
+    /// Pretty print a node and it's descendants. Provided for debugging purpose only. Should not be used to conduct tests.
+    #[allow(dead_code)]
+    fn debug_pretty_print(&self) -> DebugPrettyPrint<ModuleNode> {
+        self.root.debug_pretty_print(&self.arena)
+    }
+
     /// Return the NodeId(s) corresponding to the given absolute path from the given position if it exists
     fn get_path<'build, I>(&self, position: NodeId, path: I) -> Vec<NodeId>
     where
@@ -144,6 +150,9 @@ impl ModuleTree {
         self.get_path(self.position, path)
     }
 
+    /// Return the unique NodeId corresponding to the given path
+    ///
+    /// Paths can be relative or absolute depending on the use of "super" and "self" keywords
     fn get_identifier<'arena, 'build>(&self, path: &Vec<&'build str>) -> Result<'arena, 'build, NodeId> {
         let candidates = if let Some(s) = path.first()
             && (*s == "super" || *s == "self") {
@@ -178,7 +187,7 @@ impl ModuleTree {
     pub fn define<'arena, 'build>(&mut self, name: &'build str, public: bool) -> Result<'arena, 'build, ()> {
         let res = self.get_relative(once(name));
         if !res.is_empty() {
-            return Err(Error::BoundVariable(name).into());
+            return Err(Error::BoundVariable(name.to_string()).into());
         }
         let node = self.arena.new_node(ModuleNode::Def(name.to_string(), public));
         self.position.append(node, &mut self.arena);
@@ -187,9 +196,8 @@ impl ModuleTree {
 
     /// Create and move into a (new) (sub) module
     pub fn begin_module<'arena, 'build>(&mut self, name: &'build str, public: bool) -> Result<'arena, 'build, ()> {
-        let res = self.get_relative(once(name));
-        if !res.is_empty() {
-            return Err(Error::BoundModule(name).into());
+        if !self.get_relative(once(name)).is_empty() {
+            return Err(Error::BoundModule(name.to_string()).into());
         }
         let node = self.arena.new_node(ModuleNode::Module(name.to_string(), public, false));
         self.position.append(node, &mut self.arena);
@@ -219,6 +227,10 @@ impl ModuleTree {
 
             // The obtained node is a module
             ModuleNode::Module(name, _, false) => {
+                if !self.get_relative(once(name.as_str())).is_empty() {
+                    return Err(Error::BoundModule(name.clone()).into());
+                }
+
                 let new_module = self.arena.new_node(ModuleNode::Module(name.clone(), public, true));
                 self.position.append(new_module, &mut self.arena);
 
@@ -232,6 +244,10 @@ impl ModuleTree {
 
             // The obtained node is a variable
             ModuleNode::Def(name, _) => {
+                if !self.get_relative(once(name.as_str())).is_empty() {
+                    return Err(Error::BoundVariable(name.clone()).into());
+                }
+
                 let new_def = self.arena.new_node(ModuleNode::Def(name.clone(), public));
                 self.position.append(new_def, &mut self.arena);
                 Ok(())
@@ -243,5 +259,119 @@ impl ModuleTree {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // TODO
+
+    #[test]
+    fn defines_and_modules() {
+        let mut tree = ModuleTree::new();
+        assert!(tree.define("x", true).is_ok());
+        assert!(tree.define("x", false).is_err());
+        assert!(tree.define("y", false).is_ok());
+        assert!(tree.end_module().is_err());
+
+        assert!(tree.begin_module("mod1", true).is_ok());
+        assert!(tree.define("x", true).is_ok());
+        assert!(tree.define("x", false).is_err());
+        assert!(tree.define("y", false).is_ok());
+        assert!(tree.end_module().is_ok());
+
+        assert!(tree.define("x", true).is_err());
+        assert!(tree.define("w", true).is_ok());
+        assert!(tree.begin_module("mod1", false).is_err());
+        assert!(tree.begin_module("mod2", false).is_ok());
+
+        assert!(tree.begin_module("mod3", true).is_ok());
+        assert!(tree.end_module().is_ok());
+        assert!(tree.end_module().is_ok());
+        assert!(tree.end_module().is_err());
+    }
+
+    #[test]
+    fn use_modules_existing() {
+        let mut tree = ModuleTree::new();
+
+        assert!(tree.define("x", true).is_ok());
+        assert!(tree.define("y", false).is_ok());
+        assert!(tree.begin_module("mod1", true).is_ok());
+        assert!(tree.define("x1", true).is_ok());
+        assert!(tree.define("y1", false).is_ok());
+        assert!(tree.begin_module("mod2", false).is_ok());
+        assert!(tree.define("x2", true).is_ok());
+        assert!(tree.define("y2", false).is_ok());
+        assert!(tree.end_module().is_ok());
+
+        assert!(tree.use_module(&vec!["x1"], false).is_err());
+        assert!(tree.use_module(&vec!["y1"], false).is_err());
+        assert!(tree.use_module(&vec!["self", "x1"], false).is_err());
+        assert!(tree.use_module(&vec!["self", "self", "x1"], false).is_err());
+        assert!(tree.use_module(&vec!["mod2", "x2"], false).is_err());
+        assert!(tree.use_module(&vec!["mod2", "y2"], false).is_err());
+        assert!(tree.use_module(&vec!["super", "x"], false).is_ok());
+        assert!(tree.use_module(&vec!["super", "x"], false).is_err());
+        assert!(tree.use_module(&vec!["self", "super", "y"], false).is_ok());
+        assert!(tree.end_module().is_ok());
+
+        assert!(tree.use_module(&vec!["x"], false).is_err());
+        assert!(tree.use_module(&vec!["super"], false).is_err());
+        assert!(tree.use_module(&vec!["mod1", "x1"], false).is_ok());
+        assert!(tree.use_module(&vec!["mod1", "x1"], false).is_err());
+        assert!(tree.use_module(&vec!["mod1", "y1"], false).is_err());
+        assert!(tree.use_module(&vec!["mod1", "x"], false).is_err());
+
+        assert!(tree.use_module(&vec!["mod1", "mod2", "x2"], false).is_err());
+        assert!(tree.use_module(&vec!["mod1", "mod2", "x2"], false).is_err());
+    }
+
+    #[test]
+    fn use_module_unexisting() {
+        let mut tree = ModuleTree::new();
+
+        assert!(tree.define("x", true).is_ok());
+        assert!(tree.begin_module("mod1", true).is_ok());
+        assert!(tree.end_module().is_ok());
+        assert!(tree.use_module(&vec!["mod1", "x"], false).is_err());
+        assert!(tree.use_module(&vec!["mod1", "mod2", "x"], false).is_err());
+    }
+
+    #[test]
+    fn use_module_chain() {
+        let mut tree = ModuleTree::new();
+
+        assert!(tree.begin_module("mod1", true).is_ok());
+        assert!(tree.begin_module("mod2", true).is_ok());
+        assert!(tree.begin_module("mod3", true).is_ok());
+        assert!(tree.define("x", true).is_ok());
+        assert!(tree.end_module().is_ok());
+        assert!(tree.use_module(&vec!["mod3", "x"], true).is_err());
+        assert!(tree.use_module(&vec!["self", "mod3", "x"], true).is_ok());
+        assert!(tree.end_module().is_ok());
+        assert!(tree.use_module(&vec!["self", "mod2", "x"], true).is_ok());
+        assert!(tree.end_module().is_ok());
+        assert!(tree.use_module(&vec!["self", "mod1", "x"], true).is_ok());
+    }
+
+    #[test]
+    fn use_module_super() {
+        let mut tree = ModuleTree::new();
+
+        assert!(tree.begin_module("mod1", true).is_ok());
+        assert!(tree.begin_module("mod2", true).is_ok());
+        assert!(tree.begin_module("mod3", true).is_ok());
+        assert!(tree.define("x", true).is_ok());
+        assert!(tree.end_module().is_ok());
+
+        assert!(tree.use_module(&vec!["super", "super", "mod1", "mod2", "mod3", "x"], true).is_ok());
+    }
+
+    #[test]
+    fn use_module_absolute() {
+        let mut tree = ModuleTree::new();
+
+        assert!(tree.begin_module("mod1", true).is_ok());
+        assert!(tree.begin_module("mod2", true).is_ok());
+        assert!(tree.begin_module("mod3", true).is_ok());
+        assert!(tree.define("x", true).is_ok());
+        assert!(tree.end_module().is_ok());
+
+        assert!(tree.use_module(&vec!["mod1", "mod2", "mod3", "x"], true).is_ok());
+    }
 }
