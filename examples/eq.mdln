@@ -1,0 +1,9 @@
+def transport_type.{u,v} := (A : Sort u) -> (P : A -> Sort v) -> (x y : A) -> Eq.{u} A x y -> P x -> P y
+
+def transport.{u,v} : transport_type.{u,v} := 
+    fun A:Sort u,P:A -> Sort v,x y:A, p: Eq.{u} A x y,h:P x =>
+        Eq_rec.{u,v} A x (fun y:A,p:Eq.{u} A x y => P y) h y p
+
+def transport_id.{u} := fun A:Sort u,x:A => transport.{u,u} A (fun x:A => A) x x (Refl.{u} A x) x
+
+check Refl.{1} Nat Zero : Eq.{1} Nat Zero (transport_id.{1} Nat Zero)
