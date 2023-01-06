@@ -1,8 +1,9 @@
 [package]
 name = "tilleul"
 description = "A LSP server for the simple proof assistant Proost"
-edition = "2021"
-version = "0.1.0"
+
+edition.workspace = true
+version.workspace = true
 authors.workspace = true
 license.workspace = true
 

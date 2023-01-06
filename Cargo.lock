@@ -440,7 +440,7 @@ checksum = "4217ad341ebadf8d8e724e264f13e593e0648f5b3e94b3896a5df283be015ecc"
 
 [[package]]
 name = "kernel"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bumpalo",
  "derive_more",
@@ -570,7 +570,7 @@ checksum = "9b7820b9daea5457c9f21c69448905d723fbd21136ccf521748f23fd49e723ee"
 
 [[package]]
 name = "parser"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "derive_more",
  "kernel",
@@ -712,7 +712,7 @@ dependencies = [
 
 [[package]]
 name = "proost"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "atty",
  "clap",
@@ -1001,7 +1001,7 @@ dependencies = [
 
 [[package]]
 name = "tilleul"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "crossbeam-channel",
@@ -1096,7 +1096,7 @@ checksum = "936e4b492acfd135421d8dca4b1aa80a7bfc26e702ef3af710e0752684df5372"
 
 [[package]]
 name = "utils"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "derive_more",
 ]
