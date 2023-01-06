@@ -63,11 +63,10 @@ impl Message {
             bail!("Missing Content-Length header");
         }
 
-        let Some(size) = buffer.get(16..buffer.len() - 2) else {
-            bail!("Unexcepted UTF-8 character found while parsing Content-Length header");
-        };
-
-        let size = size.parse::<usize>()?;
+        let size = buffer
+            .get(16..buffer.len() - 2)
+            .unwrap_or_else(|| unreachable!("UTF-8 is checked by read_line"))
+            .parse::<usize>()?;
 
         let mut buffer = buffer.into_bytes();
 
@@ -174,12 +173,37 @@ mod tests {
     }
 
     #[test]
+    fn corrupt_content_length_utf8() {
+        let mut data: Vec<u8> = vec![];
+
+        data.extend_from_slice(b"Content-Length: ");
+        data.push(0xFF);
+        data.extend_from_slice(b"\r\n\r\n{ \"method\": \"initialized\", \"params\": {} }");
+
+        assert_eq!(Message::read(&mut BufReader::new(&*data)).unwrap_err().to_string(), "stream did not contain valid UTF-8");
+    }
+
+    #[test]
     fn corrupt_payload() {
         let data = b"Content-Length: 38\r\n\r\n{ \"method\": \"initialized\", \"params\": {";
 
         assert_eq!(
             Message::read(&mut BufReader::new(&data[..])).unwrap_err().to_string(),
             "EOF while parsing an object at line 2 column 38"
+        );
+    }
+
+    #[test]
+    fn corrupt_payload_utf8() {
+        let mut data: Vec<u8> = vec![];
+
+        data.extend_from_slice(b"Content-Length: 41\r\n\r\n{ \"method\": \"init");
+        data.push(0xFF);
+        data.extend_from_slice(b"alized\", \"params\": {} }");
+
+        assert_eq!(
+            Message::read(&mut BufReader::new(&*data)).unwrap_err().to_string(),
+            "invalid utf-8 sequence of 1 bytes from index 19"
         );
     }
 }
