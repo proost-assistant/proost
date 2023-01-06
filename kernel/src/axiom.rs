@@ -177,26 +177,24 @@ impl<'arena> Axiom {
                             arena,
                         ),
                         Term::app(
-                            Term::app(
-                                Term::var(4.into(), motive, arena), 
-                                Term::var(2.into(), sort_u, arena),
-                                arena,
-                            ),
-                            Term::var(1.into(), 
-                            Term::app(
+                            Term::app(Term::var(4.into(), motive, arena), Term::var(2.into(), sort_u, arena), arena),
+                            Term::var(
+                                1.into(),
                                 Term::app(
                                     Term::app(
-                                        Term::axiom(Self::Eq_, &[Level::var(0, arena)], arena),
-                                        Term::var(6.into(), sort_u, arena),
+                                        Term::app(
+                                            Term::axiom(Self::Eq_, &[Level::var(0, arena)], arena),
+                                            Term::var(6.into(), sort_u, arena),
+                                            arena,
+                                        ),
+                                        Term::var(5.into(), sort_u, arena),
                                         arena,
                                     ),
-                                    Term::var(5.into(), sort_u, arena),
+                                    Term::var(2.into(), sort_u, arena),
                                     arena,
                                 ),
-                                Term::var(2.into(), sort_u, arena),
                                 arena,
-                            )
-                            , arena),
+                            ),
                             arena,
                         ),
                         arena,

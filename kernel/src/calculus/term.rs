@@ -177,7 +177,7 @@ impl<'arena> Term<'arena> {
     #[must_use]
     pub fn whnf(self, arena: &mut Arena<'arena>) -> Self {
         self.get_whnf_or_init(|| {
-            self.reduce_recursor(arena).unwrap_or_else(|| match *self {
+            self.reduce_recursor(arena).map(|x| x.whnf(arena)).unwrap_or_else(|| match *self {
                 App(t1, t2) => match *t1.unfold(arena).whnf(arena) {
                     Abs(_, t1) => {
                         let subst = t1.substitute(t2, 1, arena);
@@ -194,8 +194,8 @@ impl<'arena> Term<'arena> {
     fn reduce_nat(self, arena: &mut Arena<'arena>) -> Option<Self> {
         // Be aware that this function will not be automatically formatted, because of the
         // experimental status of let-chains, as well as that of if-let conditions in pattern matching.
-        if let App(f, n) = *self && let App(f, motive_succ) = *f &&
-           let App(f, motive_0) = *f && let App(f, motive) = *f && let Axiom(axiom::Axiom::NatRec, lvl) = *f {
+        if let App(f, n) = *self && let App(f, motive_succ) = *f.whnf(arena) &&
+           let App(f, motive_0) = *f.whnf(arena) && let App(f, motive) = *f.whnf(arena) && let Axiom(axiom::Axiom::NatRec, lvl) = *f.unfold(arena).whnf(arena) {
             match *n.whnf(arena) {
                 Axiom(axiom::Axiom::Zero, _) => Some(motive_0),
                 App(f, n) if let Axiom(axiom::Axiom::Succ, _) = *f => {
@@ -218,13 +218,13 @@ impl<'arena> Term<'arena> {
         }
     }
 
-        /// Reduces a term if it is an instance of the Eq reducer, returns None otherwise.
-        fn reduce_eq(self, arena: &mut Arena<'arena>) -> Option<Self> {
-            // Be aware that this function will not be automatically formatted, because of the
-            // experimental status of let-chains, as well as that of if-let conditions in pattern matching.
-            if let App(f, a_b_eq) = *self && let App(f, b) = *f && let App(f, motive_refl) = *f && let App(f, _motive) = *f && 
-               let App(f,a) = *f && let App(f,_) = *f && 
-               let Axiom(axiom::Axiom::EqRec, _) = *f &&
+    /// Reduces a term if it is an instance of the Eq reducer, returns None otherwise.
+    fn reduce_eq(self, arena: &mut Arena<'arena>) -> Option<Self> {
+        // Be aware that this function will not be automatically formatted, because of the
+        // experimental status of let-chains, as well as that of if-let conditions in pattern matching.
+        if let App(f, a_b_eq) = *self && let App(f, b) = *f.whnf(arena) && let App(f, motive_refl) = *f.whnf(arena) && let App(f, _motive) = *f.whnf(arena) &&
+               let App(f,a) = *f.whnf(arena) && let App(f,_) = *f.whnf(arena) &&
+               let Axiom(axiom::Axiom::EqRec, _) = *f.unfold(arena).whnf(arena) &&
                b.is_def_eq(a, arena).is_ok() {
                 match *a_b_eq.whnf(arena) {
                     App(f, _) if let App(f,_) = *f && let Axiom(axiom::Axiom::Refl, _) = *f => {
@@ -235,11 +235,11 @@ impl<'arena> Term<'arena> {
             } else {
                 None
             }
-        }
+    }
 
     /// Reduces a term if possible, returns None otherwise.
     fn reduce_recursor(self, arena: &mut Arena<'arena>) -> Option<Self> {
-        let rec_reds = [Term::reduce_nat,Term::reduce_eq];
+        let rec_reds = [Term::reduce_nat, Term::reduce_eq];
         rec_reds.into_iter().find_map(|f| f(self, arena))
     }
 }
