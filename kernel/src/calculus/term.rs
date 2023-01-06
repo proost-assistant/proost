@@ -260,7 +260,7 @@ impl<'arena> Term<'arena> {
                 .substitute_univs(lvl, arena)
                 .is_def_eq(Term::sort_usize(0, arena), arena)
                 .map_or(false, |_| true),
-            _ => false,
+            _ => true,
         })
     }
 }
