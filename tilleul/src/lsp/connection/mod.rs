@@ -3,7 +3,7 @@
 //! I/O is performed with two threads, one for reading and one for writing.
 //! Using two threads for I/O is a common pattern to avoid using non-blocking polling.
 //!
-//! [`crossbeam-channel`] is used to communicate between the threads, using message passing.
+//! [`crossbeam_channel`] is used to communicate between the threads, using message passing.
 
 use crossbeam_channel::{RecvError, SendError};
 
@@ -15,7 +15,7 @@ pub mod thread;
 
 /// A trait defining a communication channel for the [`LanguageServer`].
 ///
-/// This allows only to send [`Notification`]s to the client.
+/// This only allows to send [`Notification`]s to the client.
 ///
 /// [`LanguageServer`]: crate::lsp::LanguageServer
 #[cfg_attr(test, mockall::automock)]

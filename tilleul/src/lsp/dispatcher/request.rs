@@ -11,7 +11,7 @@ use crate::lsp::{connection, LanguageServer};
 ///
 /// The [`Dispatcher`] has to be called through every supported [`handle`]-like method, according to the [`State`] of [`Server`].
 ///
-/// Each [`handle`]-like method will look at the method of [`Request`]. If there is a match, the corresponding [`LanguageServer`]'s
+/// Each [`handle`]-like method will look at the method of [`Request`]. If there is a match, the corresponding [`LanguageServer`]
 /// method is called with according JSON's serialisation and deserialisation.
 ///
 /// If there is no match after every [`handle`]-like functions, the `handle_fallthrough` method should be called.
@@ -45,7 +45,7 @@ impl<'dispatcher, S: LanguageServer, C: connection::Server> Dispatcher<'dispatch
         }
     }
 
-    /// Dispatches the [`Request`] to the [`LanguageServer`], if the [`Request`]'s method correspond to the
+    /// Dispatches the [`Request`] to the [`LanguageServer`], if the associated method corresponds to
     /// [`lsp_types::request::Request::METHOD`].
     #[allow(dead_code)]
     #[no_coverage]

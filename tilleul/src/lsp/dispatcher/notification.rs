@@ -37,10 +37,8 @@ impl<'dispatcher, S: LanguageServer> Dispatcher<'dispatcher, S> {
         }
     }
 
-    /// Dispatches the [`Request`] to the [`LanguageServer`], if the [`Notification`]'s method correspond to the
+    /// Dispatches the [`Notification`] to the [`LanguageServer`], if the associated method corresponds to
     /// [`lsp_types::notification::Notification::METHOD`].
-    ///
-    /// [`Request`]: (crate::lsp::payload::request::Request)
     #[no_coverage]
     pub fn handle<N>(&mut self, closure: fn(&mut S, N::Params)) -> &mut Self
     where
@@ -67,7 +65,7 @@ impl<'dispatcher, S: LanguageServer> Dispatcher<'dispatcher, S> {
         let mut notification = self.notification.take().unwrap_or_else(|| unreachable!("checked as Some above"));
 
         let params = serde_json::from_value::<N::Params>(notification.params.take())
-            .unwrap_or_else(|_| unreachable!("must be run only once, as notification.take() is performed above"));
+            .unwrap_or_else(|_| unreachable!("may only be run once, as notification.take() is performed above"));
 
         handler(self.backend, params);
 

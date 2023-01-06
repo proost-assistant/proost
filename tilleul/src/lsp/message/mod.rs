@@ -1,4 +1,4 @@
-//! Message handling when communicating with an [Language Server Protocol] client.
+//! Message handling when communicating with a [Language Server Protocol] client.
 //!
 //! [Language Server Protocol]: https://microsoft.github.io/language-server-protocol/
 
@@ -44,12 +44,12 @@ struct JsonRPC {
 }
 
 impl Message {
-    /// Convert a [`Message`] from a [`BufRead`] according to the [specification].
+    /// Converts a [`Message`] from a [`BufRead`] in accordance with the [specification].
     ///
     /// This function will block until a complete message is received.
     ///
     /// # Errors
-    /// Returns an error if the message is not conformed to the [specification], or if one of `read` operation failed.
+    /// Returns an error if the message is not in accordance with the [specification], or if one `read` operation fails.
     ///
     /// [specification]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#baseProtocol
     pub fn read(reader: &mut dyn BufRead) -> Result<Self> {
@@ -79,12 +79,12 @@ impl Message {
         Ok(serde_json::from_str(&buffer)?)
     }
 
-    /// Send a [`Message`] to a [`Write`] according to the [specification].
+    /// Sends a [`Message`] to a [`Write`] according to the [specification].
     ///
     /// This function will block until the complete message is sent.
     ///
     /// # Errors
-    /// Returns an error if one of `write` operation failed.
+    /// Returns an error if one `write` operation fails.
     ///
     /// [specification]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#baseProtocol
     #[no_coverage]

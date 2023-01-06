@@ -13,7 +13,7 @@ pub struct Notification {
     /// The method to be invoked.
     pub method: String,
 
-    /// The notification's params.
+    /// The notification parameters.
     #[serde(default)]
     #[serde(skip_serializing_if = "Value::is_null")]
     pub params: Value,
@@ -28,7 +28,7 @@ impl Notification {
         }
     }
 
-    /// Returns true if the notification is the [`exit`] notification.
+    /// Indicates whether the notification is the [`exit`] notification.
     ///
     /// [`exit`]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#exit
     #[must_use]

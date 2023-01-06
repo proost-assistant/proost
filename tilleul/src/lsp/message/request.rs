@@ -16,7 +16,7 @@ pub struct Request {
     /// The method to be invoked.
     pub method: String,
 
-    /// The method's params.
+    /// The method parameters.
     #[serde(default)]
     #[serde(skip_serializing_if = "Value::is_null")]
     pub params: Value,

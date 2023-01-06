@@ -1,4 +1,4 @@
-//! [Language Server Protocol] implementation for `Madelaine` language.
+//! [Language Server Protocol] implementation for the `Madeleine` language.
 //!
 //! This crate defines [`Tilleul`] which implements the [`LanguageServer`] trait.
 //!
@@ -11,7 +11,7 @@ use crate::lsp::connection;
 
 pub mod handler;
 
-/// The [`LanguageServer`] implementation for `Madelaine` language.
+/// The [`LanguageServer`] implementation for the `Madeleine` language.
 ///
 /// [`LanguageServer`]: crate::lsp::LanguageServer
 #[allow(dead_code)]

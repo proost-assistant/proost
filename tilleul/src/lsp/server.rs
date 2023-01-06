@@ -13,8 +13,9 @@ use crate::lsp::message::Message;
 
 /// [Language Server Protocol] server frontend.
 ///
-/// [`Server`] is the frontend server for [Language Server Protocol] handling I/O operations and dispatch requests towards the
-/// user-defined backend server implementing [`LanguageServer`].
+/// [`Server`] is the frontend server for the [Language Server Protocol] which handles I/O
+/// operations and dispatches requests to a user-defined backend server implementing
+/// [`LanguageServer`].
 ///
 /// [Language Server Protocol]: https://microsoft.github.io/language-server-protocol/
 pub struct Server<'server, S: LanguageServer, C: connection::Server> {
@@ -30,7 +31,7 @@ pub struct Server<'server, S: LanguageServer, C: connection::Server> {
 
 /// State of the [`Server`].
 ///
-/// Depending of the state, the server will dispatch [requests] and [notifications] according to the [specification].
+/// Depending on the state, the server will dispatch [requests] and [notifications], in accordance with the [specification].
 ///
 /// [notifications]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#notificationMessage
 /// [specification]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#lifeCycleMessages
@@ -45,7 +46,7 @@ enum State {
     ///
     /// [`initialize`]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#initialize
     /// [`initialized`]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#initialized
-    Initialised,
+    Initialising,
 
     /// Got [`initialized`] request: The [`Server`] is now running.
     ///
@@ -96,14 +97,14 @@ where
 
         match self.state {
             State::WaitingForInitialisation => dispatcher
-                .handle_callback::<Initialize, _>(S::initialize, |_| self.state = State::Initialised)
+                .handle_callback::<Initialize, _>(S::initialize, |_| self.state = State::Initialising)
                 .handle_fallthrough(Error {
                     code: ErrorCode::ServerNotInitialized,
                     message: "Server not initialised".to_owned(),
                     data: None,
                 }),
 
-            State::Initialised => dispatcher.handle_fallthrough(Error {
+            State::Initialising => dispatcher.handle_fallthrough(Error {
                 code: ErrorCode::ServerNotInitialized,
                 message: "Server not initialised".to_owned(),
                 data: None,
@@ -125,7 +126,7 @@ where
         }
     }
 
-    /// Dispatches a received [`Notification`] towards the user-defined [`LanguageServer`] backend's methods.
+    /// Dispatches a received [`Notification`] to the user-defined [`LanguageServer`] backend methods.
     fn dispatch_notification(&mut self, notification: Notification) {
         #[allow(clippy::wildcard_imports)]
         use lsp_types::notification::*;
@@ -135,7 +136,7 @@ where
         match self.state {
             State::WaitingForInitialisation => dispatcher.handle_fallthrough("Server not initialised"),
 
-            State::Initialised => dispatcher
+            State::Initialising => dispatcher
                 .handle_callback::<Initialized, _>(S::initialized, || self.state = State::Running)
                 .handle_fallthrough("Server not initialised"),
 
