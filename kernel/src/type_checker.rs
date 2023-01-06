@@ -49,12 +49,12 @@ impl<'arena> Term<'arena> {
     ///
     /// The conversion is untyped, meaning that it should *only* be called during type-checking
     /// when the two [`Term`]s are already known to be of the same type and in the same context.
-    fn conversion(self, rhs: Self,check_irrelevance: bool, arena: &mut Arena<'arena>) -> bool {
+    fn conversion(self, rhs: Self, arena: &mut Arena<'arena>) -> bool {
         if self == rhs {
             return true;
         }
-        // We assume that self and rhs have the same type. As such, we only need to check whether 
-        if check_irrelevance && self.is_prop_term(arena).unwrap_or(false) {
+        // We assume that self and rhs have the same type. As such, we only need to check whether
+        if !self.is_relevant(arena) {
             return true;
         }
 
@@ -70,23 +70,23 @@ impl<'arena> Term<'arena> {
 
             (&Var(i, _), &Var(j, _)) => i == j,
 
-            (&Prod(t1, u1), &Prod(t2, u2)) => t1.conversion(t2,check_irrelevance, arena) && u1.conversion(u2,check_irrelevance, arena),
+            (&Prod(t1, u1), &Prod(t2, u2)) => t1.conversion(t2, arena) && u1.conversion(u2, arena),
 
             // Since we assume that both values already have the same type,
             // checking conversion over the argument type is useless.
             // However, this doesn't mean we can simply remove the arg type
             // from the type constructor in the enum, it is needed to quote back to terms.
-            (&Abs(_, t), &Abs(_, u)) => t.conversion(u,check_irrelevance, arena),
+            (&Abs(_, t), &Abs(_, u)) => t.conversion(u, arena),
 
-            (&App(t1, u1), &App(t2, u2)) => t1.conversion(t2,check_irrelevance, arena) && u1.conversion(u2,check_irrelevance, arena),
+            (&App(t1, u1), &App(t2, u2)) => t1.conversion(t2, arena) && u1.conversion(u2, arena),
 
             // We do not automatically unfold definitions during normalisation because of how costly it is.
             // Instead, when the same declaration is met on both terms, they're also equal in memory.
             // Otherwise, either one of them is not a decl, or they are two different decls. In both case, we unfold decls to check
             // equality.
-            (&Decl(decl), _) => decl.get_term(arena).conversion(rhs,check_irrelevance, arena),
+            (&Decl(decl), _) => decl.get_term(arena).conversion(rhs, arena),
 
-            (_, &Decl(decl)) => decl.get_term(arena).conversion(lhs,check_irrelevance, arena),
+            (_, &Decl(decl)) => decl.get_term(arena).conversion(lhs, arena),
 
             _ => false,
         }
@@ -98,7 +98,7 @@ impl<'arena> Term<'arena> {
     /// Yields an error indicating that the two terms are not definitionally equal.
     #[inline]
     pub fn is_def_eq(self, rhs: Self, arena: &mut Arena<'arena>) -> Result<'arena, ()> {
-        self.conversion(rhs,true, arena)
+        self.conversion(rhs, arena)
             .then_some(())
             .ok_or_else(|| Error::new(ErrorKind::NotDefEq(self, rhs).into()))
     }
@@ -157,7 +157,7 @@ impl<'arena> Term<'arena> {
                     Prod(arg_type, cls) => {
                         let type_u = u.infer(arena).trace_err(Trace::Right)?;
 
-                        if type_u.conversion(arg_type,false, arena) {
+                        if type_u.conversion(arg_type, arena) {
                             Ok(cls.substitute(u, 1, arena))
                         } else {
                             Err(Error::new(ErrorKind::WrongArgumentType(t, arg_type, TypedTerm(u, type_u)).into()))
@@ -181,16 +181,9 @@ impl<'arena> Term<'arena> {
     pub fn check(self, ty: Self, arena: &mut Arena<'arena>) -> Result<'arena, ()> {
         let tty = self.infer(arena)?;
 
-        tty.conversion(ty,false, arena)
+        tty.conversion(ty, arena)
             .then_some(())
             .ok_or_else(|| Error::new(ErrorKind::TypeMismatch(tty, ty).into()))
-    }
-
-    /// Checks whether self : A : Prop, is used for definitional proof-irrelevance
-    fn is_prop_term(self,arena: &mut Arena<'arena>) -> Result<'arena,bool> {
-        let ty = self.infer(arena)?;
-        let univ = ty.infer(arena)?;
-        Ok(univ.is_def_eq(Term::sort_usize(0, arena), arena).is_ok())
     }
 }
 

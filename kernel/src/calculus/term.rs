@@ -246,6 +246,23 @@ impl<'arena> Term<'arena> {
         let rec_reds = [Term::reduce_nat, Term::reduce_eq];
         rec_reds.into_iter().find_map(|f| f(self, arena))
     }
+
+    /// Returns whether a term is computationally relevant.
+    #[inline]
+    pub fn is_relevant(self, arena: &mut Arena<'arena>) -> bool {
+        self.get_relevance_or_try_init(|| match *self {
+            Var(_, ty) => ty.is_def_eq(Term::sort_usize(0, arena), arena).map_or(false, |_| true),
+            App(t, _) => t.is_relevant(arena),
+            Abs(_, t) => t.is_relevant(arena),
+            Decl(d) => d.get_term(arena).is_relevant(arena),
+            Axiom(ax, lvl) => ax
+                .get_type(arena)
+                .substitute_univs(lvl, arena)
+                .is_def_eq(Term::sort_usize(0, arena), arena)
+                .map_or(false, |_| true),
+            _ => false,
+        })
+    }
 }
 
 #[cfg(test)]
