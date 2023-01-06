@@ -59,7 +59,6 @@ impl From<pest::error::Error<Rule>> for Error {
             Rule::EndModule => "end".to_owned(),
             Rule::UseModule => "use (module::)var".to_owned(),
             Rule::public => "pub".to_owned(),
-            Rule::superkw => "super".to_owned(),
             _ => unreachable!("low level rules cannot appear in error messages"),
         });
 

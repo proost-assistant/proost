@@ -289,9 +289,9 @@ mod tests {
 
     /// Error messages
     const COMMAND_ERR: &str = "expected pub, check term : term, check term, eval term, import path_to_file, search (module::)var, mod var, end, or use (module::)var";
-    const TERM_ERR: &str = "expected abstraction, dependent product, application, product, Prop, Type, Sort, or (module::)var";
-    const SIMPLE_TERM_ERR: &str = "expected abstraction, Prop, Type, Sort, (module::)var, or universe argument";
-    const UNIVERSE_ERR: &str = "expected num, var, abstraction, Prop, Type, Sort, plus, max, imax, or (module::)var";
+    const TERM_ERR: &str = "expected var, abstraction, dependent product, application, product, Prop, Type, or Sort";
+    const SIMPLE_TERM_ERR: &str = "expected var, abstraction, Prop, Type, Sort, or universe argument";
+    const UNIVERSE_ERR: &str = "expected num, var, abstraction, Prop, Type, Sort, plus, max, or imax";
 
     #[test]
     fn failure_universe_level() {

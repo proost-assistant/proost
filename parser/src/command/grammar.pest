@@ -13,11 +13,10 @@ filename = @{ ( ASCII_ALPHANUMERIC | PUNCTUATION )+ }
 string = @{ !keywords ~ ASCII_ALPHA ~ ( "_" | ASCII_ALPHANUMERIC )* }
 
 // Keywords used by variable and module names
-keywords = @{ ( "super" | "use" | "end" | "mod" | "fun" | "def" | "check" | "Prop" | "Type" | "Sort" ) ~ !ASCII_ALPHANUMERIC }
+keywords = @{ ( "pub" | "self" | "super" | "use" | "end" | "mod" | "fun" | "def" | "check" | "Prop" | "Type" | "Sort" ) ~ !ASCII_ALPHANUMERIC }
 
 // Special keywords
 public = @{ "pub" }
-superkw = @{ "super" }
 
 // Lambda terms
 Term = _{ Abs | dProd | Prod | App | VarDecl | Var | Prop | Type | Sort | "(" ~ Term ~ ")" }
@@ -56,7 +55,7 @@ Max = { ( "max" ~ "(" ~ univ ~ "," ~ univ ~ ")" ) | ( "max" ~ univ ~ univ ) }
 IMax = { ( "imax" ~ "(" ~ univ ~ "," ~ univ ~ ")" ) | ( "imax" ~ univ ~ univ ) }
 
 // Variable
-Var = ${ (superkw ~ "::")* ~ (string ~ "::")* ~ string }
+Var = ${ ("super" ~ "::")* ~ (string ~ "::")* ~ string }
 VarDecl = ${ Var ~ arg_univ }
 stringDecl = ${ string ~ univ_decl }
 
