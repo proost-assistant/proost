@@ -75,7 +75,6 @@ fn parse_term(pair: Pair<Rule>) -> term::Builder {
 
         Rule::VarDecl => {
             let mut iter = pair.into_inner();
-            print!("{}", iter);
             let name = iter.next().unwrap().into_inner().map(|pair| pair.as_str()).collect();
             let levels = iter.next().unwrap().into_inner().map(parse_level).collect();
 
