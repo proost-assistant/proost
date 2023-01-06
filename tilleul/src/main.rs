@@ -76,7 +76,7 @@ fn main() {
 
     let connection = Stdio::new();
 
-    kernel::memory::arena::use_arena(|arena| {
+    kernel::memory::arena::use_arena_with_axioms(|arena| {
         let backend = Tilleul::new(arena, &connection);
 
         Server::new(backend, &connection).serve();
