@@ -70,12 +70,14 @@
           commands = [{
             name = "coverage";
             command = let 
-              excl_line = "#\\[|use|unreachable!|^(pub |pub(crate) )?(enum|struct)";
-              excl_start = "^(pub |pub(crate) )?(enum|struct) ([[:alpha:]]|[[:space:]]|[<>',])+\\{";
-              excl_stop = "^\\}";
-              excl_br_line = "#\\[|assert(_eq)?!|^(pub |pub(crate) )?(enum|struct)|^[[:space:]]*\\}(,)?$";
-              excl_br_start = "#\\[no_coverage\\]|^mod tests \\{|^(pub |pub(crate) )?(enum|struct) ([[:alpha:]]|[[:space:]]|[<>',])+\\{";
-              excl_br_stop = "^\\}";
+              excl_enum_struct = "^([[:space:]]*)(pub |pub(([[:alpha:]]|[[:space:]]|[:])+) )?(enum|struct) ";
+              excl_enum_fn_struct = "^([[:space:]]*)(pub |pub(([[:alpha:]]|[[:space:]]|[:])+) )?(enum|fn|struct) ";
+              excl_line = "//!|#\\[|use|unreachable!|^\\}$|${excl_enum_struct}";
+              excl_start = "${excl_enum_struct}";
+              excl_stop = "^\\}$";
+              excl_br_line = "#\\[|assert(_eq)?!|(error|warn|info|debug|trace)!|^[[:space:]]*\\}(,)?$|${excl_enum_fn_struct}";
+              excl_br_start = "#\\[no_coverage\\]|^mod tests \\{|${excl_enum_struct}";
+              excl_br_stop = "^\\}$";
               env = "CARGO_INCREMENTAL=0"
                   + " RUSTFLAGS=\"-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort\""
                   + " RUSTDOCFLAGS=\"-Cpanic=abort\"";

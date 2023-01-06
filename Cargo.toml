@@ -3,10 +3,13 @@ members = [
     "kernel",
     "parser",
     "proost",
+    "tilleul",
     "utils"
 ]
 
 [workspace.dependencies]
+anyhow = "1.0.66"
+bumpalo = "3.11.1"
 clap = { version = "4.0.10", features = ["derive"] }
 derive_more = "0.99.17"
 
