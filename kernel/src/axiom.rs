@@ -178,11 +178,25 @@ impl<'arena> Axiom {
                         ),
                         Term::app(
                             Term::app(
-                                Term::app(Term::var(4.into(), motive, arena), Term::var(5.into(), sort_u, arena), arena),
+                                Term::var(4.into(), motive, arena), 
                                 Term::var(2.into(), sort_u, arena),
                                 arena,
                             ),
-                            Term::var(2.into(), motive, arena),
+                            Term::var(1.into(), 
+                            Term::app(
+                                Term::app(
+                                    Term::app(
+                                        Term::axiom(Self::Eq_, &[Level::var(0, arena)], arena),
+                                        Term::var(6.into(), sort_u, arena),
+                                        arena,
+                                    ),
+                                    Term::var(5.into(), sort_u, arena),
+                                    arena,
+                                ),
+                                Term::var(2.into(), sort_u, arena),
+                                arena,
+                            )
+                            , arena),
                             arena,
                         ),
                         arena,
@@ -191,7 +205,7 @@ impl<'arena> Axiom {
                 );
 
                 // Eq_rec : (A : Sort u) -> (a : A) -> (motive : (b : A) -> Eq A a B -> Sort v) ->
-                // motive a (Refl A a) -> (b : A) -> (p : Eq A a b) -> motive a b p
+                // motive a (Refl A a) -> (b : A) -> (p : Eq A a b) -> motive b p
                 Term::prod(
                     sort_u,
                     Term::prod(
