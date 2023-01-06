@@ -54,7 +54,7 @@ impl<'arena> Term<'arena> {
             return true;
         }
         // We assume that self and rhs have the same type. As such, we only need to check whether 
-        if self.is_prop_term(arena) {
+        if self.is_prop_term(arena).unwrap_or(false) {
             return true;
         }
 
@@ -186,27 +186,11 @@ impl<'arena> Term<'arena> {
             .ok_or_else(|| Error::new(ErrorKind::TypeMismatch(tty, ty).into()))
     }
 
-
-    fn is_prop_term(self,arena: &mut Arena<'arena>) -> bool {
-        match *self.whnf(arena) {
-            Sort(_) => false,
-            Var(_,t) => t.is_prop_type(arena),
-            Prod(_,_) => false,
-            Abs(_,u) => u.is_prop_term(arena),
-            App(_t,_u) => panic!("todo"),
-            Decl(decl) => decl.get_term(arena).is_prop_term(arena),
-        }
-    }
-
-    fn is_prop_type(self, arena: &mut Arena<'arena>) -> bool {
-        match *self {
-            Sort(_) => false,
-            Var(_,t) => t.is_def_eq(Term::prop(arena), arena).is_ok(),
-            Prod(t,u) => u.is_prop_type(arena),
-            Abs(t,u) => false,
-            App(t,u) => panic!("todo"),
-            Decl(decl) => decl.get_term(arena).is_prop_type(arena),
-        }
+    /// Checks whether self : A : Prop, is used for definitional proof-irrelevance
+    fn is_prop_term(self,arena: &mut Arena<'arena>) -> Result<'arena,bool> {
+        let ty = self.infer(arena)?;
+        let univ = ty.infer(arena)?;
+        Ok(univ.is_def_eq(Term::sort_usize(0, arena), arena).is_ok())
     }
 }
 
