@@ -732,6 +732,7 @@ dependencies = [
  "derive_more",
  "elaboration",
  "indextree",
+ "itertools",
  "kernel",
  "parser",
  "path-absolutize",

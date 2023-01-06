@@ -57,7 +57,7 @@ pub struct Evaluator {
 
     /// Whether the evaluator should be verbose in designated contexts
     verbose: bool,
-    
+
     /// The set of all imported paths
     imported: HashSet<PathBuf>,
 
@@ -282,7 +282,7 @@ impl<'arena> Evaluator {
                 .map(|_| None),
 
             Command::BeginModule(ref s) => {
-                self.modtree.begin_module(s);
+                self.modtree.begin_module(s)?;
                 Ok(None)
             },
 

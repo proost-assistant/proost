@@ -1,24 +1,46 @@
+use std::fmt;
 use std::iter::once;
 
 use derive_more::Display;
 use indextree::{Arena, NodeId};
+use itertools::Itertools;
 
 use crate::error::Result;
 
 /// Type representing module tree errors.
 #[non_exhaustive]
-#[derive(Clone, Debug, Eq, PartialEq, Display)]
-pub enum Error {
-    #[display(fmt = "no module to close")]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum Error<'build> {
     NoModuleToClose(),
 
-    #[display(fmt = "no such var: {}", "_0.join(\"::\")")]
     PathNotFound(Vec<String>),
 
-    //#[display(fmt = "no module to close")]
-    //AmbigiousPath(Vec<&'build str>, Vec<ModuleTree<'build>>),
-    #[display(fmt = "bounded variable: {}", "_0.join(\"::\")")]
-    BoundVariable(Vec<String>),
+    AmbigiousPath(Vec<&'build str>, Vec<Vec<String>>),
+
+    BoundVariable(&'build str),
+
+    BoundModule(&'build str),
+}
+
+impl<'build> fmt::Display for Error<'build> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use Error::{AmbigiousPath, BoundModule, BoundVariable, NoModuleToClose, PathNotFound};
+
+        match self {
+            NoModuleToClose() => write!(f, "no module to close"),
+
+            PathNotFound(name) => write!(f, "no such var: {}", name.join("::")),
+
+            AmbigiousPath(name, potential) => {
+                let potentials: Vec<String> = potential.into_iter().map(|v| v.join("::")).collect();
+                write!(f, "ambiguous identifier {}: {}", name.join("::"), potentials.join(", "))
+            },
+
+            BoundVariable(name) => write!(f, "bounded var: {name}"),
+
+            BoundModule(name) => write!(f, "bounded module: {name}"),
+        }
+    }
 }
 
 /// Module tree node.
@@ -68,37 +90,51 @@ impl ModuleTree {
         }
     }
 
-    /// Return the NodeId corresponding to the given absolute path from the given position if it exists
-    fn get_path<I>(&self, position: NodeId, path: I) -> Option<NodeId>
+    /// Return the NodeId(s) corresponding to the given absolute path from the given position if it exists
+    fn get_path<'build, I>(&self, position: NodeId, path: I) -> Vec<NodeId>
     where
-        I: Iterator<Item = String>,
+        I: Iterator<Item = &'build str>,
     {
         let mut candidates = vec![position];
 
         path.for_each(|name| {
-            candidates = candidates
-                .iter()
-                .map(|nodeid| nodeid.children(&self.arena))
-                .flatten()
-                .filter(|nodeid| (*self.arena[*nodeid].get().name() == name))
-                .collect()
+            if name != "self" {
+                candidates = if name == "super" {
+                    candidates
+                        .iter()
+                        .filter_map(|nodeid| {
+                            let mut iter = nodeid.ancestors(&self.arena);
+                            iter.next();
+                            iter.next()
+                        })
+                        .unique()
+                        .collect()
+                } else {
+                    candidates
+                        .iter()
+                        .map(|nodeid| nodeid.children(&self.arena))
+                        .flatten()
+                        .filter(|nodeid| (*self.arena[*nodeid].get().name() == name))
+                        .collect()
+                }
+            }
         });
 
-        candidates.first().copied()
+        candidates
     }
 
-    /// Return the NodeId corresponding to the given absolute path if it exists
-    fn get_absolute<I>(&self, path: I) -> Option<NodeId>
+    /// Return the NodeId(s) corresponding to the given absolute path if it exists
+    fn get_absolute<'build, I>(&self, path: I) -> Vec<NodeId>
     where
-        I: Iterator<Item = String>,
+        I: Iterator<Item = &'build str>,
     {
         self.get_path(self.root, path)
     }
 
-    /// Return the NodeId corresponding to the given relative path if it exists
-    fn get_relative<I>(&self, path: I) -> Option<NodeId>
+    /// Return the NodeId(s) corresponding to the given relative path if it exists
+    fn get_relative<'build, I>(&self, path: I) -> Vec<NodeId>
     where
-        I: Iterator<Item = String>,
+        I: Iterator<Item = &'build str>,
     {
         self.get_path(self.position, path)
     }
@@ -113,10 +149,10 @@ impl ModuleTree {
     }
 
     /// Add a definition in the current module of the tree
-    pub fn define(&mut self, name: &str, public: bool) -> Result<()> {
-        let res = self.get_relative(once(name.to_string()));
-        if res.is_some() {
-            return Err(Error::BoundVariable(self.get_position(res.unwrap())).into());
+    pub fn define<'arena, 'build>(&mut self, name: &'build str, public: bool) -> Result<'arena, 'build, ()> {
+        let res = self.get_relative(once(name));
+        if !res.is_empty() {
+            return Err(Error::BoundVariable(name).into());
         }
         let node = self.arena.new_node(ModuleNode::Def(name.to_string(), public));
         self.position.append(node, &mut self.arena);
@@ -124,16 +160,19 @@ impl ModuleTree {
     }
 
     /// Create and move into a (new) (sub) module
-    pub fn begin_module(&mut self, name: &str) {
-        self.position = self.get_relative(once(name.to_string())).unwrap_or({
-            let node = self.arena.new_node(ModuleNode::Module(name.to_string()));
-            self.position.append(node, &mut self.arena);
-            node
-        });
+    pub fn begin_module<'arena, 'build>(&mut self, name: &'build str) -> Result<'arena, 'build, ()> {
+        let res = self.get_relative(once(name));
+        if !res.is_empty() {
+            return Err(Error::BoundModule(name).into());
+        }
+        let node = self.arena.new_node(ModuleNode::Module(name.to_string()));
+        self.position.append(node, &mut self.arena);
+        self.position = node;
+        Ok(())
     }
 
     /// Move out of the current module or raise an error if currently not in a module
-    pub fn end_module<'arena>(&mut self) -> Result<'arena, 'static, ()> {
+    pub fn end_module<'arena, 'build>(&mut self) -> Result<'arena, 'build, ()> {
         let parent = self.arena[self.position].parent();
         match parent {
             None => Err(Error::NoModuleToClose().into()),
@@ -143,4 +182,18 @@ impl ModuleTree {
             },
         }
     }
+
+    /// Use a module or a variable identified by its path if it exists
+    pub fn use_path<'arena, 'build, I>(&mut self, path: I) -> Result<'arena, 'build, ()>
+    where
+        I: Iterator<Item = &'build str>,
+    {
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    // TODO
 }

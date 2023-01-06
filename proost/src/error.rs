@@ -30,7 +30,7 @@ pub enum Error<'arena, 'build> {
     RustyLine(rustyline::error::ReadlineError),
 
     /// An error raised by the [`module`].
-    ModuleTree(module_tree::Error),
+    ModuleTree(module_tree::Error<'build>),
 }
 
 impl core::fmt::Debug for Error<'_, '_> {
