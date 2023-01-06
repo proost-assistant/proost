@@ -35,13 +35,13 @@ pub enum Command<'build> {
     Search(Vec<&'build str>),
 
     /// Begin a module
-    BeginModule(&'build str),
+    BeginModule(bool, &'build str),
 
     /// End a module
     EndModule(),
 
     /// Open a module
-    UseModule(Vec<&'build str>),
+    UseModule(bool, Vec<&'build str>),
 }
 
 impl<'build> fmt::Display for Command<'build> {
@@ -91,11 +91,21 @@ impl<'build> fmt::Display for Command<'build> {
 
             Search(ref name) => write!(f, "search {}", name.join("::")),
 
-            BeginModule(name) => write!(f, "mod {name}"),
+            BeginModule(public, name) => {
+                if public {
+                    write!(f, "mod ")?;
+                }
+                write!(f, "mod {name}")
+            },
 
             EndModule() => write!(f, "end"),
 
-            UseModule(ref name) => write!(f, "use {}", name.join("::")),
+            UseModule(public, ref name) => {
+                if public {
+                    write!(f, "mod ")?;
+                }
+                write!(f, "use {}", name.join("::"))
+            },
         }
     }
 }

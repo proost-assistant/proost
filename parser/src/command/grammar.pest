@@ -55,7 +55,7 @@ Max = { ( "max" ~ "(" ~ univ ~ "," ~ univ ~ ")" ) | ( "max" ~ univ ~ univ ) }
 IMax = { ( "imax" ~ "(" ~ univ ~ "," ~ univ ~ ")" ) | ( "imax" ~ univ ~ univ ) }
 
 // Variable
-Var = ${ ("super" ~ "::")* ~ (string ~ "::")* ~ string }
+Var = ${ ( ( "super" | "self" ) ~ "::")* ~ ( string ~ "::")*  ~ string }
 VarDecl = ${ Var ~ arg_univ }
 stringDecl = ${ string ~ univ_decl }
 
@@ -73,9 +73,9 @@ GetType = { "check" ~ Term }
 Eval = { "eval" ~ Term }
 ImportFile = { "import" ~ filename* }
 Search = { "search" ~ string }
-BeginModule = { "mod" ~ string }
+BeginModule = { ( public? ) ~ "mod" ~ string }
 EndModule = { "end" }
-UseModule = { "use" ~ Var }
+UseModule = { ( public? ) ~ "use" ~ Var }
 
 // Definitions used to generate corresponding parsers
 command = _{SOI ~ Command ~ eoi }

@@ -233,15 +233,28 @@ fn parse_expr(pair: Pair<Rule>) -> Command {
         },
 
         Rule::BeginModule => {
-            let s = pair.into_inner().next().unwrap().as_str();
+            let mut public = false;
+            let mut iter = pair.into_inner();
+            let mut pair = iter.next().unwrap();
+            if pair.as_rule() == Rule::public {
+                public = true;
+                pair = iter.next().unwrap();
+            }
 
-            Command::BeginModule(s)
+            Command::BeginModule(public, pair.as_str())
         },
 
         Rule::UseModule => {
+            let mut public = false;
+            let mut iter = pair.into_inner();
+            let mut pair = iter.next().unwrap();
+            if pair.as_rule() == Rule::public {
+                public = true;
+                pair = iter.next().unwrap();
+            }
             let name = pair.into_inner().map(|pair| pair.as_str()).collect();
 
-            Command::UseModule(name)
+            Command::UseModule(public, name)
         },
 
         Rule::Search => {

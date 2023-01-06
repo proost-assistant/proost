@@ -270,7 +270,7 @@ impl<'arena> Evaluator {
                 Ok(Some(term.normal_form(arena)))
             },
 
-            Command::Search(ref s) => Ok(arena.get_binding(s.last().unwrap())), // TODO (see #49)
+            Command::Search(ref name) => Ok(arena.get_binding(name.last().unwrap())), // TODO (see #49)
 
             Command::Import(ref files) => files
                 .iter()
@@ -281,8 +281,8 @@ impl<'arena> Evaluator {
                 })
                 .map(|_| None),
 
-            Command::BeginModule(ref s) => {
-                self.modtree.begin_module(s)?;
+            Command::BeginModule(public, ref name) => {
+                self.modtree.begin_module(name, public)?;
                 Ok(None)
             },
 
@@ -291,7 +291,10 @@ impl<'arena> Evaluator {
                 Ok(None)
             },
 
-            Command::UseModule(ref name) => Ok(None), //TODO
+            Command::UseModule(public, ref name) => {
+                self.modtree.use_module(name, public)?;
+                Ok(None)
+            },
         }
     }
 }
