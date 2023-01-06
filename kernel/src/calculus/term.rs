@@ -554,4 +554,13 @@ mod tests {
             assert_eq!(nat_to_zero.whnf(arena), nat_to_zero);
         });
     }
+
+    #[test]
+    fn relevance() {
+        use_arena(|arena| {
+            let false_ = Term::axiom(crate::axiom::Axiom::False, &[], arena);
+            let tt1 = false_.abs(Term::var(1.into(), false_, arena), arena);
+            assert!(!tt1.is_relevant(arena));
+        });
+    }
 }
