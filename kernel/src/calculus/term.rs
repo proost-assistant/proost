@@ -198,7 +198,7 @@ impl<'arena> Term<'arena> {
            let App(f, motive_0) = *f.whnf(arena) && let App(f, motive) = *f.whnf(arena) && let Axiom(axiom::Axiom::NatRec, lvl) = *f.unfold(arena).whnf(arena) {
             match *n.whnf(arena) {
                 Axiom(axiom::Axiom::Zero, _) => Some(motive_0),
-                App(f, n) if let Axiom(axiom::Axiom::Succ, _) = *f => {
+                App(f, n) if let Axiom(axiom::Axiom::Succ, _) = *f.unfold(arena).whnf(arena) => {
                     let new_rec = Term::app(
                         Term::app(
                             Term::app(Term::app(Term::axiom(axiom::Axiom::NatRec, lvl, arena), motive, arena), motive_0, arena),
@@ -219,15 +219,19 @@ impl<'arena> Term<'arena> {
     }
 
     /// Reduces a term if it is an instance of the Eq reducer, returns None otherwise.
+    /// Making a "short" example of this reduction is hard, or at least, I failed to find one.
+    /// I'm marking it as `no_coverage` for now, but a proof that reduction works can be found in `examples/eq.mdln`.
+    #[no_coverage]
     fn reduce_eq(self, arena: &mut Arena<'arena>) -> Option<Self> {
         // Be aware that this function will not be automatically formatted, because of the
         // experimental status of let-chains, as well as that of if-let conditions in pattern matching.
-        if let App(f, a_b_eq) = *self && let App(f, b) = *f.whnf(arena) && let App(f, motive_refl) = *f.whnf(arena) && let App(f, _motive) = *f.whnf(arena) &&
-               let App(f,a) = *f.whnf(arena) && let App(f,_) = *f.whnf(arena) &&
+        if let App(f, a_b_eq) = *self && let App(f, b) = *f.whnf(arena) && let App(f, motive_refl) = *f.whnf(arena) &&
+               let App(f, _motive) = *f.whnf(arena) &&
+               let App(f,a) = *f.whnf(arena) && let App(f,_aty) = *f.whnf(arena) &&
                let Axiom(axiom::Axiom::EqRec, _) = *f.unfold(arena).whnf(arena) &&
                b.is_def_eq(a, arena).is_ok() {
                 match *a_b_eq.whnf(arena) {
-                    App(f, _) if let App(f,_) = *f && let Axiom(axiom::Axiom::Refl, _) = *f => {
+                    App(f, _) if let App(f,_) = *f && let Axiom(axiom::Axiom::Refl, _) = *f.unfold(arena).whnf(arena) => {
                         Some(motive_refl)
                     },
                     _ => None,
