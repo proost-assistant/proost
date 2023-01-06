@@ -14,6 +14,7 @@ pub(super) struct Threads {
 }
 
 impl Drop for Threads {
+    #[no_coverage]
     fn drop(&mut self) {
         if let Some(thread) = self.reader.take() {
             thread.join().unwrap_or_else(|_| error!("Failed to join reader thread"));

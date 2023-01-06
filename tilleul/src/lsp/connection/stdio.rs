@@ -1,5 +1,6 @@
 //! I/O communication via `stdio`.
 
+use std::io::{BufReader, BufWriter};
 use std::{io, thread};
 
 use crossbeam_channel::{unbounded, Receiver, RecvError, SendError, Sender};
@@ -33,8 +34,8 @@ impl Stdio {
         let (reader_sender, receiver) = unbounded::<Message>();
         let (sender, writer_receiver) = unbounded::<Message>();
 
-        let reader = Some(thread::spawn(move || Self::reader_thread(&reader_sender)));
-        let writer = Some(thread::spawn(move || Self::writer_thread(&writer_receiver)));
+        let reader = Some(thread::spawn(move || Self::reader_thread(&reader_sender, BufReader::new(io::stdin()))));
+        let writer = Some(thread::spawn(move || Self::writer_thread(&writer_receiver, BufWriter::new(io::stdout()))));
 
         Self {
             receiver,
@@ -44,13 +45,12 @@ impl Stdio {
     }
 
     /// Reader thread function.
-    fn reader_thread(sender: &Sender<Message>) {
-        let mut stdin = io::stdin().lock();
-
+    #[no_coverage]
+    fn reader_thread<R: std::io::Read>(sender: &Sender<Message>, mut reader: BufReader<R>) {
         info!("Reader thread started");
 
         loop {
-            let msg = Message::read(&mut stdin);
+            let msg = Message::read(&mut reader);
 
             debug!("Received: {:?}", msg);
 
@@ -67,15 +67,14 @@ impl Stdio {
     }
 
     /// Writer thread function.
-    fn writer_thread(receiver: &Receiver<Message>) {
-        let mut stdout = io::stdout().lock();
-
+    #[no_coverage]
+    fn writer_thread<W: std::io::Write>(receiver: &Receiver<Message>, mut writer: BufWriter<W>) {
         info!("Writer thread started");
 
         for msg in receiver {
             debug!("Sending: {:?}", msg);
 
-            msg.write(&mut stdout).unwrap_or_else(|err| {
+            msg.write(&mut writer).unwrap_or_else(|err| {
                 error!("Failed to write message to stdout: {err}");
             });
         }
@@ -105,5 +104,86 @@ impl Server for Stdio {
 
     fn send(&self, message: Message) -> Result<(), SendError<Message>> {
         self.sender.send(message)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use lsp_types::InitializedParams;
+
+    use super::*;
+    use crate::lsp::message::notification::Notification;
+    use crate::lsp::message::response::Response;
+    use crate::lsp::message::Message;
+
+    #[test]
+    fn reader_got_message() {
+        let data = b"Content-Length: 41\r\n\r\n{ \"method\": \"initialized\", \"params\": {} }";
+
+        let (reader_sender, receiver) = unbounded::<Message>();
+
+        let thread = Some(thread::spawn(move || {
+            let reader = BufReader::new(&data[..]);
+
+            Stdio::reader_thread(&reader_sender, reader);
+        }));
+
+        let msg = receiver.recv().unwrap();
+
+        assert_eq!(msg, Message::Notification(Notification::new::<lsp_types::notification::Initialized>(InitializedParams {})));
+        assert!(thread.unwrap().join().is_ok());
+    }
+
+    #[test]
+    fn reader_exiting() {
+        let data = b"";
+
+        let (reader_sender, receiver) = unbounded::<Message>();
+
+        let thread = Some(thread::spawn(move || {
+            let reader = BufReader::new(&data[..]);
+
+            Stdio::reader_thread(&reader_sender, reader);
+        }));
+
+        assert_eq!(receiver.recv().unwrap_err(), RecvError);
+        assert!(thread.unwrap().join().is_ok());
+    }
+
+    #[test]
+    fn reader_got_corrupted_message() {
+        let data = b"{ \"method\": \"initialized\", \"params\": {} }";
+
+        let (reader_sender, receiver) = unbounded::<Message>();
+
+        let thread = Some(thread::spawn(move || {
+            let reader = BufReader::new(&data[..]);
+
+            Stdio::reader_thread(&reader_sender, reader);
+        }));
+
+        assert_eq!(receiver.recv().unwrap_err(), RecvError);
+        assert!(thread.unwrap().join().is_ok());
+    }
+
+    #[test]
+    #[allow(unused_assignments)]
+    fn writer_send_message() {
+        let data = Message::Response(Response::new::<lsp_types::request::Shutdown>(1, ()));
+        let mut thread = None;
+
+        {
+            let (sender, writer_receiver) = unbounded::<Message>();
+
+            thread = Some(thread::spawn(move || {
+                let writer = BufWriter::new(Vec::new());
+
+                Stdio::writer_thread(&writer_receiver, writer);
+            }));
+
+            assert_eq!(sender.send(data), Ok(()));
+        };
+
+        assert!(thread.unwrap().join().is_ok());
     }
 }
