@@ -30,9 +30,20 @@ pub enum Axiom {
 
     /// The successor function in the natural numbers.
     Succ,
+
+    /// The equality type
+    /// Note : the constructor is written as `Eq_` because naming it `Eq` fucks with the macros.
+    #[display(fmt = "Eq")]
+    Eq_,
+
+    /// The recursor over the equality type
+    EqRec,
+
+    /// The reflexivity predicate for the equality type
+    Refl,
 }
 
-use Axiom::{False, FalseRec, Nat, NatRec, Succ, Zero};
+use Axiom::{EqRec, Eq_, False, FalseRec, Nat, NatRec, Refl, Succ, Zero};
 
 impl<'arena> Axiom {
     /// Returns the type of a given axiom.
@@ -40,6 +51,7 @@ impl<'arena> Axiom {
     /// Because of memoisation, this is only performed once per axiom.
     #[inline]
     #[no_coverage]
+    #[allow(clippy::too_many_lines)]
     pub fn get_type(self, arena: &mut Arena<'arena>) -> Term<'arena> {
         match self {
             False => Term::sort_usize(0, arena),
@@ -91,6 +103,124 @@ impl<'arena> Axiom {
             },
             Zero => Term::axiom(Self::Nat, &[], arena),
             Succ => Term::prod(Term::axiom(Self::Nat, &[], arena), Term::axiom(Self::Nat, &[], arena), arena),
+
+            Eq_ => {
+                let sort_u = Term::sort(Level::var(0, arena), arena);
+                let prop = Term::sort_usize(0, arena);
+                // Eq : (A : Sort u) -> A -> A -> Prop
+                Term::prod(
+                    sort_u,
+                    Term::prod(
+                        Term::var(1.into(), sort_u, arena),
+                        Term::prod(Term::var(1.into(), sort_u, arena), prop, arena),
+                        arena,
+                    ),
+                    arena,
+                )
+            },
+            EqRec => {
+                let sort_u = Term::sort(Level::var(0, arena), arena);
+                let sort_v = Term::sort(Level::var(1, arena), arena);
+
+                // motive : (b : A) -> Eq A a b -> Sort v
+                let motive = Term::prod(
+                    Term::var(2.into(), sort_u, arena),
+                    Term::prod(
+                        Term::app(
+                            Term::app(
+                                Term::app(
+                                    Term::axiom(Self::Eq_, &[Level::var(0, arena)], arena),
+                                    Term::var(3.into(), sort_u, arena),
+                                    arena,
+                                ),
+                                Term::var(2.into(), sort_u, arena),
+                                arena,
+                            ),
+                            Term::var(1.into(), sort_u, arena),
+                            arena,
+                        ),
+                        sort_v,
+                        arena,
+                    ),
+                    arena,
+                );
+
+                // Refl A a
+                let refl_a = Term::app(
+                    Term::app(Term::axiom(Self::Refl, &[Level::var(0, arena)], arena), Term::var(3.into(), sort_u, arena), arena),
+                    Term::var(2.into(), sort_u, arena),
+                    arena,
+                );
+
+                // motive a (Refl A a)
+                let motive_refl_a = Term::app(
+                    Term::app(Term::var(1.into(), motive, arena), Term::var(2.into(), sort_u, arena), arena),
+                    refl_a,
+                    arena,
+                );
+
+                // (b : A) -> (p : Eq A a b) -> motive a b p
+                let motive_b_p = Term::prod(
+                    Term::var(4.into(), sort_u, arena),
+                    Term::prod(
+                        Term::app(
+                            Term::app(
+                                Term::app(
+                                    Term::axiom(Self::Eq_, &[Level::var(0, arena)], arena),
+                                    Term::var(5.into(), sort_u, arena),
+                                    arena,
+                                ),
+                                Term::var(4.into(), sort_u, arena),
+                                arena,
+                            ),
+                            Term::var(1.into(), sort_u, arena),
+                            arena,
+                        ),
+                        Term::app(
+                            Term::app(
+                                Term::app(Term::var(4.into(), motive, arena), Term::var(5.into(), sort_u, arena), arena),
+                                Term::var(2.into(), sort_u, arena),
+                                arena,
+                            ),
+                            Term::var(2.into(), motive, arena),
+                            arena,
+                        ),
+                        arena,
+                    ),
+                    arena,
+                );
+
+                // Eq_rec : (A : Sort u) -> (a : A) -> (motive : (b : A) -> Eq A a B -> Sort v) ->
+                // motive a (Refl A a) -> (b : A) -> (p : Eq A a b) -> motive a b p
+                Term::prod(
+                    sort_u,
+                    Term::prod(
+                        Term::var(1.into(), sort_u, arena),
+                        Term::prod(motive, Term::prod(motive_refl_a, motive_b_p, arena), arena),
+                        arena,
+                    ),
+                    arena,
+                )
+            },
+            Refl => {
+                let sort_u = Term::sort(Level::var(0, arena), arena);
+                // Eq A a a
+                let eq_refl = Term::app(
+                    Term::app(
+                        Term::app(
+                            Term::axiom(Self::Eq_, &[Level::var(0, arena)], arena),
+                            Term::var(2.into(), sort_u, arena),
+                            arena,
+                        ),
+                        Term::var(1.into(), sort_u, arena),
+                        arena,
+                    ),
+                    Term::var(1.into(), sort_u, arena),
+                    arena,
+                );
+                // (A : Sort u) -> (a : A) -> Eq A a a
+                Term::prod(sort_u, Term::prod(Term::var(1.into(), sort_u, arena), eq_refl, arena), arena)
+            },
         }
     }
 
@@ -99,6 +229,7 @@ impl<'arena> Axiom {
     #[no_coverage]
     pub fn add_named_axioms(arena: &mut Arena<'arena>) {
         let var0 = Level::var(0, arena);
+        let var1 = Level::var(1, arena);
 
         let false_decl = Term::axiom(Self::False, &[], arena);
         let false_rec_decl = Declaration(Term::axiom(Self::FalseRec, &[var0], arena), 1);
@@ -113,5 +244,12 @@ impl<'arena> Axiom {
         arena.bind_decl("Nat_rec", nat_rec_decl);
         arena.bind("Zero", zero_decl);
         arena.bind("Succ", succ_decl);
+
+        let eq_decl = Declaration(Term::axiom(Self::Eq_, &[var0], arena), 1);
+        let eq_rec_decl = Declaration(Term::axiom(Self::EqRec, &[var0, var1], arena), 2);
+        let refl_decl = Declaration(Term::axiom(Self::Refl, &[var0], arena), 1);
+        arena.bind_decl("Eq", eq_decl);
+        arena.bind_decl("Eq_rec", eq_rec_decl);
+        arena.bind_decl("Refl", refl_decl);
     }
 }
