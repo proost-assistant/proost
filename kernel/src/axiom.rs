@@ -112,7 +112,7 @@ impl<'arena> Axiom {
                     sort_u,
                     Term::prod(
                         Term::var(1.into(), sort_u, arena),
-                        Term::prod(Term::var(1.into(), sort_u, arena), prop, arena),
+                        Term::prod(Term::var(2.into(), sort_u, arena), prop, arena),
                         arena,
                     ),
                     arena,
