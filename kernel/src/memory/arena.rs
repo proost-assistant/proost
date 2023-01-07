@@ -6,6 +6,7 @@ use core::marker::PhantomData;
 use std::collections::{HashMap, HashSet};
 
 use bumpalo::Bump;
+use derive_more::From;
 
 use super::declaration::Declaration;
 use super::level::Level;
@@ -47,13 +48,20 @@ pub struct Arena<'arena> {
     pub(super) hashcons_decls: HashSet<&'arena super::declaration::Node<'arena>>,
     pub(super) hashcons_levels: HashMap<&'arena super::level::Node<'arena>, super::level::Level<'arena>>,
 
-    named_decls: HashMap<&'arena str, Declaration<'arena>>,
-    named_terms: HashMap<&'arena str, Term<'arena>>,
+    known_decls: HashMap<Id<'arena>, Declaration<'arena>>,
+    known_terms: HashMap<Id<'arena>, Term<'arena>>,
 
     /// Hash maps used to speed up certain algorithms. See also `OnceCell`s in [`Term`]
     pub(super) mem_subst: HashMap<(Term<'arena>, Term<'arena>, usize), Term<'arena>>,
     // TODO shift hashmap (see #45)
     // requires the design of an additional is_certainly_closed predicate in terms.
+}
+
+/// An identifiant used to access or create terms in the [`Arena`]
+#[derive(Clone, Copy, From, Hash, PartialEq, Eq)]
+enum Id<'arena> {
+    Name(&'arena str),
+    Num(usize),
 }
 
 /// Calls function `f` on a newly-created arena.
@@ -100,8 +108,8 @@ impl<'arena> Arena<'arena> {
             hashcons_decls: HashSet::new(),
             hashcons_levels: HashMap::new(),
 
-            named_decls: HashMap::new(),
-            named_terms: HashMap::new(),
+            known_decls: HashMap::new(),
+            known_terms: HashMap::new(),
 
             mem_subst: HashMap::new(),
         }
@@ -125,16 +133,31 @@ impl<'arena> Arena<'arena> {
     #[inline]
     pub fn bind(&mut self, name: &str, t: Term<'arena>) {
         let name = self.store_name(name);
-        self.named_terms.insert(name, t);
+        self.known_terms.insert(name.into(), t);
+    }
+
+    /// Binds a term to a given number.
+    #[inline]
+    pub fn bind_with_num(&mut self, num: usize, t: Term<'arena>) {
+        self.known_terms.insert(num.into(), t);
     }
 
     /// Binds a declaration to a given name.
     #[inline]
     pub fn bind_decl(&mut self, name: &str, decl: Declaration<'arena>) {
         let name = self.store_name(name);
-        self.named_decls.insert(name, decl);
+        self.known_decls.insert(name.into(), decl);
         if let Declaration(term, 0) = decl {
             self.bind(name, term);
+        }
+    }
+
+    /// Binds a declaration to a given number.
+    #[inline]
+    pub fn bind_decl_with_num(&mut self, num: usize, decl: Declaration<'arena>) {
+        self.known_decls.insert(num.into(), decl);
+        if let Declaration(term, 0) = decl {
+            self.bind_with_num(num, term);
         }
     }
 
@@ -142,14 +165,28 @@ impl<'arena> Arena<'arena> {
     #[inline]
     #[must_use]
     pub fn get_binding(&self, name: &str) -> Option<Term<'arena>> {
-        self.named_terms.get(name).copied()
+        self.known_terms.get(&name.into()).copied()
+    }
+
+    /// Retrieves the binding of a given number, if one exists.
+    #[inline]
+    #[must_use]
+    pub fn get_binding_with_num(&self, num: usize) -> Option<Term<'arena>> {
+        self.known_terms.get(&num.into()).copied()
     }
 
     /// Retrieves the declaration binding of a given name, if one exists.
     #[inline]
     #[must_use]
     pub fn get_binding_decl(&self, name: &str) -> Option<Declaration<'arena>> {
-        self.named_decls.get(name).copied()
+        self.known_decls.get(&name.into()).copied()
+    }
+
+    /// Retrieves the declaration binding of a given num, if one exists.
+    #[inline]
+    #[must_use]
+    pub fn get_binding_decl_with_num(&self, num: usize) -> Option<Declaration<'arena>> {
+        self.known_decls.get(&num.into()).copied()
     }
 }
 
