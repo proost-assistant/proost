@@ -36,13 +36,13 @@ The project is organised as such:
 - the crate `kernel` provides an interface for building and manipulating terms,
   as well as type inference and type checking functions;
 - the crate `parser` provides parsing functions which return `Builder` objects,
-  which can be seen as template that can be provided to the kernel to get a
-  real, well-formed term to perform computations upon;
+  which are template that can be provided to the kernel to get a real,
+  well-formed term to perform computations upon;
 - the crate `proost` provides a toplevel interface for end-users that can be
   used to manipulate terms and query the kernel. It provides partial
   auto-completion, some color highlighting and other readline-like features;
-- the crate `tilleul`, which is still in preparation, which will implement the
-  Language Server Protocol.
+- the crate `tilleul` is a WIP implementation of the Language Server Protocol
+  for *Madeleine*, the language of Proost.
 
 ```mermaid
 graph TD;
