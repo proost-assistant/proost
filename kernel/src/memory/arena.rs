@@ -136,10 +136,10 @@ impl<'arena> Arena<'arena> {
         self.known_terms.insert(name.into(), t);
     }
 
-    /// Binds a term to a given number.
+    /// Binds a term to a given id.
     #[inline]
-    pub fn bind_with_num(&mut self, num: usize, t: Term<'arena>) {
-        self.known_terms.insert(num.into(), t);
+    pub fn bind_with_id(&mut self, id: usize, t: Term<'arena>) {
+        self.known_terms.insert(id.into(), t);
     }
 
     /// Binds a declaration to a given name.
@@ -152,12 +152,12 @@ impl<'arena> Arena<'arena> {
         }
     }
 
-    /// Binds a declaration to a given number.
+    /// Binds a declaration to a given id.
     #[inline]
-    pub fn bind_decl_with_num(&mut self, num: usize, decl: Declaration<'arena>) {
-        self.known_decls.insert(num.into(), decl);
+    pub fn bind_decl_with_id(&mut self, id: usize, decl: Declaration<'arena>) {
+        self.known_decls.insert(id.into(), decl);
         if let Declaration(term, 0) = decl {
-            self.bind_with_num(num, term);
+            self.bind_with_id(id, term);
         }
     }
 
@@ -168,11 +168,11 @@ impl<'arena> Arena<'arena> {
         self.known_terms.get(&name.into()).copied()
     }
 
-    /// Retrieves the binding of a given number, if one exists.
+    /// Retrieves the binding of a given id, if one exists.
     #[inline]
     #[must_use]
-    pub fn get_binding_with_num(&self, num: usize) -> Option<Term<'arena>> {
-        self.known_terms.get(&num.into()).copied()
+    pub fn get_binding_with_num(&self, id: usize) -> Option<Term<'arena>> {
+        self.known_terms.get(&id.into()).copied()
     }
 
     /// Retrieves the declaration binding of a given name, if one exists.
