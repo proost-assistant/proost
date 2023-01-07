@@ -101,18 +101,18 @@ impl<'build> Builder<'build> {
     /// If the declaration could not be built, yields an error indicating the reason
     #[inline]
     pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultDecl<'arena> {
-        arena.build_declaration(self.partial_application())
+        arena.build_declaration(self.as_buildertrait())
     }
 
     /// Associates a builder to a builder trait.
-    fn partial_application(&self) -> impl BuilderTrait<'build> + '_ {
+    fn as_buildertrait(&self) -> impl BuilderTrait<'build> + '_ {
         |arena| self.realise_in_context(arena)
     }
 
     /// Provides a correspondence between builder items and functions with the builder trait
     fn realise_in_context<'arena>(&self, arena: &mut Arena<'arena>) -> ResultDecl<'arena> {
         match *self {
-            Builder::Decl(ref term, ref vars) => declaration(term.partial_application(), vars.as_slice())(arena),
+            Builder::Decl(ref term, ref vars) => declaration(term.as_buildertrait(), vars.as_slice())(arena),
         }
     }
 }
@@ -206,11 +206,11 @@ impl<'build> InstantiatedBuilder<'build> {
     /// If the instantiated declaration could not be built, yields an error indicating the reason
     #[inline]
     pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultInstantiatedDecl<'arena> {
-        arena.build_instantiated_declaration(self.partial_application())
+        arena.build_instantiated_declaration(self.as_buildertrait())
     }
 
     /// Associates a builder to a builder trait.
-    pub(in crate::memory) fn partial_application(&'build self) -> impl InstantiatedBuilderTrait<'build> {
+    pub(in crate::memory) fn as_buildertrait(&'build self) -> impl InstantiatedBuilderTrait<'build> {
         |arena, lvl_env| self.realise_in_context(arena, lvl_env)
     }
 
@@ -221,7 +221,7 @@ impl<'build> InstantiatedBuilder<'build> {
         lvl_env: &level::Environment<'build>,
     ) -> ResultInstantiatedDecl<'arena> {
         match *self {
-            InstantiatedBuilder::Instance(ref decl, ref levels) => instance(decl.partial_application(), levels)(arena, lvl_env),
+            InstantiatedBuilder::Instance(ref decl, ref levels) => instance(decl.as_buildertrait(), levels)(arena, lvl_env),
             InstantiatedBuilder::Var(name, ref levels) => var(name, levels)(arena, lvl_env),
         }
     }

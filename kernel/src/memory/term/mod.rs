@@ -24,10 +24,10 @@ super::arena::new_dweller!(Term, Header, Payload);
 
 /// The header of a term.
 struct Header<'arena> {
-    /// lazy structure to store the weak-head normal form of a term
+    /// lazy structure to store the weak-head normal form of a term.
     head_normal_form: OnceCell<Term<'arena>>,
 
-    /// lazy structure to store the type of a term
+    /// lazy structure to store the type of a term.
     type_: OnceCell<Term<'arena>>,
     // TODO(#45) is_certainly_closed: boolean underapproximation of whether a term is closed. This
     // may greatly improve performance in shifting, along with a mem_shift hash map.
@@ -43,25 +43,22 @@ struct Header<'arena> {
 /// type do not share the same term in memory.
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Payload<'arena> {
-    /// A variable, with its de Bruijn index and its type
-    //#[display(fmt = "{_0}")]
+    /// A variable, with its de Bruijn index and its type.
     Var(DeBruijnIndex, Term<'arena>),
 
-    /// Sort i, the encoding of Prop and Type i type
+    /// Sort i, the encoding of Prop and Type i type.
     Sort(Level<'arena>),
 
-    /// The application of two terms
-    //#[display(fmt = "{_0} {_1}")]
+    /// The application of two terms.
     App(Term<'arena>, Term<'arena>),
 
     /// The lambda-abstraction of a term: the argument type is on the left, the body on the right.
     Abs(Term<'arena>, Term<'arena>),
 
     /// The dependant product of the term on the right over all elements of the type on the left.
-    //#[display(fmt = "\u{03A0} {_0} \u{02192} {_1}")]
     Prod(Term<'arena>, Term<'arena>),
 
-    /// An instance of a universe-polymorphic declaration
+    /// An instance of a universe-polymorphic declaration.
     Decl(InstantiatedDeclaration<'arena>),
 
     /// An axiom
@@ -124,38 +121,38 @@ impl<'arena> Term<'arena> {
         }
     }
 
-    /// Returns a variable term with the given index and type
+    /// Returns a variable term with the given index and type.
     pub(crate) fn var(index: DeBruijnIndex, type_: Term<'arena>, arena: &mut Arena<'arena>) -> Self {
         Self::hashcons(Var(index, type_), arena)
     }
 
-    /// Returns an axiom term with the given axiom
+    /// Returns an axiom term with the given axiom.
     pub(crate) fn axiom(axiom: axiom::Axiom, lvl: &[Level<'arena>], arena: &mut Arena<'arena>) -> Self {
         let lvl = arena.store_level_slice(lvl);
         Self::hashcons(Axiom(axiom, lvl), arena)
     }
 
-    /// Returns the term corresponding to a proposition
+    /// Returns the term corresponding to a proposition.
     pub(crate) fn prop(arena: &mut Arena<'arena>) -> Self {
         Self::hashcons(Sort(Level::zero(arena)), arena)
     }
 
-    /// Returns the term associated to the sort of the given level
+    /// Returns the term associated to the sort of the given level.
     pub(crate) fn sort(level: Level<'arena>, arena: &mut Arena<'arena>) -> Self {
         Self::hashcons(Sort(level), arena)
     }
 
-    /// Returns the term corresponding to Type(level), casting level appropriately first
+    /// Returns the term corresponding to Type(level), casting level appropriately first.
     pub(crate) fn type_usize(level: usize, arena: &mut Arena<'arena>) -> Self {
         Self::hashcons(Sort(Level::from(level + 1, arena)), arena)
     }
 
-    /// Returns the term corresponding to Sort(level), casting level appropriately first
+    /// Returns the term corresponding to Sort(level), casting level appropriately first.
     pub(crate) fn sort_usize(level: usize, arena: &mut Arena<'arena>) -> Self {
         Self::hashcons(Sort(Level::from(level, arena)), arena)
     }
 
-    /// Returns the application of one term to the other
+    /// Returns the application of one term to the other.
     pub(crate) fn app(self, arg: Self, arena: &mut Arena<'arena>) -> Self {
         Self::hashcons(App(self, arg), arena)
     }

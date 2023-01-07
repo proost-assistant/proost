@@ -1,4 +1,4 @@
-//! Errors that can be yielded by the kernel
+//! Errors that can be yielded by the kernel.
 
 use derive_more::{Display, From};
 
@@ -7,7 +7,7 @@ use crate::type_checker;
 
 /// The kind of errors that can be encountered by the kernel.
 ///
-/// This disambiguate between the different sections of the kernel, where the errors are respectively defined.
+/// This disambiguates between the different sections of the kernel, where the errors are respectively defined.
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq, From)]
 pub enum Kind<'arena> {

@@ -15,10 +15,8 @@ pub mod builder;
 /// A declaration is a term where some of its constituting universe levels may contain
 /// universe-polymorphic variables.
 ///
-/// None of these variables may be "free".
-///
 /// Declarations can be instantiated to create [`InstantiatedDeclaration`]s, which can in turn be
-/// incorporated into [`Term`]s.
+/// incorporated into [`Term`]s. No variable may remain in the instantiated declaration.
 #[derive(Copy, Clone, Debug, Display, Eq, PartialEq, Hash)]
 #[display(fmt = "{_0}")]
 pub struct Declaration<'arena>(pub(crate) Term<'arena>, pub(crate) usize);
@@ -28,7 +26,7 @@ super::arena::new_dweller!(InstantiatedDeclaration, Header, Payload);
 /// An instantiated declaration.
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Payload<'arena> {
-    /// The declaration being instantiated
+    /// The declaration being instantiated.
     pub(crate) decl: Declaration<'arena>,
 
     /// The parameters used to instantiate it
@@ -60,7 +58,7 @@ impl<'arena> fmt::Display for InstantiatedDeclaration<'arena> {
 }
 
 impl<'arena> Declaration<'arena> {
-    /// Creates a declaration from a pair of arguments
+    /// Creates a declaration from a pair of arguments.
     pub(crate) const fn new(term: Term<'arena>, vars: usize) -> Self {
         Self(term, vars)
     }

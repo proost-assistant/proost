@@ -13,31 +13,31 @@ use crate::memory::term::Term;
 /// An enumeration representing the different kind of axioms hardcoded in the kernel.
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Axiom {
-    /// False
+    /// False.
     False,
 
-    /// The recursor over False
+    /// The recursor over False.
     FalseRec,
 
-    /// Natural numbers
+    /// Natural numbers.
     Nat,
 
-    /// Recursor over natural numbers
+    /// The recursor over natural numbers.
     NatRec,
 
-    /// Zero (in the natural numbers)
+    /// Zero (in the natural numbers).
     Zero,
 
-    /// The successor function in the natural numbers
+    /// The successor function in the natural numbers.
     Succ,
 }
 
 use Axiom::{False, FalseRec, Nat, NatRec, Succ, Zero};
 
 impl<'arena> Axiom {
-    /// Returns the type of a given axiom
+    /// Returns the type of a given axiom.
     ///
-    /// Because of memoisation, this is typically performed once per axiom.
+    /// Because of memoisation, this is only performed once per axiom.
     #[inline]
     #[no_coverage]
     pub fn get_type(self, arena: &mut Arena<'arena>) -> Term<'arena> {
@@ -94,7 +94,7 @@ impl<'arena> Axiom {
         }
     }
 
-    /// Adds with default names the list of hardcoded axioms to the given arena.
+    /// Adds bindings with default names of the hardcoded axioms to an arena.
     #[inline]
     #[no_coverage]
     pub fn add_named_axioms(arena: &mut Arena<'arena>) {

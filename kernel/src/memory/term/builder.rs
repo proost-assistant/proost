@@ -35,7 +35,7 @@ pub enum ErrorKind<'arena> {
 }
 
 /// Local environment used to store correspondence between locally-bound variables and the pair
-/// (depth at which they were bound, their type)
+/// (depth at which they were bound, their type).
 pub type Environment<'build, 'arena> = ImHashMap<&'build str, (DeBruijnIndex, Term<'arena>)>;
 
 /// The trait of closures which build terms with an adequate logic.
@@ -59,14 +59,14 @@ impl<'arena> Arena<'arena> {
     /// Returns the term built from the given closure, provided with an empty context, at depth 0.
     ///
     /// # Errors
-    /// If the term could not be built, yields an error indicating the reason
+    /// If the term could not be built, yields an error indicating the reason.
     #[inline]
     pub fn build<'build, F: BuilderTrait<'build>>(&mut self, f: F) -> ResultTerm<'arena> {
         f(self, &Environment::new(), &level::Environment::new(), 0.into())
     }
 }
 
-/// Returns a closure building a variable associated to the name `name`
+/// Returns a closure building a variable associated to the name `name`.
 #[inline]
 #[must_use]
 pub const fn var(name: &str) -> impl BuilderTrait<'_> {
@@ -214,10 +214,10 @@ pub enum Payload<'build> {
     #[display(fmt = "Prop")]
     Prop,
 
-    /// A regular variable
+    /// A regular variable.
     Var(&'build str),
 
-    /// A variable that may or may not be an instantiated declaration
+    /// A variable that may or may not be an instantiated declaration.
     #[display(fmt = "{_0}")]
     VarInstance(&'build str, Vec<level::Builder<'build>>),
 
@@ -268,18 +268,18 @@ impl<'build> Builder<'build> {
     /// the [builder](`crate::memory::term::builder`) module.
     ///
     /// # Errors
-    /// If the term could not be built, yields an error indicating the reason
+    /// If the term could not be built, yields an error indicating the reason.
     #[inline]
     pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
-        arena.build(self.partial_application())
+        arena.build(self.as_buildertrait())
     }
 
     /// Associates a builder to a builder trait.
-    pub(in crate::memory) fn partial_application(&'build self) -> impl BuilderTrait<'build> {
+    pub(in crate::memory) fn as_buildertrait(&'build self) -> impl BuilderTrait<'build> {
         |arena, env, lvl_env, depth| self.realise_in_context(arena, env, lvl_env, depth)
     }
 
-    /// Provides a correspondence between builder items and functions with the builder trait
+    /// Provides a correspondence between builder items and functions with the builder trait.
     fn realise_in_context<'arena>(
         &'build self,
         arena: &mut Arena<'arena>,
@@ -291,16 +291,14 @@ impl<'build> Builder<'build> {
             Payload::Prop => prop()(arena, env, lvl_env, depth),
             Payload::Var(s) => var(s)(arena, env, lvl_env, depth),
             Payload::VarInstance(name, ref levels) => var_instance(name, levels)(arena, env, lvl_env, depth),
-            Payload::Type(ref level) => type_(level.partial_application())(arena, env, lvl_env, depth),
-            Payload::Sort(ref level) => sort(level.partial_application())(arena, env, lvl_env, depth),
-            Payload::App(ref l, ref r) => app(l.partial_application(), r.partial_application())(arena, env, lvl_env, depth),
-            Payload::Abs(s, ref arg, ref body) => {
-                abs(s, arg.partial_application(), body.partial_application())(arena, env, lvl_env, depth)
-            },
+            Payload::Type(ref level) => type_(level.as_buildertrait())(arena, env, lvl_env, depth),
+            Payload::Sort(ref level) => sort(level.as_buildertrait())(arena, env, lvl_env, depth),
+            Payload::App(ref l, ref r) => app(l.as_buildertrait(), r.as_buildertrait())(arena, env, lvl_env, depth),
+            Payload::Abs(s, ref arg, ref body) => abs(s, arg.as_buildertrait(), body.as_buildertrait())(arena, env, lvl_env, depth),
             Payload::Prod(s, ref arg, ref body) => {
-                prod(s, arg.partial_application(), body.partial_application())(arena, env, lvl_env, depth)
+                prod(s, arg.as_buildertrait(), body.as_buildertrait())(arena, env, lvl_env, depth)
             },
-            Payload::Decl(ref decl_builder) => decl(decl_builder.partial_application())(arena, env, lvl_env, depth),
+            Payload::Decl(ref decl_builder) => decl(decl_builder.as_buildertrait())(arena, env, lvl_env, depth),
         }
     }
 }

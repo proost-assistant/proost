@@ -31,7 +31,7 @@ pub enum ErrorKind<'arena> {
 }
 
 /// Local environment used to store correspondence between locally-bound variables and the pair
-/// (depth at which they were bound, their type)
+/// (depth at which they were bound, their type).
 pub type Environment<'build> = HashMap<&'build str, usize>;
 
 /// The trait of closures which build levels with an adequate logic.
@@ -45,14 +45,14 @@ impl<'arena> Arena<'arena> {
     /// Returns the level built from the given closure, provided with a Level environment, which binds names to `usize`s
     ///
     /// # Errors
-    /// If the level could not be built, yields an error indicating the reason
+    /// If the level could not be built, yields an error indicating the reason.
     #[inline]
     pub fn build_level<'build, F: BuilderTrait<'build>>(&mut self, f: F) -> ResultLevel<'arena> {
         f(self, &Environment::new())
     }
 }
 
-/// Returns a closure building a universe variable associated to `name`
+/// Returns a closure building a universe variable associated to `name`.
 #[inline]
 #[must_use]
 pub const fn var(name: &str) -> impl BuilderTrait<'_> {
@@ -84,7 +84,7 @@ pub const fn plus<'build, F: BuilderTrait<'build>>(u: F, n: usize) -> impl Build
     move |arena, env| Ok(u(arena, env)?.add(n, arena))
 }
 
-/// Returns a closure building the successor of a level built from the given closure `u1`
+/// Returns a closure building the successor of a level built from the given closure `u1`.
 #[inline]
 #[no_coverage]
 pub const fn succ<'build, F1: BuilderTrait<'build>>(u1: F1) -> impl BuilderTrait<'build> {
@@ -148,18 +148,18 @@ impl<'build> Builder<'build> {
     /// the [builder](`crate::memory::level::builder`) module.
     ///
     /// # Errors
-    /// If the level could not be built, yields an error indicating the reason
+    /// If the level could not be built, yields an error indicating the reason.
     #[inline]
     pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultLevel<'arena> {
-        arena.build_level(self.partial_application())
+        arena.build_level(self.as_buildertrait())
     }
 
     /// Associates a builder to a builder trait.
-    pub(in crate::memory) fn partial_application(&self) -> impl BuilderTrait<'build> + '_ {
+    pub(in crate::memory) fn as_buildertrait(&self) -> impl BuilderTrait<'build> + '_ {
         |arena, env| self.realise_in_context(arena, env)
     }
 
-    /// Provides a correspondence between builder items and functions with the builder trait
+    /// Provides a correspondence between builder items and functions with the builder trait.
     pub(in crate::memory) fn realise_in_context<'arena>(
         &self,
         arena: &mut Arena<'arena>,
@@ -168,10 +168,10 @@ impl<'build> Builder<'build> {
         match *self {
             Builder::Zero => zero()(arena, env),
             Builder::Const(c) => const_(c)(arena, env),
-            Builder::Plus(ref u, n) => plus(u.partial_application(), n)(arena, env),
-            Builder::Succ(ref l) => succ(l.partial_application())(arena, env),
-            Builder::Max(ref l, ref r) => max(l.partial_application(), r.partial_application())(arena, env),
-            Builder::IMax(ref l, ref r) => imax(l.partial_application(), r.partial_application())(arena, env),
+            Builder::Plus(ref u, n) => plus(u.as_buildertrait(), n)(arena, env),
+            Builder::Succ(ref l) => succ(l.as_buildertrait())(arena, env),
+            Builder::Max(ref l, ref r) => max(l.as_buildertrait(), r.as_buildertrait())(arena, env),
+            Builder::IMax(ref l, ref r) => imax(l.as_buildertrait(), r.as_buildertrait())(arena, env),
             Builder::Var(s) => var(s)(arena, env),
         }
     }

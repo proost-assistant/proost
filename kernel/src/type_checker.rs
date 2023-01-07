@@ -1,4 +1,4 @@
-//! Type checking functions
+//! Type checking functions.
 //!
 //! The logical core of the kernel.
 
@@ -12,9 +12,9 @@ use crate::memory::declaration::Declaration;
 use crate::memory::term::Payload::{Abs, App, Axiom, Decl, Prod, Sort, Var};
 use crate::memory::term::Term;
 
-/// A couple of terms, where the second is the type of the first.
+/// A pair of terms, where the second is the type of the first.
 ///
-/// This type is only used for pretty-printing.
+/// This type is only used for pretty-printing purposes.
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 #[display(fmt = "{_0}: {_1}")]
 pub struct TypedTerm<'arena>(Term<'arena>, Term<'arena>);
@@ -24,23 +24,23 @@ pub struct TypedTerm<'arena>(Term<'arena>, Term<'arena>);
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum ErrorKind<'arena> {
-    /// This term is not a universe
+    /// This term is not a universe.
     #[display(fmt = "{_0} is not a universe")]
     NotUniverse(Term<'arena>),
 
-    /// These two terms are not definitionally equal
+    /// These two terms are not definitionally equal.
     #[display(fmt = "{_0} and {_1} are not definitionally equal")]
     NotDefEq(Term<'arena>, Term<'arena>),
 
-    /// This function expected an argument of this type, received an argument of this other type
+    /// This function expected an argument of this type, received an argument of this other type.
     #[display(fmt = "function {_0} expects a term of type {_1}, received {_2}")]
     WrongArgumentType(Term<'arena>, Term<'arena>, TypedTerm<'arena>),
 
-    /// This is not a function, it cannot be applied to this
+    /// This is not a function, it cannot be applied to this.
     #[display(fmt = "{_0} is not a function, it cannot be applied to {_1}")]
     NotAFunction(TypedTerm<'arena>, Term<'arena>),
 
-    /// These types mismatch
+    /// These types mismatch.
     #[display(fmt = "expected {_0}, got {_1}")]
     TypeMismatch(Term<'arena>, Term<'arena>),
 }
@@ -48,7 +48,7 @@ pub enum ErrorKind<'arena> {
 impl<'arena> Term<'arena> {
     /// Conversion function, checks whether two terms are definitionally equal.
     ///
-    /// The conversion is untyped, meaning that it should **only** be called during type-checking
+    /// The conversion is untyped, meaning that it should *only* be called during type-checking
     /// when the two [`Term`]s are already known to be of the same type and in the same context.
     fn conversion(self, rhs: Self, arena: &mut Arena<'arena>) -> bool {
         if self == rhs {
@@ -185,7 +185,7 @@ impl<'arena> Term<'arena> {
 }
 
 impl<'arena> Declaration<'arena> {
-    /// Infer the type of a declaration.
+    /// Infers the type of a declaration.
     ///
     /// Because it is not allowed to access the underlying term of a declaration, this function
     /// does not return anything, and only serves as a way to ensure the declaration is
