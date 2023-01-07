@@ -32,7 +32,7 @@ pub enum Axiom {
     Succ,
 
     /// The equality type
-    /// Note : the constructor is written as `Eq_` because naming it `Eq` fucks with the macros.
+    /// Note : the constructor is written as `Eq_` because naming it `Eq` messes up with the macros.
     #[display(fmt = "Eq")]
     Eq_,
 
