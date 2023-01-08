@@ -258,7 +258,7 @@ mod tests {
         assert_eq!(
             line("check fun x : Prop -> Type"),
             Err(Error {
-                kind: Kind::CannotParse(UNIVERSE_ERR.to_owned()),
+                kind: Kind::UnexpectedToken(UNIVERSE_ERR.to_owned()),
                 location: Location::new((1, 27), (1, 28)),
             })
         );
@@ -650,14 +650,14 @@ mod tests {
         assert_eq!(
             line("check (x:A)"),
             Err(Error {
-                kind: Kind::CannotParse(SIMPLE_TERM_ERR.to_owned()),
+                kind: Kind::UnexpectedToken(SIMPLE_TERM_ERR.to_owned()),
                 location: Location::new((1, 7), (1, 12)),
             })
         );
         assert_eq!(
             line("check (x:A) -> (y:B)"),
             Err(Error {
-                kind: Kind::CannotParse(SIMPLE_TERM_ERR.to_owned()),
+                kind: Kind::UnexpectedToken(SIMPLE_TERM_ERR.to_owned()),
                 location: Location::new((1, 16), (1, 21)),
             })
         );
@@ -944,21 +944,21 @@ mod tests {
         assert_eq!(
             line("chehk 2x"),
             Err(Error {
-                kind: Kind::CannotParse(COMMAND_ERR.to_owned()),
+                kind: Kind::UnexpectedToken(COMMAND_ERR.to_owned()),
                 location: Location::new((1, 1), (1, 6)),
             })
         );
         assert_eq!(
             line("check 2x"),
             Err(Error {
-                kind: Kind::CannotParse(TERM_ERR.to_owned()),
+                kind: Kind::UnexpectedToken(TERM_ERR.to_owned()),
                 location: Location::new((1, 7), (1, 9)),
             })
         );
         assert_eq!(
             line("check x:"),
             Err(Error {
-                kind: Kind::CannotParse(TERM_ERR.to_owned()),
+                kind: Kind::UnexpectedToken(TERM_ERR.to_owned()),
                 location: Location::new((1, 9), (1, 10)),
             })
         );
@@ -973,7 +973,7 @@ mod tests {
                         check .x"
             ),
             Err(Error {
-                kind: Kind::CannotParse(TERM_ERR.to_owned()),
+                kind: Kind::UnexpectedToken(TERM_ERR.to_owned()),
                 location: Location::new((3, 31), (3, 33)),
             })
         );
