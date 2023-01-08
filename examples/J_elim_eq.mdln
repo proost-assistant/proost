@@ -1,0 +1,26 @@
+def ap.{u,v} 
+    : (A : Sort u) -> (x : A) -> (B : A -> Sort v) -> (y : A) -> Eq.{u} A x y 
+        -> Eq.{v+1} Sort v (B x) (B y)
+:= fun 
+    A:Sort u, 
+    x:A, 
+    B : A -> Sort v, 
+    y:A, 
+    e: Eq.{u} A x y =>  
+    Transp.{u} 
+        A 
+        x 
+        (fun t : A => Eq.{v+1} Sort v (B x) (B t)) 
+        (Refl.{v+1} Sort v (B x))
+        y
+        e
+
+def Eq_rec.{u,v} : (A : Sort u) -> (x : A) -> (B : A -> Sort v) -> (y : A) -> Eq.{u} A x y -> B x -> B y
+:= fun
+    A: Sort u,
+    x: A,
+    B: A -> Sort v,
+    y:A,
+    e: Eq.{u} A x y,
+    bx : B x =>
+        Cast.{v} (B x) (B y) (ap.{u,v} A x B y e) bx

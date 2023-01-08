@@ -59,7 +59,7 @@ impl<'arena> Term<'arena> {
     /// by `offset`.
     pub(crate) fn shift(self, offset: usize, depth: usize, arena: &mut Arena<'arena>) -> Self {
         match *self {
-            Var(i, type_) if i > depth.into() => Term::var(i + offset.into(), type_, arena),
+            Var(i, type_) if i > depth.into() => Term::var(i + offset.into(), type_.shift(offset,depth,arena), arena),
             App(t1, t2) => {
                 let t1 = t1.shift(offset, depth, arena);
                 let t2 = t2.shift(offset, depth, arena);
@@ -84,7 +84,7 @@ impl<'arena> Term<'arena> {
     pub(crate) fn substitute(self, sub: Self, depth: usize, arena: &mut Arena<'arena>) -> Self {
         arena.get_subst_or_init(&(self, sub, depth), |arena| match *self {
             Var(i, _) if i == depth.into() => sub.shift(depth - 1, 0, arena),
-            Var(i, type_) if i > depth.into() => Term::var(i - 1.into(), type_, arena),
+            Var(i, type_) if i > depth.into() => Term::var(i - 1.into(), type_.substitute(sub, depth, arena), arena),
             App(l, r) => {
                 let l = l.substitute(sub, depth, arena);
                 let r = r.substitute(sub, depth, arena);
@@ -232,32 +232,32 @@ impl<'arena> Term<'arena> {
         }
     }
 
-    /// Reduces a term if it is an instance of the Eq reducer, returns None otherwise.
-    /// Making a "short" example of this reduction is hard, or at least, I failed to find one.
-    /// I'm marking it as `no_coverage` for now, but a proof that reduction works can be found in `examples/eq.mdln`.
-    #[no_coverage]
-    fn reduce_eq(self, arena: &mut Arena<'arena>) -> Option<Self> {
-        // Be aware that this function will not be automatically formatted, because of the
-        // experimental status of let-chains, as well as that of if-let conditions in pattern matching.
-        if let App(f, a_b_eq) = *self && let App(f, b) = *f.whnf(arena) && let App(f, motive_refl) = *f.whnf(arena) &&
-               let App(f, _motive) = *f.whnf(arena) &&
-               let App(f,a) = *f.whnf(arena) && let App(f,_aty) = *f.whnf(arena) &&
-               let Axiom(axiom::Axiom::EqRec, _) = *f.unfold(arena).whnf(arena) &&
-               b.is_def_eq(a, arena).is_ok() {
-                match *a_b_eq.whnf(arena) {
-                    App(f, _) if let App(f,_) = *f && let Axiom(axiom::Axiom::Refl, _) = *f.unfold(arena).whnf(arena) => {
-                        Some(motive_refl)
-                    },
-                    _ => None,
-                }
-            } else {
-                None
-            }
-    }
+    // Reduces a term if it is an instance of the Eq reducer, returns None otherwise.
+    // Making a "short" example of this reduction is hard, or at least, I failed to find one.
+    // I'm marking it as `no_coverage` for now, but a proof that reduction works can be found in `examples/eq.mdln`.
+    //#[no_coverage]
+    //fn reduce_eq(self, arena: &mut Arena<'arena>) -> Option<Self> {
+    //    // Be aware that this function will not be automatically formatted, because of the
+    //    // experimental status of let-chains, as well as that of if-let conditions in pattern matching.
+    //    if let App(f, a_b_eq) = *self && let App(f, b) = *f.whnf(arena) && let App(f, motive_refl) = *f.whnf(arena) &&
+    //           let App(f, _motive) = *f.whnf(arena) &&
+    //           let App(f,a) = *f.whnf(arena) && let App(f,_aty) = *f.whnf(arena) &&
+    //           let Axiom(axiom::Axiom::EqRec, _) = *f.unfold(arena).whnf(arena) &&
+    //           b.is_def_eq(a, arena).is_ok() {
+    //            match *a_b_eq.whnf(arena) {
+    //                App(f, _) if let App(f,_) = *f && let Axiom(axiom::Axiom::Refl, _) = *f.unfold(arena).whnf(arena) => {
+    //                    Some(motive_refl)
+    //                },
+    //                _ => None,
+    //            }
+    //        } else {
+    //            None
+    //        }
+    //}
 
     /// Reduces a term if possible, returns None otherwise.
     fn reduce_recursor(self, arena: &mut Arena<'arena>) -> Option<Self> {
-        let rec_reds = [Term::reduce_nat, Term::reduce_eq];
+        let rec_reds = [Term::reduce_nat/* , Term::reduce_eq*/];
         rec_reds.into_iter().find_map(|f| f(self, arena))
     }
 
