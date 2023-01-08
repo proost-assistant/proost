@@ -52,6 +52,10 @@ pub enum Builder<'builder> {
 }
 
 impl<'build> Builder<'build> {
+    /// Returns the maximum depth of successors of a builder with following properties :
+    ///
+    /// * `Const(c)` is considered as being c successors consecutively
+    /// * every var is considered as 0
     #[inline]
     fn max_depth(&self) -> usize {
         match self {

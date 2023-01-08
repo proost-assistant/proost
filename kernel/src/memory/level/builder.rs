@@ -20,6 +20,7 @@ use crate::memory::arena::Arena;
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum ErrorKind<'arena> {
+    /// Trying to build an universe too large
     #[display(fmt = "universe {_0} too large to be built")]
     UniverseTooLarge(usize),
 
