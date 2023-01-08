@@ -23,6 +23,9 @@ pub struct Error {
 pub enum Kind {
     /// Unexpected token encountered (redirection from Pest).
     UnexpectedToken(String),
+
+    /// Token cannot be transformed
+    TransformError(String),
 }
 
 impl From<pest::error::Error<Rule>> for Error {
