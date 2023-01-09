@@ -216,62 +216,44 @@ impl Equality {
 
     fn type_cast<'arena>(arena: &mut Arena<'arena>) -> Term<'arena> {
         let sort_u = Term::sort(Level::var(0, arena), arena);
-        let a_eq_b = Term::axiom(Eq_,&[Level::succ(Level::var(0, arena),arena)],arena)
-            .app(Term::sort(Level::var(0, arena), arena),arena)
-            .app(Term::var(2.into(),sort_u,arena),arena)
-            .app(Term::var(1.into(),sort_u,arena),arena);
+        let a_eq_b = Term::axiom(Eq_, &[Level::succ(Level::var(0, arena), arena)], arena)
+            .app(Term::sort(Level::var(0, arena), arena), arena)
+            .app(Term::var(2.into(), sort_u, arena), arena)
+            .app(Term::var(1.into(), sort_u, arena), arena);
 
         // (A B : Sort u) -> Eq (Sort u) A B -> A -> B
-        sort_u.prod(sort_u.prod(a_eq_b.prod(Term::var(3.into(),sort_u,arena).prod(Term::var(3.into(),sort_u,arena),arena),arena) ,arena),arena)
-    }
+        sort_u.prod(
+            sort_u.prod(
+                a_eq_b.prod(Term::var(3.into(), sort_u, arena).prod(Term::var(3.into(), sort_u, arena), arena), arena),
+                arena,
+            ),
+            arena,
+        )}
 
     fn type_transp<'arena>(arena: &mut Arena<'arena>) -> Term<'arena> {
-
         let sort_u = Term::sort(Level::var(0, arena), arena);
         let prop = Term::sort(Level::zero(arena), arena);
 
-        let eq_a_t1_t2 = 
-        Term::axiom(Self::Eq_, &[Level::var(0, arena)], arena)
-            .app(Term::var(5.into(), sort_u, arena),arena)
-            .app(Term::var(4.into(), Term::var(5.into(), sort_u, arena), arena),arena)
-            .app(Term::var(1.into(), Term::var(5.into(), sort_u, arena), arena),arena);
+        let eq_a_t1_t2 = Term::axiom(Self::Eq_, &[Level::var(0, arena)], arena)
+            .app(Term::var(5.into(), sort_u, arena), arena)
+            .app(Term::var(4.into(), Term::var(5.into(), sort_u, arena), arena), arena)
+            .app(Term::var(1.into(), Term::var(5.into(), sort_u, arena), arena), arena);
 
-        let b = 
-        Term::var(2.into(), sort_u, arena)
-            .prod(prop,arena);
+        let b = Term::var(2.into(), sort_u, arena).prod(prop, arena);
 
-        let u = 
-        Term::var(1.into(),
-            Term::var(3.into(), sort_u, arena)
-                .prod(prop,arena),
-            arena)
-            .app(Term::var(2.into(), Term::var(3.into(), sort_u, arena), arena),arena);
+        let u = Term::var(1.into(), Term::var(3.into(), sort_u, arena).prod(prop, arena), arena)
+            .app(Term::var(2.into(), Term::var(3.into(), sort_u, arena), arena), arena);
 
-        let b_t2 =
-        Term::var(4.into(),
-            Term::var(6.into(), sort_u, arena)
-                .prod(prop,arena),
-            arena)
-            .app(Term::var(2.into(), Term::var(6.into(), sort_u, arena), arena),arena);
-
+        let b_t2 = Term::var(4.into(), Term::var(6.into(), sort_u, arena).prod(prop, arena), arena)
+            .app(Term::var(2.into(), Term::var(6.into(), sort_u, arena), arena), arena);
 
         // (A : Sort u) -> (t1 : A) -> (B : A -> Prop) -> (u: B t1) -> (t2 : A) -> Eq A t1 t2 -> B t2
         sort_u.prod(
             Term::var(1.into(), sort_u, arena).prod(
-                b.prod(
-                    u.prod(
-                        Term::var(4.into(), sort_u, arena).prod(
-                            eq_a_t1_t2.prod(
-                                b_t2,
-                                arena
-                            ),
-                            arena
-                        )
-                        ,arena
-                    )
-                    ,arena)
-                ,arena
-                )
-            ,arena)
+                b.prod(u.prod(Term::var(4.into(), sort_u, arena).prod(eq_a_t1_t2.prod(b_t2, arena), arena), arena), arena),
+                arena,
+            ),
+            arena,
+        )
     }
 }
