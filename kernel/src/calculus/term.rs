@@ -59,7 +59,7 @@ impl<'arena> Term<'arena> {
     /// by `offset`.
     pub(crate) fn shift(self, offset: usize, depth: usize, arena: &mut Arena<'arena>) -> Self {
         match *self {
-            Var(i, type_) if i > depth.into() => Term::var(i + offset.into(), type_.shift(offset,depth,arena), arena),
+            Var(i, type_) if i > depth.into() => Term::var(i + offset.into(), type_.shift(offset, depth, arena), arena),
             App(t1, t2) => {
                 let t1 = t1.shift(offset, depth, arena);
                 let t2 = t2.shift(offset, depth, arena);
