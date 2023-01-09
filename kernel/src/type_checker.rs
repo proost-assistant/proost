@@ -314,8 +314,8 @@ mod tests {
     #[test]
     fn failed_app_head_conversion() {
         use_arena(|arena| {
-            let term_lhs = arena.build_term_raw(abs(type_usize(0), abs(type_usize(0), app(var(1.into(), prop()), prop()))));
-            let term_rhs = arena.build_term_raw(abs(type_usize(0), abs(type_usize(0), app(var(2.into(), prop()), prop()))));
+            let term_lhs = arena.build_term_raw(abs(type_usize(0), abs(type_usize(0), app(var(1.into(), type_usize(0)), prop()))));
+            let term_rhs = arena.build_term_raw(abs(type_usize(0), abs(type_usize(0), app(var(2.into(), type_usize(0)), prop()))));
 
             assert_eq!(
                 term_lhs.is_def_eq(term_rhs, arena),

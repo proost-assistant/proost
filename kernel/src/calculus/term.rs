@@ -251,7 +251,7 @@ impl<'arena> Term<'arena> {
     #[inline]
     pub fn is_relevant(self, arena: &mut Arena<'arena>) -> bool {
         self.get_relevance_or_try_init(|| match *self {
-            Var(_, ty) => ty.is_def_eq(Term::sort_usize(0, arena), arena).map_or(false, |_| true),
+            Var(_, ty) => ty.is_def_eq(Term::sort_usize(0, arena), arena).map_or(true, |_| false),
             App(t, _) => t.is_relevant(arena),
             Abs(_, t) => t.is_relevant(arena),
             Decl(d) => d.get_term(arena).is_relevant(arena),
@@ -259,7 +259,7 @@ impl<'arena> Term<'arena> {
                 .get_type(arena)
                 .substitute_univs(lvl, arena)
                 .is_def_eq(Term::sort_usize(0, arena), arena)
-                .map_or(false, |_| true),
+                .map_or(true, |_| false),
             _ => true,
         })
     }
