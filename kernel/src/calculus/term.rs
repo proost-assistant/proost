@@ -264,6 +264,20 @@ impl<'arena> Term<'arena> {
         }
     }
 
+    fn reduce_fun_eq(self, rhs : Self,ty1 : Self,ty2 : Self, arena: &mut Arena<'arena>) -> Option<Self> {
+        let sort_ty2 = ty2.infer(arena).whnf(arena);
+        if let Sort(lvl) = *sort_ty2 {
+            let eq = Term::axiom(axiom::Axiom::Eq_, &[lvl],arena)
+                .app(ty2,arena)
+                .app(rhs.shift(1,0,arena).app(Term::var(1.into(),ty1.shift(1,0,arena),arena),arena),arena)
+                .app(lhs.shift(1,0,arena).app(Term::var(1.into(),ty1.shift(1,0,arena),arena),arena),arena);
+            Som(ty1.prod(eq,arena))
+        } else {
+            unreachable!("Expected a Sort, found {sort_ty2}, this should definitely never happen")
+        }
+        
+    }
+
     // Reduces a term if it is an instance of the Eq reducer, returns None otherwise.
     // I'm marking it as `no_coverage` for now, but proofs that reduction works can be found in `examples/eq.mdln`.
     /// Reduces equality according to the observational equality reduction. This function is extensively big, and will
@@ -274,10 +288,11 @@ impl<'arena> Term<'arena> {
         // experimental status of let-chains, as well as that of if-let conditions in pattern matching.
         if let App(f, y) = *self && let App(f, x) = *f.whnf(arena) &&
             let App(f,ty) = *f.whnf(arena) &&
-            let Axiom(axiom::Axiom::Eq_, _) = *f.unfold(arena).whnf(arena) {
+            let Axiom(axiom::Axiom::Eq_, lvl) = *f.unfold(arena).whnf(arena) {
                 match *ty.whnf(arena) {
                     // Eq-Zero/Succ/Zero-Succ/Succ-Zero
                     Axiom(axiom::Axiom::Nat,_) => x.reduce_nat_eq(y, arena),
+                    Prod(ty1,ty2) if x.is_relevant(arena) => x.reduce_fun_eq(y,ty1,ty2,arena),
                     // TODO Eq-Fun,Eq-Univ,Eq-univ-!=, Eq-Pi
                     _ => None
                 }
