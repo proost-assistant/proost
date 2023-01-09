@@ -264,18 +264,19 @@ impl<'arena> Term<'arena> {
         }
     }
 
-    fn reduce_fun_eq(self, rhs : Self,ty1 : Self,ty2 : Self, arena: &mut Arena<'arena>) -> Option<Self> {
+    /// reduces relevant functions equality as follows : Eq (A -> B) f g => fun x:A => Eq (B x) (f x) (g x)
+    fn reduce_fun_eq(self, rhs: Self, ty1: Self, ty2: Self, arena: &mut Arena<'arena>) -> Option<Self> {
         let sort_ty2 = ty2.infer(arena).ok()?.whnf(arena);
         if let Sort(lvl) = *sort_ty2 {
-            let eq = Term::axiom(axiom::Axiom::Eq_, &[lvl],arena)
-                .app(ty2,arena)
-                .app(self.shift(1,0,arena).app(Term::var(1.into(),ty1.shift(1,0,arena),arena),arena),arena)
-                .app(rhs.shift(1,0,arena).app(Term::var(1.into(),ty1.shift(1,0,arena),arena),arena),arena);
-            Some(ty1.prod(eq,arena))
+            let x = Term::var(1.into(), ty1.shift(1, 0, arena), arena);
+            let eq = Term::axiom(axiom::Axiom::Eq_, &[lvl], arena)
+                .app(ty2.substitute(x, 1, arena), arena)
+                .app(self.shift(1, 0, arena).app(x, arena), arena)
+                .app(rhs.shift(1, 0, arena).app(x, arena), arena);
+            Some(ty1.prod(eq, arena))
         } else {
             unreachable!("Expected a Sort, found {sort_ty2}, this should definitely never happen")
         }
-        
     }
 
     // Reduces a term if it is an instance of the Eq reducer, returns None otherwise.
