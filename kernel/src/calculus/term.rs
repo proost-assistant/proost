@@ -265,13 +265,13 @@ impl<'arena> Term<'arena> {
     }
 
     fn reduce_fun_eq(self, rhs : Self,ty1 : Self,ty2 : Self, arena: &mut Arena<'arena>) -> Option<Self> {
-        let sort_ty2 = ty2.infer(arena).whnf(arena);
+        let sort_ty2 = ty2.infer(arena).ok()?.whnf(arena);
         if let Sort(lvl) = *sort_ty2 {
             let eq = Term::axiom(axiom::Axiom::Eq_, &[lvl],arena)
                 .app(ty2,arena)
-                .app(rhs.shift(1,0,arena).app(Term::var(1.into(),ty1.shift(1,0,arena),arena),arena),arena)
-                .app(lhs.shift(1,0,arena).app(Term::var(1.into(),ty1.shift(1,0,arena),arena),arena),arena);
-            Som(ty1.prod(eq,arena))
+                .app(self.shift(1,0,arena).app(Term::var(1.into(),ty1.shift(1,0,arena),arena),arena),arena)
+                .app(rhs.shift(1,0,arena).app(Term::var(1.into(),ty1.shift(1,0,arena),arena),arena),arena);
+            Some(ty1.prod(eq,arena))
         } else {
             unreachable!("Expected a Sort, found {sort_ty2}, this should definitely never happen")
         }
@@ -288,7 +288,7 @@ impl<'arena> Term<'arena> {
         // experimental status of let-chains, as well as that of if-let conditions in pattern matching.
         if let App(f, y) = *self && let App(f, x) = *f.whnf(arena) &&
             let App(f,ty) = *f.whnf(arena) &&
-            let Axiom(axiom::Axiom::Eq_, lvl) = *f.unfold(arena).whnf(arena) {
+            let Axiom(axiom::Axiom::Eq_, _) = *f.unfold(arena).whnf(arena) {
                 match *ty.whnf(arena) {
                     // Eq-Zero/Succ/Zero-Succ/Succ-Zero
                     Axiom(axiom::Axiom::Nat,_) => x.reduce_nat_eq(y, arena),
