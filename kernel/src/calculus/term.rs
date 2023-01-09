@@ -276,7 +276,47 @@ impl<'arena> Term<'arena> {
             let App(f,ty) = *f.whnf(arena) &&
             let Axiom(axiom::Axiom::Eq_, _) = *f.unfold(arena).whnf(arena) {
                 match *ty.whnf(arena) {
+                    // Eq-Zero/Succ/Zero-Succ/Succ-Zero
                     Axiom(axiom::Axiom::Nat,_) => x.reduce_nat_eq(y, arena),
+                    // TODO Eq-Fun,Eq-Univ,Eq-univ-!=, Eq-Pi
+                    _ => None
+                }
+            } else {
+                None
+            }
+    }
+
+    /// Helper function to reduce `Cast`s for `Nat`s
+    fn reduce_nat_cast(self, e: Self, arena: &mut Arena<'arena>) -> Option<Self> {
+        match *self.whnf(arena) {
+            Axiom(axiom::Axiom::Zero, _) => Some(Term::axiom(axiom::Axiom::Zero, &[],arena)),
+            App(s,k) if let Axiom(axiom::Axiom::Succ,_) = *s.whnf(arena) => {
+                let nat = Term::axiom(axiom::Axiom::Nat,&[],arena);
+                let cast = Term::axiom(axiom::Axiom::Cast, &[Level::succ(Level::zero(arena),arena)],arena)
+                    .app(nat, arena)
+                    .app(nat, arena)
+                    .app(e, arena)
+                    .app(k,arena);
+                Some(Term::axiom(axiom::Axiom::Succ,&[],arena).app(cast,arena))
+            },
+            _ => None
+        }
+    }
+
+    /// Reduction function for `Cast` operations
+    fn reduce_cast(self, arena: &mut Arena<'arena>) -> Option<Self> {
+        // Be aware that this function will not be automatically formatted, because of the
+        // experimental status of let-chains, as well as that of if-let conditions in pattern matching.
+        if let App(f, x) = *self && let App(f, e) = *f.whnf(arena) &&
+            let App(f,ty2) = *f.whnf(arena) && let App(f,ty1) = *f.whnf(arena) &&
+            let Axiom(axiom::Axiom::Cast, _) = *f.unfold(arena).whnf(arena) {
+                match *ty2.whnf(arena) {
+                    // Cast-Zero/Cast-Succ
+                    Axiom(axiom::Axiom::Nat,_) if let Axiom(axiom::Axiom::Nat,_) = *ty1.whnf(arena)
+                        => x.reduce_nat_cast(e, arena),
+                    // Cast-Univ
+                    Sort(_) if ty1.whnf(arena) == ty2.whnf(arena) => Some(x),
+                    // TODO Cast-Pi
                     _ => None
                 }
             } else {
@@ -286,7 +326,7 @@ impl<'arena> Term<'arena> {
 
     /// Reduces a term if possible, returns None otherwise.
     fn reduce_recursor(self, arena: &mut Arena<'arena>) -> Option<Self> {
-        let rec_reds = [Term::reduce_nat, Term::reduce_eq /* Term::reduce_cast */];
+        let rec_reds = [Term::reduce_nat, Term::reduce_eq, Term::reduce_cast];
         rec_reds.into_iter().find_map(|f| f(self, arena))
     }
 
