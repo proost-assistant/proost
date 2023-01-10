@@ -40,14 +40,135 @@ impl RustyLineHelper {
     }
 }
 
+/// A cursor that explores a string char by char
+/// and traces the last column position
+struct Cursor {
+    /// Byte position in the string
+    global_pos: usize,
+    /// Char position in the current line
+    current_pos: u16,
+    /// Indicates whether the line only
+    /// contains whitespaces so far
+    line_empty: bool,
+    /// Position of the last column found
+    last_token: Option<u16>,
+    /// Indicates whether the last token is complete
+    /// (token = alphanumeric sequence)
+    token_complete: bool,
+}
+
+impl Cursor {
+    /// Create a new Cursor
+    const fn new() -> Self {
+        // current_pos = 2 due to offset in the first line
+        Self {
+            global_pos: 0,
+            line_empty: true,
+            current_pos: 2,
+            last_token: None,
+            token_complete: true,
+        }
+    }
+
+    /// Returns the next non-whitespace character, consuming all the whitespace characters between
+    /// it and the current position. Returns None if the end of the string is reached without finding
+    /// a non-whitespace char.
+    fn consume_spaces(&mut self, chars: &mut std::str::Chars, until: usize) -> Option<char> {
+        loop {
+            if self.global_pos >= until {
+                return None;
+            }
+            match chars.next() {
+                Some(c) if c.is_whitespace() => {
+                    self.token_complete = true;
+                    self.current_pos += 1;
+                    if c == '\n' || c == '\r' {
+                        self.current_pos = 0;
+                        self.line_empty = true;
+                    }
+                    self.global_pos += c.len_utf8();
+                },
+                c => {
+                    self.current_pos += 1;
+                    self.line_empty = self.line_empty && c.is_none();
+                    self.global_pos += c.map_or(0, char::len_utf8);
+                    return c;
+                },
+            }
+        }
+    }
+
+    /// Updates the cursor by continuing reading the string from the current position.
+    /// c is None when the cursor is either at the beginning or at the end of the cursor.
+    fn process_from(&mut self, mut c: Option<char>, rest: &mut std::str::Chars, until: usize) {
+        if c.is_none() {
+            c = self.consume_spaces(rest, until); // c may still be None
+        }
+        match c {
+            Some(':') if self.last_token.is_some() => {
+                self.token_complete = false;
+
+                let c = self.consume_spaces(rest, until);
+                if c.is_none() {
+                    self.last_token = None;
+                    return;
+                }
+                // Considering "name : Type" as a single token.
+                self.token_complete = false;
+                self.process_from(c, rest, until);
+            },
+            Some('=') => {
+                // Resetting column when reading "=>" or ":="
+                self.last_token = None;
+                self.token_complete = true;
+            },
+            Some('(') => {
+                self.last_token = Some(self.current_pos - 1);
+                self.token_complete = true;
+            },
+            Some(')') => {
+                // Resetting column when readin ")"
+                // This could be improved
+                self.last_token = None;
+                self.token_complete = true;
+            },
+            Some(c) if self.token_complete && c.is_alphanumeric() => {
+                // Starting a new token
+                self.last_token = Some(self.current_pos - 1);
+                self.token_complete = false;
+            },
+            None => return,
+            _ => (),
+        }
+        let c = self.consume_spaces(rest, until);
+        self.process_from(c, rest, until);
+    }
+}
+
 /// A Handler for the tab event
 pub struct TabEventHandler;
+impl TabEventHandler {
+    /// Get the column at which the tab key should move.
+    fn column(mut chars: std::str::Chars, until: usize) -> Cursor {
+        let mut cursor = Cursor::new();
+        cursor.process_from(None, &mut chars, until);
+        if !cursor.line_empty {
+            cursor.last_token = None;
+        }
+        cursor
+    }
+}
 impl ConditionalEventHandler for TabEventHandler {
     fn handle(&self, _: &Event, n: RepeatCount, _: bool, ctx: &EventContext) -> Option<Cmd> {
         if ctx.line().starts_with("import") {
             return None;
         }
-        Some(Cmd::Insert(n, "  ".to_owned()))
+
+        let cur = Self::column(ctx.line().chars(), ctx.pos());
+        match cur.last_token {
+            Some(pos) if cur.current_pos < pos => Some(Cmd::Insert(n, " ".repeat((pos - cur.current_pos).into()))),
+            _ => Some(Cmd::Insert(n, "  ".to_owned())),
+        }
     }
 }
 
