@@ -266,23 +266,21 @@ impl<'build> Builder<'build> {
     /// If the term could not be built, yields an error indicating the reason.
     #[inline]
     pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
-        arena.build(self.as_buildertrait())
+        arena.build(self.as_closure())
     }
 
     /// Associates a builder to a builder trait.
-    pub(in crate::memory) fn as_buildertrait(&'build self) -> impl BuilderTrait<'build> {
+    pub(in crate::memory) fn as_closure(&'build self) -> impl BuilderTrait<'build> {
         |arena, env, lvl_env, depth| match **self {
             Payload::Prop => prop()(arena, env, lvl_env, depth),
             Payload::Var(s) => var(s)(arena, env, lvl_env, depth),
             Payload::VarInstance(name, ref levels) => var_instance(name, levels)(arena, env, lvl_env, depth),
-            Payload::Type(ref level) => type_(level.as_buildertrait())(arena, env, lvl_env, depth),
-            Payload::Sort(ref level) => sort(level.as_buildertrait())(arena, env, lvl_env, depth),
-            Payload::App(ref l, ref r) => app(l.as_buildertrait(), r.as_buildertrait())(arena, env, lvl_env, depth),
-            Payload::Abs(s, ref arg, ref body) => abs(s, arg.as_buildertrait(), body.as_buildertrait())(arena, env, lvl_env, depth),
-            Payload::Prod(s, ref arg, ref body) => {
-                prod(s, arg.as_buildertrait(), body.as_buildertrait())(arena, env, lvl_env, depth)
-            },
-            Payload::Decl(ref decl_builder) => decl(decl_builder.as_buildertrait())(arena, env, lvl_env, depth),
+            Payload::Type(ref level) => type_(level.as_closure())(arena, env, lvl_env, depth),
+            Payload::Sort(ref level) => sort(level.as_closure())(arena, env, lvl_env, depth),
+            Payload::App(ref l, ref r) => app(l.as_closure(), r.as_closure())(arena, env, lvl_env, depth),
+            Payload::Abs(s, ref arg, ref body) => abs(s, arg.as_closure(), body.as_closure())(arena, env, lvl_env, depth),
+            Payload::Prod(s, ref arg, ref body) => prod(s, arg.as_closure(), body.as_closure())(arena, env, lvl_env, depth),
+            Payload::Decl(ref decl_builder) => decl(decl_builder.as_closure())(arena, env, lvl_env, depth),
         }
     }
 }

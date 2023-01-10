@@ -111,7 +111,7 @@ impl<'build> Builder<'build> {
     /// Provides a correspondence between builder items and functions with the builder trait
     fn realise_in_context<'arena>(&self, arena: &mut Arena<'arena>) -> ResultDecl<'arena> {
         match *self {
-            Builder::Decl(ref term, ref vars) => declaration(term.as_buildertrait(), vars.as_slice())(arena),
+            Builder::Decl(ref term, ref vars) => declaration(term.as_closure(), vars.as_slice())(arena),
         }
     }
 }
@@ -125,7 +125,7 @@ fn try_build_instance<'arena, 'build>(
 ) -> ResultInstantiatedDecl<'arena> {
     let levels = levels
         .iter()
-        .map(|level_builder| level_builder.as_buildertrait()(arena, env))
+        .map(|level_builder| level_builder.as_closure()(arena, env))
         .collect::<Result<Vec<_>>>()?;
 
     if decl.1 == levels.len() {
@@ -205,11 +205,11 @@ impl<'build> InstantiatedBuilder<'build> {
     /// If the instantiated declaration could not be built, yields an error indicating the reason
     #[inline]
     pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultInstantiatedDecl<'arena> {
-        arena.build_instantiated_declaration(self.as_buildertrait())
+        arena.build_instantiated_declaration(self.as_closure())
     }
 
     /// Associates a builder to a builder trait.
-    pub(in crate::memory) fn as_buildertrait(&'build self) -> impl InstantiatedBuilderTrait<'build> {
+    pub(in crate::memory) fn as_closure(&'build self) -> impl InstantiatedBuilderTrait<'build> {
         |arena, lvl_env| match *self {
             InstantiatedBuilder::Instance(ref decl, ref levels) => instance(decl.as_buildertrait(), levels)(arena, lvl_env),
             InstantiatedBuilder::Var(name, ref levels) => var(name, levels)(arena, lvl_env),

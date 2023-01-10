@@ -150,18 +150,18 @@ impl<'build> Builder<'build> {
     /// If the level could not be built, yields an error indicating the reason.
     #[inline]
     pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultLevel<'arena> {
-        arena.build_level(self.as_buildertrait())
+        arena.build_level(self.as_closure())
     }
 
     /// Associates a builder to a builder trait.
-    pub(in crate::memory) fn as_buildertrait(&self) -> impl BuilderTrait<'build> + '_ {
+    pub(in crate::memory) fn as_closure(&self) -> impl BuilderTrait<'build> + '_ {
         |arena, env| match *self {
             Builder::Zero => zero()(arena, env),
             Builder::Const(c) => const_(c)(arena, env),
-            Builder::Plus(ref u, n) => plus(u.as_buildertrait(), n)(arena, env),
-            Builder::Succ(ref l) => succ(l.as_buildertrait())(arena, env),
-            Builder::Max(ref l, ref r) => max(l.as_buildertrait(), r.as_buildertrait())(arena, env),
-            Builder::IMax(ref l, ref r) => imax(l.as_buildertrait(), r.as_buildertrait())(arena, env),
+            Builder::Plus(ref u, n) => plus(u.as_closure(), n)(arena, env),
+            Builder::Succ(ref l) => succ(l.as_closure())(arena, env),
+            Builder::Max(ref l, ref r) => max(l.as_closure(), r.as_closure())(arena, env),
+            Builder::IMax(ref l, ref r) => imax(l.as_closure(), r.as_closure())(arena, env),
             Builder::Var(s) => var(s)(arena, env),
         }
     }
