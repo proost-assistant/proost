@@ -19,6 +19,6 @@ derive_more.workspace = true
 
 atty = "0.2"
 colored = "2"
-path-absolutize = "3.0.14"
-rustyline = "10.0.0"
-rustyline-derive = "0.7.0"
+path-absolutize = "3"
+rustyline = "10"
+rustyline-derive = "0.7"

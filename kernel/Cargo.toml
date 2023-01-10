@@ -12,5 +12,5 @@ utils.path = "../utils"
 
 derive_more.workspace = true
 
-bumpalo = "3.11.1"
-im-rc = "15.1.0"
+bumpalo = "3"
+im-rc = "15"

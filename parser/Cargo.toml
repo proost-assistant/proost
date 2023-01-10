@@ -13,5 +13,5 @@ utils.path = "../utils"
 
 derive_more.workspace = true
 
-pest = "2.5"
-pest_derive = "2.5"
+pest = "2"
+pest_derive = "2"
