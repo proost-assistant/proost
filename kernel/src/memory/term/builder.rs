@@ -271,18 +271,7 @@ impl<'build> Builder<'build> {
 
     /// Associates a builder to a builder trait.
     pub(in crate::memory) fn as_buildertrait(&'build self) -> impl BuilderTrait<'build> {
-        |arena, env, lvl_env, depth| self.realise_in_context(arena, env, lvl_env, depth)
-    }
-
-    /// Provides a correspondence between builder items and functions with the builder trait.
-    fn realise_in_context<'arena>(
-        &'build self,
-        arena: &mut Arena<'arena>,
-        env: &Environment<'build, 'arena>,
-        lvl_env: &level::Environment<'build>,
-        depth: DeBruijnIndex,
-    ) -> ResultTerm<'arena> {
-        match **self {
+        |arena, env, lvl_env, depth| match **self {
             Payload::Prop => prop()(arena, env, lvl_env, depth),
             Payload::Var(s) => var(s)(arena, env, lvl_env, depth),
             Payload::VarInstance(name, ref levels) => var_instance(name, levels)(arena, env, lvl_env, depth),

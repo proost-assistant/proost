@@ -155,16 +155,7 @@ impl<'build> Builder<'build> {
 
     /// Associates a builder to a builder trait.
     pub(in crate::memory) fn as_buildertrait(&self) -> impl BuilderTrait<'build> + '_ {
-        |arena, env| self.realise_in_context(arena, env)
-    }
-
-    /// Provides a correspondence between builder items and functions with the builder trait.
-    pub(in crate::memory) fn realise_in_context<'arena>(
-        &self,
-        arena: &mut Arena<'arena>,
-        env: &Environment<'build>,
-    ) -> ResultLevel<'arena> {
-        match *self {
+        |arena, env| match *self {
             Builder::Zero => zero()(arena, env),
             Builder::Const(c) => const_(c)(arena, env),
             Builder::Plus(ref u, n) => plus(u.as_buildertrait(), n)(arena, env),
