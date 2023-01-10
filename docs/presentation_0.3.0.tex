@@ -5,9 +5,60 @@
 \usepackage[french]{babel}
 
 \usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{lstautogobble}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{ebproof}
+
+\definecolor{darkgreen}{HTML}{18A100}
+\definecolor{background}{rgb}{0.95,0.95,0.92}
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+
+\lstset{
+    literate =
+    {á}{{\'a}}1
+    {à}{{\`a}}1
+    {Â}{{\^A}}1
+    {ã}{{\~a}}1
+    {é}{{\'e}}1
+    {É}{{\'E}}1
+    {è}{{\`e}}1
+    {ê}{{\^e}}1
+    {ó}{{\'o}}1
+    {ü}{{\^u}}1
+    {î}{{\^i}}1
+    {ç}{{\c{c}}}1
+    {œ}{{\oe}}1
+    {Œ}{{\OE}}1
+}
+
+\lstset{
+    autogobble=true,
+    showstringspaces=false,
+    basicstyle=\small\ttfamily,
+    backgroundcolor=\color{background},
+    keywordstyle=\color{codepurple},
+    commentstyle=\color{codegreen},
+    showtabs=False,
+    stringstyle=\color{orange},
+    frame=single,
+    escapeinside={(*}{*)},
+    tabsize=4,
+    breaklines=true
+}
+
+\lstdefinelanguage{mdln}{
+    keywords={def, check, eval, Sort, Prop, Type, import, fun}
+}
+
 
 \title[Rendu final : Proost]{Rendu final de projet génie logiciel : Proost}
-\author{
+\author[Projet génie logiciel]{
     Arthur~Adjedj \and 
     Augustin~Albert \and
     Vincent~Lafeychine \and
@@ -21,6 +72,7 @@
     Thomas Varin
 }
 \date{12 janvier 2023}
+\institute[]{ENS Paris-Saclay}
 \logo{\includegraphics[scale=0.7]{media/logo.png}}
 
 \mode<presentation>{
@@ -31,24 +83,227 @@
 
 \AtBeginSection[]
 {
-  \begin{frame}[noframenumbering]
-    \frametitle{Outline}
-    \tableofcontents[sectionstyle=show/shaded, subsectionstyle=show/shaded]
-  \end{frame}
+    \begin{frame}[noframenumbering]
+        \frametitle{Sommaire}
+        \tableofcontents[sectionstyle=show/shaded, subsectionstyle=show/shaded]
+    \end{frame}
 }
 
 \newcommand{\jump}[1][1]{\vspace{1\baselineskip}}
 
 \begin{document}
 
-  \maketitle
+    \maketitle
 
-  \section{Présentation générale}
+    \section{Présentation générale}
 
-  \begin{frame}{Présentation du projet}
-    
-    
+        \begin{frame}[fragile]{Présentation du projet}
+        
+            \begin{block}{Qu'est-ce que Proost ?}
+                
+                Proost est un assistant de preuve écrit en Rust basé sur le calcul des constructions. À terme, il est prévu que cela soit remplacé par le calcul observationnel des constructions $\left(\mathrm{CC}^{\mathrm{obs}+}\right)$.
 
-  \end{frame}
+            \end{block} \pause
+
+            \begin{block}{Quel est le langage de preuve ?}
+                
+                Il s'agit de Madelaine, un nouveau langage inspiré de Coq, Lean, \dots
+
+            \end{block} \pause
+
+            \begin{exampleblock}{Exemple de code}
+                
+                \begin{lstlisting}[language=mdln]
+                    def And: Prop -> Prop -> Prop := fun A B: Prop => (C: Prop) -> (A -> B -> C) -> C
+                \end{lstlisting}
+
+            \end{exampleblock}
+
+        \end{frame}
+
+        \begin{frame}{Philosophie du projet}
+            
+            \begin{alertblock}{Points importants}
+                
+                \begin{itemize}
+                    \item Isolation du kernel pour assurer la correction de l'implémentation \pause
+                    \item API d'interface avec le noyau \pause
+                    \item Expérience utilisateur agréable (LSP, coloration syntaxique, \dots) \pause
+                    \item Optimisation mémoire et temporelle du type-checking
+                \end{itemize}
+
+            \end{alertblock}
+
+        \end{frame}
+
+    \section{Description de la théorie implémentée}
+
+        \begin{frame}[fragile]{Univers}
+            
+            \begin{block}{Hierarchie prédicative}
+        
+                Type 0 : Type 1 : \dots \pause
+
+                \begin{center}
+                    \begin{prooftree}
+                        \hypo{\Gamma \vdash A : \mathtt{Type}\ u}
+                        \hypo{\Gamma, x : A \vdash B : \mathtt{Type}\ v}
+                        \infer2{\Gamma \vdash  \Pi(x : A).\;  B: \mathtt{Type}\ \max u\ v}
+                    \end{prooftree}
+                \end{center}
+                
+            \end{block}
+
+            \begin{block}{Univers imprédicatif proof-irrelevant : Prop}
+                
+                Prop : Type 0 \pause
+
+                \begin{center}
+                    \begin{prooftree}
+                        \hypo{\Gamma \vdash A : s}
+                        \hypo{\Gamma, x : A \vdash B : \mathtt{Prop}}
+                        \infer2{\Gamma \vdash  \Pi(x : A).\  B: \mathtt{Prop}}
+                    \end{prooftree}
+                \end{center}
+
+            \end{block}
+
+        \end{frame}
+
+        \begin{frame}[fragile]{Polymorphisme d'univers}
+            
+            \begin{block}{Hierarchie contenant Prop}
+               
+                \begin{tabular}{llll}
+                    \texttt{Prop} :& \texttt{Type 0} :& \texttt{Type 1} :& \dots \\
+                    \texttt{Sort 0} :& \texttt{Sort 1} :& \texttt{Sort 2} :& \dots
+                \end{tabular}
+                
+            \end{block}
+
+            \begin{exampleblock}{Example}
+                
+                \begin{lstlisting}[language=mdln]
+                    def id.{u} := fun A : Sort u, x : A => x
+                \end{lstlisting}
+
+            \end{exampleblock}
+
+        \end{frame}
+
+        \begin{frame}[fragile]{Types inductifs variés}
+            
+            \begin{exampleblock}{Exemples de types inductifs implémentés}
+                
+                \begin{itemize}
+                    \item \lstinline{False} 
+                    \item \lstinline{True}
+                    \item \lstinline{Nat}
+                    \item \lstinline{Eq}
+                    \item \dots
+                \end{itemize}
+
+            \end{exampleblock} \pause
+
+            \begin{exampleblock}{Exemples}
+                
+                \begin{lstlisting}[language=mdln]
+                    def add := fun x : Nat => Nat_rec.{1} (fun n: Nat => Nat) x (fun n n:Nat => Succ n)
+                    def two := Succ (Succ Zero)
+                    def four := Succ (Succ two)
+                    check Refl.{1} Nat four : Eq.{1} Nat four (add two two)
+                \end{lstlisting}
+
+            \end{exampleblock}
+
+        \end{frame}
+
+        \begin{frame}{Égalité}
+            
+            \begin{block}{Actuellement}
+                
+                Égalité intentionnelle à la MLTT
+
+            \end{block} \pause
+
+            \begin{alertblock}{Dans le futur}
+                
+                Égalité observationnelle à la $\mathrm{CC}^{\mathrm{obs}+}$
+
+            \end{alertblock}
+
+        \end{frame}
+
+    \section{Caractéristiques de Proost}
+
+        \begin{frame}{Toplevel}
+            
+            \begin{block}{Caractéristiques}
+                
+                \begin{itemize}
+                    \item Accessible via l'invite de commandes
+                    \item Coloration syntaxique
+                    \item Localisation précise et visuelle des erreurs
+                \end{itemize}
+
+            \end{block} \pause
+
+            \begin{block}{Toplevel}
+                
+                \begin{center}
+                    \includegraphics[scale=1.3]{media/screenshot_toplevel.png}
+                \end{center}
+
+            \end{block}
+
+        \end{frame}
+
+        \begin{frame}{Type-checking}
+            
+            \begin{block}{Caractéristiques}
+                
+                \begin{itemize}
+                    \item Lourde mémoïsation des termes et des computations sur ces derniers (WHNF, substitution, var-shifting, \dots) \pause
+                    \item Système d'arène pour gérer efficacement les lifetimes des termes
+                \end{itemize}
+
+            \end{block}
+
+        \end{frame}
+
+        \begin{frame}{LSP}
+            
+            \begin{block}{Avancement}
+                
+                Preuve de concept disponible
+
+            \end{block}
+
+        \end{frame}
+
+    \section{Pour la suite}
+
+        \begin{frame}{Projets pour la suite}
+            
+            \begin{block}{Dans un futur proche}
+                
+                \begin{itemize}
+                    \item Égalité observationnelle
+                    \item LSP entièrement fonctionnel
+                    \item Espaces de noms importés
+                \end{itemize}
+
+            \end{block} \pause
+
+            \begin{block}{Dans un second temps}
+                
+                \begin{itemize}
+                    \item Types inductifs
+                    \item Unification
+                \end{itemize}
+
+            \end{block}
+
+        \end{frame}
 
 \end{document}
