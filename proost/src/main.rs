@@ -34,14 +34,13 @@
     clippy::shadow_unrelated,
     clippy::unreachable,
     clippy::wildcard_enum_match_arm,
-    // Due to clap dependency
+    // Allowed because of the `clap` crate
     clippy::std_instead_of_core,
-    // Due to this crate is a binary manipulating string
+    // Allowed because this crate is a binary manipulating string
     clippy::indexing_slicing,
     clippy::print_stdout,
     clippy::string_slice
 )]
-#![warn(clippy::missing_docs_in_private_items)]
 #![cfg_attr(
     test,
     allow(
@@ -68,12 +67,12 @@ use atty::Stream;
 use clap::Parser;
 use colored::Colorize;
 use evaluator::Evaluator;
-use kernel::memory::term::Term;
+use parser::command;
 use rustyline::error::ReadlineError;
 use rustyline::{Cmd, Config, Editor, EventHandler, KeyCode, KeyEvent, Modifiers};
 use rustyline_helper::{RustyLineHelper, TabEventHandler};
 
-use crate::error::{Error, Result};
+use crate::error::{Error, Result, ResultProcess};
 
 /// Command line arguments, interpreted with `clap`.
 #[derive(Parser)]
@@ -131,7 +130,10 @@ fn main() -> Result<'static, 'static, ()> {
                 Ok(line) if is_command(&line) => {
                     rl.add_history_entry(line.as_str());
 
-                    display(evaluator.process_line(arena, line.as_str()));
+                    match command::parse::line(line.as_str()) {
+                        Ok(command) => display(evaluator.process_line(arena, &command), true),
+                        Err(err) => display(Err(Error::Parser(err)), true),
+                    }
                 },
                 Ok(_) => (),
                 Err(ReadlineError::Interrupted) => {},
@@ -145,7 +147,9 @@ fn main() -> Result<'static, 'static, ()> {
 }
 
 /// Toplevel function to display a result, as yielded by the toplevel processing of a command
-pub fn display<'arena>(res: Result<'arena, '_, Option<Term<'arena>>>) {
+///
+/// The `toggle_location` indicates whether or not to display a hint for the location of the error
+pub fn display(res: ResultProcess, toggle_location: bool) {
     match res {
         Ok(None) => println!("{}", "\u{2713}".green()),
 
@@ -157,14 +161,19 @@ pub fn display<'arena>(res: Result<'arena, '_, Option<Term<'arena>>>) {
 
         Err(err) => {
             let location = match err {
-                Error::Kernel(ref builder, ref err) => Some(builder.apply_trace(&err.trace)),
-                Error::Parser(ref err) => Some(err.loc),
+                Error::Kernel(builder, ref err) => Some(builder.apply_trace(&err.trace)),
+                Error::Parser(ref err) => Some(err.location),
+
+                Error::TopLevel(evaluator::Error {
+                    kind: evaluator::ErrorKind::FileError(_),
+                    ..
+                }) => None,
                 Error::TopLevel(ref err) => Some(err.location),
 
                 _ => None,
             };
 
-            if let Some(loc) = location {
+            if toggle_location && let Some(loc) = location {
                 let indicator = if loc.start.column == loc.end.column {
                     format!("{:0w1$}^", "", w1 = loc.start.column - 1)
                 } else {
