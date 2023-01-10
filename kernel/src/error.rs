@@ -3,6 +3,7 @@
 use derive_more::{Display, From};
 
 use crate::memory::{declaration, level, term};
+use crate::trace::Trace;
 use crate::type_checker;
 
 /// The kind of errors that can be encountered by the kernel.
@@ -24,8 +25,27 @@ pub enum Kind<'arena> {
     Declaration(declaration::builder::ErrorKind<'arena>),
 }
 
-/// Specify the [`Error`](utils::error::Error) type for the kernel.
-pub type Error<'arena> = utils::error::Error<Kind<'arena>>;
+/// The type representing errors and the trace to find the specific element that yield the error.
+#[derive(Clone, Debug, Display, PartialEq, Eq)]
+#[display(fmt = "{kind}")]
+pub struct Error<'arena> {
+    /// The kind of form error that occurred.
+    pub kind: Kind<'arena>,
+
+    /// The trace.
+    pub trace: Vec<Trace>,
+}
+
+impl<'arena> Error<'arena> {
+    /// Creates a new error from a `kind` and a `trace`.
+    #[inline]
+    #[must_use]
+    pub const fn new(kind: Kind<'arena>) -> Self {
+        let trace = vec![];
+
+        Self { kind, trace }
+    }
+}
 
 /// The type of results yielded by the kernel.
 pub type Result<'arena, T> = core::result::Result<T, Error<'arena>>;

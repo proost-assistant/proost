@@ -9,15 +9,14 @@
 //! logic; namely verifying the correct amount of variables have been supplied or bound.
 
 use derive_more::Display;
-use utils::error::Error;
 use utils::location::Location;
-use utils::trace::{Trace, Traceable};
 
 use super::{Declaration, InstantiatedDeclaration};
-use crate::error::{Result, ResultDecl, ResultInstantiatedDecl};
+use crate::error::{Error, Result, ResultDecl, ResultInstantiatedDecl};
 use crate::memory::arena::Arena;
 use crate::memory::level::builder as level;
 use crate::memory::term::builder as term;
+use crate::trace::{Trace, Traceable};
 
 /// The kind of the error that can occur when building a [`Declaration`].
 #[non_exhaustive]
@@ -84,7 +83,7 @@ pub enum Builder<'build> {
     Decl(Box<term::Builder<'build>>, Vec<&'build str>),
 }
 
-impl<'build> Traceable for Builder<'build> {
+impl<'build> Traceable<Location> for Builder<'build> {
     #[inline]
     fn apply_trace(&self, trace: &[Trace]) -> Location {
         match *self {

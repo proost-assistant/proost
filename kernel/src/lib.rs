@@ -58,4 +58,5 @@ pub mod axiom;
 pub mod calculus;
 pub mod error;
 pub mod memory;
+pub mod trace;
 pub mod type_checker;

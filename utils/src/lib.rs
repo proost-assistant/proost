@@ -42,6 +42,4 @@
         clippy::wildcard_imports,
     )
 )]
-pub mod error;
 pub mod location;
-pub mod trace;

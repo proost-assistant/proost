@@ -3,14 +3,13 @@
 //! The logical core of the kernel.
 
 use derive_more::Display;
-use utils::error::Error;
-use utils::trace::{Trace, TraceableError};
 
-use crate::error::{Result, ResultTerm};
+use crate::error::{Error, Result, ResultTerm};
 use crate::memory::arena::Arena;
 use crate::memory::declaration::Declaration;
 use crate::memory::term::Payload::{Abs, App, Axiom, Decl, Prod, Sort, Var};
 use crate::memory::term::Term;
+use crate::trace::{Trace, TraceableError};
 
 /// A pair of terms, where the second is the type of the first.
 ///

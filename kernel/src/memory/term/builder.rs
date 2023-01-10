@@ -15,15 +15,14 @@
 
 use derive_more::{Constructor, Deref, Display};
 use im_rc::hashmap::HashMap as ImHashMap;
-use utils::error::Error;
 use utils::location::Location;
-use utils::trace::{Trace, Traceable, TraceableError};
 
 use super::{DeBruijnIndex, Term};
-use crate::error::ResultTerm;
+use crate::error::{Error, ResultTerm};
 use crate::memory::arena::Arena;
 use crate::memory::declaration::builder as declaration;
 use crate::memory::level::builder as level;
+use crate::trace::{Trace, Traceable, TraceableError};
 
 /// The kind of errors that can occur when building a [`Term`].
 #[non_exhaustive]
@@ -239,25 +238,21 @@ pub enum Payload<'build> {
     Decl(Box<declaration::InstantiatedBuilder<'build>>),
 }
 
-impl<'build> Traceable for Builder<'build> {
+impl<'build> Traceable<Location> for Builder<'build> {
     #[inline]
     fn apply_trace(&self, trace: &[Trace]) -> Location {
-        let mut builder: &Builder<'build> = self;
+        let builder = trace.iter().rev().fold(self, |builder, trace| match (trace, &builder.payload) {
+            (Trace::Left, Payload::App(lhs, _)) => lhs,
+            (Trace::Right, Payload::App(_, rhs)) => rhs,
 
-        for trace in trace.iter().rev() {
-            builder = match (trace, &builder.payload) {
-                (Trace::Left, Payload::App(lhs, _)) => lhs,
-                (Trace::Right, Payload::App(_, rhs)) => rhs,
+            (Trace::Left, Payload::Abs(_, lhs, _)) => lhs,
+            (Trace::Right, Payload::Abs(_, _, rhs)) => rhs,
 
-                (Trace::Left, Payload::Abs(_, lhs, _)) => lhs,
-                (Trace::Right, Payload::Abs(_, _, rhs)) => rhs,
+            (Trace::Left, Payload::Prod(_, lhs, _)) => lhs,
+            (Trace::Right, Payload::Prod(_, _, rhs)) => rhs,
 
-                (Trace::Left, Payload::Prod(_, lhs, _)) => lhs,
-                (Trace::Right, Payload::Prod(_, _, rhs)) => rhs,
-
-                _ => unreachable!("invalid trace"),
-            };
-        }
+            _ => unreachable!("invalid trace"),
+        });
 
         builder.location
     }

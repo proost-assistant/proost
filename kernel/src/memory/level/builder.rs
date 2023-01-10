@@ -15,10 +15,9 @@
 use std::collections::HashMap;
 
 use derive_more::Display;
-use utils::error::Error;
 
 use super::Level;
-use crate::error::ResultLevel;
+use crate::error::{Error, ResultLevel};
 use crate::memory::arena::Arena;
 
 /// The kind of errors that can occur when building a [`Level`].
