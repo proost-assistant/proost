@@ -234,6 +234,7 @@ mod tests {
     use crate::memory::declaration::{builder as declaration, InstantiatedDeclaration};
     use crate::memory::term::builder::raw::*;
     use crate::memory::term::{builder as term, Term};
+    use crate::memory::Buildable;
 
     #[test]
     fn simple_subst() {

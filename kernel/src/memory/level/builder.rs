@@ -19,6 +19,7 @@ use derive_more::Display;
 use super::Level;
 use crate::error::{Error, ResultLevel};
 use crate::memory::arena::Arena;
+use crate::memory::Buildable;
 
 /// The kind of errors that can occur when building a [`Level`].
 #[non_exhaustive]
@@ -142,19 +143,24 @@ pub enum Builder<'builder> {
     Var(&'builder str),
 }
 
-impl<'build> Builder<'build> {
+impl<'build> Buildable<'build> for Builder<'build> {
+    type Output<'arena> = Level<'arena>;
+
+    type Closure = impl BuilderTrait<'build>;
+
     /// Realise a builder into a [`Level`]. This internally uses functions described in
     /// the [builder](`crate::memory::level::builder`) module.
     ///
     /// # Errors
     /// If the level could not be built, yields an error indicating the reason.
     #[inline]
-    pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultLevel<'arena> {
+    fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultLevel<'arena> {
         arena.build_level(self.as_closure())
     }
 
     /// Associates a builder to a builder trait.
-    pub(in crate::memory) fn as_closure(&self) -> impl BuilderTrait<'build> + '_ {
+    #[inline]
+    fn as_closure(&'build self) -> Self::Closure {
         |arena, env| match *self {
             Builder::Zero => zero()(arena, env),
             Builder::Const(c) => const_(c)(arena, env),

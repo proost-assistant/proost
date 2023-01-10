@@ -22,6 +22,7 @@ use crate::error::{Error, ResultTerm};
 use crate::memory::arena::Arena;
 use crate::memory::declaration::builder as declaration;
 use crate::memory::level::builder as level;
+use crate::memory::Buildable;
 use crate::trace::{Trace, Traceable, TraceableError};
 
 /// The kind of errors that can occur when building a [`Term`].
@@ -258,19 +259,24 @@ impl<'build> Traceable<Location> for Builder<'build> {
     }
 }
 
-impl<'build> Builder<'build> {
+impl<'build> Buildable<'build> for Builder<'build> {
+    type Output<'arena> = Term<'arena>;
+
+    type Closure = impl BuilderTrait<'build>;
+
     /// Realise a builder into a [`Term`]. This internally uses functions described in
     /// the [builder](`crate::memory::term::builder`) module.
     ///
     /// # Errors
     /// If the term could not be built, yields an error indicating the reason.
     #[inline]
-    pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
+    fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
         arena.build(self.as_closure())
     }
 
     /// Associates a builder to a builder trait.
-    pub(in crate::memory) fn as_closure(&'build self) -> impl BuilderTrait<'build> {
+    #[inline]
+    fn as_closure(&'build self) -> Self::Closure {
         |arena, env, lvl_env, depth| match **self {
             Payload::Prop => prop()(arena, env, lvl_env, depth),
             Payload::Var(s) => var(s)(arena, env, lvl_env, depth),

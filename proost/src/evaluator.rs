@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 
 use derive_more::Display;
 use kernel::memory::arena::Arena;
+use kernel::memory::Buildable;
 use parser::command::{parse, Command};
 use path_absolutize::Absolutize;
 use utils::location::Location;
@@ -207,15 +208,12 @@ impl<'arena> Evaluator {
 
                 let term = term_builder.realise(arena).map_err(|err| Kernel(term_builder, err))?;
 
-                match *type_builder {
-                    None => {
-                        term.infer(arena).map_err(|err| Kernel(term_builder, err))?;
-                    },
-                    Some(ref type_builder) => {
-                        let type_ = type_builder.realise(arena).map_err(|err| Kernel(type_builder, err))?;
+                if let Some(ref type_builder) = *type_builder {
+                    let type_ = type_builder.realise(arena).map_err(|err| Kernel(type_builder, err))?;
 
-                        term.check(type_, arena).map_err(|err| Kernel(term_builder, err))?;
-                    },
+                    term.check(type_, arena).map_err(|err| Kernel(term_builder, err))?;
+                } else {
+                    term.infer(arena).map_err(|err| Kernel(term_builder, err))?;
                 }
 
                 arena.bind(s, term);
@@ -232,15 +230,12 @@ impl<'arena> Evaluator {
 
                 let decl = decl_builder.realise(arena).map_err(|err| Kernel(decl_builder, err))?;
 
-                match *type_builder {
-                    None => {
-                        decl.infer(arena).map_err(|err| Kernel(decl_builder, err))?;
-                    },
-                    Some(ref type_builder) => {
-                        let type_ = type_builder.realise(arena).map_err(|err| Kernel(type_builder, err))?;
+                if let Some(ref type_builder) = *type_builder {
+                    let type_ = type_builder.realise(arena).map_err(|err| Kernel(type_builder, err))?;
 
-                        decl.check(type_, arena).map_err(|err| Kernel(decl_builder, err))?;
-                    },
+                    decl.check(type_, arena).map_err(|err| Kernel(decl_builder, err))?;
+                } else {
+                    decl.infer(arena).map_err(|err| Kernel(decl_builder, err))?;
                 }
 
                 arena.bind_decl(s, decl);

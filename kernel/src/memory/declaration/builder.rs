@@ -16,6 +16,7 @@ use crate::error::{Error, Result, ResultDecl, ResultInstantiatedDecl};
 use crate::memory::arena::Arena;
 use crate::memory::level::builder as level;
 use crate::memory::term::builder as term;
+use crate::memory::Buildable;
 use crate::trace::{Trace, Traceable};
 
 /// The kind of the error that can occur when building a [`Declaration`].
@@ -92,25 +93,25 @@ impl<'build> Traceable<Location> for Builder<'build> {
     }
 }
 
-impl<'build> Builder<'build> {
+impl<'build> Buildable<'build> for Builder<'build> {
+    type Output<'arena> = Declaration<'arena>;
+
+    type Closure = impl BuilderTrait<'build>;
+
     /// Realise a builder into a [`Declaration`]. This internally uses functions described in
     /// the [builder](`crate::memory::declaration::builder`) module.
     ///
     /// # Errors
     /// If the declaration could not be built, yields an error indicating the reason
     #[inline]
-    pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultDecl<'arena> {
-        arena.build_declaration(self.as_buildertrait())
+    fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultDecl<'arena> {
+        arena.build_declaration(self.as_closure())
     }
 
     /// Associates a builder to a builder trait.
-    fn as_buildertrait(&self) -> impl BuilderTrait<'build> + '_ {
-        |arena| self.realise_in_context(arena)
-    }
-
-    /// Provides a correspondence between builder items and functions with the builder trait
-    fn realise_in_context<'arena>(&self, arena: &mut Arena<'arena>) -> ResultDecl<'arena> {
-        match *self {
+    #[inline]
+    fn as_closure(&'build self) -> Self::Closure {
+        |arena| match *self {
             Builder::Decl(ref term, ref vars) => declaration(term.as_closure(), vars.as_slice())(arena),
         }
     }
@@ -197,21 +198,27 @@ impl<'arena> core::fmt::Display for InstantiatedBuilder<'arena> {
         }
     }
 }
-impl<'build> InstantiatedBuilder<'build> {
+
+impl<'build> Buildable<'build> for InstantiatedBuilder<'build> {
+    type Output<'arena> = InstantiatedDeclaration<'arena>;
+
+    type Closure = impl InstantiatedBuilderTrait<'build>;
+
     /// Realise a builder into an [`InstantiatedDeclaration`]. This internally uses functions described in
     /// the [builder](`crate::memory::declaration::builder`) module.
     ///
     /// # Errors
     /// If the instantiated declaration could not be built, yields an error indicating the reason
     #[inline]
-    pub fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultInstantiatedDecl<'arena> {
+    fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultInstantiatedDecl<'arena> {
         arena.build_instantiated_declaration(self.as_closure())
     }
 
     /// Associates a builder to a builder trait.
-    pub(in crate::memory) fn as_closure(&'build self) -> impl InstantiatedBuilderTrait<'build> {
+    #[inline]
+    fn as_closure(&'build self) -> Self::Closure {
         |arena, lvl_env| match *self {
-            InstantiatedBuilder::Instance(ref decl, ref levels) => instance(decl.as_buildertrait(), levels)(arena, lvl_env),
+            InstantiatedBuilder::Instance(ref decl, ref levels) => instance(decl.as_closure(), levels)(arena, lvl_env),
             InstantiatedBuilder::Var(name, ref levels) => var(name, levels)(arena, lvl_env),
         }
     }

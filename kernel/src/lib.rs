@@ -11,6 +11,7 @@
 #![feature(no_coverage)]
 #![feature(once_cell)]
 #![feature(trait_alias)]
+#![feature(type_alias_impl_trait)]
 #![deny(
     clippy::complexity,
     clippy::correctness,
