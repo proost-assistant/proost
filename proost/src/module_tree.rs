@@ -1,11 +1,8 @@
-use std::cell::{Cell, RefCell};
 use std::fmt;
 use std::iter::once;
-use std::rc::Rc;
 
-use indextree::{Arena, DebugPrettyPrint, NodeId};
+use indextree::{Arena, DebugPrettyPrint, NodeError, NodeId};
 use itertools::Itertools;
-use kernel::memory::term::builder::Builder;
 
 use crate::error::Result;
 
@@ -49,7 +46,7 @@ impl<'build> fmt::Display for Error<'build> {
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum ModuleNode {
     /// A module with it's public and used status
-    Module(String, bool, bool),
+    Module(String, bool),
 
     /// A variable with it's public status
     Def(String, bool),
@@ -59,7 +56,7 @@ impl ModuleNode {
     /// Return the name of a node.
     fn name(&self) -> &String {
         match self {
-            ModuleNode::Module(name, ..) => name,
+            ModuleNode::Module(name, _) => name,
             ModuleNode::Def(name, _) => name,
         }
     }
@@ -67,7 +64,7 @@ impl ModuleNode {
     /// Return the public status of a node.
     fn public(&self) -> &bool {
         match self {
-            ModuleNode::Module(_, public, _) => public,
+            ModuleNode::Module(_, public) => public,
             ModuleNode::Def(_, public) => public,
         }
     }
@@ -92,7 +89,7 @@ impl ModuleTree {
     // }
 
     fn build(mut arena: Arena<ModuleNode>, name: &str) -> Self {
-        let root = arena.new_node(ModuleNode::Module(name.to_string(), true, false));
+        let root = arena.new_node(ModuleNode::Module(name.to_string(), true));
         Self {
             arena,
             root,
@@ -194,9 +191,11 @@ impl ModuleTree {
 
     /// Returns the position of the given position starting from the root
     fn get_position(&self, position: NodeId) -> Vec<String> {
-        let mut pos = position.ancestors(&self.arena).map(|nodeid| self.arena[nodeid].get().name().clone());
-        pos.next();
-        let mut res: Vec<String> = pos.collect();
+        let mut res: Vec<String> = position
+            .ancestors(&self.arena)
+            .map(|nodeid| self.arena[nodeid].get().name().clone())
+            .collect();
+        res.pop();
         res.reverse();
         res
     }
@@ -217,7 +216,7 @@ impl ModuleTree {
         if !self.get_relative(once(name)).is_empty() {
             return Err(Error::BoundModule(name.to_string()).into());
         }
-        let node = self.arena.new_node(ModuleNode::Module(name.to_string(), public, false));
+        let node = self.arena.new_node(ModuleNode::Module(name.to_string(), public));
         self.position.append(node, &mut self.arena);
         self.position = node;
         Ok(())
@@ -235,28 +234,35 @@ impl ModuleTree {
         }
     }
 
+    /// Append to node1 the children of node2 except node1 itself
+    fn append_children(&mut self, nodeid1: NodeId, nodeid2: NodeId) {
+        let children: Vec<NodeId> = nodeid2
+            .children(&self.arena)
+            .filter(|nodeid_| *self.arena[*nodeid_].get().public() == true)
+            .collect();
+        children.iter().for_each(|nodeid_| {
+            if let Err(NodeError::AppendAncestor) = nodeid1.checked_append(*nodeid_, &mut self.arena) {
+                self.append_children(nodeid1, *nodeid_)
+            }
+        });
+    }
+
     /// Use a module or a variable identified by its path if it exists
     pub fn use_module<'arena, 'build>(&mut self, path: &Vec<&'build str>, public: bool) -> Result<'arena, 'build, ()> {
         let nodeid = self.get_identifier(path)?;
 
         match self.arena[nodeid].get() {
-            // The obtained node is a module that was not defined here but imported through the use command
-            ModuleNode::Module(.., true) => Err(Error::PathNotFound(path.clone()).into()),
-
             // The obtained node is a module
-            ModuleNode::Module(name, _, false) => {
+            ModuleNode::Module(name, _) => {
                 if !self.get_relative(once(name.as_str())).is_empty() {
                     return Err(Error::BoundModule(name.clone()).into());
                 }
 
-                let new_module = self.arena.new_node(ModuleNode::Module(name.clone(), public, true));
+                let new_module = self.arena.new_node(ModuleNode::Module(name.clone(), public));
+
                 self.position.append(new_module, &mut self.arena);
 
-                let new_children: Vec<NodeId> = nodeid
-                    .children(&self.arena)
-                    .filter(|nodeid_| *self.arena[*nodeid_].get().public() == true)
-                    .collect();
-                new_children.iter().for_each(|nodeid_| new_module.append(*nodeid_, &mut self.arena));
+                self.append_children(new_module, nodeid);
                 Ok(())
             },
 
@@ -286,23 +292,26 @@ mod tests {
         assert!(tree.define("x", false).is_err());
         assert!(tree.define("y", false).is_ok());
         assert!(tree.end_module().is_err());
+        assert_eq!(tree.get_position(tree.position), Vec::<String>::new());
         assert!(tree.begin_module("mod1", true).is_ok());
         assert!(tree.define("x", true).is_ok());
         assert!(tree.define("x", false).is_err());
         assert!(tree.define("y", false).is_ok());
+        assert_eq!(tree.get_position(tree.position), vec!["mod1"]);
         assert!(tree.end_module().is_ok());
         assert!(tree.define("x", true).is_err());
         assert!(tree.define("w", true).is_ok());
         assert!(tree.begin_module("mod1", false).is_err());
         assert!(tree.begin_module("mod2", false).is_ok());
         assert!(tree.begin_module("mod3", true).is_ok());
+        assert_eq!(tree.get_position(tree.position), vec!["mod2", "mod3"]);
         assert!(tree.end_module().is_ok());
         assert!(tree.end_module().is_ok());
         assert!(tree.end_module().is_err());
     }
 
     #[test]
-    fn use_modules_existing() {
+    fn use_module_existing_def() {
         let mut tree = ModuleTree::new();
 
         assert!(tree.define("x", true).is_ok());
@@ -346,10 +355,11 @@ mod tests {
         assert!(tree.end_module().is_ok());
         assert!(tree.use_module(&vec!["mod1", "x"], false).is_err());
         assert!(tree.use_module(&vec!["mod1", "mod2", "x"], false).is_err());
+        assert!(tree.use_module(&vec!["mod1", "mod2"], false).is_err());
     }
 
     #[test]
-    fn use_module_chain() {
+    fn use_module_chain_def() {
         let mut tree = ModuleTree::new();
 
         assert!(tree.begin_module("mod1", true).is_ok());
@@ -366,7 +376,7 @@ mod tests {
     }
 
     #[test]
-    fn use_module_super() {
+    fn use_module_super_def() {
         let mut tree = ModuleTree::new();
 
         assert!(tree.begin_module("mod1", true).is_ok());
@@ -378,7 +388,7 @@ mod tests {
     }
 
     #[test]
-    fn use_module_absolute() {
+    fn use_module_absolute_def() {
         let mut tree = ModuleTree::new();
 
         assert!(tree.begin_module("mod1", true).is_ok());
@@ -387,5 +397,28 @@ mod tests {
         assert!(tree.define("x", true).is_ok());
         assert!(tree.end_module().is_ok());
         assert!(tree.use_module(&vec!["mod1", "mod2", "mod3", "x"], true).is_ok());
+    }
+
+    #[test]
+    fn use_module_self() {
+        let mut tree = ModuleTree::new();
+
+        assert!(tree.begin_module("mod1", true).is_ok());
+        assert!(tree.use_module(&vec!["super", "mod1"], false).is_ok());
+        assert!(tree.position.children(&tree.arena).next().is_some());
+
+        let mut tree = ModuleTree::new();
+
+        assert!(tree.begin_module("mod1", true).is_ok());
+        assert!(tree.define("x", true).is_ok());
+        assert!(tree.define("y", true).is_ok());
+
+        println!("{:?}", tree.debug_pretty_print());
+
+        assert!(tree.use_module(&vec!["super", "mod1"], false).is_ok());
+
+        println!("{:?}", tree.debug_pretty_print());
+
+        println!("{:?}", tree.position.children(&tree.arena).collect::<Vec<NodeId>>())
     }
 }
