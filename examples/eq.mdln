@@ -6,4 +6,17 @@ def transport.{u,v} : transport_type.{u,v} :=
 
 def transport_id.{u} := fun A:Sort u,x:A => transport.{u,u} A (fun x:A => A) x x (Refl.{u} A x) x
 
+def symm.{u} : (A : Sort u) -> (x y : A) -> Eq.{u} A x y -> Eq.{u} A y x :=
+    fun A:Sort u,
+        x y: A,
+        e : Eq.{u} A x y =>
+    Eq_rec.{u,0} A x (fun y:A, e:Eq.{u} A x y => Eq.{u} A y x) (Refl.{u} A x) y e   
+
+def trans.{u} : (A : Sort u) -> (x y z : A) -> Eq.{u} A x y -> Eq.{u} A y z -> Eq.{u} A x z := 
+    fun A: Sort u,
+        x y z : A,
+        e1 : Eq.{u} A x y,
+        e2 : Eq.{u} A y z =>
+    Eq_rec.{u,0} A y (fun x:A,e:Eq.{u} A y x => Eq.{u} A x z) e2 x (symm.{u} A x y e1)
+
 check Refl.{1} Nat Zero : Eq.{1} Nat Zero (transport_id.{1} Nat Zero)

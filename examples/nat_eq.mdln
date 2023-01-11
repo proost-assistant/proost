@@ -1,0 +1,28 @@
+def id.{u} := fun A :Sort u,x:A => x
+
+def Not := fun A : Prop => A -> False
+def True := False -> False
+def tt : True := id.{0} False
+
+def transport_type.{u,v} := (A : Sort u) -> (P : A -> Sort v) -> (x y : A) -> Eq.{u} A x y -> P x -> P y
+
+def transport.{u,v} : transport_type.{u,v} := 
+    fun A:Sort u,
+        P:A -> Sort v,
+        x y:A, 
+        p: Eq.{u} A x y,
+        h:P x =>
+        Eq_rec.{u,v} A x (fun y:A,p:Eq.{u} A x y => P y) h y p
+
+def cast.{u} : (A B : Sort u) -> Eq.{u+1} (Sort u) A B -> A -> B :=
+    fun A B : Sort u, 
+        e : Eq.{u+1} (Sort u) A B,
+        a : A => 
+    transport.{u+1,u} (Sort u) (fun A:Sort u => A) A B e a
+
+def is_zero := Nat_rec.{1} (fun n:Nat => Prop) True (fun n:Nat, p:Prop => False)
+
+def z_neq_s : (n: Nat) -> Not (Eq.{1} Nat Zero (Succ n)):=
+    fun n: Nat,
+        e : Eq.{1} Nat Zero (Succ n) =>
+        transport.{1,0} Nat is_zero Zero (Succ n) e tt
