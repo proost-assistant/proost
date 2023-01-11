@@ -1,4 +1,4 @@
-\documentclass[12pt]{beamer}
+\documentclass[12pt, aspectratio=169]{beamer}
 
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -9,9 +9,11 @@
 \usepackage{listings}
 \usepackage{lstautogobble}
 
+
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{ebproof}
+\usepackage{tikz}
 
 \definecolor{darkgreen}{HTML}{18A100}
 \definecolor{background}{rgb}{0.95,0.95,0.92}
@@ -59,27 +61,34 @@
 
 \title[Rendu final : Proost]{Rendu final de projet génie logiciel : Proost}
 \author[Projet génie logiciel]{
+    \normalsize
     Arthur~Adjedj \and 
     Augustin~Albert \and
     Vincent~Lafeychine \and
     Lucas~Tabary-Maujean \and
-    Jean Abou-Samra \and
-    Tanguy Bozec \and
-    Antonin Bretagne \and 
-    Vivien Ducros \and
-    Antoine Guilmin-Crépon \and
-    Balthazar Patiachvili \and
-    Thomas Varin
+    Jean~Abou-Samra \and
+    Tanguy~Bozec \and
+    Antonin~Bretagne \and
+    Vivien~Ducros \and
+    Antoine~Guilmin-Crépon \and
+    Balthazar~Patiachvili \and
+    Thomas~Varin
 }
 \date{12 janvier 2023}
 \institute[]{ENS Paris-Saclay}
-\logo{\includegraphics[scale=0.7]{media/logo.png}}
-
-\mode<presentation>{
-    \usetheme{Warsaw}   
-    \useoutertheme{shadow}
-    \useoutertheme{infolines}
+\logo{
+    \begin{picture}(0,0)
+        \put(-130,-50) {
+            \begin{tikzpicture}
+                \node[opacity=0.5] (0) {\includegraphics[scale=1.5]{media/logo.png}};
+            \end{tikzpicture}
+        }
+    \end{picture}
 }
+
+\usetheme{Warsaw}
+\useoutertheme{shadow}
+\useoutertheme{infolines}
 
 \AtBeginSection[]
 {
@@ -222,7 +231,7 @@
             
             \begin{block}{Actuellement}
                 
-                Égalité intentionnelle à la MLTT
+                Égalité intensionnelle à la MLTT
 
             \end{block} \pause
 
@@ -273,9 +282,20 @@
 
         \begin{frame}{LSP}
             
+            \begin{block}{Description}
+                
+                Le LSP s'appelle <<~Tilleul~>> et se compose :
+
+                \begin{itemize}
+                    \item d'une partie I/O répartissant les requêtes~;
+                    \item d'une partie logique traitant les requêtes.
+                \end{itemize}
+
+            \end{block} \pause
+
             \begin{block}{Avancement}
                 
-                Preuve de concept disponible
+                Une preuve de concept est actuellement disponible sur la partie I/O. Cependant la partie logique n'a pas encore été commencée.
 
             \end{block}
 
