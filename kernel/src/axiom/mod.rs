@@ -9,6 +9,7 @@ use crate::memory::arena::Arena;
 use crate::memory::term::Term;
 
 pub mod equality;
+pub mod true_;
 pub mod false_;
 pub mod natural;
 
@@ -18,6 +19,9 @@ pub enum Axiom {
     /// Axioms to describe Equality
     #[display(fmt = "{_0}")]
     Equality(equality::Equality),
+
+    /// Axioms to describe True
+    True(true_::True),
 
     /// Axioms to describe False
     #[display(fmt = "{_0}")]
@@ -33,6 +37,7 @@ impl Axiom {
     #[inline]
     pub fn add_named_axioms(arena: &mut Arena<'_>) {
         self::equality::Equality::append_to_named_axioms(arena);
+        self::true_::True::append_to_named_axioms(arena);
         self::false_::False::append_to_named_axioms(arena);
         self::natural::Natural::append_to_named_axioms(arena);
     }
@@ -40,10 +45,11 @@ impl Axiom {
     /// Get the type of a given axiom
     #[inline]
     pub fn get_type<'arena>(self, arena: &mut Arena<'arena>) -> Term<'arena> {
-        use Axiom::{Equality, False, Natural};
+        use Axiom::{Equality, True, False, Natural};
 
         match self {
             Equality(axiom) => axiom.get_type(arena),
+            True(axiom) => axiom.get_type(arena),
             False(axiom) => axiom.get_type(arena),
             Natural(axiom) => axiom.get_type(arena),
         }
