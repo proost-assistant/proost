@@ -60,17 +60,18 @@ mod error;
 mod evaluator;
 mod rustyline_helper;
 
+use std::cmp::max;
 use std::env::current_dir;
-use std::fs;
 
 use atty::Stream;
 use clap::Parser;
 use colored::Colorize;
 use evaluator::Evaluator;
-use parser::command;
+use parser::command::{self, Command};
 use rustyline::error::ReadlineError;
 use rustyline::{Cmd, Config, Editor, EventHandler, KeyCode, KeyEvent, Modifiers};
 use rustyline_helper::{RustyLineHelper, TabEventHandler};
+use utils::location::Location;
 
 use crate::error::{Error, Result, ResultProcess};
 
@@ -97,13 +98,17 @@ const NAME: &str = env!("CARGO_PKG_NAME");
 fn main() -> Result<'static, 'static, ()> {
     let args = Args::parse();
 
+    let current_path = current_dir()?;
+    let mut evaluator = Evaluator::new(current_path, args.verbose);
+
     // check if files are provided as command-line arguments
     if !args.files.is_empty() {
-        return args
-            .files
-            .iter()
-            .try_for_each(|path| fs::read_to_string(path).map(|_| ()))
-            .map_err(Error::from);
+        return kernel::memory::arena::use_arena(|arena| {
+            let command = Command::Import(args.files.iter().map(|file| (Location::default(), file.as_str())).collect());
+
+            display(evaluator.process_line(arena, &command), false);
+            Ok(())
+        });
     }
 
     // check if we are in a terminal
@@ -119,9 +124,6 @@ fn main() -> Result<'static, 'static, ()> {
     rl.bind_sequence(KeyEvent(KeyCode::Enter, Modifiers::ALT), EventHandler::Simple(Cmd::Newline));
 
     kernel::memory::arena::use_arena_with_axioms(|arena| {
-        let current_path = current_dir()?;
-        let mut evaluator = Evaluator::new(current_path, args.verbose);
-
         println!("Welcome to {NAME} {VERSION}");
 
         loop {
@@ -174,17 +176,24 @@ pub fn display(res: ResultProcess, toggle_location: bool) {
             };
 
             if toggle_location && let Some(loc) = location {
-                let indicator = if loc.start.column == loc.end.column {
-                    format!("{:0w1$}^", "", w1 = loc.start.column - 1)
-                } else {
-                    format!("{:0w1$}^{:-<w2$}^", "", "", w1 = loc.start.column - 1, w2 = loc.end.column - loc.start.column - 1)
-                };
-
-                println!("{} {indicator}", "\u{2717}".red());
+                println!("{} {}", "\u{2717}".red(), pretty_print_loc(loc));
             };
 
             println!("{} {err}", "\u{2717}".red());
         },
+    }
+}
+
+/// Pretty print a location as underscores
+fn pretty_print_loc(loc: Location) -> String {
+    if loc.start.line == loc.end.line {
+        if loc.start.column + 1 >= loc.end.column {
+            format!("{:0w$}^", "", w = loc.start.column - 1)
+        } else {
+            format!("{:0w1$}^{:-<w2$}^", "", "", w1 = loc.start.column - 1, w2 = loc.end.column - loc.start.column - 2)
+        }
+    } else {
+        format!(" {:-<w$}^", "", w = max(loc.start.column, loc.end.column) - 1)
     }
 }
 
@@ -198,6 +207,26 @@ fn is_command(input: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use utils::location::Location;
+
+    use super::*;
+
+    #[test]
+    fn correct_pretty_print_loc() {
+        assert_eq!(pretty_print_loc(Location::new((1, 3), (1, 3))), "  ^".to_owned());
+        assert_eq!(pretty_print_loc(Location::new((1, 3), (1, 4))), "  ^".to_owned());
+        assert_eq!(pretty_print_loc(Location::new((1, 3), (1, 5))), "  ^^".to_owned());
+        assert_eq!(pretty_print_loc(Location::new((1, 3), (1, 6))), "  ^-^".to_owned());
+        assert_eq!(pretty_print_loc(Location::new((1, 3), (1, 7))), "  ^--^".to_owned());
+    }
+
+    /// Robustness against multilines
+    #[test]
+    fn robust_pretty_print_loc() {
+        pretty_print_loc(Location::new((2, 3), (2, 3)));
+        pretty_print_loc(Location::new((1, 3), (2, 3)));
+        pretty_print_loc(Location::new((1, 3), (2, 1)));
+    }
 
     #[test]
     fn is_command_no_crash() {

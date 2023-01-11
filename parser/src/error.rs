@@ -85,10 +85,10 @@ impl From<pest::error::Error<Rule>> for Error {
                     right = y;
                 }
 
-                Location::new((x, left), (x, right))
+                Location::new((x, left), (x, 1 + right))
             },
 
-            LineColLocation::Span(start, end) => Location::new(start, end),
+            LineColLocation::Span(start, (end_l, end_c)) => Location::new(start, (end_l, 1 + end_c)),
         };
 
         // extracting the message from the pest output
