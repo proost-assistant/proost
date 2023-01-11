@@ -58,9 +58,9 @@ impl True {
         // (t: True) -> motive t
         let prod_app_motive = Term::prod(term_true, app_motive, arena)
         // tt
-        let term_tt = Term::axiom(True, &[], arena);
+        let term_tt = Term::axiom(Tt, &[], arena);
         // motive tt
-        let motive_tt = Term::app(Term::var(2.into(), motive, arena), Term::var(1.into(), term_tt, arena), arena)
+        let motive_tt = Term::app(Term::var(1.into(), motive, arena), term_tt, arena);
         // (motive tt) -> (t: True) -> motive t
         let prod_app_motive_tt = Term::prod(motive_tt, prod_app_motive, arena)
         // (motive: True -> Sort u) -> (motive tt) -> (t: True) -> motive t
