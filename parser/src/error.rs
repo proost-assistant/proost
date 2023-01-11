@@ -1,8 +1,8 @@
 //! Errors that can be yielded by the parser.
 
 use derive_more::Display;
-use pest::error::LineColLocation;
 use elaboration::location::Location;
+use pest::error::LineColLocation;
 
 use crate::command::parse::Rule;
 

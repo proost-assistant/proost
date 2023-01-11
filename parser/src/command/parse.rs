@@ -1,11 +1,9 @@
 //! Parsing functions, from text to [commands](Command).
 
-use kernel::memory::declaration::builder as declaration;
-use kernel::memory::level::builder as level;
-use kernel::memory::term::builder as term;
+use elaboration::builder::{declaration, level, term};
+use elaboration::location::Location;
 use pest::iterators::Pair;
 use pest::{Parser, Span};
-use elaboration::location::Location;
 
 use crate::command::Command;
 use crate::error;

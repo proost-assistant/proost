@@ -6,8 +6,8 @@ pub mod parse;
 
 use core::fmt;
 
-use kernel::memory::declaration::builder as declaration;
-use kernel::memory::term::builder::Builder;
+use elaboration::builder::declaration;
+use elaboration::builder::term::Builder;
 use elaboration::location::Location;
 
 /// The type of commands that can be received by the kernel.

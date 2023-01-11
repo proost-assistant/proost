@@ -1,9 +1,9 @@
 //! Error management
 
 use derive_more::{Display, From};
+use elaboration::location::Location;
 use kernel::memory::term::Term;
 use kernel::trace::Traceable;
-use elaboration::location::Location;
 
 use crate::evaluator;
 

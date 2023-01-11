@@ -5,11 +5,11 @@ use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
 
 use derive_more::Display;
+use elaboration::builder::Buildable;
+use elaboration::location::Location;
 use kernel::memory::arena::Arena;
-use kernel::memory::Buildable;
 use parser::command::{parse, Command};
 use path_absolutize::Absolutize;
-use elaboration::location::Location;
 
 use crate::error::Error::{Kernel, TopLevel};
 use crate::error::{Result, ResultProcess};
