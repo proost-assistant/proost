@@ -219,9 +219,8 @@ impl<'arena> Term<'arena> {
     }
 
     /// Reduces a term if it is an instance of the Eq reducer, returns None otherwise.
-    /// Making a "short" example of this reduction is hard, or at least, I failed to find one.
-    /// I'm marking it as `no_coverage` for now, but a proof that reduction works can be found in `examples/eq.mdln`.
-    #[no_coverage]
+    ///
+    /// Please note that `reduce_eq` is tested in the real-world example `examples/eq.mdln`.
     fn reduce_eq(self, arena: &mut Arena<'arena>) -> Option<Self> {
         // Be aware that this function will not be automatically formatted, because of the
         // experimental status of let-chains, as well as that of if-let conditions in pattern matching.
