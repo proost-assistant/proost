@@ -42,5 +42,7 @@
         clippy::wildcard_imports,
     )
 )]
-pub mod location;
+#![feature(type_alias_impl_trait)]
+
 pub mod builder;
+pub mod location;

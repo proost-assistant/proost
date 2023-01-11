@@ -1,25 +1,16 @@
-//! A collection of safe functions to build [`Level`]s.
+//! Builder types for [`Levels`]s.
 //!
-//! This module provides two main ways of building terms. The first one is via closures: users can
-//! manipulate closures and create bigger ones which, when [built](Arena::build_level), provide the expected
-//! level.
-//!
-//! The overall syntax remains transparent to the user. This means the user focuses on the
-//! structure of the term they want to build, while the [closures](`BuilderTrait`) internally build an appropriate
-//! logic: converting regular universe variables names into their corresponding variable numbers.
-//!
-//! The other way to proceed is built on top of the latter. Users can also manipulate a sort of
-//! *high-level level* or *template*, described by the public enumeration [`Builder`], and at any
-//! moment, [realise](Builder::realise) it.
-
-use std::collections::HashMap;
+//! This is a naive description of declarations. It can be transformed into concrete declarations
+//! through the [`BuiderTrait`](kernel::memory::level::builder::BuilderTrait) declared in
+//! the kernel.
 
 use derive_more::Display;
+use kernel::error::{Result, ResultLevel};
+use kernel::memory::arena::Arena;
+use kernel::memory::level::builder::{const_, imax, max, plus, succ, var, zero, BuilderTrait, VecBuilderTrait};
+use kernel::memory::level::Level;
 
-use super::Level;
-use crate::error::{Error, ResultLevel};
-use crate::memory::arena::Arena;
-use crate::memory::Buildable;
+use super::Buildable;
 
 /// The kind of errors that can occur when building a [`Level`].
 #[non_exhaustive]
@@ -28,83 +19,6 @@ pub enum ErrorKind<'arena> {
     /// Unknown universe variable
     #[display(fmt = "unknown universe variable {_0}")]
     VarNotFound(&'arena str),
-}
-
-/// Local environment used to store correspondence between locally-bound variables and the pair
-/// (depth at which they were bound, their type).
-pub type Environment<'build> = HashMap<&'build str, usize>;
-
-/// The trait of closures which build levels with an adequate logic.
-///
-/// A call with a couple of arguments `(arena, env)` of a closure with this trait should
-/// build a definite level in the [`Arena`] `arena`.
-#[allow(clippy::module_name_repetitions)]
-pub trait BuilderTrait<'build> = for<'arena> FnOnce(&mut Arena<'arena>, &Environment<'build>) -> ResultLevel<'arena>;
-
-impl<'arena> Arena<'arena> {
-    /// Returns the level built from the given closure, provided with a Level environment, which binds names to `usize`s
-    ///
-    /// # Errors
-    /// If the level could not be built, yields an error indicating the reason.
-    #[inline]
-    pub fn build_level<'build, F: BuilderTrait<'build>>(&mut self, f: F) -> ResultLevel<'arena> {
-        f(self, &Environment::new())
-    }
-}
-
-/// Returns a closure building a universe variable associated to `name`.
-#[inline]
-#[must_use]
-pub const fn var(name: &str) -> impl BuilderTrait<'_> {
-    move |arena, env| {
-        env.get(name)
-            .map(|lvl| Level::var(*lvl, arena))
-            .ok_or_else(|| Error::new(ErrorKind::VarNotFound(arena.store_name(name)).into()))
-    }
-}
-
-/// Returns a closure building the 0 level.
-#[inline]
-#[must_use]
-pub const fn zero<'build>() -> impl BuilderTrait<'build> {
-    |arena, _| Ok(Level::zero(arena))
-}
-
-/// Returns a closure building a constant level.
-#[inline]
-#[must_use]
-pub const fn const_<'build>(n: usize) -> impl BuilderTrait<'build> {
-    move |arena, _| Ok(Level::from(n, arena))
-}
-
-/// Returns a closure building the sum of `u` and a constant `n`.
-#[inline]
-#[no_coverage]
-pub const fn plus<'build, F: BuilderTrait<'build>>(u: F, n: usize) -> impl BuilderTrait<'build> {
-    move |arena, env| Ok(u(arena, env)?.add(n, arena))
-}
-
-/// Returns a closure building the successor of a level built from the given closure `u1`.
-#[inline]
-#[no_coverage]
-pub const fn succ<'build, F1: BuilderTrait<'build>>(u1: F1) -> impl BuilderTrait<'build> {
-    |arena, env| Ok(u1(arena, env)?.succ(arena))
-}
-
-/// Returns a closure building the max of two levels built from the given closures `u1` and
-/// `u2`.
-#[inline]
-#[no_coverage]
-pub const fn max<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(u1: F1, u2: F2) -> impl BuilderTrait<'build> {
-    |arena, env| Ok(u1(arena, env)?.max(u2(arena, env)?, arena))
-}
-
-/// Returns a closure building the imax of two levels built from the given closures `u1` and
-/// `u2`.
-#[inline]
-#[no_coverage]
-pub const fn imax<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(u1: F1, u2: F2) -> impl BuilderTrait<'build> {
-    |arena, env| Ok(u1(arena, env)?.imax(u2(arena, env)?, arena))
 }
 
 /// Template of levels.
@@ -173,46 +87,28 @@ impl<'build> Buildable<'build> for Builder<'build> {
     }
 }
 
-#[cfg(test)]
-pub(crate) mod raw {
-    use super::*;
+impl<'build> Buildable<'build> for Vec<Builder<'build>> {
+    type Output<'arena> = Vec<Level<'arena>>;
 
-    pub trait BuilderTrait = for<'arena> FnOnce(&mut Arena<'arena>) -> Level<'arena>;
+    type Closure = impl VecBuilderTrait<'build>;
 
-    impl<'arena> Arena<'arena> {
-        pub(crate) fn build_level_raw<F: BuilderTrait>(&mut self, f: F) -> Level<'arena> {
-            f(self)
-        }
+    /// Realise a vector of builders into a `Vec<Level>`. This internally uses functions described
+    /// in the [builder](`crate::memory::level::builder`) module.
+    ///
+    /// # Errors
+    /// If the level could not be built, yields an error indicating the reason.
+    #[inline]
+    fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> Result<'arena, Vec<Level<'arena>>> {
+        arena.build_vec_level(self.as_closure())
     }
 
-    pub const fn var(id: usize) -> impl BuilderTrait {
-        move |arena| Level::var(id, arena)
-    }
-
-    pub const fn zero() -> impl BuilderTrait {
-        |arena| Level::zero(arena)
-    }
-
-    pub const fn succ<F1: BuilderTrait>(u1: F1) -> impl BuilderTrait {
-        |arena| {
-            let u1 = u1(arena);
-            u1.succ(arena)
-        }
-    }
-
-    pub const fn max<F1: BuilderTrait, F2: BuilderTrait>(u1: F1, u2: F2) -> impl BuilderTrait {
-        |arena| {
-            let u1 = u1(arena);
-            let u2 = u2(arena);
-            u1.max(u2, arena)
-        }
-    }
-
-    pub const fn imax<F1: BuilderTrait, F2: BuilderTrait>(u1: F1, u2: F2) -> impl BuilderTrait {
-        |arena| {
-            let u1 = u1(arena);
-            let u2 = u2(arena);
-            u1.imax(u2, arena)
+    /// Associates a builder to a builder trait.
+    #[inline]
+    fn as_closure(&'build self) -> Self::Closure {
+        |arena, env| {
+            self.iter()
+                .map(|level_builder| level_builder.as_closure()(arena, env))
+                .collect::<Result<Vec<_>>>()
         }
     }
 }

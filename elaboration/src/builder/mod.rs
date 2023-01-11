@@ -1,7 +1,10 @@
+//! Builders are high-level representation of terms that can be *realised* into [`Arena`] dwellers.
+
 pub mod declaration;
 pub mod level;
 pub mod term;
 
+use kernel::error::Result;
 use kernel::memory::arena::Arena;
 
 /// The trait of types that can be built into an arena-dependent element.

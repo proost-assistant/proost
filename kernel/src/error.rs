@@ -51,13 +51,13 @@ impl<'arena> Error<'arena> {
 pub type Result<'arena, T> = core::result::Result<T, Error<'arena>>;
 
 /// The type of results yielded by the kernel (specialised to terms).
-pub(crate) type ResultTerm<'arena> = Result<'arena, term::Term<'arena>>;
+pub type ResultTerm<'arena> = Result<'arena, term::Term<'arena>>;
 
 /// The type of results yielded by the kernel (specialised to levels).
-pub(crate) type ResultLevel<'arena> = Result<'arena, level::Level<'arena>>;
+pub type ResultLevel<'arena> = Result<'arena, level::Level<'arena>>;
 
 /// The type of results yielded by the kernel (specialised to declarations).
-pub(crate) type ResultDecl<'arena> = Result<'arena, declaration::Declaration<'arena>>;
+pub type ResultDecl<'arena> = Result<'arena, declaration::Declaration<'arena>>;
 
 /// The type of results yielded by the kernel (specialised to instantiated declarations).
-pub(crate) type ResultInstantiatedDecl<'arena> = Result<'arena, declaration::InstantiatedDeclaration<'arena>>;
+pub type ResultInstantiatedDecl<'arena> = Result<'arena, declaration::InstantiatedDeclaration<'arena>>;

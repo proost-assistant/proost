@@ -1,22 +1,20 @@
-//! A collection of safe functions to build [`Term`]s.
+//! Builder types for [`Term`]s.
 //!
-//! This module provides two main ways of building terms. The first one is via closures: users can
-//! manipulate closures and create bigger ones which, when [built](Arena::build), provide the expected
-//! term.
-//!
-//! The overall syntax remains transparent to the user. This means the user focuses on the
-//! structure of the term they want to build, while the [closures](`BuilderTrait`) internally build an appropriate
-//! logic: converting regular terms into de Bruijn-compatible ones, assigning types to variables,
-//! etc.
-//!
-//! The other way to proceed is built on top of the latter. Users can also manipulate a sort of
-//! *high-level term* or *template*, described by the public enumeration [`Builder`], and at any
-//! moment, [realise](Builder::realise) it.
+//! This is a naive description of terms. It can be transformed into concrete declarations
+//! through the [`BuiderTrait`](kernel::memory::term::builder::BuilderTrait) declared in
+//! the kernel.
 
-use crate::builder::declaration;
-use crate::builder::level;
-use crate::builder::Buildable;
-use crate::trace::{Trace, Traceable, TraceableError};
+use derive_more::{Constructor, Deref, Display};
+use kernel::error::ResultTerm;
+use kernel::memory::arena::Arena;
+use kernel::memory::declaration::builder as builder_declaration;
+use kernel::memory::term::builder::{abs, app, decl, prod, prop, sort, type_, var, BuilderTrait};
+use kernel::memory::term::Term;
+use kernel::trace::{Trace, Traceable};
+
+use super::Buildable;
+use crate::builder::{declaration, level};
+use crate::location::Location;
 
 /// Wrapper template of [`Payload`], including [`Location`].
 #[derive(Clone, Constructor, Debug, Deref, Display, PartialEq, Eq)]
@@ -113,7 +111,9 @@ impl<'build> Buildable<'build> for Builder<'build> {
         |arena, env, lvl_env, depth| match **self {
             Payload::Prop => prop()(arena, env, lvl_env, depth),
             Payload::Var(s) => var(s)(arena, env, lvl_env, depth),
-            Payload::VarInstance(name, ref levels) => var_instance(name, levels)(arena, env, lvl_env, depth),
+            Payload::VarInstance(name, ref levels) => {
+                decl(builder_declaration::var(name, levels.as_closure()))(arena, env, lvl_env, depth)
+            },
             Payload::Type(ref level) => type_(level.as_closure())(arena, env, lvl_env, depth),
             Payload::Sort(ref level) => sort(level.as_closure())(arena, env, lvl_env, depth),
             Payload::App(ref l, ref r) => app(l.as_closure(), r.as_closure())(arena, env, lvl_env, depth),
