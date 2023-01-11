@@ -176,7 +176,7 @@ pub fn display(res: ResultProcess, toggle_location: bool) {
             };
 
             if toggle_location && let Some(loc) = location {
-                println!("{}{}", "\u{2717}".red(), pretty_print_loc(loc));
+                println!("{} {}", "\u{2717}".red(), pretty_print_loc(loc));
             };
 
             println!("{} {err}", "\u{2717}".red());
@@ -188,9 +188,9 @@ pub fn display(res: ResultProcess, toggle_location: bool) {
 fn pretty_print_loc(loc: Location) -> String {
     if loc.start.line == loc.end.line {
         if loc.start.column + 1 >= loc.end.column {
-            format!("{:0w$}^", "", w = loc.start.column)
+            format!("{:0w$}^", "", w = loc.start.column - 1)
         } else {
-            format!("{:0w1$}^{:-<w2$}^", "", "", w1 = loc.start.column, w2 = loc.end.column - loc.start.column - 2)
+            format!("{:0w1$}^{:-<w2$}^", "", "", w1 = loc.start.column - 1, w2 = loc.end.column - loc.start.column - 2)
         }
     } else {
         format!(" {:-<w$}^", "", w = max(loc.start.column, loc.end.column) - 1)
@@ -207,6 +207,26 @@ fn is_command(input: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use utils::location::Location;
+
+    use crate::pretty_print_loc;
+
+    #[test]
+    fn correct_pretty_print_loc() {
+        assert_eq!(pretty_print_loc(Location::new((1, 3), (1, 3))), "  ^".to_string());
+        assert_eq!(pretty_print_loc(Location::new((1, 3), (1, 4))), "  ^".to_string());
+        assert_eq!(pretty_print_loc(Location::new((1, 3), (1, 5))), "  ^^".to_string());
+        assert_eq!(pretty_print_loc(Location::new((1, 3), (1, 6))), "  ^-^".to_string());
+        assert_eq!(pretty_print_loc(Location::new((1, 3), (1, 7))), "  ^--^".to_string());
+    }
+
+    /// Robustness against multilines
+    #[test]
+    fn robust_pretty_print_loc() {
+        pretty_print_loc(Location::new((2, 3), (2, 3)));
+        pretty_print_loc(Location::new((1, 3), (2, 3)));
+        pretty_print_loc(Location::new((1, 3), (2, 1)));
+    }
 
     #[test]
     fn is_command_no_crash() {
