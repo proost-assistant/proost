@@ -2,7 +2,7 @@
 
 use derive_more::Display;
 use pest::error::LineColLocation;
-use utils::location::Location;
+use elaboration::location::Location;
 
 use crate::command::parse::Rule;
 

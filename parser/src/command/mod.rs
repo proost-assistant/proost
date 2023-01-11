@@ -8,7 +8,7 @@ use core::fmt;
 
 use kernel::memory::declaration::builder as declaration;
 use kernel::memory::term::builder::Builder;
-use utils::location::Location;
+use elaboration::location::Location;
 
 /// The type of commands that can be received by the kernel.
 #[derive(Debug, Eq, PartialEq)]

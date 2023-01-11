@@ -12,7 +12,7 @@ default-run = "proost"
 [dependencies]
 kernel.path = "../kernel"
 parser.path = "../parser"
-utils.path = "../utils"
+elaboration.path = "../elaboration"
 
 clap.workspace = true
 derive_more.workspace = true

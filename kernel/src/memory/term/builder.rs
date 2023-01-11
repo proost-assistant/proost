@@ -15,7 +15,7 @@
 
 use derive_more::{Constructor, Deref, Display};
 use im_rc::hashmap::HashMap as ImHashMap;
-use utils::location::Location;
+use elaboration::location::Location;
 
 use super::{DeBruijnIndex, Term};
 use crate::error::{Error, ResultTerm};

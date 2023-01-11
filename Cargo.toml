@@ -4,7 +4,7 @@ members = [
     "parser",
     "proost",
     "tilleul",
-    "utils"
+    "elaboration"
 ]
 
 [workspace.dependencies]

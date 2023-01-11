@@ -3,7 +3,7 @@
 use derive_more::{Display, From};
 use kernel::memory::term::Term;
 use kernel::trace::Traceable;
-use utils::location::Location;
+use elaboration::location::Location;
 
 use crate::evaluator;
 

@@ -9,7 +9,7 @@ use kernel::memory::arena::Arena;
 use kernel::memory::Buildable;
 use parser::command::{parse, Command};
 use path_absolutize::Absolutize;
-use utils::location::Location;
+use elaboration::location::Location;
 
 use crate::error::Error::{Kernel, TopLevel};
 use crate::error::{Result, ResultProcess};

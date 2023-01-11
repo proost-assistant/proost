@@ -5,7 +5,7 @@ use kernel::memory::level::builder as level;
 use kernel::memory::term::builder as term;
 use pest::iterators::Pair;
 use pest::{Parser, Span};
-use utils::location::Location;
+use elaboration::location::Location;
 
 use crate::command::Command;
 use crate::error;
@@ -15,7 +15,7 @@ use crate::error;
 #[grammar = "command/grammar.pest"]
 struct CommandParser;
 
-/// Converts pest [`Span`] to our [location](utils::location::Location).
+/// Converts pest [`Span`] to our [location](elaboration::location::Location).
 fn convert_span(span: Span) -> Location {
     let (x1, y1) = span.start_pos().line_col();
     let (x2, y2) = span.end_pos().line_col();

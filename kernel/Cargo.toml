@@ -8,7 +8,7 @@ repository.workspace = true
 version.workspace = true
 
 [dependencies]
-utils.path = "../utils"
+elaboration.path = "../elaboration"
 
 derive_more.workspace = true
 

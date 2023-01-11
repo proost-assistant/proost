@@ -1,5 +1,5 @@
 [package]
-name = "utils"
+name = "elaboration"
 
 authors.workspace = true
 edition.workspace = true

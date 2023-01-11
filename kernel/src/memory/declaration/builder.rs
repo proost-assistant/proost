@@ -9,7 +9,7 @@
 //! logic; namely verifying the correct amount of variables have been supplied or bound.
 
 use derive_more::Display;
-use utils::location::Location;
+use elaboration::location::Location;
 
 use super::{Declaration, InstantiatedDeclaration};
 use crate::error::{Error, Result, ResultDecl, ResultInstantiatedDecl};
