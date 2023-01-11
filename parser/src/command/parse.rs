@@ -334,6 +334,8 @@ mod tests {
                 declaration::Builder::Decl(box Builder::new(Location::new((1, 13), (1, 17)), Prop), vec![])
             ))
         );
+
+        assert!(line("def x.{u, v} := Prop").is_ok());
     }
 
     #[test]
