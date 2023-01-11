@@ -35,9 +35,10 @@ long as the given file lives.
 The project is organised as such:
 - the crate `kernel` provides an interface for building and manipulating terms,
   as well as type inference and type checking functions;
-- the crate `parser` provides parsing functions which return `Builder` objects,
-  which are template that can be provided to the kernel to get a real,
-  well-formed term to perform computations upon;
+- the crate `elaboration` defines `Builder` types, which are high-level
+  representations of terms that can be transformed into concrete terms;
+- the crate `parser` provides parsing functions which return `Builder` and
+  `Command` objects, to be used by any client;
 - the crate `proost` provides a toplevel interface for end-users that can be
   used to manipulate terms and query the kernel. It provides partial
   auto-completion, some color highlighting and other readline-like features;
@@ -46,8 +47,9 @@ The project is organised as such:
 
 ```mermaid
 graph TD;
+  kernel-->elaboration;
+  elaboration-->parser;
   kernel-->tilleul;
-  kernel-.->parser;
   parser-->tilleul; 
   parser-->proost;
   kernel-->proost;

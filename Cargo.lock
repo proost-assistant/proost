@@ -581,7 +581,6 @@ version = "0.2.0"
 dependencies = [
  "derive_more",
  "elaboration",
- "kernel",
  "pest",
  "pest_derive",
 ]
