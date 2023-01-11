@@ -111,7 +111,10 @@ impl<'arena> Evaluator {
         file_path: &PathBuf,
         importing: &mut Vec<PathBuf>,
     ) -> Result<'arena, 'build, ()> {
+        let name = file_path.file_name().unwrap().to_string_lossy().to_string();
+
         if self.imported.contains(file_path) {
+            self.modtree.retrieve_file_structure(name);
             return Ok(());
         }
 
@@ -130,12 +133,14 @@ impl<'arena> Evaluator {
 
         // add file to the list of files to import
         importing.push(file_path.clone());
+        self.modtree.begin_import_file_structure(name);
         // read it
         let file = read_to_string(file_path)?;
         // try to import it
         let result = self.process_file(arena, location, &file, file_path, importing);
         // remove it from the list of files to import
         let file_path = importing.pop().unwrap_or_else(|| unreachable!());
+        self.modtree.end_import_file_structure();
 
         result?;
 
