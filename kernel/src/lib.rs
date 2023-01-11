@@ -7,7 +7,6 @@
 //! module provides typed interactions.
 
 #![feature(if_let_guard)]
-#![feature(let_chains)]
 #![feature(no_coverage)]
 #![feature(once_cell)]
 #![feature(trait_alias)]

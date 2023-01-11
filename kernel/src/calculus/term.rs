@@ -192,29 +192,30 @@ impl<'arena> Term<'arena> {
 
     /// Reduces a term if it is an instance of the Nat reducer, returns None otherwise.
     fn reduce_nat(self, arena: &mut Arena<'arena>) -> Option<Self> {
-        // Be aware that this function will not be automatically formatted, because of the
-        // experimental status of let-chains, as well as that of if-let conditions in pattern matching.
-        if let App(f, n) = *self && let App(f, motive_succ) = *f.whnf(arena) &&
-           let App(f, motive_0) = *f.whnf(arena) && let App(f, motive) = *f.whnf(arena) && let Axiom(axiom::Axiom::NatRec, lvl) = *f.unfold(arena).whnf(arena) {
-            match *n.whnf(arena) {
-                Axiom(axiom::Axiom::Zero, _) => Some(motive_0),
-                App(f, n) if let Axiom(axiom::Axiom::Succ, _) = *f.unfold(arena).whnf(arena) => {
-                    let new_rec = Term::app(
-                        Term::app(
-                            Term::app(Term::app(Term::axiom(axiom::Axiom::NatRec, lvl, arena), motive, arena), motive_0, arena),
-                            motive_succ,
-                            arena,
-                        ),
-                        n,
+        // The multiple `let` can be easily-written in a pattern matching if https://github.com/rust-lang/rfcs/issues/2099 is solved.
+        let App(f, n) = *self else { return None; };
+        let App(f, motive_succ) = *f.whnf(arena) else { return None; };
+        let App(f, motive_0) = *f.whnf(arena) else { return None; };
+        let App(f, motive) = *f.whnf(arena) else { return None; };
+        let Axiom(axiom::Axiom::NatRec, lvl) = *f.unfold(arena).whnf(arena) else { return None; };
+
+        match *n.whnf(arena) {
+            Axiom(axiom::Axiom::Zero, _) => Some(motive_0),
+            App(f, n) => {
+                let Axiom(axiom::Axiom::Succ, _) = *f.unfold(arena).whnf(arena) else { return None; };
+                let new_rec = Term::app(
+                    Term::app(
+                        Term::app(Term::app(Term::axiom(axiom::Axiom::NatRec, lvl, arena), motive, arena), motive_0, arena),
+                        motive_succ,
                         arena,
-                    );
-                    let app = Term::app(Term::app(motive_succ, n, arena), new_rec, arena);
-                    Some(app)
-                },
-                _ => None,
-            }
-        } else {
-            None
+                    ),
+                    n,
+                    arena,
+                );
+
+                Some(Term::app(Term::app(motive_succ, n, arena), new_rec, arena))
+            },
+            _ => None,
         }
     }
 
@@ -222,22 +223,22 @@ impl<'arena> Term<'arena> {
     ///
     /// Please note that `reduce_eq` is tested in the real-world example `examples/eq.mdln`.
     fn reduce_eq(self, arena: &mut Arena<'arena>) -> Option<Self> {
-        // Be aware that this function will not be automatically formatted, because of the
-        // experimental status of let-chains, as well as that of if-let conditions in pattern matching.
-        if let App(f, a_b_eq) = *self && let App(f, b) = *f.whnf(arena) && let App(f, motive_refl) = *f.whnf(arena) &&
-               let App(f, _motive) = *f.whnf(arena) &&
-               let App(f,a) = *f.whnf(arena) && let App(f,_aty) = *f.whnf(arena) &&
-               let Axiom(axiom::Axiom::EqRec, _) = *f.unfold(arena).whnf(arena) &&
-               b.is_def_eq(a, arena).is_ok() {
-                match *a_b_eq.whnf(arena) {
-                    App(f, _) if let App(f,_) = *f && let Axiom(axiom::Axiom::Refl, _) = *f.unfold(arena).whnf(arena) => {
-                        Some(motive_refl)
-                    },
-                    _ => None,
-                }
-            } else {
-                None
-            }
+        // The multiple `let` can be easily-written in a pattern matching if https://github.com/rust-lang/rfcs/issues/2099 is solved.
+        let App(f, a_b_eq) = *self else { return None; };
+        let App(f, b) = *f.whnf(arena) else { return None; };
+        let App(f, motive_refl) = *f.whnf(arena) else { return None; };
+        let App(f, _motive) = *f.whnf(arena)  else { return None; };
+        let App(f, a) = *f.whnf(arena) else { return None; };
+        let App(f, _aty) = *f.whnf(arena) else { return None; };
+        let Axiom(axiom::Axiom::EqRec, _) = *f.unfold(arena).whnf(arena) else { return None; };
+
+        b.is_def_eq(a, arena).ok()?;
+
+        let App(f, _) = *a_b_eq.whnf(arena) else { return None; };
+        let App(f, _) = *f else { return None; };
+        let Axiom(axiom::Axiom::Refl, _) = *f.unfold(arena).whnf(arena) else { return None; };
+
+        Some(motive_refl)
     }
 
     /// Reduces a term if possible, returns None otherwise.
