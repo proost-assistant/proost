@@ -8,8 +8,8 @@ use crate::memory::declaration::Declaration;
 use crate::memory::level::Level;
 use crate::memory::term::Term;
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash)]
 /// Axioms regarding `False`
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum False {
     /// False
     False,
@@ -19,7 +19,6 @@ pub enum False {
 }
 
 impl<'arena> AxiomKind<'arena> for False {
-    #[inline]
     fn append_to_named_axioms(arena: &mut Arena<'arena>) {
         let var0 = Level::var(0, arena);
 
@@ -30,7 +29,6 @@ impl<'arena> AxiomKind<'arena> for False {
         arena.bind_decl("False_rec", decl);
     }
 
-    #[inline]
     fn get_type(self, arena: &mut Arena<'arena>) -> Term<'arena> {
         match self {
             Self::False => Term::sort_usize(0, arena),

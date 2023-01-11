@@ -8,8 +8,8 @@ use crate::memory::declaration::Declaration;
 use crate::memory::level::Level;
 use crate::memory::term::Term;
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash)]
 /// Axioms regarding `Eq`uality
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Equality {
     /// The equality type
     ///
@@ -39,7 +39,6 @@ impl<'arena> AxiomKind<'arena> for Equality {
         arena.bind_decl("Refl", decl);
     }
 
-    #[inline]
     fn get_type(self, arena: &mut Arena<'arena>) -> Term<'arena> {
         match self {
             Self::Eq_ => Self::type_eq(arena),

@@ -25,7 +25,6 @@ pub enum Natural {
 }
 
 impl<'arena> AxiomKind<'arena> for Natural {
-    #[inline]
     fn append_to_named_axioms(arena: &mut Arena<'arena>) {
         let var0 = Level::var(0, arena);
 
@@ -42,7 +41,6 @@ impl<'arena> AxiomKind<'arena> for Natural {
         arena.bind("Succ", decl);
     }
 
-    #[inline]
     fn get_type(self, arena: &mut Arena<'arena>) -> Term<'arena> {
         match self {
             Self::Nat => Term::sort_usize(1, arena),

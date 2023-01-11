@@ -12,29 +12,31 @@ pub mod equality;
 pub mod false_;
 pub mod natural;
 
+/// Enum containing all the axioms
 #[derive(Copy, Clone, Debug, Display, Eq, PartialEq, Hash)]
 #[display(fmt = "_0")]
-/// Enum containing all the axioms
 pub enum Axiom {
     /// Axioms to describe Equality
     Equality(equality::Equality),
+
     /// Axioms to describe False
     False(false_::False),
+
     /// Axioms to describe Natural numbers
     Natural(natural::Natural),
 }
 
 impl Axiom {
-    #[inline]
     /// Add all the axioms to a given `arena`
+    #[inline]
     pub fn add_named_axioms(arena: &mut Arena<'_>) {
         self::equality::Equality::append_to_named_axioms(arena);
         self::false_::False::append_to_named_axioms(arena);
         self::natural::Natural::append_to_named_axioms(arena);
     }
 
-    #[inline]
     /// Get the type of a given axiom
+    #[inline]
     pub fn get_type<'arena>(self, arena: &mut Arena<'arena>) -> Term<'arena> {
         use Axiom::{Equality, False, Natural};
 
