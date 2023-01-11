@@ -9,9 +9,9 @@ use crate::memory::arena::Arena;
 use crate::memory::term::Term;
 
 pub mod equality;
-pub mod true_;
 pub mod false_;
 pub mod natural;
+pub mod true_;
 
 /// Enum containing all the axioms
 #[derive(Copy, Clone, Debug, Display, Eq, PartialEq, Hash)]
@@ -45,7 +45,7 @@ impl Axiom {
     /// Get the type of a given axiom
     #[inline]
     pub fn get_type<'arena>(self, arena: &mut Arena<'arena>) -> Term<'arena> {
-        use Axiom::{Equality, True, False, Natural};
+        use Axiom::{Equality, False, Natural, True};
 
         match self {
             Equality(axiom) => axiom.get_type(arena),
