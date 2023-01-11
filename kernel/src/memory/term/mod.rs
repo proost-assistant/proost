@@ -32,8 +32,8 @@ struct Header<'arena> {
 
     /// Relevance of a given term
     is_relevant: OnceCell<bool>,
-    /* TODO(#45) is_certainly_closed: boolean underapproximation of whether a term is closed. This
-     * may greatly improve performance in shifting, along with a mem_shift hash map. */
+    // TODO(#45) is_certainly_closed: boolean underapproximation of whether a term is closed. This
+    // may greatly improve performance in shifting, along with a mem_shift hash map.
 }
 
 /// A term.
