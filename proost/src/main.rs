@@ -209,7 +209,7 @@ fn is_command(input: &str) -> bool {
 mod tests {
     use utils::location::Location;
 
-    use crate::pretty_print_loc;
+    use super::*;
 
     #[test]
     fn correct_pretty_print_loc() {
