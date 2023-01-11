@@ -40,9 +40,22 @@ impl RustyLineHelper {
     }
 }
 
+/// The state of the token being read
+#[derive(PartialEq, Eq)]
+enum TokenState {
+    /// Alphanumeric sequence started
+    Started,
+    /// Alphanumeric sequence complete (terminated by a non-alphanumeric char)
+    Complete,
+    /// Special case to group "n : T" as a single token
+    /// The token is `Awaiting` between char ':' and the first
+    /// char of the type name.
+    Awaiting,
+}
+
 /// A cursor that explores a string char by char
 /// and traces the last column position
-struct Cursor {
+struct ColumnTracer {
     /// Byte position in the string
     global_pos: usize,
     /// Char position in the current line
@@ -51,97 +64,118 @@ struct Cursor {
     /// contains whitespaces so far
     line_empty: bool,
     /// Position of the last column found
-    last_token: Option<u16>,
-    /// Indicates whether the last token is complete
-    /// (token = alphanumeric sequence)
-    token_complete: bool,
+    last_column: Option<u16>,
+    /// Position of opening parenthesis
+    parenthesis: Vec<u16>,
+    /// Indicates the state of the last token
+    /// (token = alphanumeric sequence, inside of parenthesis, etc.)
+    token_state: TokenState,
 }
 
-impl Cursor {
-    /// Create a new Cursor
+impl ColumnTracer {
+    /// Create a new tracer
     const fn new() -> Self {
         // current_pos = 2 due to offset in the first line
         Self {
             global_pos: 0,
             line_empty: true,
             current_pos: 2,
-            last_token: None,
-            token_complete: true,
+            last_column: None,
+            parenthesis: vec![],
+            token_state: TokenState::Complete,
+        }
+    }
+
+    /// Tells whether `c` is a line-termination char.
+    const fn is_new_line(c: char) -> bool {
+        c == '\n' || c == '\r'
+    }
+
+    /// Reads and returns one char from the string, while updating the state of
+    /// the tracer.
+    /// Returns None if the end of the string is reached.
+    fn read_char(&mut self, chars: &mut std::str::Chars, limit: usize) -> Option<char> {
+        match chars.next() {
+            Some(c) => {
+                if self.global_pos >= limit && (!self.line_empty || !c.is_whitespace() || Self::is_new_line(c)) {
+                    if !self.line_empty {
+                        // Non whitespaces are found before the cursor on the same line
+                        // Giving up
+                        self.last_column = None;
+                    }
+                    self.line_empty = self.line_empty && Self::is_new_line(c);
+                    return None;
+                }
+
+                self.current_pos += 1;
+                self.global_pos += c.len_utf8();
+
+                if Self::is_new_line(c) {
+                    self.current_pos = 0;
+                    self.line_empty = true;
+                } else if c.is_whitespace() {
+                    if self.token_state != TokenState::Awaiting {
+                        self.token_state = TokenState::Complete;
+                    }
+                } else {
+                    self.line_empty = false;
+                }
+
+                Some(c)
+            },
+            None => None,
         }
     }
 
     /// Returns the next non-whitespace character, consuming all the whitespace characters between
     /// it and the current position. Returns None if the end of the string is reached without finding
     /// a non-whitespace char.
-    fn consume_spaces(&mut self, chars: &mut std::str::Chars, until: usize) -> Option<char> {
-        loop {
-            if self.global_pos >= until {
-                return None;
-            }
-            match chars.next() {
-                Some(c) if c.is_whitespace() => {
-                    self.token_complete = true;
-                    self.current_pos += 1;
-                    if c == '\n' || c == '\r' {
-                        self.current_pos = 0;
-                        self.line_empty = true;
-                    }
-                    self.global_pos += c.len_utf8();
-                },
-                c => {
-                    self.current_pos += 1;
-                    self.line_empty = self.line_empty && c.is_none();
-                    self.global_pos += c.map_or(0, char::len_utf8);
-                    return c;
-                },
-            }
+    fn consume_spaces(&mut self, chars: &mut std::str::Chars, limit: usize) -> Option<char> {
+        match self.read_char(chars, limit) {
+            Some(c) if !c.is_whitespace() => Some(c),
+            Some(_) => self.consume_spaces(chars, limit),
+            None => None,
         }
     }
 
-    /// Updates the cursor by continuing reading the string from the current position.
-    /// c is None when the cursor is either at the beginning or at the end of the cursor.
-    fn process_from(&mut self, mut c: Option<char>, rest: &mut std::str::Chars, until: usize) {
-        if c.is_none() {
-            c = self.consume_spaces(rest, until); // c may still be None
+    /// Updates the tracer by continuing reading the string from the current position.
+    /// limit is the position of the editor's cursor.
+    /// When this function returns, if `line_empty` is true, `current_pos` is the position
+    /// of the first non-whitespace character on the same line as the cursor (or the length of the
+    /// line, if it is blank).
+    /// If `line_empty` is false, `current_pos` is the column position of the cursor.
+    fn process_chars(&mut self, chars: &mut std::str::Chars, limit: usize) {
+        loop {
+            match self.consume_spaces(chars, limit) {
+                Some(':') if self.last_column.is_some() => {
+                    // Considering "n : T" as a single token
+                    self.token_state = TokenState::Awaiting;
+                },
+                Some('=') => {
+                    // Resetting column when reading "=>" or ":="
+                    self.last_column = None;
+                    self.token_state = TokenState::Complete;
+                },
+                Some('(') => {
+                    self.parenthesis.push(self.current_pos - 1);
+                    self.last_column = Some(self.current_pos - 1);
+                    self.token_state = TokenState::Complete;
+                },
+                Some(')') => {
+                    self.last_column = self.parenthesis.pop();
+                    self.token_state = TokenState::Complete;
+                },
+                Some(c) if c.is_alphanumeric() => {
+                    if self.token_state == TokenState::Complete {
+                        // Starting a new token
+                        self.last_column = Some(self.current_pos - 1);
+                    }
+                    self.token_state = TokenState::Started;
+                },
+                None => return,
+                _ => (),
+            }
         }
-        match c {
-            Some(':') if self.last_token.is_some() => {
-                self.token_complete = false;
-
-                let c = self.consume_spaces(rest, until);
-                if c.is_none() {
-                    self.last_token = None;
-                    return;
-                }
-                // Considering "name : Type" as a single token.
-                self.token_complete = false;
-                self.process_from(c, rest, until);
-            },
-            Some('=') => {
-                // Resetting column when reading "=>" or ":="
-                self.last_token = None;
-                self.token_complete = true;
-            },
-            Some('(') => {
-                self.last_token = Some(self.current_pos - 1);
-                self.token_complete = true;
-            },
-            Some(')') => {
-                // Resetting column when readin ")"
-                // This could be improved
-                self.last_token = None;
-                self.token_complete = true;
-            },
-            Some(c) if self.token_complete && c.is_alphanumeric() => {
-                // Starting a new token
-                self.last_token = Some(self.current_pos - 1);
-                self.token_complete = false;
-            },
-            None => return,
-            _ => (),
-        }
-        let c = self.consume_spaces(rest, until);
-        self.process_from(c, rest, until);
     }
 }
 
@@ -149,12 +183,11 @@ impl Cursor {
 pub struct TabEventHandler;
 impl TabEventHandler {
     /// Get the column at which the tab key should move.
-    fn column(mut chars: std::str::Chars, until: usize) -> Cursor {
-        let mut cursor = Cursor::new();
-        cursor.process_from(None, &mut chars, until);
-        if !cursor.line_empty {
-            cursor.last_token = None;
-        }
+    fn column(ctx: &EventContext) -> ColumnTracer {
+        let mut chars = ctx.line().chars();
+        let mut cursor = ColumnTracer::new();
+
+        cursor.process_chars(&mut chars, ctx.pos());
         cursor
     }
 }
@@ -163,10 +196,26 @@ impl ConditionalEventHandler for TabEventHandler {
         if ctx.line().starts_with("import") {
             return None;
         }
+        let cur = Self::column(ctx);
 
-        let cur = Self::column(ctx.line().chars(), ctx.pos());
-        match cur.last_token {
-            Some(pos) if cur.current_pos < pos => Some(Cmd::Insert(n, " ".repeat((pos - cur.current_pos).into()))),
+        match cur.last_column {
+            _ if cur.global_pos > ctx.pos() => {
+                if cur.line_empty {
+                    // Line blank
+                    // Move the cursor at the end of the line
+                    Some(Cmd::Move(rustyline::Movement::EndOfLine))
+                } else {
+                    // Cursor before the first word (move it to the first word of the line)
+                    // case "     •     word        ?" where • is the cursor
+                    Some(Cmd::Move(rustyline::Movement::ViFirstPrint))
+                }
+            },
+            // Column found, cursor well-located
+            // case "           •ord        ○" where ○ is the position of the column
+            Some(pos) if cur.current_pos < pos => Some(Cmd::Insert(1, " ".repeat((pos - cur.current_pos).into()))),
+            // Cursor after the beginning of the line, or no column found
+            // case "           wo•d        ○"
+            // or   "           •ord         "
             _ => Some(Cmd::Insert(n, "  ".to_owned())),
         }
     }
