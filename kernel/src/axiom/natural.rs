@@ -1,3 +1,5 @@
+//! Set of axioms, typing and reduction rules for the `Nat`ural numbers
+
 use derive_more::Display;
 
 use super::{Axiom, AxiomKind};
@@ -7,6 +9,7 @@ use crate::memory::level::Level;
 use crate::memory::term::Term;
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash)]
+/// Axioms regarding `Nat`ural numbers
 pub enum Natural {
     /// Natural numbers
     Nat,
@@ -90,6 +93,7 @@ impl<'arena> AxiomKind<'arena> for Natural {
 }
 
 impl Natural {
+    /// Type of the recursor over `Nat`ural numbers
     fn type_nat_rec<'arena>(arena: &mut Arena<'arena>) -> Term<'arena> {
         // Nat
         let term_nat = Term::axiom(Axiom::Natural(Self::Nat), &[], arena);

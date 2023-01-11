@@ -1,3 +1,5 @@
+//! Set of axioms and typing rules for the `False` type
+
 use derive_more::Display;
 
 use super::{Axiom, AxiomKind};
@@ -7,6 +9,7 @@ use crate::memory::level::Level;
 use crate::memory::term::Term;
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash)]
+/// Axioms regarding `False`
 pub enum False {
     /// False
     False,
@@ -37,6 +40,7 @@ impl<'arena> AxiomKind<'arena> for False {
 }
 
 impl False {
+    /// Type of the recursor over `False` proof witnesses
     fn type_false_rec<'arena>(arena: &mut Arena<'arena>) -> Term<'arena> {
         // False
         let term_false = Term::axiom(Axiom::False(Self::False), &[], arena);

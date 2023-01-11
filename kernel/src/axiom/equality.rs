@@ -1,3 +1,5 @@
+//! Set of axioms, typing and reduction rules for the `Eq`uality type
+
 use derive_more::Display;
 
 use super::{Axiom, AxiomKind};
@@ -7,6 +9,7 @@ use crate::memory::level::Level;
 use crate::memory::term::Term;
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash)]
+/// Axioms regarding `Eq`uality
 pub enum Equality {
     /// The equality type
     ///
@@ -68,6 +71,7 @@ impl<'arena> AxiomKind<'arena> for Equality {
 }
 
 impl Equality {
+    /// Type of the Equality type : `Eq.{u} A x y : Prop`
     fn type_eq<'arena>(arena: &mut Arena<'arena>) -> Term<'arena> {
         let sort_u = Term::sort(Level::var(0, arena), arena);
         let prop = Term::sort_usize(0, arena);
@@ -80,6 +84,9 @@ impl Equality {
         )
     }
 
+    /// Type of the recursor over equalities
+    /// `Eq_rec : (A : Sort u) -> (a : A) -> (motive : (b : A) -> Eq A a B -> Sort v) -> motive a (Refl A a) -> (b : A) -> (p : Eq A
+    /// a b) -> motive b p`
     fn type_eq_rec<'arena>(arena: &mut Arena<'arena>) -> Term<'arena> {
         let sort_u = Term::sort(Level::var(0, arena), arena);
         let sort_v = Term::sort(Level::var(1, arena), arena);
@@ -178,6 +185,8 @@ impl Equality {
         )
     }
 
+    /// Type of the reflexivity axiom :
+    /// `Refl.{u} A x : Eq.{u} A x x`
     fn type_refl<'arena>(arena: &mut Arena<'arena>) -> Term<'arena> {
         let sort_u = Term::sort(Level::var(0, arena), arena);
 
