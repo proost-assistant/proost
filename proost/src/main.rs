@@ -60,6 +60,7 @@ mod error;
 mod evaluator;
 mod rustyline_helper;
 
+use std::cmp::max;
 use std::env::current_dir;
 
 use atty::Stream;
@@ -103,16 +104,9 @@ fn main() -> Result<'static, 'static, ()> {
     // check if files are provided as command-line arguments
     if !args.files.is_empty() {
         return kernel::memory::arena::use_arena(|arena| {
-            let dummy_loc = Location::new((1, 1), (1, 1));
-            let files = args.files.iter().map(|f| (dummy_loc, f.as_str())).collect();
-            evaluator
-                .process(arena, &Command::Import(files), &mut vec![])
-                .map(|_| ())
-                .err()
-                .and_then(|err| {
-                    display(Err(err), true);
-                    None::<()>
-                });
+            let command = Command::Import(args.files.iter().map(|file| (Location::default(), file.as_str())).collect());
+
+            display(evaluator.process_line(arena, &command), false);
             Ok(())
         });
     }
@@ -182,17 +176,24 @@ pub fn display(res: ResultProcess, toggle_location: bool) {
             };
 
             if toggle_location && let Some(loc) = location {
-                let indicator = if loc.start.column == loc.end.column {
-                    format!("{:0w1$}^", "", w1 = loc.start.column - 1)
-                } else {
-                    format!("{:0w1$}^{:-<w2$}^", "", "", w1 = loc.start.column - 1, w2 = loc.end.column - loc.start.column - 1)
-                };
-
-                println!("{} {indicator}", "\u{2717}".red());
+                println!("{}{}", "\u{2717}".red(), pretty_print_loc(loc));
             };
 
             println!("{} {err}", "\u{2717}".red());
         },
+    }
+}
+
+/// Pretty print a location as underscores
+fn pretty_print_loc(loc: Location) -> String {
+    if loc.start.line == loc.end.line {
+        if loc.start.column + 1 >= loc.end.column {
+            format!("{:0w$}^", "", w = loc.start.column)
+        } else {
+            format!("{:0w1$}^{:-<w2$}^", "", "", w1 = loc.start.column, w2 = loc.end.column - loc.start.column - 2)
+        }
+    } else {
+        format!(" {:-<w$}^", "", w = max(loc.start.column, loc.end.column) - 1)
     }
 }
 

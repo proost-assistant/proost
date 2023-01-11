@@ -168,7 +168,7 @@ impl<'arena> Evaluator {
             .iter()
             .try_for_each(|command| {
                 if self.verbose {
-                    println!("  {command}");
+                    println!("{command}");
                 }
                 self.process(arena, command, importing).map(|_| ()).map_err(|err| {
                     // if importation failed, display the associated errors now (the imported file is discarded
@@ -190,7 +190,7 @@ impl<'arena> Evaluator {
     ///
     /// # Errors
     /// Transmits any error from the kernel. Also signals any variable being defined twice.
-    pub(crate) fn process<'build>(
+    fn process<'build>(
         &mut self,
         arena: &mut Arena<'arena>,
         command: &'build Command<'build>,
