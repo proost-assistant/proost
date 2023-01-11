@@ -87,8 +87,9 @@ where
 }
 
 impl<'arena> Arena<'arena> {
-    /// Creates a new arena. The external borrow on the allocator is what gives the lifetime to the
-    /// arena.
+    /// Creates a new arena.
+    ///
+    /// The external borrow on the allocator is what gives the lifetime to the arena.
     fn new(alloc: &'arena Bump) -> Self {
         Arena {
             alloc,
