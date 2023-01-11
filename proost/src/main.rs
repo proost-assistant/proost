@@ -213,11 +213,11 @@ mod tests {
 
     #[test]
     fn correct_pretty_print_loc() {
-        assert_eq!(pretty_print_loc(Location::new((1, 3), (1, 3))), "  ^".to_string());
-        assert_eq!(pretty_print_loc(Location::new((1, 3), (1, 4))), "  ^".to_string());
-        assert_eq!(pretty_print_loc(Location::new((1, 3), (1, 5))), "  ^^".to_string());
-        assert_eq!(pretty_print_loc(Location::new((1, 3), (1, 6))), "  ^-^".to_string());
-        assert_eq!(pretty_print_loc(Location::new((1, 3), (1, 7))), "  ^--^".to_string());
+        assert_eq!(pretty_print_loc(Location::new((1, 3), (1, 3))), "  ^".to_owned());
+        assert_eq!(pretty_print_loc(Location::new((1, 3), (1, 4))), "  ^".to_owned());
+        assert_eq!(pretty_print_loc(Location::new((1, 3), (1, 5))), "  ^^".to_owned());
+        assert_eq!(pretty_print_loc(Location::new((1, 3), (1, 6))), "  ^-^".to_owned());
+        assert_eq!(pretty_print_loc(Location::new((1, 3), (1, 7))), "  ^--^".to_owned());
     }
 
     /// Robustness against multilines
