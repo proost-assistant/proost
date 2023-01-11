@@ -289,9 +289,21 @@ mod tests {
                     vec!["u"]
                 )),
                 declaration::Builder::Decl(
-                    box Builder::new(Location::new((1, 23), (1, 30)), VarInstance("foo", [level::Builder::Var("u")].to_vec())),
+                    box Builder::new(Location::new((1, 23), (1, 30)), VarInstance("foo", vec![level::Builder::Var("u")])),
                     vec!["u"]
                 )
+            ))
+        );
+
+        assert_eq!(
+            line("def x := y.{max 1 2}"),
+            Ok(Define(
+                (Location::new((1, 5), (1, 6)), "x"),
+                None,
+                Builder::new(
+                    Location::new((1, 10), (1, 21)),
+                    VarInstance("y", vec![level::Builder::Max(box level::Builder::Const(1), box level::Builder::Const(2))])
+                ),
             ))
         );
     }
@@ -335,7 +347,14 @@ mod tests {
             ))
         );
 
-        assert!(line("def x.{u, v} := Prop").is_ok());
+        assert_eq!(
+            line("def x.{u, v} := Prop"),
+            Ok(Declaration(
+                (Location::new((1, 5), (1, 6)), "x"),
+                None,
+                declaration::Builder::Decl(box Builder::new(Location::new((1, 17), (1, 21)), Prop), vec!["u", "v"])
+            ))
+        );
     }
 
     #[test]

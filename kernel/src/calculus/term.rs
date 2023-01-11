@@ -466,10 +466,8 @@ mod tests {
         use crate::memory::level::builder::raw::*;
 
         use_arena(|arena| {
-            let decl = declaration::Builder::Decl(
-                Box::new(term::Builder::new(Location::default(), term::Payload::Prop)),
-                ["u", "v"].to_vec(),
-            );
+            let decl =
+                declaration::Builder::Decl(Box::new(term::Builder::new(Location::default(), term::Payload::Prop)), vec!["u", "v"]);
             let decl = InstantiatedDeclaration::instantiate(
                 decl.realise(arena).unwrap(),
                 &[arena.build_level_raw(zero()), arena.build_level_raw(zero())],

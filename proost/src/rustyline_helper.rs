@@ -232,27 +232,22 @@ mod tests {
     }
 
     #[test]
-    fn get_bracket_none() {
+    fn get_bracket_not_found() {
         assert!(get_bracket("a()[", 0).is_none());
         assert!(get_bracket("a()[", 3).is_none());
     }
 
     #[test]
-    fn get_bracket_some() {
-        assert!(get_bracket("a()[", 1).is_some());
-        assert!(get_bracket("a()[", 2).is_some());
+    fn get_bracket_found() {
+        assert_eq!(get_bracket("a()[", 1), Some((b'(', 1)));
+        assert_eq!(get_bracket("a()[", 2), Some((b')', 2)));
     }
 
     #[test]
     fn find_matching_bracket_direction() {
         assert!(find_matching_bracket("  )", 1, b')').is_none());
-        assert!(find_matching_bracket("  )", 1, b'(').is_some());
-        assert!(find_matching_bracket("(  ", 1, b')').is_some());
         assert!(find_matching_bracket("(  ", 1, b'(').is_none());
-    }
 
-    #[test]
-    fn find_matching_bracket_matching() {
         assert_eq!(find_matching_bracket("  )", 1, b'('), Some((')', 2)));
         assert_eq!(find_matching_bracket("(  ", 1, b')'), Some(('(', 0)));
     }
@@ -266,7 +261,9 @@ mod tests {
     #[test]
     fn replace_inplace() {
         let mut message = "mot motus et mots mot mot".to_owned();
+
         super::replace_inplace(&mut message, "mot", "mots");
+
         assert_eq!(message, "mots motus et mots mots mots".to_owned());
     }
 }
