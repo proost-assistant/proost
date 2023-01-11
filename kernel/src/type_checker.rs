@@ -569,10 +569,13 @@ mod tests {
 
     #[test]
     fn irrelevance_conversion() {
+        use crate::axiom::false_::False::{False, FalseRec};
+        use crate::axiom::Axiom;
         use crate::memory::level::Level;
+
         use_arena(|arena| {
-            let false_ = Term::axiom(crate::axiom::Axiom::False, &[], arena);
-            let false_rec = Term::axiom(crate::axiom::Axiom::FalseRec, &[Level::zero(arena)], arena);
+            let false_ = Term::axiom(Axiom::False(False), &[], arena);
+            let false_rec = Term::axiom(Axiom::False(FalseRec), &[Level::zero(arena)], arena);
             let tt1 = false_.abs(Term::var(1.into(), false_, arena), arena);
             let tt2 = false_.abs(false_rec.app(false_, arena).app(Term::var(1.into(), false_, arena), arena), arena);
             assert!(tt1.conversion(tt2, arena));

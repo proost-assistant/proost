@@ -82,6 +82,7 @@ where
 {
     use_arena(|arena| {
         Axiom::add_named_axioms(arena);
+
         f(arena)
     })
 }
