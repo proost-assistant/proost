@@ -57,14 +57,13 @@ fn parse_level(pair: Pair<Rule>) -> Result<level::Builder> {
             let mut iter = pair.into_inner();
             let univ = parse_level(iter.next().unwrap())?;
 
-            let numbers = iter.map(|pair| {
+            iter.map(|pair| {
                 pair.as_str().parse::<usize>().map_err(|err| Error {
                     location: convert_span(pair.as_span()),
                     kind: Kind::TransformError(err.to_string()),
                 })
-            });
-
-            numbers.sum::<result::Result<usize, _>>().map(|n| Plus(box univ, n))
+            })
+            .fold(Ok(univ), |acc, u| Ok(Plus(box acc?, u?)))
         },
 
         Rule::string => Ok(Var(pair.as_str())),
@@ -451,6 +450,14 @@ mod tests {
             Ok(GetType(Builder::new(
                 Location::new((1, 7), (1, 19)),
                 Sort(box level::Builder::Plus(box level::Builder::Const(0), 1))
+            )))
+        );
+
+        assert_eq!(
+            line("check Sort (0 + 1 + 2)"),
+            Ok(GetType(Builder::new(
+                Location::new((1, 7), (1, 23)),
+                Sort(box level::Builder::Plus(box level::Builder::Plus(box level::Builder::Const(0), 1), 2))
             )))
         );
 
