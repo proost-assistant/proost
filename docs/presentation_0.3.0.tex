@@ -9,7 +9,6 @@
 \usepackage{listings}
 \usepackage{lstautogobble}
 
-
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{ebproof}
@@ -17,9 +16,25 @@
 
 \definecolor{darkgreen}{HTML}{18A100}
 \definecolor{background}{rgb}{0.95,0.95,0.92}
-\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegreen}{rgb}{0,0.5,0}
 \definecolor{codegray}{rgb}{0.5,0.5,0.5}
-\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{codered}{rgb}{0.5,0,0.0}
+\definecolor{background1}{RGB}{248, 243, 237}
+\definecolor{foreground1}{RGB}{118, 66, 54}
+
+\setbeamercolor{palette primary}{bg=background1, fg=foreground1}
+\setbeamercolor{palette secondary}{bg=background1,fg=foreground1}
+\setbeamercolor{palette tertiary}{bg=background1,fg=foreground1}
+\setbeamercolor{palette quaternary}{bg=background1,fg=foreground1}
+\setbeamercolor{structure}{fg=foreground1}
+\setbeamercolor{section in toc}{fg=foreground1}
+\setbeamercolor{subsection in head/foot}{bg=background1,fg=foreground1}
+\setbeamercolor{alerted text}{fg=codered}
+\setbeamercolor{example text}{fg=codegreen}
+
+\usetheme{Goettingen}
+\useinnertheme{circles}
+
 
 \lstset{
     literate =
@@ -43,8 +58,8 @@
     autogobble=true,
     showstringspaces=false,
     basicstyle=\small\ttfamily,
-    backgroundcolor=\color{background},
-    keywordstyle=\color{codepurple},
+    backgroundcolor=\color{background1},
+    keywordstyle=\color{codered},
     commentstyle=\color{codegreen},
     showtabs=False,
     stringstyle=\color{orange},
@@ -76,19 +91,16 @@
 }
 \date{12 janvier 2023}
 \institute[]{ENS Paris-Saclay}
-\logo{
-    \begin{picture}(0,0)
-        \put(-130,-50) {
-            \begin{tikzpicture}
-                \node[opacity=0.5] (0) {\includegraphics[scale=1.5]{media/logo.png}};
-            \end{tikzpicture}
-        }
-    \end{picture}
-}
 
-\usetheme{Warsaw}
-\useoutertheme{shadow}
-\useoutertheme{infolines}
+\addtobeamertemplate{footline}{%
+  \setlength\unitlength{1ex}%
+  \begin{picture}(0,0)
+    % \put{} defines the position of the frame
+    \put(145,-5){\makebox(0,0)[bl]{
+    \includegraphics[scale=0.7]{media/logo.png}
+    }}%
+  \end{picture}%
+}{}
 
 \AtBeginSection[]
 {
@@ -101,7 +113,7 @@
 \newcommand{\jump}[1][1]{\vspace{1\baselineskip}}
 
 \begin{document}
-
+    \beamertemplatenavigationsymbolsempty
     \maketitle
 
     \section{Présentation générale}
@@ -137,7 +149,7 @@
                 \begin{itemize}
                     \item Isolation du kernel pour assurer la correction de l'implémentation \pause
                     \item API d'interface avec le noyau \pause
-                    \item Expérience utilisateur agréable (LSP, coloration syntaxique, \dots) \pause
+                    \item Expérience utilisateur agréable (LSP, coloration syntaxique, topelevel, \dots) \pause
                     \item Optimisation mémoire et temporelle du type-checking
                 \end{itemize}
 
