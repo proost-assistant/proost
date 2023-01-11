@@ -1,20 +1,25 @@
 //! A collection of safe functions to build [`Level`]s.
 //!
-//! This module provides a way of building levels via closures: users can manipulate closures and
-//! create bigger ones which, when [built](Arena::build_level), provide the expected level.
+//! This module provides two main ways of building terms. The first one is via closures: users can
+//! manipulate closures and create bigger ones which, when [built](Arena::build_level), provide the expected
+//! level.
 //!
 //! The overall syntax remains transparent to the user. This means the user focuses on the
-//! structure of the term they want to build, while the [closures](`BuilderTrait`) internally build
-//! an appropriate logic: converting regular universe variables names into their corresponding
-//! variable numbers.
+//! structure of the term they want to build, while the [closures](`BuilderTrait`) internally build an appropriate
+//! logic: converting regular universe variables names into their corresponding variable numbers.
+//!
+//! The other way to proceed is built on top of the latter. Users can also manipulate a sort of
+//! *high-level level* or *template*, described by the public enumeration [`Builder`], and at any
+//! moment, [realise](Builder::realise) it.
 
 use std::collections::HashMap;
 
 use derive_more::Display;
 
 use super::Level;
-use crate::error::{Error, Result, ResultLevel};
+use crate::error::{Error, ResultLevel};
 use crate::memory::arena::Arena;
+use crate::memory::Buildable;
 
 /// The kind of errors that can occur when building a [`Level`].
 #[non_exhaustive]
@@ -36,10 +41,6 @@ pub type Environment<'build> = HashMap<&'build str, usize>;
 #[allow(clippy::module_name_repetitions)]
 pub trait BuilderTrait<'build> = for<'arena> FnOnce(&mut Arena<'arena>, &Environment<'build>) -> ResultLevel<'arena>;
 
-/// The trait of closures which build a vector of levels.
-pub trait VecBuilderTrait<'build> =
-    for<'arena> FnOnce(&mut Arena<'arena>, &Environment<'build>) -> Result<'arena, Vec<Level<'arena>>>;
-
 impl<'arena> Arena<'arena> {
     /// Returns the level built from the given closure, provided with a Level environment, which binds names to `usize`s
     ///
@@ -47,15 +48,6 @@ impl<'arena> Arena<'arena> {
     /// If the level could not be built, yields an error indicating the reason.
     #[inline]
     pub fn build_level<'build, F: BuilderTrait<'build>>(&mut self, f: F) -> ResultLevel<'arena> {
-        f(self, &Environment::new())
-    }
-
-    /// Returns the vector of levels built from the given closure.
-    ///
-    /// # Errors
-    /// If one level could not be built, yields an error indicating the reason.
-    #[inline]
-    pub fn build_vec_level<'build, F: VecBuilderTrait<'build>>(&mut self, f: F) -> Result<'arena, Vec<Level<'arena>>> {
         f(self, &Environment::new())
     }
 }
@@ -115,22 +107,69 @@ pub const fn imax<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(u1
     |arena, env| Ok(u1(arena, env)?.imax(u2(arena, env)?, arena))
 }
 
-/// Returns the empty level vector.
-#[inline]
-#[no_coverage]
-#[must_use]
-pub const fn nil<'build>() -> impl VecBuilderTrait<'build> {
-    |_, _| Ok(Vec::new())
+/// Template of levels.
+///
+/// A Builder describes a term in a naive but easy-to-build manner.
+///
+/// Please refer to the item descriptions in [levels](crate::memory::level::Payload) for a
+/// description of the corresponding items. Please understand that there are still differences,
+///
+/// Because the purpose of a builder is to provide an easy way to build terms, even through the
+/// API, it offers different ways to build some terms, for convenience.
+///
+/// Unlike [`Term` builders](crate::memory::term::builder::Builder), level builders do not back-propagate
+/// a trace when an error occurs. This makes their structure simpler, but also limits the accuracy of the
+/// error reports associated to them. This is not an issue, as levels typically have a very limited size.
+#[derive(Clone, Debug, Display, PartialEq, Eq)]
+#[allow(clippy::missing_docs_in_private_items)]
+pub enum Builder<'builder> {
+    #[display(fmt = "0")]
+    Zero,
+
+    Const(usize),
+
+    #[display(fmt = "({_0}) + {_1}")]
+    Plus(Box<Builder<'builder>>, usize),
+
+    #[display(fmt = "S({_0})")]
+    Succ(Box<Builder<'builder>>),
+
+    #[display(fmt = "max({_0}, {_1})")]
+    Max(Box<Builder<'builder>>, Box<Builder<'builder>>),
+
+    #[display(fmt = "imax({_0}, {_1})")]
+    IMax(Box<Builder<'builder>>, Box<Builder<'builder>>),
+
+    Var(&'builder str),
 }
 
-/// Returns a closure appending the level built from `elt` to the vector built from `vec`.
-#[inline]
-#[no_coverage]
-pub const fn append<'build, H: BuilderTrait<'build>, T: VecBuilderTrait<'build>>(vec: T, elt: H) -> impl VecBuilderTrait<'build> {
-    |arena, env| {
-        let mut v = vec(arena, env)?;
-        v.push(elt(arena, env)?);
-        Ok(v)
+impl<'build> Buildable<'build> for Builder<'build> {
+    type Output<'arena> = Level<'arena>;
+
+    type Closure = impl BuilderTrait<'build>;
+
+    /// Realise a builder into a [`Level`]. This internally uses functions described in
+    /// the [builder](`crate::memory::level::builder`) module.
+    ///
+    /// # Errors
+    /// If the level could not be built, yields an error indicating the reason.
+    #[inline]
+    fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultLevel<'arena> {
+        arena.build_level(self.as_closure())
+    }
+
+    /// Associates a builder to a builder trait.
+    #[inline]
+    fn as_closure(&'build self) -> Self::Closure {
+        |arena, env| match *self {
+            Builder::Zero => zero()(arena, env),
+            Builder::Const(c) => const_(c)(arena, env),
+            Builder::Plus(ref u, n) => plus(u.as_closure(), n)(arena, env),
+            Builder::Succ(ref l) => succ(l.as_closure())(arena, env),
+            Builder::Max(ref l, ref r) => max(l.as_closure(), r.as_closure())(arena, env),
+            Builder::IMax(ref l, ref r) => imax(l.as_closure(), r.as_closure())(arena, env),
+            Builder::Var(s) => var(s)(arena, env),
+        }
     }
 }
 

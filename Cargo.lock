@@ -246,6 +246,7 @@ name = "elaboration"
 version = "0.2.0"
 dependencies = [
  "derive_more",
+ "kernel",
 ]
 
 [[package]]
@@ -451,7 +452,6 @@ version = "0.2.0"
 dependencies = [
  "bumpalo",
  "derive_more",
- "elaboration",
  "im-rc",
 ]
 

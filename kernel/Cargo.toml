@@ -8,8 +8,6 @@ repository.workspace = true
 version.workspace = true
 
 [dependencies]
-elaboration.path = "../elaboration"
-
 derive_more.workspace = true
 
 bumpalo = "3"

@@ -9,15 +9,12 @@
 //! logic; namely verifying the correct amount of variables have been supplied or bound.
 
 use derive_more::Display;
-use elaboration::location::Location;
 
 use super::{Declaration, InstantiatedDeclaration};
-use crate::error::{Error, Result, ResultDecl, ResultInstantiatedDecl};
+use crate::error::{Error, ResultDecl, ResultInstantiatedDecl};
 use crate::memory::arena::Arena;
 use crate::memory::level::builder as level;
 use crate::memory::term::builder as term;
-use crate::memory::Buildable;
-use crate::trace::{Trace, Traceable};
 
 /// The kind of the error that can occur when building a [`Declaration`].
 #[non_exhaustive]
@@ -76,58 +73,14 @@ pub fn declaration<'build, F: term::BuilderTrait<'build>>(term: F, vars: &[&'bui
     move |arena| Ok(Declaration::new(term(arena, &term::Environment::new(), &lvl_env, 0.into())?, len))
 }
 
-/// Template of declarations.
-#[derive(Clone, Debug, Display, PartialEq, Eq)]
-#[allow(clippy::missing_docs_in_private_items)]
-pub enum Builder<'build> {
-    #[display(fmt = "{_0}")]
-    Decl(Box<term::Builder<'build>>, Vec<&'build str>),
-}
-
-impl<'build> Traceable<Location> for Builder<'build> {
-    #[inline]
-    fn apply_trace(&self, trace: &[Trace]) -> Location {
-        match *self {
-            Builder::Decl(ref term, _) => term.apply_trace(trace),
-        }
-    }
-}
-
-impl<'build> Buildable<'build> for Builder<'build> {
-    type Output<'arena> = Declaration<'arena>;
-
-    type Closure = impl BuilderTrait<'build>;
-
-    /// Realise a builder into a [`Declaration`]. This internally uses functions described in
-    /// the [builder](`crate::memory::declaration::builder`) module.
-    ///
-    /// # Errors
-    /// If the declaration could not be built, yields an error indicating the reason
-    #[inline]
-    fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultDecl<'arena> {
-        arena.build_declaration(self.as_closure())
-    }
-
-    /// Associates a builder to a builder trait.
-    #[inline]
-    fn as_closure(&'build self) -> Self::Closure {
-        |arena| match *self {
-            Builder::Decl(ref term, ref vars) => declaration(term.as_closure(), vars.as_slice())(arena),
-        }
-    }
-}
-
 /// Base function for the instantiated declaration builders.
-fn try_build_instance<'arena, 'build>(
+fn try_build_instance<'arena, 'build, V: level::VecBuilderTrait<'build>>(
     decl: Declaration<'arena>,
-    levels: &'build [level::Builder<'build>],
+    levels: V,
     arena: &mut Arena<'arena>,
     env: &level::Environment<'build>,
 ) -> ResultInstantiatedDecl<'arena> {
-    let levels = levels
-        .iter()
-        .map(|level_builder| level_builder.as_closure()(arena, env))
-        .collect::<Result<Vec<_>>>()?;
+    let levels = levels(arena, env)?;
 
     if decl.1 == levels.len() {
         Ok(InstantiatedDeclaration::instantiate(decl, levels.as_slice(), arena))
@@ -143,9 +96,9 @@ fn try_build_instance<'arena, 'build>(
 /// This is by choice, as opposed to the other possibility, where `levels` would be a slice over
 /// `Box<dyn level::BuilderTrait>`, which is not interesting performance-wise.
 #[inline]
-pub fn instance<'build, F: BuilderTrait<'build>>(
+pub fn instance<'build, F: BuilderTrait<'build>, V: level::VecBuilderTrait<'build>>(
     decl: F,
-    levels: &'build [level::Builder<'build>],
+    levels: V,
 ) -> impl InstantiatedBuilderTrait<'build> {
     move |arena, env| try_build_instance(decl(arena)?, levels, arena, env)
 }
@@ -154,97 +107,12 @@ pub fn instance<'build, F: BuilderTrait<'build>>(
 /// levels `levels`.
 #[inline]
 #[must_use]
-pub fn var<'build>(name: &'build str, levels: &'build [level::Builder<'build>]) -> impl InstantiatedBuilderTrait<'build> {
+pub fn var<'build, V: level::VecBuilderTrait<'build>>(name: &'build str, levels: V) -> impl InstantiatedBuilderTrait<'build> {
     move |arena, env| {
         let decl = arena
             .get_binding_decl(name)
             .ok_or_else(|| Error::new(ErrorKind::UnknownDeclaration(arena.store_name(name)).into()))?;
 
         try_build_instance(decl, levels, arena, env)
-    }
-}
-
-/// A builder for instantiated declarations.
-///
-/// While there is fundamentally only one way to instantiate a declaration, this builder exposes
-/// two variants: the [first](`InstantiatedBuilder::Instance`) is to be used typically through the
-/// API, in a context where, for instance, the associated declaration is not bound in the arena.
-///
-/// On the other hand, the [second variant](`InstantiatedBuilder::Var`) is typically used by the
-/// parser, as it corresponds to the only possible scenario in a file.
-#[allow(clippy::module_name_repetitions)]
-#[allow(clippy::missing_docs_in_private_items)]
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum InstantiatedBuilder<'build> {
-    Instance(Box<Builder<'build>>, Vec<level::Builder<'build>>),
-
-    Var(&'build str, Vec<level::Builder<'build>>),
-}
-
-impl<'arena> core::fmt::Display for InstantiatedBuilder<'arena> {
-    #[inline]
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        match *self {
-            InstantiatedBuilder::Instance(ref decl, ref params) => {
-                write!(f, "{decl}.{{")?;
-                params.iter().try_for_each(|level| write!(f, "{level}, "))?;
-                write!(f, "}}")
-            },
-            InstantiatedBuilder::Var(decl, ref params) => {
-                write!(f, "{decl}.{{")?;
-                params.iter().try_for_each(|level| write!(f, "{level}, "))?;
-                write!(f, "}}")
-            },
-        }
-    }
-}
-
-impl<'build> Buildable<'build> for InstantiatedBuilder<'build> {
-    type Output<'arena> = InstantiatedDeclaration<'arena>;
-
-    type Closure = impl InstantiatedBuilderTrait<'build>;
-
-    /// Realise a builder into an [`InstantiatedDeclaration`]. This internally uses functions described in
-    /// the [builder](`crate::memory::declaration::builder`) module.
-    ///
-    /// # Errors
-    /// If the instantiated declaration could not be built, yields an error indicating the reason
-    #[inline]
-    fn realise<'arena>(&self, arena: &mut Arena<'arena>) -> ResultInstantiatedDecl<'arena> {
-        arena.build_instantiated_declaration(self.as_closure())
-    }
-
-    /// Associates a builder to a builder trait.
-    #[inline]
-    fn as_closure(&'build self) -> Self::Closure {
-        |arena, lvl_env| match *self {
-            InstantiatedBuilder::Instance(ref decl, ref levels) => instance(decl.as_closure(), levels)(arena, lvl_env),
-            InstantiatedBuilder::Var(name, ref levels) => var(name, levels)(arena, lvl_env),
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::Builder::Decl;
-    use super::*;
-    use crate::memory::term::builder::{Builder, Payload};
-
-    #[test]
-    fn builder_trace() {
-        // This following term is completely ill-typed, location do not have any meaning.
-        // We want to test that the trace is correctly applied.
-        let builder = Decl(
-            Box::new(Builder::new(
-                Location::new((1, 1), (1, 1)),
-                Payload::App(
-                    Box::new(Builder::new(Location::new((2, 2), (2, 2)), Payload::Prop)),
-                    Box::new(Builder::new(Location::new((3, 3), (3, 3)), Payload::Prop)),
-                ),
-            )),
-            vec![],
-        );
-
-        assert_eq!(builder.apply_trace(&[]), Location::new((1, 1), (1, 1)));
     }
 }

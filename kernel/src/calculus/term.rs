@@ -228,13 +228,10 @@ impl<'arena> Term<'arena> {
 #[cfg(test)]
 mod tests {
     // /!\ most terms used in these tests are ill-typed; they should not be used elsewhere
-    use elaboration::location::Location;
-
     use crate::memory::arena::use_arena;
-    use crate::memory::declaration::{builder as declaration, InstantiatedDeclaration};
+    use crate::memory::declaration::{Declaration, InstantiatedDeclaration};
     use crate::memory::term::builder::raw::*;
-    use crate::memory::term::{builder as term, Term};
-    use crate::memory::Buildable;
+    use crate::memory::term::Term;
 
     #[test]
     fn simple_subst() {
@@ -380,10 +377,11 @@ mod tests {
     #[test]
     fn decl_subst() {
         use_arena(|arena| {
-            let decl = declaration::Builder::Decl(Box::new(term::Builder::new(Location::default(), term::Payload::Prop)), vec![]);
-            let decl = Term::decl(InstantiatedDeclaration::instantiate(decl.realise(arena).unwrap(), &[], arena), arena);
+            let prop = arena.build_term_raw(prop());
+            let decl = Declaration::new(prop, 0);
+            let decl = Term::decl(InstantiatedDeclaration::instantiate(decl, &[], arena), arena);
 
-            assert_eq!(decl.beta_reduction(arena), arena.build_term_raw(prop()));
+            assert_eq!(decl.beta_reduction(arena), prop);
         });
     }
 
@@ -392,18 +390,8 @@ mod tests {
         use_arena(|arena| {
             let false_ = arena.build_term_raw(prod(prop(), var(0.into(), prop())));
 
-            let decl = declaration::Builder::Decl(
-                Box::new(term::Builder::new(
-                    Location::default(),
-                    term::Payload::Abs(
-                        "x",
-                        Box::new(term::Builder::new(Location::default(), term::Payload::Prop)),
-                        Box::new(term::Builder::new(Location::default(), term::Payload::Prop)),
-                    ),
-                )),
-                vec![],
-            );
-            let decl = Term::decl(InstantiatedDeclaration::instantiate(decl.realise(arena).unwrap(), &[], arena), arena);
+            let decl = Declaration::new(arena.build_term_raw(abs(prop(), prop())), 0);
+            let decl = Term::decl(InstantiatedDeclaration::instantiate(decl, &[], arena), arena);
 
             let app = Term::app(decl, false_, arena);
 
@@ -467,17 +455,13 @@ mod tests {
         use crate::memory::level::builder::raw::*;
 
         use_arena(|arena| {
-            let decl =
-                declaration::Builder::Decl(Box::new(term::Builder::new(Location::default(), term::Payload::Prop)), vec!["u", "v"]);
-            let decl = InstantiatedDeclaration::instantiate(
-                decl.realise(arena).unwrap(),
-                &[arena.build_level_raw(zero()), arena.build_level_raw(zero())],
-                arena,
-            );
+            let zero_ = arena.build_level_raw(zero());
+            let decl = Declaration::new(arena.build_term_raw(prop()), 2);
+            let decl = InstantiatedDeclaration::instantiate(decl, &[zero_, zero_], arena);
 
             let prop = crate::memory::term::Term::decl(decl, arena);
 
-            assert_eq!(prop.substitute_univs(&[arena.build_level_raw(zero()), arena.build_level_raw(zero())], arena), prop);
+            assert_eq!(prop.substitute_univs(&[zero_, zero_], arena), prop);
 
             let vart = crate::memory::term::builder::raw::var;
 
@@ -493,10 +477,10 @@ mod tests {
                 ),
             ));
 
-            assert_eq!(term.substitute_univs(&[arena.build_level_raw(zero()), arena.build_level_raw(zero())], arena), term);
+            assert_eq!(term.substitute_univs(&[zero_, zero_], arena), term);
 
             let nat = Term::axiom(Axiom::Nat, &[], arena);
-            assert_eq!(nat.substitute_univs(&[arena.build_level_raw(zero()), arena.build_level_raw(zero())], arena), nat);
+            assert_eq!(nat.substitute_univs(&[zero_, zero_], arena), nat);
         });
     }
 
