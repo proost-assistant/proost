@@ -66,12 +66,12 @@ use std::env::current_dir;
 use atty::Stream;
 use clap::Parser;
 use colored::Colorize;
+use elaboration::location::Location;
 use evaluator::Evaluator;
 use parser::command::{self, Command};
 use rustyline::error::ReadlineError;
 use rustyline::{Cmd, Config, Editor, EventHandler, KeyCode, KeyEvent, Modifiers};
 use rustyline_helper::{RustyLineHelper, TabEventHandler};
-use utils::location::Location;
 
 use crate::error::{Error, Result, ResultProcess};
 
@@ -207,7 +207,7 @@ fn is_command(input: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use utils::location::Location;
+    use elaboration::location::Location;
 
     use super::*;
 

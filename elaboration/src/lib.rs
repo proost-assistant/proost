@@ -42,6 +42,7 @@
         clippy::wildcard_imports,
     )
 )]
-pub mod error;
+#![feature(type_alias_impl_trait)]
+
+pub mod builder;
 pub mod location;
-pub mod trace;

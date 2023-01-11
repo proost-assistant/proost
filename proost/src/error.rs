@@ -1,7 +1,9 @@
 //! Error management
 
 use derive_more::{Display, From};
+use elaboration::location::Location;
 use kernel::memory::term::Term;
+use kernel::trace::Traceable;
 
 use crate::evaluator;
 
@@ -13,7 +15,7 @@ use crate::evaluator;
 pub enum Error<'arena, 'build> {
     /// An error raised by the [`kernel`].
     #[display(fmt = "{_1}")]
-    Kernel(&'build dyn utils::trace::Traceable, kernel::error::Error<'arena>),
+    Kernel(&'build dyn Traceable<Location>, kernel::error::Error<'arena>),
 
     /// An error raised by the [`parser`].
     Parser(parser::error::Error),

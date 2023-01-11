@@ -34,7 +34,7 @@ use crate::axiom::Axiom;
 /// [Jacques-Henri Jourdan](<https://jhjourdan.mketjh.fr>).
 #[allow(clippy::missing_docs_in_private_items)]
 pub struct Arena<'arena> {
-    /// The memory allocator
+    /// The memory allocator.
     pub(super) alloc: &'arena Bump,
 
     /// enforces invariances over lifetime parameter
@@ -56,16 +56,11 @@ pub struct Arena<'arena> {
     // requires the design of an additional is_certainly_closed predicate in terms.
 }
 
-/// This function is the main function that the kernel exports. Most importantly, it is the only
-/// one to provide an entry point for Arena objects, by means of a closure provided by the end
-/// user.
+/// Calls function `f` on a newly-created arena.
 ///
-/// Such an interface is the most elegant way to ensure the one-to-one correspondence between
-/// lifetime parameters and [`Arena`] objects.
-///
-/// To generate the `alloc` object in this function is necessary, as this is the main way to
-/// "create" a lifetime variable which makes sense. That way, `'arena` is valid exactly during
-/// the execution of the function `f`.
+/// This function is the main function that the kernel exports. Such an interface is the most
+/// elegant way to ensure the one-to-one correspondence between lifetime parameters and [`Arena`]
+/// objects.
 #[allow(clippy::module_name_repetitions)]
 #[inline]
 pub fn use_arena<F, T>(f: F) -> T
@@ -92,8 +87,9 @@ where
 }
 
 impl<'arena> Arena<'arena> {
-    /// Allocates a new memory arena. As detailed in the [`use_arena`] function, it is necessary to
-    /// externalise the generation of the [`bumpalo::Bump`] object.
+    /// Creates a new arena.
+    ///
+    /// The external borrow on the allocator is what gives the lifetime to the arena.
     fn new(alloc: &'arena Bump) -> Self {
         Arena {
             alloc,

@@ -8,10 +8,9 @@ repository.workspace = true
 version.workspace = true
 
 [dependencies]
-kernel.path = "../kernel"
-utils.path = "../utils"
+elaboration.path = "../elaboration"
 
 derive_more.workspace = true
 
-pest = "2.5"
-pest_derive = "2.5"
+pest = "2"
+pest_derive = "2"

@@ -10,18 +10,17 @@ super::arena::new_dweller!(Level, Header, Payload);
 
 pub mod builder;
 
-/// The header of a level
+/// The header of a level.
 struct Header<'arena> {
-    /// The plus-form of a level
+    /// The plus-form of a level.
     plus_form: OnceCell<(Level<'arena>, usize)>,
 }
 
 /// A universe level.
 ///
 /// While types in the usual calculus of constructions live in types fully described with integers,
-/// more is needed when manipulating universe-polymorphic descriptions: precisely, the right amount
-/// of formal computation has to be introduced in order to account for universe-polymorphic
-/// variables.
+/// the addition of non-instantiated universe variables requires the use of values like `Max` to
+/// describe formal computations on levels.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Payload<'arena> {
     /// The zero level (associated to Prop)
@@ -98,17 +97,17 @@ impl<'arena> Level<'arena> {
         Self::hashcons(Zero, arena)
     }
 
-    /// Returns the successor of a level
+    /// Returns the successor of a level.
     pub(crate) fn succ(self, arena: &mut Arena<'arena>) -> Self {
         Self::hashcons(Succ(self), arena)
     }
 
-    /// Returns the level corresponding to the maximum of two levels
+    /// Returns the level corresponding to the maximum of two levels.
     pub(crate) fn max(self, right: Self, arena: &mut Arena<'arena>) -> Self {
         Self::hashcons(Max(self, right), arena)
     }
 
-    /// Returns the level corresponding to the impredicative maximum of two levels
+    /// Returns the level corresponding to the impredicative maximum of two levels.
     pub(crate) fn imax(self, right: Self, arena: &mut Arena<'arena>) -> Self {
         Self::hashcons(IMax(self, right), arena)
     }
@@ -118,7 +117,7 @@ impl<'arena> Level<'arena> {
         Self::hashcons(Var(id), arena)
     }
 
-    /// The addition of a level and an integer
+    /// The addition of a level and an integer.
     #[inline]
     #[must_use]
     pub fn add(self, n: usize, arena: &mut Arena<'arena>) -> Self {
@@ -130,14 +129,14 @@ impl<'arena> Level<'arena> {
         }
     }
 
-    /// Builds a level from an integer
+    /// Builds a level from an integer.
     #[inline]
     #[must_use]
     pub fn from(n: usize, arena: &mut Arena<'arena>) -> Self {
         Level::zero(arena).add(n, arena)
     }
 
-    /// Converts a level to an integer, if possible
+    /// Converts a level to an integer, if possible.
     #[inline]
     #[must_use]
     pub fn to_numeral(self) -> Option<usize> {
@@ -145,7 +144,7 @@ impl<'arena> Level<'arena> {
         (*u == Zero).then_some(n)
     }
 
-    /// Decomposes a level `l` in the best pair `(u, n)` s.t. `l = u + n`
+    /// Decomposes a level `l` in the best pair `(u, n)` s.t. `l = u + n`.
     #[inline]
     #[must_use]
     pub fn plus(self) -> (Self, usize) {

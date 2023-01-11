@@ -1,5 +1,5 @@
 [package]
-name = "utils"
+name = "elaboration"
 
 authors.workspace = true
 edition.workspace = true
@@ -8,4 +8,5 @@ repository.workspace = true
 version.workspace = true
 
 [dependencies]
+kernel.path = "../kernel"
 derive_more.workspace = true

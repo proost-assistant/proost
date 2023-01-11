@@ -28,8 +28,6 @@ format:
 
 lint:
   stage: check
-  variables:
-    RUSTFLAGS: ""
   script:
     - cargo clippy --all-targets --all-features --no-deps
 

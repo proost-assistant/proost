@@ -11,6 +11,7 @@
 #![feature(no_coverage)]
 #![feature(once_cell)]
 #![feature(trait_alias)]
+#![feature(type_alias_impl_trait)]
 #![deny(
     clippy::complexity,
     clippy::correctness,
@@ -58,4 +59,5 @@ pub mod axiom;
 pub mod calculus;
 pub mod error;
 pub mod memory;
+pub mod trace;
 pub mod type_checker;

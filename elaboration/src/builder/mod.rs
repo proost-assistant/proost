@@ -1,17 +1,11 @@
-//! Abstracted memory manipulation primitives.
-//!
-//! This module provides a paradigm for building and manipulating [terms](term::Term) in the
-//! calculus of construction, centered around the notion of [arena](`arena::Arena`). Terms also
-//! rely on other structures like [declarations](declaration::Declaration) and [universe
-//! levels](level::Level).
+//! Builders are high-level representation of terms that can be *realised* into [`Arena`] dwellers.
 
-use self::arena::Arena;
-use crate::error::Result;
-
-pub mod arena;
 pub mod declaration;
 pub mod level;
 pub mod term;
+
+use kernel::error::Result;
+use kernel::memory::arena::Arena;
 
 /// The trait of types that can be built into an arena-dependent element.
 pub trait Buildable<'build> {

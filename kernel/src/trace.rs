@@ -1,7 +1,6 @@
 //! Trace to record the path taken by an algorithm over a structure.
 
 use crate::error::Error;
-use crate::location::Location;
 
 /// An element of a trace that indicates which branch has been taken at each step of the execution of an algorithm.
 ///
@@ -18,9 +17,9 @@ pub enum Trace {
 /// Types that generates a trace when executed.
 ///
 /// See also: [`TraceableError`]
-pub trait Traceable {
-    /// Returns the location of a specific element, given by the `trace`.
-    fn apply_trace(&self, trace: &[Trace]) -> Location;
+pub trait Traceable<T> {
+    /// Returns the specific element, given by the `trace`.
+    fn apply_trace(&self, trace: &[Trace]) -> T;
 }
 
 /// Utility trait simplifying the use of [`Trace`] in error handling contexts.
@@ -30,7 +29,7 @@ pub trait TraceableError {
     fn trace_err(self, trace: Trace) -> Self;
 }
 
-impl<K: core::fmt::Display, T> TraceableError for Result<T, Error<K>> {
+impl<T> TraceableError for Result<T, Error<'_>> {
     #[inline]
     fn trace_err(self, trace: Trace) -> Self {
         self.map_err(|mut err| {
