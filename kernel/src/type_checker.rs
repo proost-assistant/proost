@@ -53,6 +53,7 @@ impl<'arena> Term<'arena> {
         if self == rhs {
             return true;
         }
+
         // We assume that self and rhs have the same type. As such, we only need to check whether
         if !self.is_relevant(arena) {
             return true;
