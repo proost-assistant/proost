@@ -294,6 +294,8 @@ mod tests {
                 )
             ))
         );
+
+        assert!(line("def bar := foo.{max 1 2}").is_ok());
     }
 
     #[test]

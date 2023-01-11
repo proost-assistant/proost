@@ -39,7 +39,7 @@ Var = { string }
 VarDecl = ${ string ~ arg_univ }
 stringDecl = ${ string ~ univ_decl }
 
-arg_univ = {".{" ~ (univ ~ ("," ~ univ)* )? ~ "}"}
+arg_univ = !{".{" ~ (univ ~ ("," ~ univ)* )? ~ "}"}
 univ_decl = !{".{" ~ (string ~ ("," ~ string)* )? ~ "}"}
 
 Command = _{ Define | Declaration | DeclarationCheckType | CheckType | GetType | DefineCheckType | Eval | ImportFile | Search}
