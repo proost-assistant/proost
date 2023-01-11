@@ -134,7 +134,12 @@ pub const fn abs<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(
 ) -> impl BuilderTrait<'build> {
     move |arena, env, lvl_env, depth| {
         let arg_type = arg_type(arena, env, lvl_env, depth).trace_err(Trace::Left)?;
-        let env = env.update(name, (depth, arg_type));
+        let env = 
+        if name == "_" {
+            env.clone()
+        } else {
+            env.update(name, (depth, arg_type))
+        };
         let body = body(arena, &env, lvl_env, depth + 1.into()).trace_err(Trace::Right)?;
         Ok(arg_type.abs(body, arena))
     }
@@ -151,7 +156,12 @@ pub const fn prod<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(
 ) -> impl BuilderTrait<'build> {
     move |arena, env, lvl_env, depth| {
         let arg_type = arg_type(arena, env, lvl_env, depth).trace_err(Trace::Left)?;
-        let env = env.update(name, (depth, arg_type));
+        let env =
+        if name == "_" {
+            env.clone()
+        } else {
+            env.update(name, (depth, arg_type))
+        };
         let body = body(arena, &env, lvl_env, depth + 1.into()).trace_err(Trace::Right)?;
         Ok(arg_type.prod(body, arena))
     }
