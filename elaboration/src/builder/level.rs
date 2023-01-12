@@ -136,3 +136,19 @@ impl<'build> Buildable<'build> for Vec<Builder<'build>> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn depth() {
+        assert_eq!(Builder::Zero.max_depth(), 0);
+        assert_eq!(Builder::Succ(Box::new(Builder::Zero)).max_depth(), 1);
+        assert_eq!(Builder::Const(5).max_depth(), 5);
+        assert_eq!(Builder::Plus(Box::new(Builder::Zero), 5).max_depth(), 5);
+        assert_eq!(Builder::Max(Box::new(Builder::Const(3)), Box::new(Builder::Zero)).max_depth(), 3);
+        assert_eq!(Builder::IMax(Box::new(Builder::Const(3)), Box::new(Builder::Zero)).max_depth(), 3);
+        assert_eq!(Builder::Var("").max_depth(), 0);
+    }
+}
