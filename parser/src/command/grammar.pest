@@ -2,7 +2,8 @@ WHITESPACE = _{ WHITE_SPACE }
 COMMENT = _{ "//" ~ (!"\n" ~ ANY)* }
 number = @{ ASCII_DIGIT+ }
 filename = @{ ( ASCII_ALPHANUMERIC | PUNCTUATION )+ }
-string = @{ !keywords ~ ASCII_ALPHA ~ ( "_" | ASCII_ALPHANUMERIC )* }
+wildcard = @{"_"}
+string = @{!keywords ~ ASCII_ALPHA ~ ( "_" | ASCII_ALPHANUMERIC )* }
 keywords = @{ ( "fun" | "def" | "check" | "Prop" | "Type" | "Sort" ) ~ !ASCII_ALPHANUMERIC }
 eoi = _{ !ANY }
 
@@ -16,11 +17,11 @@ term_abs = _{ App | Abs | Prod | dProd | VarDecl | Var | Prop | Type | Sort | "(
 
 Abs = { ( "fun" ~ ( arg_abs_par ~ ( "," ~ arg_abs_par )* ) ~ "=>" ~ Term ) }
 arg_abs_par = _{ arg_abs | "(" ~ arg_abs_par ~ ")" }
-arg_abs = { string+ ~ ":" ~ term_abs }
+arg_abs = { (wildcard | string)+ ~ ":" ~ term_abs }
 
 dProd = { "(" ~ ( arg_dprod_par ~ ( "," ~ arg_dprod_par )* ) ~ ")" ~ "->" ~ Term }
 arg_dprod_par = _{ arg_dprod | "(" ~ arg_dprod_par ~ ")" }
-arg_dprod = { string+ ~ ":" ~ term_dprod }
+arg_dprod = { (wildcard | string)+ ~ ":" ~ term_dprod }
 
 App = { term_app ~ term_app+ }
 Prod = { term_prod ~ ( "->" ~ term_prod )+ }

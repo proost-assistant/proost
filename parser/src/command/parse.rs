@@ -978,4 +978,34 @@ mod tests {
             })
         );
     }
+
+    #[test]
+    fn successful_abs_wildcard() {
+        assert_eq!(
+            line("check fun _:Prop => Prop"),
+            Ok(GetType(Builder::new(
+                Location::new((1, 7), (1, 25)),
+                Abs(
+                    "_",
+                    Box::new(Builder::new(Location::new((1, 13), (1, 17)), Prop)),
+                    Box::new(Builder::new(Location::new((1, 21), (1, 25)), Prop))
+                )
+            )))
+        );
+    }
+
+    #[test]
+    fn successful_prod_wildcard() {
+        assert_eq!(
+            line("check (_:Prop) -> Prop"),
+            Ok(GetType(Builder::new(
+                Location::new((1, 7), (1, 23)),
+                Prod(
+                    "_",
+                    Box::new(Builder::new(Location::new((1, 10), (1, 14)), Prop)),
+                    Box::new(Builder::new(Location::new((1, 19), (1, 23)), Prop))
+                )
+            )))
+        );
+    }
 }
