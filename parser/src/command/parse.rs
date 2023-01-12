@@ -57,13 +57,14 @@ fn parse_level(pair: Pair<Rule>) -> Result<level::Builder> {
             let mut iter = pair.into_inner();
             let univ = parse_level(iter.next().unwrap())?;
 
-            iter.map(|pair| {
+            let numbers: Vec<_> = iter.map(|pair| {
                 pair.as_str().parse::<usize>().map_err(|err| Error {
                     location: convert_span(pair.as_span()),
                     kind: Kind::TransformError(err.to_string()),
                 })
-            })
-            .fold(Ok(univ), |acc, u| Ok(Plus(box acc?, u?)))
+            }).collect::<result::Result<_, _>>()?;
+
+            Ok(numbers.into_iter().fold(univ, |acc, u| Plus(box acc, u)))
         },
 
         Rule::string => Ok(Var(pair.as_str())),
