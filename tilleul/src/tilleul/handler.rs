@@ -18,22 +18,36 @@ use crate::lsp::message::notification::Notification;
 use crate::lsp::{connection, LanguageServer};
 
 /// Convert between parser and `lsp_types` position types.
-#[allow(clippy::unwrap_used)]
-fn parser_position2lsp(pos: ParserPosition) -> Position {
-    let ParserPosition { line, column } = pos;
-    // parser uses usize while lsp_types uses u32.
-    Position {
-        line: u32::try_from(line).unwrap() - 1,
-        character: u32::try_from(column).unwrap() - 1,
-    }
-}
 
-/// Convert between parser and `lsp_types` location types.
-fn parser_location2lsp(loc: ParserLocation) -> Range {
-    let ParserLocation { start, end } = loc;
-    Range {
-        start: parser_position2lsp(start),
-        end: parser_position2lsp(end),
+// Convert between parser and lsp_types locations
+struct LspLocation(ParserLocation); // Wrapper struct to respect trait consistency
+
+type OverflowError = <u32 as TryFrom<usize>>::Error;
+
+impl TryFrom<LspLocation> for Range {
+    type Error = OverflowError;
+
+    fn try_from(pos: LspLocation) -> Result<Range, OverflowError> {
+        let LspLocation(ParserLocation {
+            start: ParserPosition {
+                line: start_line,
+                column: start_column,
+            },
+            end: ParserPosition {
+                line: end_line,
+                column: end_column,
+            },
+        }) = pos;
+        Ok(Range {
+            start: Position {
+                line: u32::try_from(start_line)? - 1,
+                character: u32::try_from(start_column)? - 1,
+            },
+            end: Position {
+                line: u32::try_from(end_line)? - 1,
+                character: u32::try_from(end_column)? - 1,
+            },
+        })
     }
 }
 
@@ -47,7 +61,10 @@ impl<C: connection::LanguageServer> Tilleul<'_, '_, C> {
                     error!("Unknown error kind: {}", kind);
                     return;
                 };
-                let range = parser_location2lsp(location);
+                let Ok(range) = Range::try_from(LspLocation(location)) else {
+                    error!("File too big to represent lines/columns as i32");
+                    return;
+                };
                 // One single diagnostic here since the parser stops
                 // on the first error.
                 let diagnostic = Diagnostic {
