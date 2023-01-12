@@ -6,7 +6,7 @@
 
 use derive_more::{Constructor, Deref, Display};
 use kernel::error::ResultTerm;
-use kernel::memory::arena::Arena;
+use kernel::memory::arena::{Arena, Id};
 use kernel::memory::declaration::builder as builder_declaration;
 use kernel::memory::term::builder::{abs, app, decl, prod, prop, sort, type_, var, BuilderTrait};
 use kernel::memory::term::Term;
@@ -45,19 +45,15 @@ pub enum Payload<'build> {
     Prop,
 
     /// A regular variable.
-    Var(&'build str),
+    Var(Id<'build>),
 
     /// A variable that has not been sanitized
     #[display(fmt = "{}", "_0.join(\"::\")")]
     PreVar(Vec<&'build str>),
 
-    /// A variable denoted by a unique usize identifier
-    #[display(fmt = "{_0}")]
-    VarId(usize),
-
     /// A variable that may or may not be an instantiated declaration.
     #[display(fmt = "{_0}")]
-    VarInstance(&'build str, Vec<level::Builder<'build>>),
+    VarInstance(Id<'build>, Vec<level::Builder<'build>>),
 
     /// A non sanitize variable that may or may not be an instantiated declaration.
     #[display(fmt = "{}", "_0.join(\"::\")")]
@@ -79,6 +75,40 @@ pub enum Payload<'build> {
     Prod(&'build str, Box<Builder<'build>>, Box<Builder<'build>>),
 
     Decl(Box<declaration::InstantiatedBuilder<'build>>),
+}
+
+impl<'build> Builder<'build> {
+    fn sanitize<F>(self, convert: F) -> Self
+    where
+        F: Fn(&Vec<&'build str>) -> Option<Id<'build>>,
+    {
+        use Payload::{Abs, App, PreVar, PreVarInstance, Prod, Var, VarInstance};
+
+        let payload = match self.payload {
+            PreVar(ref name) => Var(convert(name).unwrap_or_else(|| Id::Name(name.last().unwrap_or(&"")))),
+
+            PreVarInstance(ref name, builders) => {
+                VarInstance(convert(name).unwrap_or_else(|| Id::Name(name.last().unwrap_or(&""))), builders)
+            },
+
+            App(box builder1, box builder2) => App(Box::new(builder1.sanitize(&convert)), Box::new(builder2.sanitize(&convert))),
+
+            Abs(name, box builder1, box builder2) => {
+                Abs(name, Box::new(builder1.sanitize(&convert)), Box::new(builder2.sanitize(&convert)))
+            },
+
+            Prod(name, box builder1, box builder2) => {
+                Prod(name, Box::new(builder1.sanitize(&convert)), Box::new(builder2.sanitize(&convert)))
+            },
+
+            _ => self.payload,
+        };
+
+        Builder {
+            location: self.location,
+            payload,
+        }
+    }
 }
 
 impl<'build> Traceable<Location> for Builder<'build> {

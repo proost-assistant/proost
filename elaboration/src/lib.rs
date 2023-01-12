@@ -42,7 +42,7 @@
         clippy::wildcard_imports,
     )
 )]
-#![feature(type_alias_impl_trait)]
+#![feature(type_alias_impl_trait, box_patterns)]
 
 pub mod builder;
 pub mod location;

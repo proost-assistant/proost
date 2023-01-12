@@ -383,18 +383,22 @@ mod tests {
                                 app(
                                     app(
                                         app(
-                                            var("a"),
+                                            var("a".into()),
                                             abs(
                                                 "d",
                                                 prod("_", prop(), prop()),
-                                                abs("e", prod("_", prop(), prop()), app(var("e"), app(var("d"), var("b")))),
+                                                abs(
+                                                    "e",
+                                                    prod("_", prop(), prop()),
+                                                    app(var("e".into()), app(var("d".into()), var("b".into()))),
+                                                ),
                                             ),
                                         ),
                                         // _ : P
-                                        abs("_", prop(), var("c")),
+                                        abs("_", prop(), var("c".into())),
                                     ),
                                     // d : P
-                                    abs("d", prop(), var("d")),
+                                    abs("d", prop(), var("d".into())),
                                 ),
                             ),
                         ),
@@ -407,14 +411,14 @@ mod tests {
                             "g",
                             // g: P -> P
                             prod("_", prop(), prop()),
-                            app(var("f"), var("g")),
+                            app(var("f".into()), var("g".into())),
                         ),
                     ),
                 ))
                 .unwrap();
 
             // λa: P. λb: P. b
-            let reduced = arena.build(abs("_", prop(), abs("x", prop(), var("x")))).unwrap();
+            let reduced = arena.build(abs("_", prop(), abs("x", prop(), var("x".into())))).unwrap();
             assert!(term.is_def_eq(reduced, arena).is_ok());
 
             let term_type = term.infer(arena).unwrap();

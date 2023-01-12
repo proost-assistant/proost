@@ -111,7 +111,7 @@ impl<'build> Buildable<'build> for InstantiatedBuilder<'build> {
     fn as_closure(&'build self) -> Self::Closure {
         |arena, lvl_env| match *self {
             InstantiatedBuilder::Instance(ref decl, ref levels) => instance(decl.as_closure(), levels.as_closure())(arena, lvl_env),
-            InstantiatedBuilder::Var(name, ref levels) => var(name, levels.as_closure())(arena, lvl_env),
+            InstantiatedBuilder::Var(name, ref levels) => var(name.into(), levels.as_closure())(arena, lvl_env),
         }
     }
 }

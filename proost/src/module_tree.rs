@@ -55,16 +55,16 @@ impl ModuleNode {
     /// Return the name of a node.
     fn name(&self) -> &String {
         match self {
-            ModuleNode::Module(name, _) => name,
-            ModuleNode::Def(name, _) => name,
+            Self::Module(name, _) => name,
+            Self::Def(name, _) => name,
         }
     }
 
     /// Return the public status of a node.
     fn public(&self) -> &bool {
         match self {
-            ModuleNode::Module(_, public) => public,
-            ModuleNode::Def(_, public) => public,
+            Self::Module(_, public) => public,
+            Self::Def(_, public) => public,
         }
     }
 }
@@ -81,7 +81,7 @@ pub struct ModuleTree {
 impl ModuleTree {
     pub fn new() -> Self {
         let mut arena = Arena::new();
-        let root = arena.new_node(ModuleNode::Module("".to_string(), true));
+        let root = arena.new_node(ModuleNode::Module(String::new(), true));
         Self {
             arena,
             root: vec![root],
@@ -152,8 +152,7 @@ impl ModuleTree {
                 } else {
                     candidates = candidates
                         .iter()
-                        .map(|nodeid| nodeid.children(&self.arena))
-                        .flatten()
+                        .flat_map(|nodeid| nodeid.children(&self.arena))
                         .filter(|nodeid| {
                             let content = self.arena[*nodeid].get();
                             content.name() == name && (*content.public() || allow_private)
@@ -184,7 +183,7 @@ impl ModuleTree {
         self.get_path(*self.position.last().unwrap(), path)
     }
 
-    /// Returns the unique NodeId corresponding to the given path
+    /// Returns the unique `NodeId` corresponding to the given path
     ///
     /// Paths can be relative or absolute depending on the use of "super" and "self" keywords
     fn get_identifier<'arena, 'build>(&self, path: &Vec<&'build str>) -> Result<'arena, 'build, NodeId> {
@@ -280,7 +279,7 @@ impl ModuleTree {
         let module = self.arena.new_node(ModuleNode::Module(name.to_string(), true));
         self.root.push(module);
         self.position.push(module);
-        self.imported.insert(name.to_string(), module);
+        self.imported.insert(name, module);
     }
 
     /// Finish importing a new file structure into the tree
@@ -433,6 +432,6 @@ mod tests {
         assert!(tree.define("y", true).is_ok());
 
         assert!(tree.use_module(&vec!["super", "mod1"], false).is_ok());
-        assert_eq!(tree.position.last().unwrap().children(&tree.arena).collect::<Vec<NodeId>>().len(), 3);
+        assert_eq!(tree.position.last().unwrap().children(&tree.arena).count(), 3);
     }
 }

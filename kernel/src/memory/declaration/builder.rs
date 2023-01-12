@@ -12,7 +12,7 @@ use derive_more::Display;
 
 use super::{Declaration, InstantiatedDeclaration};
 use crate::error::{Error, ResultDecl, ResultInstantiatedDecl};
-use crate::memory::arena::Arena;
+use crate::memory::arena::{Arena, Id};
 use crate::memory::level::builder as level;
 use crate::memory::term::builder as term;
 
@@ -26,7 +26,7 @@ pub enum ErrorKind<'arena> {
 
     /// The declaration is unknown
     #[display(fmt = "unknown declaration {_0}")]
-    UnknownDeclaration(&'arena str),
+    UnknownDeclaration(Id<'arena>),
 }
 
 /// The trait of builders producing declarations.
@@ -107,11 +107,11 @@ pub fn instance<'build, F: BuilderTrait<'build>, V: level::VecBuilderTrait<'buil
 /// levels `levels`.
 #[inline]
 #[must_use]
-pub fn var<'build, V: level::VecBuilderTrait<'build>>(name: &'build str, levels: V) -> impl InstantiatedBuilderTrait<'build> {
+pub fn var<'build, V: level::VecBuilderTrait<'build>>(id: Id<'build>, levels: V) -> impl InstantiatedBuilderTrait<'build> {
     move |arena, env| {
         let decl = arena
-            .get_binding_decl(name)
-            .ok_or_else(|| Error::new(ErrorKind::UnknownDeclaration(arena.store_name(name)).into()))?;
+            .get_binding_decl_with_id(&id)
+            .ok_or_else(|| Error::new(ErrorKind::UnknownDeclaration(arena.store_id(id)).into()))?;
 
         try_build_instance(decl, levels, arena, env)
     }

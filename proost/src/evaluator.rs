@@ -285,7 +285,7 @@ impl<'arena> Evaluator {
                 })
                 .map(|_| None),
 
-            Command::BeginModule(public, ref name) => {
+            Command::BeginModule(public, name) => {
                 self.modtree.begin_module(name, public)?;
                 Ok(None)
             },

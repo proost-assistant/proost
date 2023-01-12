@@ -6,11 +6,11 @@ where
     F: for<'arena> FnOnce(&mut Arena<'arena>) -> T,
 {
     use_arena(|arena| {
-        let false_ = arena.build(prod("P", prop(), var("P"))).unwrap();
+        let false_ = arena.build(prod("P", prop(), var("P".into()))).unwrap();
 
         arena.bind("False", false_);
 
-        let true_ = arena.build(prod("_", var("False"), var("False"))).unwrap();
+        let true_ = arena.build(prod("_", var("False".into()), var("False".into()))).unwrap();
 
         arena.bind("True", true_);
 
@@ -18,7 +18,15 @@ where
             .build(abs(
                 "A",
                 prop(),
-                abs("B", prop(), prod("C", prop(), prod("_", prod("_", var("A"), prod("_", var("B"), var("C"))), var("C")))),
+                abs(
+                    "B",
+                    prop(),
+                    prod(
+                        "C",
+                        prop(),
+                        prod("_", prod("_", var("A".into()), prod("_", var("B".into()), var("C".into()))), var("C".into())),
+                    ),
+                ),
             ))
             .unwrap();
 
@@ -31,10 +39,10 @@ where
 #[test]
 fn and_true_true() {
     use_and_arena(|arena| {
-        let goal = arena.build(app(app(var("and"), var("True")), var("True"))).unwrap();
+        let goal = arena.build(app(app(var("and".into()), var("True".into())), var("True".into()))).unwrap();
 
-        let hypothesis = arena.build(abs("x", var("False"), var("x"))).unwrap();
-        let true_ = arena.build(var("True")).unwrap();
+        let hypothesis = arena.build(abs("x", var("False".into()), var("x".into()))).unwrap();
+        let true_ = arena.build(var("True".into())).unwrap();
 
         assert!(hypothesis.check(true_, arena).is_ok());
         arena.bind("hyp", hypothesis);
@@ -43,7 +51,11 @@ fn and_true_true() {
             .build(abs(
                 "a",
                 prop(),
-                abs("b", prod("_", var("True"), prod("_", var("True"), var("a"))), app(app(var("b"), var("hyp")), var("hyp"))),
+                abs(
+                    "b",
+                    prod("_", var("True".into()), prod("_", var("True".into()), var("a".into()))),
+                    app(app(var("b".into()), var("hyp".into())), var("hyp".into())),
+                ),
             ))
             .unwrap();
 
@@ -61,7 +73,11 @@ fn and_intro() {
                 prod(
                     "B", // B : prop()
                     prop(),
-                    prod("_", var("A"), prod("_", var("B"), app(app(var("and"), var("A")), var("B")))),
+                    prod(
+                        "_",
+                        var("A".into()),
+                        prod("_", var("B".into()), app(app(var("and".into()), var("A".into())), var("B".into()))),
+                    ),
                 ),
             ))
             .unwrap();
@@ -78,11 +94,11 @@ fn and_intro() {
                     abs(
                         "a",
                         // a : A
-                        var("A"),
+                        var("A".into()),
                         abs(
                             "b",
                             // b : B
-                            var("B"),
+                            var("B".into()),
                             abs(
                                 "C",
                                 // C : prop()
@@ -90,9 +106,9 @@ fn and_intro() {
                                 abs(
                                     "p",
                                     // p : A -> B -> C
-                                    prod("_", var("A"), prod("_", var("B"), var("C"))),
+                                    prod("_", var("A".into()), prod("_", var("B".into()), var("C".into()))),
                                     // p a b
-                                    app(app(var("p"), var("a")), var("b")),
+                                    app(app(var("p".into()), var("a".into())), var("b".into())),
                                 ),
                             ),
                         ),
@@ -117,7 +133,7 @@ fn and_elim_1() {
                     "B",
                     // B : prop()
                     prop(),
-                    prod("_", app(app(var("and"), var("A")), var("B")), var("A")),
+                    prod("_", app(app(var("and".into()), var("A".into())), var("B".into())), var("A".into())),
                 ),
             ))
             .unwrap();
@@ -134,18 +150,18 @@ fn and_elim_1() {
                     abs(
                         "p",
                         // p : and A B
-                        app(app(var("and"), var("A")), var("B")),
+                        app(app(var("and".into()), var("A".into())), var("B".into())),
                         app(
-                            app(var("p"), var("A")),
+                            app(var("p".into()), var("A".into())),
                             abs(
                                 "a",
                                 // a : A
-                                var("A"),
+                                var("A".into()),
                                 abs(
                                     "b",
                                     // b : B
-                                    var("B"),
-                                    var("a"),
+                                    var("B".into()),
+                                    var("a".into()),
                                 ),
                             ),
                         ),
@@ -173,8 +189,8 @@ fn and_elim_2() {
                     prod(
                         "p",
                         // p : and A B
-                        app(app(var("and"), var("A")), var("B")),
-                        var("B"),
+                        app(app(var("and".into()), var("A".into())), var("B".into())),
+                        var("B".into()),
                     ),
                 ),
             ))
@@ -192,18 +208,18 @@ fn and_elim_2() {
                     abs(
                         "p",
                         // p : and A B
-                        app(app(var("and"), var("A")), var("B")),
+                        app(app(var("and".into()), var("A".into())), var("B".into())),
                         app(
-                            app(var("p"), var("B")),
+                            app(var("p".into()), var("B".into())),
                             abs(
                                 "a",
                                 // a : A
-                                var("A"),
+                                var("A".into()),
                                 abs(
                                     "b",
                                     // b : B
-                                    var("B"),
-                                    var("b"),
+                                    var("B".into()),
+                                    var("b".into()),
                                 ),
                             ),
                         ),

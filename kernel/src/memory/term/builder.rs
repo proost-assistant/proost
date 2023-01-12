@@ -13,7 +13,7 @@ use im_rc::hashmap::HashMap as ImHashMap;
 
 use super::{DeBruijnIndex, Term};
 use crate::error::{Error, ResultTerm};
-use crate::memory::arena::Arena;
+use crate::memory::arena::{Arena, Id};
 use crate::memory::declaration::builder as declaration;
 use crate::memory::level::builder as level;
 use crate::trace::{Trace, TraceableError};
@@ -24,12 +24,12 @@ use crate::trace::{Trace, TraceableError};
 pub enum ErrorKind<'arena> {
     /// Unknown identifier
     #[display(fmt = "unknown identifier {_0}")]
-    ConstNotFound(&'arena str),
+    ConstNotFound(Id<'arena>),
 }
 
 /// Local environment used to store correspondence between locally-bound variables and the pair
 /// (depth at which they were bound, their type).
-pub type Environment<'build, 'arena> = ImHashMap<&'build str, (DeBruijnIndex, Term<'arena>)>;
+pub type Environment<'build, 'arena> = ImHashMap<Id<'build>, (DeBruijnIndex, Term<'arena>)>;
 
 /// The trait of closures which build terms with an adequate logic.
 ///
@@ -62,17 +62,17 @@ impl<'arena> Arena<'arena> {
 /// Returns a closure building a variable associated to the name `name`.
 #[inline]
 #[must_use]
-pub const fn var(name: &str) -> impl BuilderTrait<'_> {
+pub const fn var<'build>(id: Id<'build>) -> impl BuilderTrait<'build> {
     move |arena, env, _, depth| {
-        env.get(name)
+        env.get(&id)
             .map(|&(bind_depth, term)| {
                 // This is arguably an eager computation, it could be worth making it lazy,
                 // or at least memoizing it so as to not compute it again
                 let var_type = term.shift(usize::from(depth - bind_depth), 0, arena);
                 Term::var(depth - bind_depth, var_type, arena)
             })
-            .or_else(|| arena.get_binding(name))
-            .ok_or_else(|| Error::new(ErrorKind::ConstNotFound(arena.store_name(name)).into()))
+            .or_else(|| arena.get_binding_with_id(&id))
+            .ok_or_else(|| Error::new(ErrorKind::ConstNotFound(arena.store_id(id)).into()))
     }
 }
 
@@ -134,7 +134,7 @@ pub const fn abs<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(
 ) -> impl BuilderTrait<'build> {
     move |arena, env, lvl_env, depth| {
         let arg_type = arg_type(arena, env, lvl_env, depth).trace_err(Trace::Left)?;
-        let env = env.update(name, (depth, arg_type));
+        let env = env.update(name.into(), (depth, arg_type));
         let body = body(arena, &env, lvl_env, depth + 1.into()).trace_err(Trace::Right)?;
         Ok(arg_type.abs(body, arena))
     }
@@ -151,7 +151,7 @@ pub const fn prod<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(
 ) -> impl BuilderTrait<'build> {
     move |arena, env, lvl_env, depth| {
         let arg_type = arg_type(arena, env, lvl_env, depth).trace_err(Trace::Left)?;
-        let env = env.update(name, (depth, arg_type));
+        let env = env.update(name.into(), (depth, arg_type));
         let body = body(arena, &env, lvl_env, depth + 1.into()).trace_err(Trace::Right)?;
         Ok(arg_type.prod(body, arena))
     }

@@ -6,7 +6,7 @@ use core::marker::PhantomData;
 use std::collections::{HashMap, HashSet};
 
 use bumpalo::Bump;
-use derive_more::From;
+use derive_more::{Display, From};
 
 use super::declaration::Declaration;
 use super::level::Level;
@@ -58,9 +58,12 @@ pub struct Arena<'arena> {
 }
 
 /// An identifiant used to access or create terms in the [`Arena`]
-#[derive(Clone, Copy, From, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, From, Hash, PartialEq, Eq, Display)]
 pub enum Id<'arena> {
+    #[display(fmt = "_0")]
     Name(&'arena str),
+
+    #[display(fmt = "_0")]
     Num(usize),
 }
 
@@ -129,17 +132,21 @@ impl<'arena> Arena<'arena> {
         self.alloc.alloc_str(name)
     }
 
+    /// Stores an Id in the arena.
+    ///
+    /// This is typically done to ensure Ids live long enough when manipulating them.
+    pub(crate) fn store_id<'build>(&mut self, id: Id<'build>) -> Id<'arena> {
+        match id {
+            Id::Num(num) => Id::Num(num),
+            Id::Name(name) => Id::Name(self.store_name(name)),
+        }
+    }
+
     /// Binds a term to a given name.
     #[inline]
     pub fn bind(&mut self, name: &str, t: Term<'arena>) {
         let name = self.store_name(name);
         self.known_terms.insert(name.into(), t);
-    }
-
-    /// Binds a term to a given id.
-    #[inline]
-    pub fn bind_with_id(&mut self, id: usize, t: Term<'arena>) {
-        self.known_terms.insert(id.into(), t);
     }
 
     /// Binds a declaration to a given name.
@@ -152,41 +159,49 @@ impl<'arena> Arena<'arena> {
         }
     }
 
-    /// Binds a declaration to a given id.
-    #[inline]
-    pub fn bind_decl_with_id(&mut self, id: usize, decl: Declaration<'arena>) {
-        self.known_decls.insert(id.into(), decl);
-        if let Declaration(term, 0) = decl {
-            self.bind_with_id(id, term);
-        }
-    }
-
     /// Retrieves the binding of a given name, if one exists.
     #[inline]
     #[must_use]
     pub fn get_binding(&self, name: &str) -> Option<Term<'arena>> {
-        self.known_terms.get(&name.into()).copied()
-    }
-
-    /// Retrieves the binding of a given id, if one exists.
-    #[inline]
-    #[must_use]
-    pub fn get_binding_with_num(&self, id: usize) -> Option<Term<'arena>> {
-        self.known_terms.get(&id.into()).copied()
+        self.known_terms.get(&Id::Name(name)).copied()
     }
 
     /// Retrieves the declaration binding of a given name, if one exists.
     #[inline]
     #[must_use]
     pub fn get_binding_decl(&self, name: &str) -> Option<Declaration<'arena>> {
-        self.known_decls.get(&name.into()).copied()
+        self.known_decls.get(&Id::Name(name)).copied()
     }
 
-    /// Retrieves the declaration binding of a given num, if one exists.
+    /// Binds a term to a given Id.
+    #[inline]
+    pub fn bind_with_id<'build>(&mut self, id: Id<'build>, t: Term<'arena>) {
+        let id = self.store_id(id);
+        self.known_terms.insert(id, t);
+    }
+
+    /// Binds a declaration to a given Id.
+    #[inline]
+    pub fn bind_decl_with_id<'build>(&mut self, id: Id<'build>, decl: Declaration<'arena>) {
+        let id = self.store_id(id);
+        self.known_decls.insert(id, decl);
+        if let Declaration(term, 0) = decl {
+            self.bind_with_id(id, term);
+        }
+    }
+
+    /// Retrieves the binding of a given Id, if one exists.
     #[inline]
     #[must_use]
-    pub fn get_binding_decl_with_num(&self, num: usize) -> Option<Declaration<'arena>> {
-        self.known_decls.get(&num.into()).copied()
+    pub fn get_binding_with_id<'build>(&self, id: &Id<'build>) -> Option<Term<'arena>> {
+        self.known_terms.get(id).copied()
+    }
+
+    /// Retrieves the declaration binding of a given Id, if one exists.
+    #[inline]
+    #[must_use]
+    pub fn get_binding_decl_with_id<'build>(&self, id: &Id<'build>) -> Option<Declaration<'arena>> {
+        self.known_decls.get(id).copied()
     }
 }
 
