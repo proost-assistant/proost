@@ -29,6 +29,9 @@ struct Header<'arena> {
 
     /// lazy structure to store the type of a term.
     type_: OnceCell<Term<'arena>>,
+
+    /// Relevance of a given term
+    is_relevant: OnceCell<bool>,
     // TODO(#45) is_certainly_closed: boolean underapproximation of whether a term is closed. This
     // may greatly improve performance in shifting, along with a mem_shift hash map.
 }
@@ -109,6 +112,7 @@ impl<'arena> Term<'arena> {
             header: Header {
                 head_normal_form: OnceCell::new(),
                 type_: OnceCell::new(),
+                is_relevant: OnceCell::new(),
             },
         };
 
@@ -129,6 +133,7 @@ impl<'arena> Term<'arena> {
     /// Returns an axiom term with the given axiom.
     pub(crate) fn axiom(axiom: axiom::Axiom, lvl: &[Level<'arena>], arena: &mut Arena<'arena>) -> Self {
         let lvl = arena.store_level_slice(lvl);
+
         Self::hashcons(Axiom(axiom, lvl), arena)
     }
 
@@ -192,6 +197,14 @@ impl<'arena> Term<'arena> {
         F: FnOnce() -> ResultTerm<'arena>,
     {
         self.0.header.type_.get_or_try_init(f).copied()
+    }
+
+    /// Returns the relevance of the term, lazily computing the closure `f`.
+    pub(crate) fn get_relevance_or_try_init<F>(self, f: F) -> bool
+    where
+        F: FnOnce() -> bool,
+    {
+        *self.0.header.is_relevant.get_or_init(f)
     }
 }
 

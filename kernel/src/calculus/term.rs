@@ -3,7 +3,6 @@
 //! This module consists of internal utility functions used by the type checker, and correspond to
 //! usual functions over lambda-terms. These functions interact appropriately with a given arena.
 
-use crate::axiom;
 use crate::memory::arena::Arena;
 use crate::memory::declaration::InstantiatedDeclaration;
 use crate::memory::level::Level;
@@ -14,7 +13,7 @@ impl<'arena> Term<'arena> {
     /// Unfolds a term.
     ///
     /// Unfolding only happens on instantiated declarations.
-    fn unfold(self, arena: &mut Arena<'arena>) -> Self {
+    pub(crate) fn unfold(self, arena: &mut Arena<'arena>) -> Self {
         match *self {
             Decl(decl) => decl.get_term(arena),
             _ => self,
@@ -25,9 +24,10 @@ impl<'arena> Term<'arena> {
     #[inline]
     #[must_use]
     pub fn beta_reduction(self, arena: &mut Arena<'arena>) -> Self {
-        if let Some(red) = self.reduce_recursor(arena) {
+        if let Some(red) = crate::axiom::Axiom::reduce_recursor(self, arena) {
             return red;
         };
+
         match *self {
             App(t1, t2) => {
                 if let Abs(_, t1) = *t1.unfold(arena) {
@@ -177,51 +177,36 @@ impl<'arena> Term<'arena> {
     #[must_use]
     pub fn whnf(self, arena: &mut Arena<'arena>) -> Self {
         self.get_whnf_or_init(|| {
-            self.reduce_recursor(arena).unwrap_or_else(|| match *self {
-                App(t1, t2) => match *t1.unfold(arena).whnf(arena) {
-                    Abs(_, t1) => {
-                        let subst = t1.substitute(t2, 1, arena);
-                        subst.whnf(arena)
+            crate::axiom::Axiom::reduce_recursor(self, arena)
+                .map(|x| x.whnf(arena))
+                .unwrap_or_else(|| match *self {
+                    App(t1, t2) => match *t1.unfold(arena).whnf(arena) {
+                        Abs(_, t1) => {
+                            let subst = t1.substitute(t2, 1, arena);
+                            subst.whnf(arena)
+                        },
+                        _ => self,
                     },
                     _ => self,
-                },
-                _ => self,
-            })
+                })
         })
     }
 
-    /// Reduces a term if it is an instance of the Nat reducer, returns None otherwise.
-    fn reduce_nat(self, arena: &mut Arena<'arena>) -> Option<Self> {
-        // Be aware that this function will not be automatically formatted, because of the
-        // experimental status of let-chains, as well as that of if-let conditions in pattern matching.
-        if let App(f, n) = *self && let App(f, motive_succ) = *f &&
-           let App(f, motive_0) = *f && let App(f, motive) = *f && let Axiom(axiom::Axiom::NatRec, lvl) = *f {
-            match *n.whnf(arena) {
-                Axiom(axiom::Axiom::Zero, _) => Some(motive_0),
-                App(f, n) if let Axiom(axiom::Axiom::Succ, _) = *f => {
-                    let new_rec = Term::app(
-                        Term::app(
-                            Term::app(Term::app(Term::axiom(axiom::Axiom::NatRec, lvl, arena), motive, arena), motive_0, arena),
-                            motive_succ,
-                            arena,
-                        ),
-                        n,
-                        arena,
-                    );
-                    let app = Term::app(Term::app(motive_succ, n, arena), new_rec, arena);
-                    Some(app)
-                },
-                _ => None,
-            }
-        } else {
-            None
-        }
-    }
-
-    /// Reduces a term if possible, returns None otherwise.
-    fn reduce_recursor(self, arena: &mut Arena<'arena>) -> Option<Self> {
-        let rec_reds = [Term::reduce_nat];
-        rec_reds.into_iter().find_map(|f| f(self, arena))
+    /// Tests whether a term is computationally relevant.
+    #[inline]
+    pub(crate) fn is_relevant(self, arena: &mut Arena<'arena>) -> bool {
+        self.get_relevance_or_try_init(|| match *self {
+            Var(_, ty) => ty.is_def_eq(Term::sort_usize(0, arena), arena).map_or(true, |_| false),
+            App(t, _) => t.is_relevant(arena),
+            Abs(_, t) => t.is_relevant(arena),
+            Decl(d) => d.get_term(arena).is_relevant(arena),
+            Axiom(ax, lvl) => ax
+                .get_type(arena)
+                .substitute_univs(lvl, arena)
+                .is_def_eq(Term::sort_usize(0, arena), arena)
+                .map_or(true, |_| false),
+            _ => true,
+        })
     }
 }
 
@@ -451,6 +436,7 @@ mod tests {
 
     #[test]
     fn subst_univs() {
+        use crate::axiom::natural::Natural::Nat;
         use crate::axiom::Axiom;
         use crate::memory::level::builder::raw::*;
 
@@ -479,24 +465,26 @@ mod tests {
 
             assert_eq!(term.substitute_univs(&[zero_, zero_], arena), term);
 
-            let nat = Term::axiom(Axiom::Nat, &[], arena);
+            let nat = Term::axiom(Axiom::Natural(Nat), &[], arena);
             assert_eq!(nat.substitute_univs(&[zero_, zero_], arena), nat);
         });
     }
 
     #[test]
     fn reduce_nat() {
+        use crate::axiom::natural::Natural::{Nat, NatRec, Succ, Zero};
         use crate::axiom::Axiom;
         use crate::memory::level::Level;
+
         use_arena(|arena| {
             let lvl_one = Level::succ(Level::zero(arena), arena);
-            let nat = Term::axiom(Axiom::Nat, &[], arena);
-            let zero = Term::axiom(Axiom::Zero, &[], arena);
-            let one = Term::app(Term::axiom(Axiom::Succ, &[], arena), zero, arena);
+            let nat = Term::axiom(Axiom::Natural(Nat), &[], arena);
+            let zero = Term::axiom(Axiom::Natural(Zero), &[], arena);
+            let one = Term::app(Term::axiom(Axiom::Natural(Succ), &[], arena), zero, arena);
             let to_zero = Term::app(
                 Term::app(
                     Term::app(
-                        Term::axiom(Axiom::NatRec, arena.store_level_slice(&[lvl_one]), arena),
+                        Term::axiom(Axiom::Natural(NatRec), arena.store_level_slice(&[lvl_one]), arena),
                         Term::abs(nat, nat, arena),
                         arena,
                     ),
@@ -512,6 +500,18 @@ mod tests {
             assert_eq!(zero_to_zero.normal_form(arena), zero);
             assert_eq!(one_to_zero.normal_form(arena), zero);
             assert_eq!(nat_to_zero.whnf(arena), nat_to_zero);
+        });
+    }
+
+    #[test]
+    fn relevance() {
+        use crate::axiom::false_::False::False;
+        use crate::axiom::Axiom;
+
+        use_arena(|arena| {
+            let false_ = Term::axiom(Axiom::False(False), &[], arena);
+            let tt1 = false_.abs(Term::var(1.into(), false_, arena), arena);
+            assert!(!tt1.is_relevant(arena));
         });
     }
 }

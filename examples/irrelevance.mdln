@@ -1,0 +1,9 @@
+def True := False -> False
+
+def id.{u} := fun A:Sort u,x:A => x
+
+def tt1 : True := id.{0} False
+
+def tt2 : True := fun h:False => False_rec.{0} (fun h:False => False) h
+
+check Refl.{0} True tt1 : Eq.{0} True tt1 tt2

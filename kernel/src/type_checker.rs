@@ -54,6 +54,11 @@ impl<'arena> Term<'arena> {
             return true;
         }
 
+        // We assume that self and rhs have the same type. As such, we only need to check whether
+        if !self.is_relevant(arena) {
+            return true;
+        }
+
         let lhs = self.whnf(arena);
         let rhs = rhs.whnf(arena);
 
@@ -310,8 +315,8 @@ mod tests {
     #[test]
     fn failed_app_head_conversion() {
         use_arena(|arena| {
-            let term_lhs = arena.build_term_raw(abs(type_usize(0), abs(type_usize(0), app(var(1.into(), prop()), prop()))));
-            let term_rhs = arena.build_term_raw(abs(type_usize(0), abs(type_usize(0), app(var(2.into(), prop()), prop()))));
+            let term_lhs = arena.build_term_raw(abs(type_usize(0), abs(type_usize(0), app(var(1.into(), type_usize(0)), prop()))));
+            let term_rhs = arena.build_term_raw(abs(type_usize(0), abs(type_usize(0), app(var(2.into(), type_usize(0)), prop()))));
 
             assert_eq!(
                 term_lhs.is_def_eq(term_rhs, arena),
@@ -559,6 +564,21 @@ mod tests {
 
             assert_eq!(term_type, Term::type_usize(1, arena));
             assert!(term.check(term_type, arena).is_ok());
+        });
+    }
+
+    #[test]
+    fn irrelevance_conversion() {
+        use crate::axiom::false_::False::{False, FalseRec};
+        use crate::axiom::Axiom;
+        use crate::memory::level::Level;
+
+        use_arena(|arena| {
+            let false_ = Term::axiom(Axiom::False(False), &[], arena);
+            let false_rec = Term::axiom(Axiom::False(FalseRec), &[Level::zero(arena)], arena);
+            let tt1 = false_.abs(Term::var(1.into(), false_, arena), arena);
+            let tt2 = false_.abs(false_rec.app(false_, arena).app(Term::var(1.into(), false_, arena), arena), arena);
+            assert!(tt1.conversion(tt2, arena));
         });
     }
 
