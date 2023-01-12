@@ -38,14 +38,15 @@ struct Header<'arena> {
 }
 
 impl<'arena> Header<'arena> {
-    /// Creates a new default header, where `is_closed` determines the original state of
-    /// `is_certainly_closed`.
-    fn new(is_closed: bool) -> Self {
+    /// Creates a new default header, indicating whether it is *sure* that the term is closed, by
+    /// `is_certainly_closed`. Should it be understood later that the term is closed, it will be
+    /// modified accordingly.
+    fn new(is_certainly_closed: bool) -> Self {
         Header {
             head_normal_form: OnceCell::new(),
             type_: OnceCell::new(),
             is_relevant: OnceCell::new(),
-            is_certainly_closed: if is_closed { OnceCell::from(()) } else { OnceCell::new() },
+            is_certainly_closed: if is_certainly_closed { OnceCell::from(()) } else { OnceCell::new() },
         }
     }
 }
@@ -189,7 +190,7 @@ impl<'arena> Term<'arena> {
     /// Please note that no verification is done that occurrences of this variable in `body` have
     /// the same type.
     pub(crate) fn abs(self, body: Self, arena: &mut Arena<'arena>) -> Self {
-        let header = Header::new(body.is_certainly_closed());
+        let header = Header::new(body.is_certainly_closed() && self.is_certainly_closed());
         let payload = Abs(self, body);
 
         Self::hashcons(Node { header, payload }, arena)
@@ -200,7 +201,7 @@ impl<'arena> Term<'arena> {
     /// Please note that no verification is done that occurrences of this variable in `body` have
     /// the same type.
     pub(crate) fn prod(self, body: Self, arena: &mut Arena<'arena>) -> Self {
-        let header = Header::new(body.is_certainly_closed());
+        let header = Header::new(body.is_certainly_closed() && self.is_certainly_closed());
         let payload = Prod(self, body);
 
         Self::hashcons(Node { header, payload }, arena)
