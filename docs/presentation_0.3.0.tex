@@ -3,6 +3,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage[french]{babel}
+\usepackage{hyperref}
 
 \usepackage{graphicx}
 \usepackage{xcolor}
@@ -125,13 +126,13 @@
 
             \begin{block}{Qu'est-ce que Proost ?}
 
-                Proost est un assistant de preuve écrit en Rust basé sur le calcul des constructions. À terme, il est prévu que cela soit remplacé par le calcul observationnel des constructions $\left(\mathrm{CC}^{\mathrm{obs}+}\right)$.
+                Proost est un assistant de preuve écrit en Rust basé sur le calcul des constructions. À terme, il est prévu que cela soit remplacé par le calcul observationnel des constructions $\left(\mathsf{CC}^{\mathrm{obs}+}\right)$.
 
             \end{block} \pause
 
             \begin{block}{Quel est le langage de preuve ?}
 
-                Il s'agit de Madelaine, un nouveau langage inspiré de Coq, Lean, \dots
+                Il s'agit de Madeleine, un nouveau langage inspiré de Coq, Lean, \dots
 
             \end{block} \pause
 
@@ -269,6 +270,32 @@
 
     \section{Caractéristiques de Proost}
 
+        \begin{frame}{Noyau}
+
+            \begin{block}{Caractéristiques}
+
+                \begin{itemize}
+                    \item Mémoïsation quasi-systématique des
+                        calculs sur les termes (WHNF, substitution,
+                        \textit{var-shifting}, \dots): soit dans des \textit{hashmaps},
+                        soit dans les termes eux-mêmes;\pause
+                    \item rendu plausible par la mise en place d'une
+                        \emph{arène} (cf. implémentation de DDB) telle que: \pause
+                    \begin{itemize}
+                        \item chaque terme est unique dans l'arène; \pause
+                        \item chaque arène est associée de manière unique à une
+                            \textit{lifetime} (garanties statiques, \dots) \pause
+                    \end{itemize}
+
+                    \item API \textit{safe} utilisable seule et avec des
+                        syntaxes simples (en interne, pour la \textbf{construction}
+                        de termes: type clôture).
+                \end{itemize}
+
+            \end{block}
+
+        \end{frame}
+
         \begin{frame}[fragile]{Toplevel}
 
             \begin{block}{Caractéristiques}
@@ -281,7 +308,7 @@
 
             \end{block} \pause
 
-            \begin{block}{Toplevel}
+            \begin{block}{Exemple}
 
                 \begin{lstlisting}[language=mdln]
                     > check add Zero (fun id x: Prop => x)
@@ -296,51 +323,52 @@
 
         \end{frame}
 
-        \begin{frame}{Noyau}
-
-            \begin{block}{Caractéristiques}
-
-                \begin{itemize}
-										\item Mémoïsation quasi-systématique des
-											calculs sur les termes (WHNF, substitution,
-											\textit{var-shifting}, \dots): soit dans des \textit{hashmaps},
-											soit dans les termes eux-mêmes;\pause
-										\item rendu plausible par la mise en place d'une
-											\emph{arène} (cf. implémentation de DDB) telle que: \pause
-										\begin{itemize}
-												\item chaque terme est unique dans l'arène; \pause
-												\item chaque arène est associée de manière unique à une
-													\textit{lifetime} (garanties statiques, \dots)
-										\end{itemize}
-
-										\item API \textit{safe} utilisable seule et avec des
-											syntaxes simples (en interne, pour la \textbf{construction}
-											de termes: type clôture).
-                \end{itemize}
-
-            \end{block}
-
-        \end{frame}
-
         \begin{frame}{LSP}
 
             \begin{block}{Description}
 
-                Le LSP s'appelle <<~Tilleul~>> et se compose :
+                Le LSP s'appelle Tilleul et se compose : \pause
 
                 \begin{itemize}
-                    \item d'une partie I/O répartissant les requêtes~;
+                    \item d'une partie I/O répartissant les requêtes~; \pause
                     \item d'une partie logique traitant les requêtes.
                 \end{itemize}
 
             \end{block}
 
-            \vfill
+            \vspace{.3cm}
             \pause
 
             \begin{block}{Avancement}
 
                 Une preuve de concept est actuellement disponible sur la partie I/O. Cependant la partie logique n'a pas encore été commencée.
+
+            \end{block}
+
+        \end{frame}
+
+        \begin{frame}{Fonctionnement du projet}
+
+            \begin{block}{Utilisation de GitLab}
+
+                Le projet est disponible sur le \href{https://gitlab.crans.org/loutr/proost}{GitLab du CRANS}. \pause
+
+                \vspace{.3cm}
+
+                Nous effectuons du \href{https://gitlab.crans.org/loutr/proost/-/merge_requests/60}{\textit{peer-reviewing}} à chaque \textit{merge request}.
+
+            \end{block}
+
+            \vfill
+
+            \begin{block}{Infrastructure}
+
+                À chaque modification du projet, une \textit{pipeline} s'exécute et: \pause
+                \begin{itemize}
+                    \item vérifie le formatage et effectue des analyses statiques~; \pause
+                    \item génère des \href{https://perso.crans.org/v-lafeychine/proost/coverage/main/index.html}{couvertures de tests}~; \pause
+                    \item génère une \href{https://perso.crans.org/v-lafeychine/proost/doc/proost/}{documentation}.
+                \end{itemize}
 
             \end{block}
 
@@ -368,6 +396,7 @@
                 \begin{itemize}
                     \item Types inductifs \pause
                     \item Unification
+                    \item Vérification du kernel avec \href{https://github.com/xldenis/creusot}{Creusot}.
                 \end{itemize}
 
             \end{block}
