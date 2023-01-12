@@ -57,14 +57,14 @@ fn parse_level(pair: Pair<Rule>) -> Result<level::Builder> {
             let mut iter = pair.into_inner();
             let univ = parse_level(iter.next().unwrap())?;
 
-            let numbers: Vec<_> = iter.map(|pair| {
+            let numbers = iter.map(|pair| {
                 pair.as_str().parse::<usize>().map_err(|err| Error {
                     location: convert_span(pair.as_span()),
                     kind: Kind::TransformError(err.to_string()),
                 })
-            }).collect::<result::Result<_, _>>()?;
+            });
 
-            Ok(numbers.into_iter().fold(univ, |acc, u| Plus(box acc, u)))
+            numbers.into_iter().try_fold(univ, |acc, u| u.map(|u| Plus(box acc, u)))
         },
 
         Rule::string => Ok(Var(pair.as_str())),
@@ -105,14 +105,14 @@ fn parse_term(pair: Pair<Rule>) -> Result<term::Builder> {
 
         Rule::App => {
             let mut iter = pair.into_inner().map(parse_term);
-            let t = iter.next().unwrap();
+            let term = iter.next().unwrap()?;
 
-            iter.fold(t, |acc, x| Ok(Builder::new(loc, App(box acc?, box x?))))
+            iter.try_fold(term, |acc, x| x.map(|x| Builder::new(loc, App(box acc, box x))))
         },
 
         Rule::Abs => {
             let mut iter = pair.into_inner();
-            let body = parse_term(iter.next_back().unwrap());
+            let body = parse_term(iter.next_back().unwrap())?;
 
             iter.flat_map(|pair| {
                 let mut pair = pair.into_inner();
@@ -121,12 +121,12 @@ fn parse_term(pair: Pair<Rule>) -> Result<term::Builder> {
                 pair.map(move |var| (var.as_str(), type_.clone()))
             })
             .rev()
-            .fold(body, |acc, (var, type_)| Ok(Builder::new(loc, Abs(var, box type_?, box acc?))))
+            .try_fold(body, |acc, (var, type_)| type_.map(|type_| Builder::new(loc, Abs(var, box type_, box acc))))
         },
 
         Rule::dProd => {
             let mut iter = pair.into_inner();
-            let body = parse_term(iter.next_back().unwrap());
+            let body = parse_term(iter.next_back().unwrap())?;
 
             iter.flat_map(|pair| {
                 let mut pair = pair.into_inner();
@@ -135,16 +135,16 @@ fn parse_term(pair: Pair<Rule>) -> Result<term::Builder> {
                 pair.map(move |var| (var.as_str(), type_.clone()))
             })
             .rev()
-            .fold(body, |acc, (var, type_)| Ok(Builder::new(loc, Prod(var, box type_?, box acc?))))
+            .try_fold(body, |acc, (var, type_)| type_.map(|type_| Builder::new(loc, Prod(var, box type_, box acc))))
         },
 
         Rule::Prod => {
             let mut iter = pair.into_inner();
-            let ret = parse_term(iter.next_back().unwrap());
+            let ret = parse_term(iter.next_back().unwrap())?;
 
             iter.map(parse_term)
                 .rev()
-                .fold(ret, |acc, argtype| Ok(Builder::new(loc, Prod("_", box argtype?, box acc?))))
+                .try_fold(ret, |acc, argtype| argtype.map(|argtype| Builder::new(loc, Prod("_", box argtype, box acc))))
         },
 
         term => unreachable!("unexpected term: {term:?}"),
