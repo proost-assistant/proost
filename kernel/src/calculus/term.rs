@@ -61,6 +61,7 @@ impl<'arena> Term<'arena> {
         if self.is_certainly_closed() {
             return self;
         }
+
         let shifted_term = match *self {
             Var(i, type_) if i > depth.into() => Term::var(i + offset.into(), type_, arena),
             App(t1, t2) => {
@@ -80,9 +81,11 @@ impl<'arena> Term<'arena> {
             },
             _ => self,
         };
+
         if (shifted_term == self) && (depth == 0) && (offset > 0) {
             self.set_as_closed();
         };
+
         shifted_term
     }
 

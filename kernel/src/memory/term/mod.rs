@@ -24,21 +24,22 @@ super::arena::new_dweller!(Term, Header, Payload);
 
 /// The header of a term.
 struct Header<'arena> {
-    /// lazy structure to store the weak-head normal form of a term.
+    /// Lazy structure to store the weak-head normal form of a term.
     head_normal_form: OnceCell<Term<'arena>>,
 
-    /// lazy structure to store the type of a term.
+    /// Lazy structure to store the type of a term.
     type_: OnceCell<Term<'arena>>,
 
-    /// the relevance of a given term
+    /// The relevance of a given term.
     is_relevant: OnceCell<bool>,
 
-    // TODO(#45) is_certainly_closed: boolean underapproximation of whether a term is closed. This
-    // may greatly improve performance in shifting, along with a mem_shift hash map.
+    /// Whether the term is *known* to be closed.
     is_certainly_closed: OnceCell<()>,
 }
 
 impl<'arena> Header<'arena> {
+    /// Creates a new default header, where `is_closed` determines the original state of
+    /// `is_certainly_closed`.
     fn new(is_closed: bool) -> Self {
         Header {
             head_normal_form: OnceCell::new(),
@@ -77,7 +78,7 @@ pub enum Payload<'arena> {
     /// An instance of a universe-polymorphic declaration.
     Decl(InstantiatedDeclaration<'arena>),
 
-    /// An axiom
+    /// An axiom.
     Axiom(axiom::Axiom, &'arena [Level<'arena>]),
 }
 
@@ -105,7 +106,7 @@ impl<'arena> fmt::Display for Payload<'arena> {
 
 impl<'arena> fmt::Display for Term<'arena> {
     #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0.payload)
     }
 }
@@ -117,10 +118,6 @@ impl<'arena> Term<'arena> {
     ///
     /// It enforces the uniqueness property of terms in the arena.
     fn hashcons(node: Node<'arena>, arena: &mut Arena<'arena>) -> Self {
-        // There are concurrent designs here. hashcons could also take a node, which gives
-        // subsequent function some liberty in providing the other objects of the header: WHNF,
-        // type_ (unlikely, because not always desirable), is_certainly_closed.
-
         if let Some(addr) = arena.hashcons_terms.get(&node) {
             Term::new(addr)
         } else {
@@ -134,20 +131,24 @@ impl<'arena> Term<'arena> {
     pub(crate) fn var(index: DeBruijnIndex, type_: Term<'arena>, arena: &mut Arena<'arena>) -> Self {
         let header = Header::new(false);
         let payload = Var(index, type_);
+
         Self::hashcons(Node { header, payload }, arena)
     }
 
     /// Returns an axiom term with the given axiom.
     pub(crate) fn axiom(axiom: axiom::Axiom, lvl: &[Level<'arena>], arena: &mut Arena<'arena>) -> Self {
         let lvl = arena.store_level_slice(lvl);
+        let header = Header::new(true);
+        let payload = Axiom(axiom, lvl);
 
-        Self::hashcons(Axiom(axiom, lvl), arena)
+        Self::hashcons(Node { header, payload }, arena)
     }
 
     /// Returns the term corresponding to a proposition.
     pub(crate) fn prop(arena: &mut Arena<'arena>) -> Self {
         let header = Header::new(true);
         let payload = Sort(Level::zero(arena));
+
         Self::hashcons(Node { header, payload }, arena)
     }
 
@@ -155,6 +156,7 @@ impl<'arena> Term<'arena> {
     pub(crate) fn sort(level: Level<'arena>, arena: &mut Arena<'arena>) -> Self {
         let header = Header::new(true);
         let payload = Sort(level);
+
         Self::hashcons(Node { header, payload }, arena)
     }
 
@@ -162,6 +164,7 @@ impl<'arena> Term<'arena> {
     pub(crate) fn type_usize(level: usize, arena: &mut Arena<'arena>) -> Self {
         let header = Header::new(true);
         let payload = Sort(Level::from(level + 1, arena));
+
         Self::hashcons(Node { header, payload }, arena)
     }
 
@@ -169,6 +172,7 @@ impl<'arena> Term<'arena> {
     pub(crate) fn sort_usize(level: usize, arena: &mut Arena<'arena>) -> Self {
         let header = Header::new(true);
         let payload = Sort(Level::from(level, arena));
+
         Self::hashcons(Node { header, payload }, arena)
     }
 
@@ -176,6 +180,7 @@ impl<'arena> Term<'arena> {
     pub(crate) fn app(self, arg: Self, arena: &mut Arena<'arena>) -> Self {
         let header = Header::new(self.is_certainly_closed() && arg.is_certainly_closed());
         let payload = App(self, arg);
+
         Self::hashcons(Node { header, payload }, arena)
     }
 
@@ -186,6 +191,7 @@ impl<'arena> Term<'arena> {
     pub(crate) fn abs(self, body: Self, arena: &mut Arena<'arena>) -> Self {
         let header = Header::new(body.is_certainly_closed());
         let payload = Abs(self, body);
+
         Self::hashcons(Node { header, payload }, arena)
     }
 
@@ -196,6 +202,7 @@ impl<'arena> Term<'arena> {
     pub(crate) fn prod(self, body: Self, arena: &mut Arena<'arena>) -> Self {
         let header = Header::new(body.is_certainly_closed());
         let payload = Prod(self, body);
+
         Self::hashcons(Node { header, payload }, arena)
     }
 
@@ -203,6 +210,7 @@ impl<'arena> Term<'arena> {
     pub(crate) fn decl(decl: InstantiatedDeclaration<'arena>, arena: &mut Arena<'arena>) -> Self {
         let header = Header::new(false);
         let payload = Decl(decl);
+
         Self::hashcons(Node { header, payload }, arena)
     }
 
@@ -230,12 +238,16 @@ impl<'arena> Term<'arena> {
         *self.0.header.is_relevant.get_or_init(f)
     }
 
-    pub(crate) fn is_certainly_closed(self) -> bool {
+    /// Indicates whether the term is known to be closed.
+    #[inline]
+    #[must_use]
+    pub fn is_certainly_closed(self) -> bool {
         self.0.header.is_certainly_closed.get().is_some()
     }
 
+    /// Set the term as closed.
     pub(crate) fn set_as_closed(self) {
-        self.0.header.is_certainly_closed.set(()).unwrap_or(());
+        self.0.header.is_certainly_closed.set(()).ok();
     }
 }
 
