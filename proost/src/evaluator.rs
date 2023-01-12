@@ -153,11 +153,7 @@ impl<'arena> Evaluator {
     ///
     /// # Errors
     /// Transmits any error that may occur during the overall process
-    pub fn process_line<'build>(
-        &mut self,
-        arena: &mut Arena<'arena>,
-        command: &'build Command<'build>,
-    ) -> ResultProcess<'arena, 'build> {
+    pub fn process_line<'build>(&mut self, arena: &mut Arena<'arena>, command: Command<'build>) -> ResultProcess<'arena, 'build> {
         self.process(arena, command, &mut vec![])
     }
 
@@ -176,7 +172,7 @@ impl<'arena> Evaluator {
         let commands = parse::file(file)?;
 
         commands
-            .iter()
+            .into_iter()
             .try_for_each(|command| {
                 if self.verbose {
                     println!("{command}");
@@ -204,29 +200,27 @@ impl<'arena> Evaluator {
     fn process<'build>(
         &mut self,
         arena: &mut Arena<'arena>,
-        command: &'build Command<'build>,
+        command: Command<'build>,
         importing: &mut Vec<PathBuf>,
     ) -> ResultProcess<'arena, 'build> {
-        match *command {
-            Command::Define(_, (location, s), ref type_builder, ref term_builder) => {
-                if arena.get_binding(s).is_some() {
-                    return Err(TopLevel(Error {
-                        kind: ErrorKind::BoundVariable(s.to_owned()),
-                        location,
-                    }));
-                }
+        match command {
+            // TODO use location
+            Command::Define(public, (location, name), type_builder, term_builder) => {
+                let id = self.modtree.define(name, public)?.into();
 
-                let term = term_builder.realise(arena).map_err(|err| Kernel(term_builder, err))?;
+                let term_builder = term_builder.sanitize(self.modtree.convert());
+                let term = term_builder.realise(arena).map_err(|err| Kernel(&term_builder, err))?;
 
-                if let Some(ref type_builder) = *type_builder {
-                    let type_ = type_builder.realise(arena).map_err(|err| Kernel(type_builder, err))?;
+                if let Some(type_builder) = type_builder {
+                    let type_builder = type_builder.sanitize(self.modtree.convert());
+                    let type_ = type_builder.realise(arena).map_err(|err| Kernel(&type_builder, err))?;
 
-                    term.check(type_, arena).map_err(|err| Kernel(term_builder, err))?;
+                    term.check(type_, arena).map_err(|err| Kernel(&term_builder, err))?;
                 } else {
-                    term.infer(arena).map_err(|err| Kernel(term_builder, err))?;
+                    term.infer(arena).map_err(|err| Kernel(&term_builder, err))?;
                 }
 
-                arena.bind(s, term);
+                arena.bind_with_id(id, term);
                 Ok(None)
             },
 
@@ -234,7 +228,7 @@ impl<'arena> Evaluator {
             Command::Declaration(_, (location, s), ref type_builder, ref decl_builder) => {
                 if arena.get_binding_decl(s).is_some() {
                     return Err(TopLevel(Error {
-                        kind: ErrorKind::BoundVariable(s.to_owned()),
+                        kind: ErrorKind::BoundVariable(s.to_string()),
                         location,
                     }));
                 }
@@ -253,30 +247,45 @@ impl<'arena> Evaluator {
                 Ok(None)
             },
 
-            Command::CheckType(ref term_builder, ref type_builder) => {
-                let term = term_builder.realise(arena).map_err(|err| Kernel(term_builder, err))?;
-                let type_ = type_builder.realise(arena).map_err(|err| Kernel(type_builder, err))?;
+            Command::CheckType(term_builder, type_builder) => {
+                let term = term_builder
+                    .sanitize(self.modtree.convert())
+                    .realise(arena)
+                    .map_err(|err| Kernel(Box::new(term_builder), err))?;
 
-                term.check(type_, arena).map_err(|err| Kernel(term_builder, err))?;
+                let type_ = type_builder
+                    .sanitize(self.modtree.convert())
+                    .realise(arena)
+                    .map_err(|err| Kernel(Box::new(type_builder), err))?;
+
+                term.check(type_, arena).map_err(|err| Kernel(Box::new(term_builder), err))?;
+
                 Ok(None)
             },
 
-            Command::GetType(ref term_builder) => {
-                let term = term_builder.realise(arena).map_err(|err| Kernel(term_builder, err))?;
+            Command::GetType(term_builder) => {
+                let term = term_builder
+                    .sanitize(self.modtree.convert())
+                    .realise(arena)
+                    .map_err(|err| Kernel(Box::new(term_builder), err))?;
 
-                Ok(term.infer(arena).map(Some).map_err(|err| Kernel(term_builder, err))?)
+                Ok(term.infer(arena).map(Some).map_err(|err| Kernel(Box::new(term_builder), err))?)
             },
 
-            Command::Eval(ref term_builder) => {
-                let term = term_builder.realise(arena).map_err(|err| Kernel(term_builder, err))?;
-                let _ = term.infer(arena).map_err(|err| Kernel(term_builder, err))?;
+            Command::Eval(term_builder) => {
+                let term = term_builder
+                    .sanitize(self.modtree.convert())
+                    .realise(arena)
+                    .map_err(|err| Kernel(Box::new(term_builder), err))?;
+
+                let _ = term.infer(arena).map_err(|err| Kernel(Box::new(term_builder), err))?;
 
                 Ok(Some(term.normal_form(arena)))
             },
 
-            Command::Search(ref name) => Ok(arena.get_binding(name.last().unwrap())), // TODO (see #49)
+            Command::Search(name) => Ok(arena.get_binding(name.last().unwrap())), // TODO (see #49)
 
-            Command::Import(ref files) => files
+            Command::Import(files) => files
                 .iter()
                 .try_for_each(|&(loc, relative_path)| {
                     let file_path = self.create_path(loc, relative_path.to_owned(), importing)?;

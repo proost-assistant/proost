@@ -78,7 +78,7 @@ pub enum Payload<'build> {
 }
 
 impl<'build> Builder<'build> {
-    fn sanitize<F>(self, convert: F) -> Self
+    pub fn sanitize<F>(self, convert: F) -> Self
     where
         F: Fn(&Vec<&'build str>) -> Option<Id<'build>>,
     {

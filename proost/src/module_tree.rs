@@ -4,6 +4,7 @@ use std::iter::once;
 
 use indextree::{Arena, DebugPrettyPrint, NodeId};
 use itertools::Itertools;
+use kernel::memory::arena::Id;
 
 use crate::error::Result;
 
@@ -207,6 +208,10 @@ impl ModuleTree {
         Ok(*candidates.first().unwrap())
     }
 
+    pub fn convert<'build>(&self) -> impl Fn(&Vec<&'build str>) -> Option<Id<'build>> + '_ {
+        |path| self.get_identifier(path).ok().map(|nodeid| Into::<usize>::into(nodeid).into())
+    }
+
     // /// Returns the position of the given position starting from the root
     // fn get_position(&self, position: NodeId) -> Vec<String> {
     //     let mut res: Vec<String> = position
@@ -220,15 +225,15 @@ impl ModuleTree {
     // }
 
     /// Add a definition in the current module of the tree
-    pub fn define<'arena, 'build>(&mut self, name: &'build str, public: bool) -> Result<'arena, 'build, NodeId> {
+    pub fn define<'arena, 'build>(&mut self, name: &'build str, public: bool) -> Result<'arena, 'build, Id> {
         if !self.get_relative(once(name)).is_empty() {
             return Err(Error::BoundIdentifier(name.to_string()).into());
         }
 
-        let node = self.arena.new_node(ModuleNode::Def(name.to_string(), public));
-        self.position.last().unwrap().append(node, &mut self.arena);
+        let nodeid = self.arena.new_node(ModuleNode::Def(name.to_string(), public));
+        self.position.last().unwrap().append(nodeid, &mut self.arena);
 
-        Ok(node)
+        Ok(Into::<usize>::into(nodeid).into())
     }
 
     /// Create and move into a (new) (sub) module

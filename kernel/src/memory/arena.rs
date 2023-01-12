@@ -60,9 +60,11 @@ pub struct Arena<'arena> {
 /// An identifiant used to access or create terms in the [`Arena`]
 #[derive(Debug, Clone, Copy, From, Hash, PartialEq, Eq, Display)]
 pub enum Id<'arena> {
+    /// A str identifiant
     #[display(fmt = "_0")]
     Name(&'arena str),
 
+    /// A usize identifiant
     #[display(fmt = "_0")]
     Num(usize),
 }

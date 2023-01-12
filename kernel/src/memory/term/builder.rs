@@ -62,7 +62,7 @@ impl<'arena> Arena<'arena> {
 /// Returns a closure building a variable associated to the name `name`.
 #[inline]
 #[must_use]
-pub const fn var<'build>(id: Id<'build>) -> impl BuilderTrait<'build> {
+pub const fn var(id: Id<'_>) -> impl BuilderTrait<'_> {
     move |arena, env, _, depth| {
         env.get(&id)
             .map(|&(bind_depth, term)| {

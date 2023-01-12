@@ -107,7 +107,7 @@ fn main() -> Result<'static, 'static, ()> {
         return kernel::memory::arena::use_arena(|arena| {
             let command = Command::Import(args.files.iter().map(|file| (Location::default(), file.as_str())).collect());
 
-            display(evaluator.process_line(arena, &command), false);
+            display(evaluator.process_line(arena, command), false);
             Ok(())
         });
     }
@@ -134,7 +134,7 @@ fn main() -> Result<'static, 'static, ()> {
                     rl.add_history_entry(line.as_str());
 
                     match command::parse::line(line.as_str()) {
-                        Ok(command) => display(evaluator.process_line(arena, &command), true),
+                        Ok(command) => display(evaluator.process_line(arena, command), true),
                         Err(err) => display(Err(Error::Parser(err)), true),
                     }
                 },
