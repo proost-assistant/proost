@@ -55,6 +55,9 @@
 pub mod lsp;
 pub mod tilleul;
 
+#[macro_use]
+extern crate log;
+
 /// The version of the server, defined in `Cargo.toml`.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -64,8 +67,6 @@ pub const NAME: &str = env!("CARGO_PKG_NAME");
 /// The main function of the server.
 #[cfg(not(test))]
 fn main() {
-    use log::info;
-
     use crate::lsp::connection::stdio::Stdio;
     use crate::lsp::server::Server;
     use crate::tilleul::Tilleul;

@@ -8,9 +8,9 @@ authors.workspace = true
 license.workspace = true
 
 [dependencies]
-parser.path = "../parser"
+elaboration.path = "../elaboration"
 kernel.path = "../kernel"
-
+parser.path = "../parser"
 derive_more.workspace = true
 
 anyhow = "1"

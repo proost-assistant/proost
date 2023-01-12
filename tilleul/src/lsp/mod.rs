@@ -75,4 +75,11 @@ pub trait LanguageServer {
     fn text_document_did_close(&mut self, params: DidCloseTextDocumentParams) {
         info!("textDocument/didClose not handled");
     }
+
+    /// [`textDocument/didSave`] notification.
+    ///
+    /// [`textDocument/didSave`]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_didSave
+    fn text_document_did_save(&mut self, params: DidSaveTextDocumentParams) {
+        info!("textDocument/didSave not handled");
+    }
 }

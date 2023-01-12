@@ -144,6 +144,7 @@ where
                 .handle::<DidOpenTextDocument>(S::text_document_did_open)
                 .handle::<DidChangeTextDocument>(S::text_document_did_change)
                 .handle::<DidCloseTextDocument>(S::text_document_did_close)
+                .handle::<DidSaveTextDocument>(S::text_document_did_save)
                 .handle_fallthrough("Unknown notification received"),
 
             State::Closing => dispatcher.handle_fallthrough("Server is closing"),

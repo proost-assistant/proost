@@ -1012,6 +1012,7 @@ dependencies = [
  "anyhow",
  "crossbeam-channel",
  "derive_more",
+ "elaboration",
  "env_logger",
  "kernel",
  "log",
