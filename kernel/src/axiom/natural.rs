@@ -11,7 +11,7 @@ use crate::memory::term::Term;
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash)]
 /// Axioms regarding `Nat`ural numbers
 pub enum Natural {
-    /// Natural numbers
+    /// The natural numbers
     Nat,
 
     /// The recursor over natural numbers
@@ -57,7 +57,9 @@ impl<'arena> AxiomKind<'arena> for Natural {
     fn reduce(term: Term<'arena>, arena: &mut Arena<'arena>) -> Option<Term<'arena>> {
         use crate::memory::term::Payload::{App, Axiom};
 
-        // The multiple `let` can be easily-written in a pattern matching if https://github.com/rust-lang/rfcs/issues/2099 is solved.
+        // The multiple `let` statements can be easily rewritten as a pattern match
+        // if https://github.com/rust-lang/rfcs/issues/2099 is solved.
+
         let App(f, n) = *term else { return None; };
         let App(f, motive_succ) = *f.whnf(arena) else { return None; };
         let App(f, motive_0) = *f.whnf(arena) else { return None; };
@@ -91,7 +93,7 @@ impl<'arena> AxiomKind<'arena> for Natural {
 }
 
 impl Natural {
-    /// Type of the recursor over `Nat`ural numbers
+    /// Type of the recursor over natural numbers
     fn type_nat_rec<'arena>(arena: &mut Arena<'arena>) -> Term<'arena> {
         // Nat
         let term_nat = Term::axiom(Axiom::Natural(Self::Nat), &[], arena);

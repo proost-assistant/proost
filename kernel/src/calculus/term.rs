@@ -192,7 +192,7 @@ impl<'arena> Term<'arena> {
         })
     }
 
-    /// Returns whether a term is computationally relevant.
+    /// Tests whether a term is computationally relevant.
     #[inline]
     pub(crate) fn is_relevant(self, arena: &mut Arena<'arena>) -> bool {
         self.get_relevance_or_try_init(|| match *self {

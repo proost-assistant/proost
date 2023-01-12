@@ -1,4 +1,4 @@
-//! Set of axioms, typing and reduction rules for the `Eq`uality type
+//! Set of axioms, typing and reduction rules for the equality type
 
 use derive_more::Display;
 
@@ -13,7 +13,7 @@ use crate::memory::term::Term;
 pub enum Equality {
     /// The equality type
     ///
-    /// Please note that the constructor is written `Eq_` (naming it `Eq` messes up with [Eq](std::cmp::Eq)).
+    /// The trailing underscore is needed because naming it `Eq` collides with [Eq](std::cmp::Eq).
     #[display(fmt = "Eq")]
     Eq_,
 
@@ -50,7 +50,8 @@ impl<'arena> AxiomKind<'arena> for Equality {
     fn reduce(term: Term<'arena>, arena: &mut Arena<'arena>) -> Option<Term<'arena>> {
         use crate::memory::term::Payload::{App, Axiom};
 
-        // The multiple `let` can be easily-written in a pattern matching if https://github.com/rust-lang/rfcs/issues/2099 is solved.
+        // The multiple `let` statements can be easily rewritten as a pattern match
+        // if https://github.com/rust-lang/rfcs/issues/2099 is solved.
         let App(f, a_b_eq) = *term else { return None; };
         let App(f, b) = *f.whnf(arena) else { return None; };
         let App(f, motive_refl) = *f.whnf(arena) else { return None; };
@@ -84,7 +85,7 @@ impl Equality {
     }
 
     /// Type of the recursor over equalities
-    /// `Eq_rec : (A : Sort u) -> (a : A) -> (motive : (b : A) -> Eq A a B -> Sort v) -> motive a (Refl A a) -> (b : A) -> (p : Eq A
+    /// `Eq_rec : (A : Sort u) -> (a : A) -> (motive : (b : A) -> Eq A a b -> Sort v) -> motive a (Refl A a) -> (b : A) -> (p : Eq A
     /// a b) -> motive b p`
     fn type_eq_rec<'arena>(arena: &mut Arena<'arena>) -> Term<'arena> {
         let sort_u = Term::sort(Level::var(0, arena), arena);
@@ -171,7 +172,7 @@ impl Equality {
             arena,
         );
 
-        // Eq_rec : (A : Sort u) -> (a : A) -> (motive : (b : A) -> Eq A a B -> Sort v) ->
+        // Eq_rec : (A : Sort u) -> (a : A) -> (motive : (b : A) -> Eq A a b -> Sort v) ->
         // motive a (Refl A a) -> (b : A) -> (p : Eq A a b) -> motive b p
         Term::prod(
             sort_u,
