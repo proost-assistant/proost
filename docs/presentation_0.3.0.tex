@@ -12,7 +12,9 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{ebproof}
-\usepackage{tikz}
+
+% For top-level symbols
+\usepackage{arevmath}
 
 \definecolor{darkgreen}{HTML}{18A100}
 \definecolor{background}{rgb}{0.95,0.95,0.92}
@@ -65,6 +67,7 @@
     stringstyle=\color{orange},
     frame=single,
     escapeinside={(*}{*)},
+    mathescape=true,
     tabsize=4,
     breaklines=true
 }
@@ -78,16 +81,16 @@
 \author[Projet génie logiciel]{
     \normalsize
     Arthur~Adjedj \and 
-    Augustin~Albert \and
+    Augustin~Albert \and \\
     Vincent~Lafeychine \and
-    Lucas~Tabary-Maujean \and
-    Jean~Abou-Samra \and
-    Tanguy~Bozec \and
-    Antonin~Bretagne \and
-    Vivien~Ducros \and
-    Antoine~Guilmin-Crépon \and
-    Balthazar~Patiachvili \and
-    Thomas~Varin
+    Lucas~Tabary-Maujean \and \\ \vspace{0.2cm}
+    {\footnotesize
+      Jean~Abou-Samra \and
+      Tanguy~Bozec \and
+      Antonin~Bretagne \and
+      Vivien~Ducros \and
+      Antoine~Guilmin-Crépon \and
+      Balthazar~Patiachvili}
 }
 \date{12 janvier 2023}
 \institute[]{ENS Paris-Saclay}
@@ -135,7 +138,8 @@
             \begin{exampleblock}{Exemple de code}
                 
                 \begin{lstlisting}[language=mdln]
-                    def And: Prop -> Prop -> Prop := fun A B: Prop => (C: Prop) -> (A -> B -> C) -> C
+                    def And: Prop -> Prop -> Prop :=
+                        fun A B: Prop => (C: Prop) -> (A -> B -> C) -> C
                 \end{lstlisting}
 
             \end{exampleblock}
@@ -149,7 +153,7 @@
                 \begin{itemize}
                     \item Isolation du kernel pour assurer la correction de l'implémentation \pause
                     \item API d'interface avec le noyau \pause
-                    \item Expérience utilisateur agréable (LSP, coloration syntaxique, topelevel, \dots) \pause
+                    \item Expérience utilisateur agréable (LSP, coloration syntaxique, toplevel) \pause
                     \item Optimisation mémoire et temporelle du type-checking
                 \end{itemize}
 
@@ -161,9 +165,9 @@
 
         \begin{frame}[fragile]{Univers}
             
-            \begin{block}{Hierarchie prédicative}
+            \begin{block}{Hiérarchie prédicative}
         
-                Type 0 : Type 1 : \dots \pause
+                Type 0 : Type 1 : \dots
 
                 \begin{center}
                     \begin{prooftree}
@@ -175,9 +179,11 @@
                 
             \end{block}
 
+            \pause
+
             \begin{block}{Univers imprédicatif proof-irrelevant : Prop}
                 
-                Prop : Type 0 \pause
+                Prop : Type 0
 
                 \begin{center}
                     \begin{prooftree}
@@ -193,19 +199,21 @@
 
         \begin{frame}[fragile]{Polymorphisme d'univers}
             
-            \begin{block}{Hierarchie contenant Prop}
+            \begin{block}{Hiérarchie contenant Prop}
                
-                \begin{tabular}{llll}
-                    \texttt{Prop} :& \texttt{Type 0} :& \texttt{Type 1} :& \dots \\
-                    \texttt{Sort 0} :& \texttt{Sort 1} :& \texttt{Sort 2} :& \dots
+                \begin{tabular}{lclclcl}
+                    \texttt{Prop} &:& \texttt{Type 0} &:& \texttt{Type 1} &:& \dots \\
+                    \texttt{Sort 0} &:& \texttt{Sort 1} &:& \texttt{Sort 2} &:& \dots
                 \end{tabular}
                 
             \end{block}
 
-            \begin{exampleblock}{Example}
+            \vfill
+
+            \begin{exampleblock}{Exemple}
                 
                 \begin{lstlisting}[language=mdln]
-                    def id.{u} := fun A : Sort u, x : A => x
+                    def id.{u} := fun A: Sort u, x: A => x
                 \end{lstlisting}
 
             \end{exampleblock}
@@ -214,25 +222,26 @@
 
         \begin{frame}[fragile]{Types inductifs variés}
             
-            \begin{exampleblock}{Exemples de types inductifs implémentés}
+            \begin{exampleblock}{Types inductifs implémentés}
                 
                 \begin{itemize}
-                    \item \lstinline{False} 
-                    \item \lstinline{True}
-                    \item \lstinline{Nat}
-                    \item \lstinline{Eq}
-                    \item \dots
+                    \item \lstinline{False} et \lstinline{True}
+                    \item \lstinline{Nat}, \lstinline{Eq}, \dots
                 \end{itemize}
 
             \end{exampleblock} \pause
 
-            \begin{exampleblock}{Exemples}
+            \begin{exampleblock}{Exemple d'utilisation de \lstinline{Eq} et de \lstinline{Nat}:}
                 
                 \begin{lstlisting}[language=mdln]
-                    def add := fun x : Nat => Nat_rec.{1} (fun n: Nat => Nat) x (fun n n:Nat => Succ n)
+                    def add := fun x: Nat => Nat_rec.{1}
+                        (fun _: Nat => Nat) x (fun _ n: Nat => Succ n)
+
                     def two := Succ (Succ Zero)
                     def four := Succ (Succ two)
-                    check Refl.{1} Nat four : Eq.{1} Nat four (add two two)
+
+                    check Refl.{1} Nat four:
+                        Eq.{1} Nat four (add two two)
                 \end{lstlisting}
 
             \end{exampleblock}
@@ -245,7 +254,10 @@
                 
                 Égalité intensionnelle à la MLTT
 
-            \end{block} \pause
+            \end{block}
+
+            \vfill
+            \pause
 
             \begin{alertblock}{Dans le futur}
                 
@@ -257,13 +269,13 @@
 
     \section{Caractéristiques de Proost}
 
-        \begin{frame}{Toplevel}
+        \begin{frame}[fragile]{Toplevel}
             
             \begin{block}{Caractéristiques}
                 
                 \begin{itemize}
-                    \item Accessible via l'invite de commandes
-                    \item Coloration syntaxique
+                    \item Accessible via l'invite de commandes \pause
+                    \item Coloration syntaxique \pause
                     \item Localisation précise et visuelle des erreurs
                 \end{itemize}
 
@@ -271,9 +283,14 @@
 
             \begin{block}{Toplevel}
                 
-                \begin{center}
-                    \includegraphics[scale=1.3]{media/screenshot_toplevel.png}
-                \end{center}
+                \begin{lstlisting}[language=mdln]
+                    > check add Zero (fun id x: Prop => x)
+                    (*$\ballotx$*)       ^----------------------------^
+                    (*$\ballotx$*) function ((*$\lambda$*)Nat => (((NatRec.{1}) ((*$\lambda$*) Nat => Nat)) 1)
+                    (*$\ballotx$*)         ((*$\lambda$*)Nat => (*$\lambda$*)Nat => Succ 1)) Zero
+                    (*$\ballotx$*)     expects a term of type Nat,
+                    (*$\ballotx$*)     received (*$\lambda$*) Prop => 1: Prop -> Prop
+                \end{lstlisting}
 
             \end{block}
 
@@ -284,8 +301,8 @@
             \begin{block}{Caractéristiques}
                 
                 \begin{itemize}
-                    \item Lourde mémoïsation des termes et des computations sur ces derniers (WHNF, substitution, var-shifting, \dots) \pause
-                    \item Système d'arène pour gérer efficacement les lifetimes des termes
+                    \item Lourde mémoïsation des termes et des calculs sur ces derniers (WHNF, substitution, var-shifting, \dots) \pause
+                    \item Système d'arène pour gérer efficacement les \textit{lifetimes} des termes
                 \end{itemize}
 
             \end{block}
@@ -303,7 +320,10 @@
                     \item d'une partie logique traitant les requêtes.
                 \end{itemize}
 
-            \end{block} \pause
+            \end{block}
+
+            \vfill
+            \pause
 
             \begin{block}{Avancement}
                 
@@ -320,17 +340,20 @@
             \begin{block}{Dans un futur proche}
                 
                 \begin{itemize}
-                    \item Égalité observationnelle
-                    \item LSP entièrement fonctionnel
+                    \item Égalité observationnelle \pause
+                    \item LSP entièrement fonctionnel \pause
                     \item Espaces de noms importés
                 \end{itemize}
 
-            \end{block} \pause
+            \end{block}
+
+            \vfill
+            \pause
 
             \begin{block}{Dans un second temps}
                 
                 \begin{itemize}
-                    \item Types inductifs
+                    \item Types inductifs \pause
                     \item Unification
                 \end{itemize}
 
