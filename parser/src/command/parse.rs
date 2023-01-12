@@ -480,12 +480,20 @@ mod tests {
     }
 
     #[test]
-    fn cannot_transform_sort() {
+    fn cannot_transform_sort_level() {
         assert_eq!(
             line("check Sort 10000000000000000000000"),
             Err(Error {
                 kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
                 location: Location::new((1, 12), (1, 35)),
+            })
+        );
+
+        assert_eq!(
+            line("check Sort (10000000000000000000000 + 0)"),
+            Err(Error {
+                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
+                location: Location::new((1, 13), (1, 36)),
             })
         );
 
@@ -498,103 +506,7 @@ mod tests {
         );
 
         assert_eq!(
-            line("eval Sort (0 + 10000000000000000000000)"),
-            Err(Error {
-                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
-                location: Location::new((1, 16), (1, 39)),
-            })
-        );
-
-        assert_eq!(
-            line("def x.{u} : Sort (0 + 10000000000000000000000) := Prop"),
-            Err(Error {
-                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
-                location: Location::new((1, 23), (1, 46)),
-            })
-        );
-
-        assert_eq!(
-            line("def x.{u} : Type := Sort (0 + 10000000000000000000000)"),
-            Err(Error {
-                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
-                location: Location::new((1, 31), (1, 54)),
-            })
-        );
-
-        assert_eq!(
-            line("def x.{u} := Sort (0 + 10000000000000000000000)"),
-            Err(Error {
-                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
-                location: Location::new((1, 24), (1, 47)),
-            })
-        );
-
-        assert_eq!(
-            line("def x : Sort (0 + 10000000000000000000000) := Prop"),
-            Err(Error {
-                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
-                location: Location::new((1, 19), (1, 42)),
-            })
-        );
-
-        assert_eq!(
-            line("def x : Type := Sort (0 + 10000000000000000000000)"),
-            Err(Error {
-                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
-                location: Location::new((1, 27), (1, 50)),
-            })
-        );
-
-        assert_eq!(
-            line("def x := Sort (0 + 10000000000000000000000)"),
-            Err(Error {
-                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
-                location: Location::new((1, 20), (1, 43)),
-            })
-        );
-
-        assert_eq!(
-            line("check Type : Sort (0 + 10000000000000000000000)"),
-            Err(Error {
-                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
-                location: Location::new((1, 24), (1, 47)),
-            })
-        );
-
-        assert_eq!(
-            line("check Sort (0 + 10000000000000000000000) : Type"),
-            Err(Error {
-                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
-                location: Location::new((1, 17), (1, 40)),
-            })
-        );
-
-        assert_eq!(
-            line("eval Sort (0 + 10000000000000000000000) -> Prop"),
-            Err(Error {
-                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
-                location: Location::new((1, 16), (1, 39)),
-            })
-        );
-
-        assert_eq!(
-            line("eval Prop -> Sort (0 + 10000000000000000000000)"),
-            Err(Error {
-                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
-                location: Location::new((1, 24), (1, 47)),
-            })
-        );
-
-        assert_eq!(
-            line("def x : Sort max 0 10000000000000000000000 := Prop"),
-            Err(Error {
-                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
-                location: Location::new((1, 20), (1, 43)),
-            })
-        );
-
-        assert_eq!(
-            line("def x : Sort max 10000000000000000000000 0 := Prop"),
+            line("check Sort max 0 10000000000000000000000"),
             Err(Error {
                 kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
                 location: Location::new((1, 18), (1, 41)),
@@ -602,15 +514,161 @@ mod tests {
         );
 
         assert_eq!(
-            line("def x : Sort imax 0 10000000000000000000000 := Prop"),
+            line("check Sort max 10000000000000000000000 0"),
             Err(Error {
                 kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
-                location: Location::new((1, 21), (1, 44)),
+                location: Location::new((1, 16), (1, 39)),
             })
         );
 
         assert_eq!(
+            line("check Sort imax 0 10000000000000000000000"),
+            Err(Error {
+                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
+                location: Location::new((1, 19), (1, 42)),
+            })
+        );
+
+        assert_eq!(
+            line("check Sort imax 10000000000000000000000 0"),
+            Err(Error {
+                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
+                location: Location::new((1, 17), (1, 40)),
+            })
+        );
+    }
+
+    #[test]
+    fn cannot_transform_sort_term() {
+        // VarDecl
+        assert_eq!(
+            line("check foo.{10000000000000000000000}"),
+            Err(Error {
+                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
+                location: Location::new((1, 12), (1, 35)),
+            })
+        );
+
+        // Type
+        assert_eq!(
+            line("check (x: Type 10000000000000000000000) -> x"),
+            Err(Error {
+                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
+                location: Location::new((1, 16), (1, 39)),
+            })
+        );
+
+        // App
+        assert_eq!(
+            line("check ((x: Type 10000000000000000000000) -> x) A"),
+            Err(Error {
+                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
+                location: Location::new((1, 17), (1, 40)),
+            })
+        );
+
+        // Abs
+        assert_eq!(
+            line("check fun x: Prop => (x: Type 10000000000000000000000) -> x"),
+            Err(Error {
+                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
+                location: Location::new((1, 31), (1, 54)),
+            })
+        );
+
+        // dProd
+        assert_eq!(
+            line("check (x: Type) -> (y: Sort 10000000000000000000000) -> x"),
+            Err(Error {
+                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
+                location: Location::new((1, 29), (1, 52)),
+            })
+        );
+
+        // Prod
+        assert_eq!(
+            line("check Prop -> Sort 10000000000000000000000"),
+            Err(Error {
+                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
+                location: Location::new((1, 20), (1, 43)),
+            })
+        );
+    }
+
+    #[test]
+    fn cannot_transform_sort_expr() {
+        // CheckType
+        assert_eq!(
+            line("check Sort 10000000000000000000000 : Type"),
+            Err(Error {
+                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
+                location: Location::new((1, 12), (1, 35)),
+            })
+        );
+
+        assert_eq!(
+            line("check Type : Sort 10000000000000000000000"),
+            Err(Error {
+                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
+                location: Location::new((1, 19), (1, 42)),
+            })
+        );
+
+        // Define
+        assert_eq!(
+            line("def x := Sort 10000000000000000000000"),
+            Err(Error {
+                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
+                location: Location::new((1, 15), (1, 38)),
+            })
+        );
+
+        // DefineCheckType
+        assert_eq!(
             line("def x : Sort imax 10000000000000000000000 0 := Prop"),
+            Err(Error {
+                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
+                location: Location::new((1, 19), (1, 42)),
+            })
+        );
+
+        assert_eq!(
+            line("def x : Type := Sort 10000000000000000000000"),
+            Err(Error {
+                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
+                location: Location::new((1, 22), (1, 45)),
+            })
+        );
+
+        // Declaration
+        assert_eq!(
+            line("def x.{u} := Sort 10000000000000000000000"),
+            Err(Error {
+                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
+                location: Location::new((1, 19), (1, 42)),
+            })
+        );
+
+        // DeclarationCheckType
+        assert_eq!(
+            line("def x.{u} : Sort 10000000000000000000000 := Prop"),
+            Err(Error {
+                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
+                location: Location::new((1, 18), (1, 41)),
+            })
+        );
+
+        assert_eq!(
+            line("def x.{u} : Type := Sort 10000000000000000000000"),
+            Err(Error {
+                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
+                location: Location::new((1, 26), (1, 49)),
+            })
+        );
+
+        // Eval
+        assert_eq!(
+            line("eval Prop -> Sort 10000000000000000000000"),
             Err(Error {
                 kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
                 location: Location::new((1, 19), (1, 42)),
