@@ -7,19 +7,13 @@
 use derive_more::Display;
 use kernel::error::{Result, ResultLevel};
 use kernel::memory::arena::Arena;
-use kernel::memory::level::builder::{const_, imax, max, plus, succ, var, zero, BuilderTrait, VecBuilderTrait};
+use kernel::memory::level::builder::{const_, imax, max, plus, succ, var, zero, BuilderTrait, ErrorKind, VecBuilderTrait};
 use kernel::memory::level::Level;
 
 use super::Buildable;
 
-/// The kind of errors that can occur when building a [`Level`].
-#[non_exhaustive]
-#[derive(Clone, Debug, Display, Eq, PartialEq)]
-pub enum ErrorKind<'arena> {
-    /// Unknown universe variable
-    #[display(fmt = "unknown universe variable {_0}")]
-    VarNotFound(&'arena str),
-}
+/// Limit of universe level
+static UNIVERSE_LIMIT: usize = 15;
 
 /// Template of levels.
 ///
@@ -57,6 +51,25 @@ pub enum Builder<'builder> {
     Var(&'builder str),
 }
 
+impl<'build> Builder<'build> {
+    /// Returns the maximum depth of successors of a builder with following properties :
+    ///
+    /// * `Const(c)` is considered as being c successors consecutively
+    /// * every var is considered as 0
+    #[inline]
+    fn max_depth(&self) -> usize {
+        match self {
+            Builder::Zero => 0,
+            Builder::Const(c) => *c,
+            Builder::Plus(u, n) => u.max_depth() + n,
+            Builder::Succ(u) => u.max_depth() + 1,
+            Builder::Max(u, v) => u.max_depth().max(v.max_depth()),
+            Builder::IMax(u, v) => u.max_depth().max(v.max_depth()),
+            Builder::Var(_) => 0,
+        }
+    }
+}
+
 impl<'build> Buildable<'build> for Builder<'build> {
     type Output<'arena> = Level<'arena>;
 
@@ -75,14 +88,25 @@ impl<'build> Buildable<'build> for Builder<'build> {
     /// Associates a builder to a builder trait.
     #[inline]
     fn as_closure(&'build self) -> Self::Closure {
-        |arena, env| match *self {
-            Builder::Zero => zero()(arena, env),
-            Builder::Const(c) => const_(c)(arena, env),
-            Builder::Plus(ref u, n) => plus(u.as_closure(), n)(arena, env),
-            Builder::Succ(ref l) => succ(l.as_closure())(arena, env),
-            Builder::Max(ref l, ref r) => max(l.as_closure(), r.as_closure())(arena, env),
-            Builder::IMax(ref l, ref r) => imax(l.as_closure(), r.as_closure())(arena, env),
-            Builder::Var(s) => var(s)(arena, env),
+        |arena, env| {
+            let depth = self.max_depth();
+
+            if depth > UNIVERSE_LIMIT {
+                return Err(kernel::error::Error {
+                    kind: kernel::error::Kind::Level(ErrorKind::UniverseTooLarge(depth)),
+                    trace: vec![],
+                });
+            }
+
+            match *self {
+                Builder::Zero => zero()(arena, env),
+                Builder::Const(c) => const_(c)(arena, env),
+                Builder::Plus(ref u, n) => plus(u.as_closure(), n)(arena, env),
+                Builder::Succ(ref l) => succ(l.as_closure())(arena, env),
+                Builder::Max(ref l, ref r) => max(l.as_closure(), r.as_closure())(arena, env),
+                Builder::IMax(ref l, ref r) => imax(l.as_closure(), r.as_closure())(arena, env),
+                Builder::Var(s) => var(s)(arena, env),
+            }
         }
     }
 }
@@ -110,5 +134,21 @@ impl<'build> Buildable<'build> for Vec<Builder<'build>> {
                 .map(|level_builder| level_builder.as_closure()(arena, env))
                 .collect::<Result<Vec<_>>>()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn depth() {
+        assert_eq!(Builder::Zero.max_depth(), 0);
+        assert_eq!(Builder::Succ(Box::new(Builder::Zero)).max_depth(), 1);
+        assert_eq!(Builder::Const(5).max_depth(), 5);
+        assert_eq!(Builder::Plus(Box::new(Builder::Zero), 5).max_depth(), 5);
+        assert_eq!(Builder::Max(Box::new(Builder::Const(3)), Box::new(Builder::Zero)).max_depth(), 3);
+        assert_eq!(Builder::IMax(Box::new(Builder::Const(3)), Box::new(Builder::Zero)).max_depth(), 3);
+        assert_eq!(Builder::Var("").max_depth(), 0);
     }
 }

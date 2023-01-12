@@ -21,8 +21,11 @@ pub struct Error {
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum Kind {
-    /// Parsing error (redirection from Pest)
-    CannotParse(String),
+    /// Unexpected token encountered (redirection from Pest).
+    UnexpectedToken(String),
+
+    /// Token cannot be transformed
+    TransformError(String),
 }
 
 impl From<pest::error::Error<Rule>> for Error {
@@ -100,7 +103,7 @@ impl From<pest::error::Error<Rule>> for Error {
         });
 
         Self {
-            kind: Kind::CannotParse(chars.as_str().to_owned()),
+            kind: Kind::UnexpectedToken(chars.as_str().to_owned()),
             location: loc,
         }
     }

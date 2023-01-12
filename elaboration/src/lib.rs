@@ -13,11 +13,13 @@
     clippy::suspicious
 )]
 #![allow(
+    clippy::arithmetic_side_effects,
     clippy::blanket_clippy_restriction_lints,
     clippy::else_if_without_else,
     clippy::exhaustive_enums,
     clippy::exhaustive_structs,
     clippy::implicit_return,
+    clippy::integer_arithmetic,
     clippy::match_same_arms,
     clippy::match_wildcard_for_single_variants,
     clippy::missing_trait_methods,

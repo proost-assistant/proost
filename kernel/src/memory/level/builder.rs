@@ -20,6 +20,11 @@ use crate::memory::arena::Arena;
 #[non_exhaustive]
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum ErrorKind<'arena> {
+    /// Trying to build an universe too large
+    // TODO (#94): Must be use only in this file. Currently, it is used in elaboration.
+    #[display(fmt = "universe {_0} too large to be built")]
+    UniverseTooLarge(usize),
+
     /// Unknown universe variable
     #[display(fmt = "unknown universe variable {_0}")]
     VarNotFound(&'arena str),
