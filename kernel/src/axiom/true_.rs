@@ -48,7 +48,7 @@ impl True {
     /// Type of the recursor over `False` proof witnesses
     fn type_true_rec<'arena>(arena: &mut Arena<'arena>) -> Term<'arena> {
         // True
-        let term_true = Term::axiom(True, &[], arena);
+        let term_true = Term::axiom(Axiom::True(Self::True), &[], arena);
         // Sort u
         let sort_u = Term::sort(Level::var(0, arena), arena);
         // True -> Sort u
@@ -58,7 +58,7 @@ impl True {
         // (t: True) -> motive t
         let prod_app_motive = Term::prod(term_true, app_motive, arena);
         // tt
-        let term_tt = Term::axiom(Tt, &[], arena);
+        let term_tt = Term::axiom(Axiom::True(Self::Tt), &[], arena);
         // motive tt
         let motive_tt = Term::app(Term::var(1.into(), motive, arena), term_tt, arena);
         // (motive tt) -> (t: True) -> motive t
