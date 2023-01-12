@@ -22,12 +22,10 @@ use crate::lsp::{connection, LanguageServer};
 // Convert between parser and lsp_types locations
 struct LspLocation(ParserLocation); // Wrapper struct to respect trait consistency
 
-type OverflowError = <u32 as TryFrom<usize>>::Error;
-
 impl TryFrom<LspLocation> for Range {
-    type Error = OverflowError;
+    type Error = <u32 as TryFrom<usize>>::Error;
 
-    fn try_from(pos: LspLocation) -> Result<Range, OverflowError> {
+    fn try_from(pos: LspLocation) -> Result<Self, Self::Error> {
         let LspLocation(ParserLocation {
             start: ParserPosition {
                 line: start_line,
@@ -38,7 +36,7 @@ impl TryFrom<LspLocation> for Range {
                 column: end_column,
             },
         }) = pos;
-        Ok(Range {
+        Ok(Self {
             start: Position {
                 line: u32::try_from(start_line)? - 1,
                 character: u32::try_from(start_column)? - 1,
