@@ -59,7 +59,7 @@ pub struct Arena<'arena> {
 
 /// An identifiant used to access or create terms in the [`Arena`]
 #[derive(Clone, Copy, From, Hash, PartialEq, Eq)]
-enum Id<'arena> {
+pub enum Id<'arena> {
     Name(&'arena str),
     Num(usize),
 }

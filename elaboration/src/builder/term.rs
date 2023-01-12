@@ -42,15 +42,26 @@ pub struct Builder<'build> {
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
 #[allow(clippy::missing_docs_in_private_items)]
 pub enum Payload<'build> {
-    #[display(fmt = "Prop")]
     Prop,
 
     /// A regular variable.
     Var(&'build str),
 
+    /// A variable that has not been sanitized
+    #[display(fmt = "{}", "_0.join(\"::\")")]
+    PreVar(Vec<&'build str>),
+
+    /// A variable denoted by a unique usize identifier
+    #[display(fmt = "{_0}")]
+    VarId(usize),
+
     /// A variable that may or may not be an instantiated declaration.
     #[display(fmt = "{_0}")]
     VarInstance(&'build str, Vec<level::Builder<'build>>),
+
+    /// A non sanitize variable that may or may not be an instantiated declaration.
+    #[display(fmt = "{}", "_0.join(\"::\")")]
+    PreVarInstance(Vec<&'build str>, Vec<level::Builder<'build>>),
 
     #[display(fmt = "Type {_0}")]
     Type(Box<level::Builder<'build>>),
@@ -120,6 +131,7 @@ impl<'build> Buildable<'build> for Builder<'build> {
             Payload::Abs(s, ref arg, ref body) => abs(s, arg.as_closure(), body.as_closure())(arena, env, lvl_env, depth),
             Payload::Prod(s, ref arg, ref body) => prod(s, arg.as_closure(), body.as_closure())(arena, env, lvl_env, depth),
             Payload::Decl(ref decl_builder) => decl(decl_builder.as_closure())(arena, env, lvl_env, depth),
+            _ => unreachable!("TODO explanation"),
         }
     }
 }

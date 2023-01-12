@@ -61,7 +61,7 @@ fn parse_level(pair: Pair<Rule>) -> level::Builder {
 /// Builds [`kernel`] [terms](term::Builder) from errorless pest output
 fn parse_term(pair: Pair<Rule>) -> term::Builder {
     use term::Builder;
-    use term::Payload::{Abs, App, Prod, Prop, Sort, Type, Var, VarInstance};
+    use term::Payload::{Abs, App, PreVar, PreVarInstance, Prod, Prop, Sort, Type};
 
     let loc = convert_span(pair.as_span());
 
@@ -70,7 +70,7 @@ fn parse_term(pair: Pair<Rule>) -> term::Builder {
 
         Rule::Var => {
             let name = pair.into_inner().map(|pair| pair.as_str()).collect();
-            Builder::new(loc, Var(name))
+            Builder::new(loc, PreVar(name))
         },
 
         Rule::VarDecl => {
@@ -78,7 +78,7 @@ fn parse_term(pair: Pair<Rule>) -> term::Builder {
             let name = iter.next().unwrap().into_inner().map(|pair| pair.as_str()).collect();
             let levels = iter.next().unwrap().into_inner().map(parse_level).collect();
 
-            Builder::new(loc, VarInstance(name, levels))
+            Builder::new(loc, PreVarInstance(name, levels))
         },
 
         Rule::Type => pair.into_inner().next_back().map_or_else(
@@ -355,6 +355,7 @@ mod tests {
             Ok(Define(
                 (Location::new((1, 5), (1, 6)), "x"),
                 None,
+                None,
                 Builder::new(
                     Location::new((1, 10), (1, 21)),
                     VarInstance("y", vec![level::Builder::Max(box level::Builder::Const(1), box level::Builder::Const(2))])
@@ -407,6 +408,7 @@ mod tests {
             line("def x.{u, v} := Prop"),
             Ok(Declaration(
                 (Location::new((1, 5), (1, 6)), "x"),
+                None,
                 None,
                 declaration::Builder::Decl(box Builder::new(Location::new((1, 17), (1, 21)), Prop), vec!["u", "v"])
             ))
