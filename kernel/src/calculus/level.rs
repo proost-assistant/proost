@@ -2,7 +2,7 @@
 
 use crate::memory::arena::Arena;
 use crate::memory::level::Level;
-use crate::memory::level::Payload::{IMax, Max, Succ, Var, Zero};
+use crate::memory::level::Payload::{Add, IMax, Max, Var, Zero};
 
 /// State during computation for level comparison.
 enum State {
@@ -27,7 +27,7 @@ impl<'arena> Level<'arena> {
     /// Helper function for equality checking, used to substitute `Var(i)` with `Z` and `S(Var(i))`.
     fn substitute_single(self, var: usize, u: Self, arena: &mut Arena<'arena>) -> Self {
         match *self {
-            Succ(n) => n.substitute_single(var, u, arena).succ(arena),
+            Add(n, k) => n.substitute_single(var, u, arena).add(k, arena),
             Max(n, m) => Level::max(n.substitute_single(var, u, arena), m.substitute_single(var, u, arena), arena),
             IMax(n, m) => Level::imax(n.substitute_single(var, u, arena), m.substitute_single(var, u, arena), arena),
             Var(n) if n == var => u,
@@ -42,7 +42,7 @@ impl<'arena> Level<'arena> {
     pub(crate) fn substitute(self, univs: &[Self], arena: &mut Arena<'arena>) -> Self {
         match *self {
             Zero => self,
-            Succ(n) => n.substitute(univs, arena).succ(arena),
+            Add(n, k) => n.substitute(univs, arena).add(k, arena),
             Max(n, m) => Level::max(n.substitute(univs, arena), m.substitute(univs, arena), arena),
             IMax(n, m) => Level::imax(n.substitute(univs, arena), m.substitute(univs, arena), arena),
             Var(var) => *univs.get(var).unwrap_or_else(|| unreachable!()),
@@ -61,8 +61,8 @@ impl<'arena> Level<'arena> {
 
             (_, _) if self == rhs && n >= 0 => State::True,
 
-            (&Succ(l), _) if l.geq_no_subst(rhs, n - 1).is_true() => State::True,
-            (_, &Succ(l)) if self.geq_no_subst(l, n + 1).is_true() => State::True,
+            (&Add(l,k), _) if l.geq_no_subst(rhs, n - (k as i64)).is_true() => State::True,
+            (_, &Add(l,k)) if self.geq_no_subst(l, n + (k as i64)).is_true() => State::True,
 
             (_, &Max(l1, l2))
                 if self.geq_no_subst(l1, n).is_true() || self.geq_no_subst(l2, n).is_true() =>

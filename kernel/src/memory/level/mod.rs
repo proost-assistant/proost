@@ -27,7 +27,7 @@ pub enum Payload<'arena> {
     Zero,
 
     /// The successor of a level
-    Succ(Level<'arena>),
+    Add(Level<'arena>, usize),
 
     /// The maximum of two levels
     Max(Level<'arena>, Level<'arena>),
@@ -46,10 +46,7 @@ impl Display for Level<'_> {
             Some(n) => write!(f, "{n}"),
             None => match **self {
                 Zero => unreachable!("Zero is a numeral"),
-                Succ(_) => {
-                    let (u, n) = self.plus();
-                    write!(f, "({u} + {n})")
-                },
+                Add(u, n) => write!(f, "({u} + {n})"),
                 Max(n, m) => write!(f, "(max {n} {m})"),
                 IMax(n, m) => write!(f, "(imax {n} {m})"),
                 Var(n) => write!(f, "u{n}"),
@@ -58,7 +55,7 @@ impl Display for Level<'_> {
     }
 }
 
-use Payload::{IMax, Max, Succ, Var, Zero};
+use Payload::{Add, IMax, Max, Var, Zero};
 
 impl<'arena> Level<'arena> {
     /// This function is the base low-level function for creating levels.
@@ -99,7 +96,12 @@ impl<'arena> Level<'arena> {
 
     /// Returns the successor of a level.
     pub(crate) fn succ(self, arena: &mut Arena<'arena>) -> Self {
-        Self::hashcons(Succ(self), arena)
+        Self::hashcons(Add(self, 1), arena)
+    }
+
+    /// Returns the level + n.
+    pub(crate) fn add(self, n: usize, arena: &mut Arena<'arena>) -> Self {
+        Self::hashcons(Add(self, n), arena)
     }
 
     /// Returns the level corresponding to the maximum of two levels.
@@ -115,18 +117,6 @@ impl<'arena> Level<'arena> {
     /// Returns the level associated to a given variable.
     pub(crate) fn var(id: usize, arena: &mut Arena<'arena>) -> Self {
         Self::hashcons(Var(id), arena)
-    }
-
-    /// The addition of a level and an integer.
-    #[inline]
-    #[must_use]
-    pub fn add(self, n: usize, arena: &mut Arena<'arena>) -> Self {
-        if n == 0 {
-            self
-        } else {
-            let s = self.add(n - 1, arena);
-            s.succ(arena)
-        }
     }
 
     /// Builds a level from an integer.
@@ -149,9 +139,9 @@ impl<'arena> Level<'arena> {
     #[must_use]
     pub fn plus(self) -> (Self, usize) {
         *self.0.header.plus_form.get_or_init(|| match *self {
-            Succ(u) => {
-                let (u, n) = u.plus();
-                (u, n + 1)
+            Add(u, n) => {
+                let (u, k) = u.plus();
+                (u, k + n)
             },
             _ => (self, 0),
         })
@@ -176,7 +166,8 @@ impl<'arena> Level<'arena> {
                 } else {
                     match *v {
                         Zero => v,
-                        Succ(_) => u.max(v, arena),
+                        Add(v,0) => u.imax(v,arena),
+                        Add(_,_) => u.max(v, arena),
                         IMax(_, vw) => Level::max(u.imax(vw, arena), v, arena),
                         Max(vv, vw) => Level::max(u.imax(vv, arena), u.imax(vw, arena), arena),
                         _ => self,
@@ -191,11 +182,16 @@ impl<'arena> Level<'arena> {
                     match (&*u, &*v) {
                         (&Zero, _) => v,
                         (_, &Zero) => u,
-                        (&Succ(uu), &Succ(vv)) => Level::max(uu, vv, arena).succ(arena),
+                        (&Add(uu, k1), &Add(vv, k2)) => {
+                            let min = k1.min(k2);
+                            Level::max(uu.add(k1 - min, arena), vv.add(k2 - min, arena), arena).add(min, arena)
+                        },
                         _ => self,
                     }
                 }
             },
+            Add(u, 0) => u,
+            Add(u,k) if let Add(u,n) = *u => u.add(n+k, arena),
             _ => self,
         }
     }
