@@ -1,4 +1,4 @@
-//! Set of axioms and typing rules for the `True` type
+//! Set of axioms and typing rules for the `True` type.
 
 use derive_more::Display;
 
@@ -8,16 +8,16 @@ use crate::memory::declaration::Declaration;
 use crate::memory::level::Level;
 use crate::memory::term::Term;
 
-/// Axioms regarding `True`
+/// Axioms regarding `True`.
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum True {
-    /// True
+    /// True.
     True,
 
-    /// The default inhabitant of True
+    /// The default inhabitant of True.
     Tt,
 
-    /// The recursor over True
+    /// The recursor over True.
     TrueRec,
 }
 
@@ -45,7 +45,7 @@ impl<'arena> AxiomKind<'arena> for True {
 }
 
 impl True {
-    /// Type of the recursor over `False` proof witnesses
+    /// Type of the recursor over `True` proof witnesses.
     fn type_true_rec<'arena>(arena: &mut Arena<'arena>) -> Term<'arena> {
         // True
         let term_true = Term::axiom(Axiom::True(Self::True), &[], arena);

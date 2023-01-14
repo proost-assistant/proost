@@ -1,4 +1,4 @@
-//! Set of axioms, typing and reduction rules for the `Nat`ural numbers
+//! Set of axioms, typing and reduction rules for the Natural numbers.
 
 use derive_more::Display;
 
@@ -9,18 +9,18 @@ use crate::memory::level::Level;
 use crate::memory::term::Term;
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash)]
-/// Axioms regarding `Nat`ural numbers
+/// Axioms regarding the natural numbers.
 pub enum Natural {
-    /// The natural numbers
+    /// The natural numbers.
     Nat,
 
-    /// The recursor over natural numbers
+    /// The recursor over natural numbers.
     NatRec,
 
-    /// Zero (in the natural numbers)
+    /// Zero (in the natural numbers).
     Zero,
 
-    /// The successor function in the natural numbers
+    /// The successor function in the natural numbers.
     Succ,
 }
 
@@ -59,7 +59,6 @@ impl<'arena> AxiomKind<'arena> for Natural {
 
         // The multiple `let` statements can be easily rewritten as a pattern match
         // if https://github.com/rust-lang/rfcs/issues/2099 is solved.
-
         let App(f, n) = *term else { return None; };
         let App(f, motive_succ) = *f.whnf(arena) else { return None; };
         let App(f, motive_0) = *f.whnf(arena) else { return None; };

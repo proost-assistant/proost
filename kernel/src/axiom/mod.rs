@@ -13,27 +13,27 @@ pub mod false_;
 pub mod natural;
 pub mod true_;
 
-/// Enum containing all the axioms
+/// Enumeration type over all hardcoded axioms.
 #[derive(Copy, Clone, Debug, Display, Eq, PartialEq, Hash)]
 pub enum Axiom {
-    /// Axioms to describe Equality
+    /// Axioms to describe Equality.
     #[display(fmt = "{_0}")]
     Equality(equality::Equality),
 
-    /// Axioms to describe True
+    /// Axioms to describe True.
     True(true_::True),
 
-    /// Axioms to describe False
+    /// Axioms to describe False.
     #[display(fmt = "{_0}")]
     False(false_::False),
 
-    /// Axioms to describe Natural numbers
+    /// Axioms to describe Natural numbers.
     #[display(fmt = "{_0}")]
     Natural(natural::Natural),
 }
 
 impl Axiom {
-    /// Add all the axioms to a given `arena`
+    /// Adds all the axioms to a given `arena`.
     #[inline]
     pub fn add_named_axioms(arena: &mut Arena<'_>) {
         self::equality::Equality::append_to_named_axioms(arena);
@@ -42,7 +42,7 @@ impl Axiom {
         self::natural::Natural::append_to_named_axioms(arena);
     }
 
-    /// Get the type of a given axiom
+    /// Gets the type of a given axiom.
     #[inline]
     pub fn get_type<'arena>(self, arena: &mut Arena<'arena>) -> Term<'arena> {
         use Axiom::{Equality, False, Natural, True};
@@ -55,7 +55,7 @@ impl Axiom {
         }
     }
 
-    /// Reduces a term if possible, returns None otherwise.
+    /// Reduces a term, should any reduction be possible; returns `None` otherwise.
     #[inline]
     pub fn reduce_recursor<'arena>(term: Term<'arena>, arena: &mut Arena<'arena>) -> Option<Term<'arena>> {
         let recursors = [equality::Equality::reduce, natural::Natural::reduce];
@@ -64,17 +64,17 @@ impl Axiom {
     }
 }
 
-/// Trait that defines kind of axioms hardcoded in the kernel.
+/// Trait that defines the kind of axioms hardcoded in the kernel.
 trait AxiomKind<'arena> {
     /// Adds axioms to the given arena.
     fn append_to_named_axioms(arena: &mut Arena<'arena>);
 
-    /// Returns the type of a given axiom
+    /// Returns the type of a given axiom.
     ///
-    /// Because of memoisation, this is typically performed once per axiom.
+    /// Because of memoisation, this is only computed once per axiom.
     fn get_type(self, arena: &mut Arena<'arena>) -> Term<'arena>;
 
-    /// Reduces a [`Term`] if it is an instance of the reducer, returns [`None`] otherwise.
+    /// Reduces a [`Term`] if it is an instance of the reducer; returns `None` otherwise.
     #[allow(unused_variables)]
     fn reduce(term: Term<'arena>, arena: &mut Arena<'arena>) -> Option<Term<'arena>> {
         None
