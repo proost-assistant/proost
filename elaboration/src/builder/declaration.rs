@@ -37,8 +37,8 @@ impl<'build> Buildable<'build> for Builder<'build> {
 
     type Closure = impl BuilderTrait<'build>;
 
-    /// Realise a builder into a [`Declaration`]. This internally uses functions described in
-    /// the [builder](`crate::memory::declaration::builder`) module.
+    /// Realises a builder into a [`Declaration`]. This internally uses functions described in
+    /// the [builder](`kernel::memory::declaration::builder`) module.
     ///
     /// # Errors
     /// If the declaration could not be built, yields an error indicating the reason
@@ -97,7 +97,7 @@ impl<'build> Buildable<'build> for InstantiatedBuilder<'build> {
     type Closure = impl InstantiatedBuilderTrait<'build>;
 
     /// Realise a builder into an [`InstantiatedDeclaration`]. This internally uses functions described in
-    /// the [builder](`crate::memory::declaration::builder`) module.
+    /// the [builder](`kernel::memory::declaration::builder`) module.
     ///
     /// # Errors
     /// If the instantiated declaration could not be built, yields an error indicating the reason

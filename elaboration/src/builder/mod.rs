@@ -13,7 +13,7 @@ pub trait Buildable<'build> {
     ///
     /// Typically a [`BuilderTrait`].
     ///
-    /// [`BuilderTrait`]: term::builder::BuilderTrait
+    /// [`BuilderTrait`]: kernel::memory::term::builder::BuilderTrait
     /// [`Output`]: Buildable::Output
     type Closure;
 
