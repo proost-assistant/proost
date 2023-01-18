@@ -83,14 +83,27 @@ pub enum Payload<'arena> {
     Axiom(axiom::Axiom, &'arena [Level<'arena>]),
 }
 
-impl<'arena> fmt::Display for Term<'arena> {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.pretty_print(f, 0, 0, false)
+use Payload::{Abs, App, Axiom, Decl, Prod, Sort, Var};
+
+/// Thin wrapper used internally to print a term associated to a (classic) identifier as a letter.
+struct PrettyVar(usize);
+
+impl fmt::Display for PrettyVar {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let alphabet = b"abcdefghijklmnopqrstuvwxyz".as_slice();
+        match alphabet.get(self.0).copied() {
+            Some(letter) => write!(f, "{}", char::from(letter)),
+            None => write!(f, "x{}", self.0 - alphabet.len()),
+        }
     }
 }
 
-use Payload::{Abs, App, Axiom, Decl, Prod, Sort, Var};
+impl<'arena> fmt::Display for Term<'arena> {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.pretty_print(f, 0, 0, false)
+    }
+}
 
 /// A term that is ready to be pretty printed with named variables. This term must be closed.
 #[allow(clippy::module_name_repetitions)]
@@ -98,7 +111,7 @@ pub struct PrettyTerm<'arena>(pub Term<'arena>);
 
 impl<'arena> fmt::Display for PrettyTerm<'arena> {
     #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.0.pretty_print(f, 0, 0, true)
     }
 }
@@ -118,7 +131,7 @@ impl<'arena> Term<'arena> {
         match *self {
             Var(index, _) => {
                 if is_root_closed {
-                    write!(f, "x{}", depth - distance - index.0)
+                    write!(f, "{}", PrettyVar(depth - distance - index.0))
                 } else {
                     write!(f, "{index}")
                 }
@@ -141,7 +154,7 @@ impl<'arena> Term<'arena> {
             Abs(argtype, body) => {
                 write!(f, "\u{003BB} ")?;
                 if is_root_closed {
-                    write!(f, "x{depth}: ")?;
+                    write!(f, "{}: ", PrettyVar(depth))?;
                 };
                 argtype.pretty_print(f, depth + 1, distance + 1, is_root_closed)?;
                 write!(f, " => ")?;
@@ -149,7 +162,7 @@ impl<'arena> Term<'arena> {
             },
             Prod(argtype, body) => {
                 if is_root_closed {
-                    write!(f, "(x{depth}: ")?;
+                    write!(f, "({}: ", PrettyVar(depth))?;
                 };
                 argtype.pretty_print(f, depth + 1, distance + 1, is_root_closed)?;
                 if is_root_closed {
