@@ -58,7 +58,11 @@ impl<'arena> Term<'arena> {
     /// Returns the term `self` where all variables with de Bruijn index larger than `depth` are offset
     /// by `offset`.
     pub(crate) fn shift(self, offset: usize, depth: usize, arena: &mut Arena<'arena>) -> Self {
-        match *self {
+        if self.is_certainly_closed() {
+            return self;
+        }
+
+        let shifted_term = match *self {
             Var(i, type_) if i > depth.into() => Term::var(i + offset.into(), type_, arena),
             App(t1, t2) => {
                 let t1 = t1.shift(offset, depth, arena);
@@ -76,7 +80,13 @@ impl<'arena> Term<'arena> {
                 arg_type.prod(body, arena)
             },
             _ => self,
-        }
+        };
+
+        if (shifted_term == self) && (depth == 0) && (offset > 0) {
+            self.set_as_closed();
+        };
+
+        shifted_term
     }
 
     /// Returns the term `self` where all instances of the variable tracked by `depth` are substituted

@@ -52,8 +52,6 @@ pub struct Arena<'arena> {
 
     /// Hash maps used to speed up certain algorithms. See also `OnceCell`s in [`Term`]
     pub(super) mem_subst: HashMap<(Term<'arena>, Term<'arena>, usize), Term<'arena>>,
-    // TODO shift hashmap (see #45)
-    // requires the design of an additional is_certainly_closed predicate in terms.
 }
 
 /// Calls function `f` on a newly-created arena.
