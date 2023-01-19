@@ -177,14 +177,18 @@ impl<'arena> Term<'arena> {
     #[must_use]
     pub fn whnf(self, arena: &mut Arena<'arena>) -> Self {
         self.get_whnf_or_init(|| {
-            self.reduce_recursor(arena).map(|x| x.whnf(arena)).unwrap_or_else(|| match *self {
-                App(t1, t2) => match *t1.unfold(arena).whnf(arena) {
-                    Abs(_, t1) => {
-                        let subst = t1.substitute(t2, 1, arena);
-                        subst.whnf(arena)
+            crate::axiom::Axiom::reduce_recursor(self, arena)
+                .map(|x| x.whnf(arena))
+                .unwrap_or_else(|| match *self {
+                    App(t1, t2) => match *t1.unfold(arena).whnf(arena) {
+                        Abs(_, t1) => {
+                            let subst = t1.substitute(t2, 1, arena);
+                            subst.whnf(arena)
+                        },
+                        _ => self,
                     },
                     _ => self,
-                }})
+                })
         })
     }
 
