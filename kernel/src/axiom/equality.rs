@@ -213,7 +213,7 @@ impl Equality {
         use crate::memory::term::Payload::{App, Axiom, Prod};
         // Be aware that this function will not be automatically formatted, because of the
         // experimental status of let-chains, as well as that of if-let conditions in pattern matching.
-        let App(f, y) = *term.whnf(arena)  else { return None; };
+        let App(f, y) = *term  else { return None; };
         let App(f, x) = *f.whnf(arena)  else { return None; };
         let App(f,ty) = *f.whnf(arena)  else { return None; };
         let Axiom(crate::axiom::Axiom::Equality(Self::Eq_), _) = *f.unfold(arena).whnf(arena) else { return None; };
@@ -249,7 +249,7 @@ impl Equality {
         use crate::memory::term::Payload::{App, Axiom, Sort};
         // Be aware that this function will not be automatically formatted, because of the
         // experimental status of let-chains, as well as that of if-let conditions in pattern matching.
-        let App(f, x) = *term.whnf(arena) else { return None; };
+        let App(f, x) = *term else { return None; };
         let App(f, e) = *f.whnf(arena)  else { return None; };
         let App(f,ty2) = *f.whnf(arena)  else { return None; };
         let App(f,ty1) = *f.whnf(arena)  else { return None; };
