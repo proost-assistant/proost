@@ -12,6 +12,7 @@ pub mod equality;
 pub mod false_;
 pub mod natural;
 pub mod true_;
+mod exists;
 
 /// Enum containing all the axioms
 #[derive(Copy, Clone, Debug, Display, Eq, PartialEq, Hash)]
@@ -30,6 +31,10 @@ pub enum Axiom {
     /// Axioms to describe Natural numbers
     #[display(fmt = "{_0}")]
     Natural(natural::Natural),
+
+    /// Axioms to describe Existential types
+    #[display(fmt = "{_0}")]
+    Exists(exists::Exists),
 }
 
 impl Axiom {
@@ -40,18 +45,20 @@ impl Axiom {
         self::true_::True::append_to_named_axioms(arena);
         self::false_::False::append_to_named_axioms(arena);
         self::natural::Natural::append_to_named_axioms(arena);
+        self::exists::Exists::append_to_named_axioms(arena);
     }
 
     /// Get the type of a given axiom
     #[inline]
     pub fn get_type<'arena>(self, arena: &mut Arena<'arena>) -> Term<'arena> {
-        use Axiom::{Equality, False, Natural, True};
+        use Axiom::{Equality, False, Natural, True, Exists};
 
         match self {
             Equality(axiom) => axiom.get_type(arena),
             True(axiom) => axiom.get_type(arena),
             False(axiom) => axiom.get_type(arena),
             Natural(axiom) => axiom.get_type(arena),
+            Exists(axiom) => axiom.get_type(arena),
         }
     }
 
