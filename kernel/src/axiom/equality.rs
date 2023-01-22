@@ -2,6 +2,7 @@
 
 use derive_more::Display;
 
+use super::exists::Exists;
 use super::false_::False;
 use super::natural::Natural;
 use super::true_::True;
@@ -209,13 +210,26 @@ impl Equality {
         }
     }
 
+    /// Reduces `Eq Prop A B` to `(A -> B) /\ (B -> A)`. This reduction is known as propositional extensionality
+    fn reduce_prop<'arena>(term: Term<'arena>, rhs: Term<'arena>, arena: &mut Arena<'arena>) -> Option<Term<'arena>> {
+        Term::axiom(super::Axiom::Exists(Exists::Exists_), &[], arena)
+            .app(term.prod(rhs, arena), arena)
+            .app(term.prod(rhs, arena).abs(rhs.prod(term, arena), arena), arena)
+            .into()
+    }
+
+    /// Reduces equality between two proof-relevant types
+    fn reduce_type<'arena>(_term: Term<'arena>, _rhs: Term<'arena>, _arena: &mut Arena<'arena>) -> Option<Term<'arena>> {
+        unreachable!("todo")
+    }
+
     // Reduces a term if it is an instance of the Eq reducer, returns None otherwise.
     // I'm marking it as `no_coverage` for now, but proofs that reduction works can be found in `examples/eq.mdln`.
     /// Reduces equality according to the observational equality reduction. This function is extensively big, and will
     /// have to be extended each time a new type gets added to the lot to add according reduction rules
     #[no_coverage]
     fn reduce_eq<'arena>(term: Term<'arena>, arena: &mut Arena<'arena>) -> Option<Term<'arena>> {
-        use crate::memory::term::Payload::{App, Axiom, Prod};
+        use crate::memory::term::Payload::{App, Axiom, Prod, Sort};
         // Be aware that this function will not be automatically formatted, because of the
         // experimental status of let-chains, as well as that of if-let conditions in pattern matching.
         let App(f, y) = *term  else { return None; };
@@ -227,7 +241,10 @@ impl Equality {
             Axiom(crate::axiom::Axiom::Natural(Natural::Nat), _) => Self::reduce_nat_eq(x, y, arena),
             // Eq-Fun
             Prod(ty1, ty2) if x.is_relevant(arena) => Self::reduce_fun_eq(x, y, ty1, ty2, arena),
+            // Eq-Prop
+            Sort(u) if u.is_eq(Level::zero(arena), arena) => Self::reduce_prop(x, y, arena),
             // TODO Eq-Univ,Eq-univ-!=, Eq-Pi
+            Sort(u) if Level::zero(arena).geq(u, 1, arena) => Self::reduce_type(x, y, arena),
             _ => None,
         }
     }
