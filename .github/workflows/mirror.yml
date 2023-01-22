@@ -1,0 +1,19 @@
+on:
+  schedule:
+  - cron:  "0 0 * * *"
+  workflow_dispatch:
+
+jobs:
+  repo-sync:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: nschloe/action-cached-lfs-checkout@v1
+
+    - name: repo-sync
+      uses: proost-assistant/github-sync-lfs@v1.0
+      with:
+        sync_tags: true
+        source_repo: "https://gitlab.crans.org/loutr/proost"
+        source_branch: "*"
+        destination_branch: "*"
+        github_token: ${{ secrets.GITHUB_TOKEN }}
