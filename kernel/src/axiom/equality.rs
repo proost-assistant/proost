@@ -191,6 +191,11 @@ impl Equality {
         arena: &mut Arena<'arena>,
     ) -> Option<Term<'arena>> {
         use crate::memory::term::Payload::Sort;
+        // This `infer` call is necessary in order to find in which universe this new equality is located.
+        // This might seem at first as if we were mangling computations between inference and reduction,
+        // which coule be dangerous and lead to possible infinite loops. However, in practice, reduction is only called upon
+        // well-typed types, upon which the type has already been computed, which means this `infer` calls only calls upon
+        // the memoized value, and not an actual computation.
         let sort_ty2 = ty2.infer(arena).ok()?.whnf(arena);
         if let Sort(lvl) = *sort_ty2 {
             let x = Term::var(1.into(), ty1.shift(1, 0, arena), arena);
@@ -220,8 +225,9 @@ impl Equality {
         match *ty.whnf(arena) {
             // Eq-Zero/Succ/Zero-Succ/Succ-Zero
             Axiom(crate::axiom::Axiom::Natural(Natural::Nat), _) => Self::reduce_nat_eq(x, y, arena),
+            // Eq-Fun
             Prod(ty1, ty2) if x.is_relevant(arena) => Self::reduce_fun_eq(x, y, ty1, ty2, arena),
-            // TODO Eq-Fun,Eq-Univ,Eq-univ-!=, Eq-Pi
+            // TODO Eq-Univ,Eq-univ-!=, Eq-Pi
             _ => None,
         }
     }
