@@ -35,6 +35,16 @@ impl<'arena> fmt::Display for Term<'arena> {
 }
 
 impl<'arena> super::Term<'arena> {
+    /// Indicates whether a term is an application.
+    fn is_app(self) -> bool {
+        matches!(*self, App(..))
+    }
+
+    /// Indicates whether a term is a binder, which also entails specific printing rules.
+    fn is_binder(self) -> bool {
+        matches!(*self, Abs(..) | Prod(..))
+    }
+
     /// This function generates the pretty print of a term.
     ///
     /// `depth` parameter indicates the number of existing variables (number of Abs/Prop from the root of the term to the
@@ -64,11 +74,21 @@ impl<'arena> super::Term<'arena> {
                 None => write!(f, "Sort {level}"),
             },
             App(fun, arg) => {
-                write!(f, "(")?;
-                fun.pretty_print(f, depth, distance, is_root_closed)?;
-                write!(f, ") (")?;
-                arg.pretty_print(f, depth, distance, is_root_closed)?;
-                write!(f, ")")
+                if fun.is_binder() {
+                    write!(f, "(")?;
+                    fun.pretty_print(f, depth, distance, is_root_closed)?;
+                    write!(f, ")")?;
+                } else {
+                    fun.pretty_print(f, depth, distance, is_root_closed)?;
+                }
+                write!(f, " ")?;
+                if arg.is_app() || arg.is_binder() {
+                    write!(f, "(")?;
+                    arg.pretty_print(f, depth, distance, is_root_closed)?;
+                    write!(f, ")")
+                } else {
+                    arg.pretty_print(f, depth, distance, is_root_closed)
+                }
             },
             Abs(argtype, body) => {
                 write!(f, "\u{003BB} ")?;
@@ -93,5 +113,45 @@ impl<'arena> super::Term<'arena> {
             Decl(decl) => write!(f, "{decl}"),
             Axiom(s, _) => write!(f, "{s}"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::memory::arena::use_arena;
+    use crate::memory::declaration::{Declaration, InstantiatedDeclaration};
+    use crate::memory::level::builder::raw as level;
+    use crate::memory::term::builder::raw::*;
+    use crate::memory::term::{pretty, Term};
+
+    #[test]
+    fn display_1() {
+        use_arena(|arena| {
+            let decl = InstantiatedDeclaration::instantiate(Declaration(Term::prop(arena), 0), &Vec::new(), arena);
+            let prop = Term::decl(decl, arena);
+
+            assert_eq!(prop.to_string(), "(Prop).{}");
+        });
+    }
+
+    #[test]
+    fn display_2() {
+        use_arena(|arena| {
+            let lvl = level::max(level::succ(level::var(0)), level::succ(level::var(1)));
+
+            let term = arena.build_term_raw(abs(
+                sort_(lvl),
+                abs(
+                    type_usize(0),
+                    abs(
+                        type_usize(1),
+                        prod(var(1.into(), type_usize(1)), app(var(1.into(), type_usize(1)), var(2.into(), type_usize(0)))),
+                    ),
+                ),
+            ));
+
+            assert_eq!(term.to_string(), "λ Sort ((max u0 u1) + 1) => λ Type => λ Type 1 => 1 -> 1 2");
+            assert_eq!(pretty::Term(term).to_string(), "λ a: Sort ((max u0 u1) + 1) => λ b: Type => λ c: Type 1 => (d: c) -> d c");
+        });
     }
 }
