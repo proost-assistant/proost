@@ -118,7 +118,7 @@ impl<'arena> super::Term<'arena> {
 
 #[cfg(test)]
 mod tests {
-    use crate::memory::arena::use_arena;
+    use crate::memory::arena::{use_arena, use_arena_with_axioms};
     use crate::memory::declaration::{Declaration, InstantiatedDeclaration};
     use crate::memory::level::builder::raw as level;
     use crate::memory::term::builder::raw::*;
@@ -152,6 +152,28 @@ mod tests {
 
             assert_eq!(term.to_string(), "λ Sort ((max u0 u1) + 1) => λ Type => λ Type 1 => 1 -> 1 2");
             assert_eq!(pretty::Term(term).to_string(), "λ a: Sort ((max u0 u1) + 1) => λ b: Type => λ c: Type 1 => (d: c) -> d c");
+        });
+    }
+
+    #[test]
+    fn display_3() {
+        use_arena(|arena| {
+            let term = arena.build_term_raw(abs(
+                prop(),
+                abs(prop(), app(abs(prop(), var(1.into(), prop())), app(var(1.into(), prop()), var(2.into(), prop())))),
+            ));
+            assert_eq!(term.to_string(), "λ Prop => λ Prop => (λ Prop => 1) (1 2)");
+        });
+    }
+
+    #[test]
+    fn display_axiom() {
+        use_arena_with_axioms(|arena| {
+            let zero = arena.get_binding("Zero").unwrap();
+            let succ = arena.get_binding("Succ").unwrap();
+            let two = succ.app(succ.app(zero, arena), arena);
+
+            assert_eq!(two.to_string(), "Succ (Succ Zero)");
         });
     }
 }
