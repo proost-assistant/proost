@@ -68,7 +68,7 @@ use clap::Parser;
 use colored::Colorize;
 use elaboration::location::Location;
 use evaluator::Evaluator;
-use kernel::memory::term::PrettyTerm;
+use kernel::memory::term::pretty;
 use parser::command::{self, Command};
 use rustyline::error::ReadlineError;
 use rustyline::{Cmd, Config, Editor, EventHandler, KeyCode, KeyEvent, Modifiers};
@@ -156,7 +156,7 @@ pub fn display(res: ResultProcess, toggle_location: bool) {
     match res {
         Ok(None) => println!("{}", "\u{2713}".green()),
 
-        Ok(Some(t)) => println!("{} {}", "\u{2713}".green(), PrettyTerm(t)),
+        Ok(Some(t)) => println!("{} {}", "\u{2713}".green(), pretty::Term(t)),
 
         Err(err) => {
             let location = match err {
