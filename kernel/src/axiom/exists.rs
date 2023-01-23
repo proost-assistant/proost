@@ -207,3 +207,17 @@ impl Exists {
             )
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn check_well_typedness() {
+        crate::memory::arena::use_arena(|arena| {
+            assert!(Term::axiom(Axiom::Exists(Exists::Exists_), &[], arena).infer(arena).is_ok());
+            assert!(Term::axiom(Axiom::Exists(Exists::ExistsIntro), &[], arena).infer(arena).is_ok());
+            assert!(Term::axiom(Axiom::Exists(Exists::Fst), &[], arena).infer(arena).is_ok());
+            assert!(Term::axiom(Axiom::Exists(Exists::Snd), &[], arena).infer(arena).is_ok());
+        });
+    }
+}

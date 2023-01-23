@@ -67,3 +67,18 @@ impl True {
         Term::prod(motive, prod_app_motive_tt, arena)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn check_well_typedness() {
+        crate::memory::arena::use_arena(|arena| {
+            let var0 = Level::var(0, arena);
+            assert!(Term::axiom(Axiom::True(True::True), &[], arena).infer(arena).is_ok());
+            assert!(Term::axiom(Axiom::True(True::TrueRec), &[var0], arena).infer(arena).is_ok());
+            assert!(Term::axiom(Axiom::True(True::Tt), &[], arena).infer(arena).is_ok());
+        });
+    }
+}

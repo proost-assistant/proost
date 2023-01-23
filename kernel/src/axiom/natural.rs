@@ -138,6 +138,15 @@ mod tests {
     use super::*;
 
     #[test]
+    fn check_well_typedness() {
+        crate::memory::arena::use_arena(|arena| {
+            assert!(Term::axiom(Axiom::Natural(Natural::Nat), &[], arena).infer(arena).is_ok());
+            assert!(Term::axiom(Axiom::Natural(Natural::Zero), &[], arena).infer(arena).is_ok());
+            assert!(Term::axiom(Axiom::Natural(Natural::Succ), &[], arena).infer(arena).is_ok());
+        });
+    }
+
+    #[test]
     fn reduce_nat() {
         crate::memory::arena::use_arena(|arena| {
             let lvl_one = Level::succ(Level::zero(arena), arena);

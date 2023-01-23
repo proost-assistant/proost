@@ -218,9 +218,45 @@ impl Equality {
             .into()
     }
 
-    /// Reduces equality between two proof-relevant types
-    fn reduce_type<'arena>(_term: Term<'arena>, _rhs: Term<'arena>, _arena: &mut Arena<'arena>) -> Option<Term<'arena>> {
+    /// Reduces Pi-types as such : ((x : A1) -> B1) = ((x : A2) -> B2) => Exists
+    fn reduce_pi<'arena>(
+        _a1: Term<'arena>,
+        _b1: Term<'arena>,
+        _a2: Term<'arena>,
+        _b2: Term<'arena>,
+        _arena: &mut Arena<'arena>,
+    ) -> Term<'arena> {
         unreachable!("todo")
+    }
+
+    /// Reduces equality between two proof-relevant types
+    fn reduce_type<'arena>(term: Term<'arena>, rhs: Term<'arena>, arena: &mut Arena<'arena>) -> Option<Term<'arena>> {
+        use crate::memory::term::Payload::{Prod, Sort};
+
+        if term == rhs {
+            return Some(Term::axiom(super::Axiom::True(True::True), &[], arena));
+        }
+        let lhs = term.whnf(arena);
+        let rhs = rhs.whnf(arena);
+
+        if lhs == rhs {
+            return Some(Term::axiom(super::Axiom::True(True::True), &[], arena));
+        }
+
+        match *lhs {
+            Sort(_) => match *rhs {
+                // Since the Equality is well typed, the only way to have Sort u = Sort v
+                // is to have u = v since they have to live in the same universe, which means
+                // there is no need to check for universe equality here
+                Sort(_) => Some(Term::axiom(super::Axiom::True(True::True), &[], arena)),
+                _ => Some(Term::axiom(super::Axiom::False(False::False), &[], arena)),
+            },
+            Prod(a1, b1) => match *rhs {
+                Prod(a2, b2) => Some(Self::reduce_pi(a1, b1, a2, b2, arena)),
+                _ => Some(Term::axiom(super::Axiom::False(False::False), &[], arena)),
+            },
+            _ => None,
+        }
     }
 
     // Reduces a term if it is an instance of the Eq reducer, returns None otherwise.
@@ -286,5 +322,21 @@ impl Equality {
                 // TODO Cast-Pi
                 _ => None
             }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn check_well_typedness() {
+        crate::memory::arena::use_arena(|arena| {
+            let var0 = Level::var(0, arena);
+            assert!(Term::axiom(Axiom::Equality(Equality::Eq_), &[var0], arena).infer(arena).is_ok());
+            assert!(Term::axiom(Axiom::Equality(Equality::Refl), &[var0], arena).infer(arena).is_ok());
+            assert!(Term::axiom(Axiom::Equality(Equality::Cast), &[var0], arena).infer(arena).is_ok());
+            assert!(Term::axiom(Axiom::Equality(Equality::Transp), &[var0], arena).infer(arena).is_ok());
+        });
     }
 }
