@@ -13,7 +13,7 @@ pub mod builder;
 /// The header of a level.
 struct Header<'arena> {
     /// The plus-form of a level.
-    plus_form: OnceCell<(Level<'arena>, usize)>,
+    plus_form: OnceCell<(Level<'arena>, u32)>,
 }
 
 /// A universe level.
@@ -27,7 +27,7 @@ pub enum Payload<'arena> {
     Zero,
 
     /// The successor of a level
-    Add(Level<'arena>, usize),
+    Add(Level<'arena>, u32),
 
     /// The maximum of two levels
     Max(Level<'arena>, Level<'arena>),
@@ -100,7 +100,7 @@ impl<'arena> Level<'arena> {
     }
 
     /// Returns the level + n.
-    pub(crate) fn add(self, n: usize, arena: &mut Arena<'arena>) -> Self {
+    pub(crate) fn add(self, n: u32, arena: &mut Arena<'arena>) -> Self {
         Self::hashcons(Add(self, n), arena)
     }
 
@@ -122,14 +122,14 @@ impl<'arena> Level<'arena> {
     /// Builds a level from an integer.
     #[inline]
     #[must_use]
-    pub fn from(n: usize, arena: &mut Arena<'arena>) -> Self {
+    pub fn from(n: u32, arena: &mut Arena<'arena>) -> Self {
         Level::zero(arena).add(n, arena)
     }
 
     /// Converts a level to an integer, if possible.
     #[inline]
     #[must_use]
-    pub fn to_numeral(self) -> Option<usize> {
+    pub fn to_numeral(self) -> Option<u32> {
         let (u, n) = self.plus();
         (*u == Zero).then_some(n)
     }
@@ -137,7 +137,7 @@ impl<'arena> Level<'arena> {
     /// Decomposes a level `l` in the best pair `(u, n)` s.t. `l = u + n`.
     #[inline]
     #[must_use]
-    pub fn plus(self) -> (Self, usize) {
+    pub fn plus(self) -> (Self, u32) {
         *self.0.header.plus_form.get_or_init(|| match *self {
             Add(u, n) => {
                 let (u, k) = u.plus();

@@ -13,7 +13,7 @@ use kernel::memory::level::Level;
 use super::Buildable;
 
 /// Limit of universe level
-static UNIVERSE_LIMIT: usize = 15;
+static UNIVERSE_LIMIT: u32 = 15;
 
 /// Template of levels.
 ///
@@ -34,10 +34,10 @@ pub enum Builder<'builder> {
     #[display(fmt = "0")]
     Zero,
 
-    Const(usize),
+    Const(u32),
 
     #[display(fmt = "({_0}) + {_1}")]
-    Plus(Box<Builder<'builder>>, usize),
+    Plus(Box<Builder<'builder>>, u32),
 
     #[display(fmt = "S({_0})")]
     Succ(Box<Builder<'builder>>),
@@ -57,7 +57,7 @@ impl<'build> Builder<'build> {
     /// * `Const(c)` is considered as being c successors consecutively
     /// * every var is considered as 0
     #[inline]
-    fn max_depth(&self) -> usize {
+    fn max_depth(&self) -> u32 {
         match self {
             Builder::Zero => 0,
             Builder::Const(c) => *c,

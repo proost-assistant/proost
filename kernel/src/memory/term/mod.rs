@@ -132,7 +132,7 @@ impl<'arena> Term<'arena> {
     }
 
     /// Returns the term corresponding to Type(level), casting level appropriately first.
-    pub(crate) fn type_usize(level: usize, arena: &mut Arena<'arena>) -> Self {
+    pub(crate) fn type_usize(level: u32, arena: &mut Arena<'arena>) -> Self {
         let header = Header::new(true);
         let payload = Sort(Level::from(level + 1, arena));
 
@@ -140,7 +140,7 @@ impl<'arena> Term<'arena> {
     }
 
     /// Returns the term corresponding to Sort(level), casting level appropriately first.
-    pub(crate) fn sort_usize(level: usize, arena: &mut Arena<'arena>) -> Self {
+    pub(crate) fn sort_usize(level: u32, arena: &mut Arena<'arena>) -> Self {
         let header = Header::new(true);
         let payload = Sort(Level::from(level, arena));
 

@@ -61,8 +61,8 @@ impl<'arena> Level<'arena> {
 
             (_, _) if self == rhs && n >= 0 => State::True,
 
-            (&Add(l,k), _) if l.geq_no_subst(rhs, n - (<usize as std::convert::TryInto<i64>>::try_into(k).expect("Unexpected u16 overflow in f"))).is_true() => State::True,
-            (_, &Add(l,k)) if self.geq_no_subst(l, n + (<usize as std::convert::TryInto<i64>>::try_into(k).expect("Unexpected u16 overflow in f"))).is_true() => State::True,
+            (&Add(l,k), _) if l.geq_no_subst(rhs, n - (i64::from(k))).is_true() => State::True,
+            (_, &Add(l,k)) if self.geq_no_subst(l, n + (i64::from(k))).is_true() => State::True,
 
             (_, &Max(l1, l2))
                 if self.geq_no_subst(l1, n).is_true() || self.geq_no_subst(l2, n).is_true() =>

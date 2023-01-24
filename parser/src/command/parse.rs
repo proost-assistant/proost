@@ -58,7 +58,7 @@ fn parse_level(pair: Pair<Rule>) -> Result<level::Builder> {
             let univ = parse_level(iter.next().unwrap())?;
 
             let numbers = iter.map(|pair| {
-                pair.as_str().parse::<usize>().map_err(|err| Error {
+                pair.as_str().parse::<u32>().map_err(|err| Error {
                     location: convert_span(pair.as_span()),
                     kind: Kind::TransformError(err.to_string()),
                 })

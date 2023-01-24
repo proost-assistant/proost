@@ -93,7 +93,7 @@ pub const fn type_<'build, F: level::BuilderTrait<'build>>(level: F) -> impl Bui
 /// Returns a closure building the Type `level` term (indirection from `usize`).
 #[inline]
 #[must_use]
-pub const fn type_usize<'build>(level: usize) -> impl BuilderTrait<'build> {
+pub const fn type_usize<'build>(level: u32) -> impl BuilderTrait<'build> {
     move |arena, _, _, _| Ok(Term::type_usize(level, arena))
 }
 
@@ -107,7 +107,7 @@ pub const fn sort<'build, F: level::BuilderTrait<'build>>(level: F) -> impl Buil
 /// Returns a closure building the Sort `level` term (indirection from `usize`).
 #[inline]
 #[must_use]
-pub const fn sort_usize<'build>(level: usize) -> impl BuilderTrait<'build> {
+pub const fn sort_usize<'build>(level: u32) -> impl BuilderTrait<'build> {
     move |arena, _, _, _| Ok(Term::sort_usize(level, arena))
 }
 
@@ -195,7 +195,7 @@ pub(crate) mod raw {
         |arena| Term::prop(arena)
     }
 
-    pub const fn type_usize(level: usize) -> impl BuilderTrait {
+    pub const fn type_usize(level: u32) -> impl BuilderTrait {
         move |arena| Term::type_usize(level, arena)
     }
 

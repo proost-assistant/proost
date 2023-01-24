@@ -23,7 +23,7 @@ pub enum ErrorKind<'arena> {
     /// Trying to build an universe too large
     // TODO (#94): Must be use only in this file. Currently, it is used in elaboration.
     #[display(fmt = "universe {_0} too large to be built")]
-    UniverseTooLarge(usize),
+    UniverseTooLarge(u32),
 
     /// Unknown universe variable
     #[display(fmt = "unknown universe variable {_0}")]
@@ -86,14 +86,14 @@ pub const fn zero<'build>() -> impl BuilderTrait<'build> {
 /// Returns a closure building a constant level.
 #[inline]
 #[must_use]
-pub const fn const_<'build>(n: usize) -> impl BuilderTrait<'build> {
+pub const fn const_<'build>(n: u32) -> impl BuilderTrait<'build> {
     move |arena, _| Ok(Level::from(n, arena))
 }
 
 /// Returns a closure building the sum of `u` and a constant `n`.
 #[inline]
 #[no_coverage]
-pub const fn plus<'build, F: BuilderTrait<'build>>(u: F, n: usize) -> impl BuilderTrait<'build> {
+pub const fn plus<'build, F: BuilderTrait<'build>>(u: F, n: u32) -> impl BuilderTrait<'build> {
     move |arena, env| Ok(u(arena, env)?.add(n, arena))
 }
 
