@@ -1,10 +1,10 @@
 WHITESPACE = _{ WHITE_SPACE }
 COMMENT = _{ "//" ~ (!"\n" ~ ANY)* }
 number = @{ ASCII_DIGIT+ }
-filename = @{ ( ASCII_ALPHANUMERIC | PUNCTUATION )+ }
+filename = @{ !keywords ~ ( ASCII_ALPHANUMERIC | PUNCTUATION )+ }
 wildcard = @{"_"}
 string = @{!keywords ~ ASCII_ALPHA ~ ( "_" | ASCII_ALPHANUMERIC )* }
-keywords = @{ ( "fun" | "def" | "check" | "Prop" | "Type" | "Sort" ) ~ !ASCII_ALPHANUMERIC }
+keywords = @{ ( "fun" | "def" | "check" | "eval" | "search" | "import" | "Prop" | "Type" | "Sort" ) ~ !ASCII_ALPHANUMERIC }
 eoi = _{ !ANY }
 
 
