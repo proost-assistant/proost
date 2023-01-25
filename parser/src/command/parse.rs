@@ -151,6 +151,7 @@ fn parse_term(pair: Pair<Rule>) -> Result<term::Builder> {
     }
 }
 
+/// Parser for a single left-argument block of the form (a1 ... an : A)
 fn parse_arg(pair: Pair<Rule>) -> Result<Vec<(&str, term::Builder)>> {
     let mut res = Vec::new();
 
@@ -162,6 +163,7 @@ fn parse_arg(pair: Pair<Rule>) -> Result<Vec<(&str, term::Builder)>> {
     Ok(res)
 }
 
+/// Parses multiple left-arguments.
 fn parse_args(pair: Pair<Rule>) -> Result<Vec<(&str, term::Builder)>> {
     let mut res = Vec::new();
 
@@ -214,7 +216,9 @@ fn parse_expr(pair: Pair<Rule>) -> Result<Command> {
             let args = parse_args(iter.next().unwrap())?.into_iter();
             let ty = parse_term(iter.next().unwrap())?;
             let term = parse_term(iter.next().unwrap())?;
-            let ty = args.clone().fold(ty, |acc, (var, type_)| Builder::new(loc, Prod(var, box type_, box acc)));
+            let ty = args
+                .clone()
+                .fold(ty, |acc, (var, type_)| Builder::new(loc, Prod(var, box type_, box acc)));
             let term = args.fold(term, |acc, (var, type_)| Builder::new(loc, Abs(var, box type_, box acc)));
 
             Ok(Command::Define((convert_span(s.as_span()), s.as_str()), Some(ty), term))
@@ -242,7 +246,9 @@ fn parse_expr(pair: Pair<Rule>) -> Result<Command> {
             let ty = parse_term(iter.next().unwrap())?;
             let decl = iter.next().map(parse_term).unwrap()?;
 
-            let ty = args.clone().fold(ty, |acc, (var, type_)| Builder::new(loc, Prod(var, box type_, box acc)));
+            let ty = args
+                .clone()
+                .fold(ty, |acc, (var, type_)| Builder::new(loc, Prod(var, box type_, box acc)));
             let decl = args.fold(decl, |acc, (var, type_)| Builder::new(loc, Abs(var, box type_, box acc)));
 
             let ty = declaration::Builder::Decl(box ty, vars.clone());
@@ -388,6 +394,25 @@ mod tests {
         assert_eq!(
             line("def x := Prop"),
             Ok(Define((Location::new((1, 5), (1, 6)), "x"), None, Builder::new(Location::new((1, 10), (1, 14)), Prop)))
+        );
+    }
+
+    #[test]
+    fn successful_define_with_l_arg() {
+        assert_eq!(
+            line("def x (A: Prop) := A"),
+            Ok(Define(
+                (Location::new((1, 5), (1, 6)), "x"),
+                None,
+                Builder::new(
+                    Location::new((1, 1), (1, 21)),
+                    Abs(
+                        "A",
+                        Box::new(Builder::new(Location::new((1, 11), (1, 15)), Prop)),
+                        Box::new(Builder::new(Location::new((1, 20), (1, 21)), Var("A")))
+                    )
+                )
+            ))
         );
     }
 
