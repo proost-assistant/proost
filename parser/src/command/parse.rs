@@ -151,15 +151,37 @@ fn parse_term(pair: Pair<Rule>) -> Result<term::Builder> {
     }
 }
 
-fn parse_args(pair: Pair<Rule>) -> Result<Vec<(String,term::Builder)>> {
-    match pair.as_rule() {
-        Rule::Args => {
-        }
-    }
+fn parse_arg(pair: Pair<Rule>) -> Result<Vec<(&str, term::Builder)>> {
+    let mut res = Vec::new();
+
+    let mut iter = pair.into_inner();
+    if let Some(ty) = iter.next_back() {
+        let ty = parse_term(ty)?;
+        iter.for_each(|pair| res.push((pair.as_str(), ty.clone())));
+    };
+    Ok(res)
+}
+
+fn parse_args(pair: Pair<Rule>) -> Result<Vec<(&str, term::Builder)>> {
+    let mut res = Vec::new();
+
+    let iter = pair.into_inner();
+    iter.fold(Ok(()), |u, pair| {
+        u?;
+        let mut arg = parse_arg(pair)?;
+        res.append(&mut arg);
+        Ok::<(), Error>(())
+    })?;
+    Ok(res.into_iter().rev().collect())
 }
 
 /// Builds a command from errorless pest output
 fn parse_expr(pair: Pair<Rule>) -> Result<Command> {
+    use term::Builder;
+    use term::Payload::{Abs, Prod};
+
+    let loc = convert_span(pair.as_span());
+
     match pair.as_rule() {
         Rule::GetType => {
             let mut iter = pair.into_inner();
@@ -179,8 +201,9 @@ fn parse_expr(pair: Pair<Rule>) -> Result<Command> {
         Rule::Define => {
             let mut iter = pair.into_inner();
             let s = iter.next().unwrap();
-            let args = parse_args(iter.next());
-            let term = parse_term(iter.next().unwrap())?;
+            let args = parse_args(iter.next().unwrap())?.into_iter();
+            let term = parse_term(iter.next_back().unwrap())?;
+            let term = args.fold(term, |acc, (var, type_)| Builder::new(loc, Abs(var, box type_, box acc)));
 
             Ok(Command::Define((convert_span(s.as_span()), s.as_str()), None, term))
         },
@@ -188,9 +211,11 @@ fn parse_expr(pair: Pair<Rule>) -> Result<Command> {
         Rule::DefineCheckType => {
             let mut iter = pair.into_inner();
             let s = iter.next().unwrap();
-            let args = parse_args(iter.next());
+            let args = parse_args(iter.next().unwrap())?.into_iter();
             let ty = parse_term(iter.next().unwrap())?;
             let term = parse_term(iter.next().unwrap())?;
+            let ty = args.clone().fold(ty, |acc, (var, type_)| Builder::new(loc, Prod(var, box type_, box acc)));
+            let term = args.fold(term, |acc, (var, type_)| Builder::new(loc, Abs(var, box type_, box acc)));
 
             Ok(Command::Define((convert_span(s.as_span()), s.as_str()), Some(ty), term))
         },
@@ -200,10 +225,11 @@ fn parse_expr(pair: Pair<Rule>) -> Result<Command> {
             let mut string_decl = iter.next().unwrap().into_inner();
             let s = string_decl.next().unwrap();
             let vars: Vec<&str> = string_decl.next().unwrap().into_inner().map(|name| name.as_str()).collect();
-            let args = parse_args(iter.next());
-            let body = iter.next().map(parse_term).unwrap()?;
+            let args = parse_args(iter.next().unwrap())?.into_iter();
+            let decl = iter.next().map(parse_term).unwrap()?;
+            let decl = args.fold(decl, |acc, (var, type_)| Builder::new(loc, Abs(var, box type_, box acc)));
 
-            Ok(Command::Declaration((convert_span(s.as_span()), s.as_str()), None, declaration::Builder::Decl(box body, vars)))
+            Ok(Command::Declaration((convert_span(s.as_span()), s.as_str()), None, declaration::Builder::Decl(box decl, vars)))
         },
 
         Rule::DeclarationCheckType => {
@@ -212,9 +238,12 @@ fn parse_expr(pair: Pair<Rule>) -> Result<Command> {
             let s = string_decl.next().unwrap();
             let vars: Vec<&str> = string_decl.next().unwrap().into_inner().map(|name| name.as_str()).collect();
 
-            let args = parse_args(iter.next());
+            let args = parse_args(iter.next().unwrap())?.into_iter();
             let ty = parse_term(iter.next().unwrap())?;
             let decl = iter.next().map(parse_term).unwrap()?;
+
+            let ty = args.clone().fold(ty, |acc, (var, type_)| Builder::new(loc, Prod(var, box type_, box acc)));
+            let decl = args.fold(decl, |acc, (var, type_)| Builder::new(loc, Abs(var, box type_, box acc)));
 
             let ty = declaration::Builder::Decl(box ty, vars.clone());
             let decl = declaration::Builder::Decl(box decl, vars);

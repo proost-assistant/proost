@@ -43,8 +43,8 @@ stringDecl = ${ string ~ univ_decl }
 arg_univ = !{".{" ~ (univ ~ ("," ~ univ)* )? ~ "}"}
 univ_decl = !{".{" ~ (string ~ ("," ~ string)* )? ~ "}"}
 
-Args = { (arg)*   }
-arg = _{ "(" ~ (wildcard | string)+ ~ ":" ~ Term ~ ")"}
+Args = { (arg)* }
+arg = { "(" ~ (wildcard | string)+ ~ ":" ~ Term ~ ")"}
 
 Command = _{ Define | Declaration | DeclarationCheckType | CheckType | GetType | DefineCheckType | Eval | ImportFile | Search}
 Define = { "def" ~ string ~ Args ~ ":=" ~ Term }
