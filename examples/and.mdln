@@ -1,9 +1,0 @@
-def And: Prop -> Prop -> Prop := fun A B: Prop => (C: Prop) -> (A -> B -> C) -> C
-
-def And_intro := (A B: Prop) -> A -> B -> And A B
-def And_elim_g := (A B: Prop) -> And A B -> A
-def And_elim_d := (A B: Prop) -> And A B -> B
-
-def and_intro_lemma: And_intro := fun A B: Prop, a: A, b: B, C: Prop, f: A -> B -> C => f a b
-def and_elim_g_lemma: And_elim_g := fun A B: Prop, f: And A B => f A (fun a: A, b: B => a)
-def and_elim_d_lemma: And_elim_d := fun A B: Prop, f: And A B => f B (fun a: A, b: B => b)

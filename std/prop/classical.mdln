@@ -1,7 +1,7 @@
 // This file proves some lemmas on classical logic.
 
-import bool
-import connectives
+import connectives.mdln
+import false.mdln
 
 // The law of excluded middle.  Note, this is a definition, not an
 // assumption!  If you want to prove a theorem in classical logic,
@@ -32,7 +32,7 @@ def excluded_middle_implies_double_negation_elimination: (Excluded_middle -> Dou
       (fun p: P => p) // P case: P -> P is trivial
       // ~P case by contradiction with ~~P
       (fun notP: (Not P) =>
-        ((notnotP notP) P))
+        (exfalso P (notnotP notP)))
 
 def double_negation_elimination_implies_implication_as_or: (Double_negation_elimination -> Implication_as_or) :=
   (fun elim: Double_negation_elimination, P Q: Prop, PtoQ : (P -> Q) =>
@@ -81,7 +81,7 @@ def excluded_middle_implies_peirce: Excluded_middle -> Peirce :=
           // Need to prove P -> Q
           (fun p: P =>
             // We have P and ~P, we can prove anything.
-            (nP p) Q)))
+            exfalso Q (nP p))))
 
 def peirce_implies_excluded_middle: Peirce -> Excluded_middle :=
   (fun peirce: Peirce, P: Prop =>

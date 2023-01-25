@@ -104,7 +104,7 @@ fn main() -> Result<'static, 'static, ()> {
 
     // check if files are provided as command-line arguments
     if !args.files.is_empty() {
-        return kernel::memory::arena::use_arena(|arena| {
+        return kernel::memory::arena::use_arena_with_axioms(|arena| {
             let command = Command::Import(args.files.iter().map(|file| (Location::default(), file.as_str())).collect());
 
             display(evaluator.process_line(arena, &command), false);

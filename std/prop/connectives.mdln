@@ -1,4 +1,4 @@
-// Basic logical connectives: and, or, not, iff
+// Basic logical connectives in Prop: and, or, not, iff
 
 // === And ===
 def And: Prop -> Prop -> Prop := fun A B: Prop => (C: Prop) -> (A -> B -> C) -> C
