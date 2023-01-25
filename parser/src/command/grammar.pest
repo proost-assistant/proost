@@ -43,11 +43,14 @@ stringDecl = ${ string ~ univ_decl }
 arg_univ = !{".{" ~ (univ ~ ("," ~ univ)* )? ~ "}"}
 univ_decl = !{".{" ~ (string ~ ("," ~ string)* )? ~ "}"}
 
+Args = { (arg)*   }
+arg = _{ "(" ~ (wildcard | string)+ ~ ":" ~ Term ~ ")"}
+
 Command = _{ Define | Declaration | DeclarationCheckType | CheckType | GetType | DefineCheckType | Eval | ImportFile | Search}
-Define = { "def" ~ string ~ ":=" ~ Term }
-DefineCheckType = { "def" ~ string ~ ":" ~ Term ~ ":=" ~ Term }
-Declaration = { "def" ~ stringDecl ~ ":=" ~ Term }
-DeclarationCheckType = { "def" ~ stringDecl ~ ":" ~ Term ~ ":=" ~ Term }
+Define = { "def" ~ string ~ Args ~ ":=" ~ Term }
+DefineCheckType = { "def" ~ string ~ Args ~ ":" ~ Term ~ ":=" ~ Term }
+Declaration = { "def" ~ stringDecl ~ Args ~ ":=" ~ Term }
+DeclarationCheckType = { "def" ~ stringDecl ~ Args ~ ":" ~ Term ~ ":=" ~ Term }
 CheckType = { "check" ~ Term ~ ":" ~ Term }
 GetType = { "check" ~ Term }
 Eval = { "eval" ~ Term }

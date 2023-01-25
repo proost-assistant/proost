@@ -151,6 +151,13 @@ fn parse_term(pair: Pair<Rule>) -> Result<term::Builder> {
     }
 }
 
+fn parse_args(pair: Pair<Rule>) -> Result<Vec<(String,term::Builder)>> {
+    match pair.as_rule() {
+        Rule::Args => {
+        }
+    }
+}
+
 /// Builds a command from errorless pest output
 fn parse_expr(pair: Pair<Rule>) -> Result<Command> {
     match pair.as_rule() {
@@ -172,6 +179,7 @@ fn parse_expr(pair: Pair<Rule>) -> Result<Command> {
         Rule::Define => {
             let mut iter = pair.into_inner();
             let s = iter.next().unwrap();
+            let args = parse_args(iter.next());
             let term = parse_term(iter.next().unwrap())?;
 
             Ok(Command::Define((convert_span(s.as_span()), s.as_str()), None, term))
@@ -180,6 +188,7 @@ fn parse_expr(pair: Pair<Rule>) -> Result<Command> {
         Rule::DefineCheckType => {
             let mut iter = pair.into_inner();
             let s = iter.next().unwrap();
+            let args = parse_args(iter.next());
             let ty = parse_term(iter.next().unwrap())?;
             let term = parse_term(iter.next().unwrap())?;
 
@@ -191,6 +200,7 @@ fn parse_expr(pair: Pair<Rule>) -> Result<Command> {
             let mut string_decl = iter.next().unwrap().into_inner();
             let s = string_decl.next().unwrap();
             let vars: Vec<&str> = string_decl.next().unwrap().into_inner().map(|name| name.as_str()).collect();
+            let args = parse_args(iter.next());
             let body = iter.next().map(parse_term).unwrap()?;
 
             Ok(Command::Declaration((convert_span(s.as_span()), s.as_str()), None, declaration::Builder::Decl(box body, vars)))
@@ -202,6 +212,7 @@ fn parse_expr(pair: Pair<Rule>) -> Result<Command> {
             let s = string_decl.next().unwrap();
             let vars: Vec<&str> = string_decl.next().unwrap().into_inner().map(|name| name.as_str()).collect();
 
+            let args = parse_args(iter.next());
             let ty = parse_term(iter.next().unwrap())?;
             let decl = iter.next().map(parse_term).unwrap()?;
 
