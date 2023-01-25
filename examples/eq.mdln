@@ -1,0 +1,3 @@
+import ../std/eq.mdln
+
+check Refl.{1} Nat Zero : Eq.{1} Nat Zero (transport_id.{1} Nat Zero)
