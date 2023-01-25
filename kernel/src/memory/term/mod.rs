@@ -2,8 +2,6 @@
 //!
 //! This module defines the core functions used to create and manipulate terms.
 
-use core::fmt;
-use core::fmt::Debug;
 use std::cell::OnceCell;
 
 use derive_more::{Add, Display, From, Into, Sub};
@@ -15,6 +13,7 @@ use crate::error::ResultTerm;
 use crate::memory::arena::Arena;
 
 pub mod builder;
+pub mod pretty;
 
 /// An index used to designate bound variables.
 #[derive(Add, Copy, Clone, Debug, Default, Display, Eq, PartialEq, From, Into, Sub, PartialOrd, Ord, Hash)]
@@ -81,35 +80,6 @@ pub enum Payload<'arena> {
 
     /// An axiom.
     Axiom(axiom::Axiom, &'arena [Level<'arena>]),
-}
-
-impl<'arena> fmt::Display for Payload<'arena> {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match *self {
-            Var(index, _) => write!(f, "{index}"),
-            Sort(level) => match level.to_numeral() {
-                Some(n) => match n {
-                    0 => write!(f, "Prop"),
-                    1 => write!(f, "Type"),
-                    _ => write!(f, "Type {}", n - 1),
-                },
-                None => write!(f, "Sort {level}"),
-            },
-            App(fun, arg) => write!(f, "({fun}) ({arg})"),
-            Abs(argtype, body) => write!(f, "\u{003BB} {argtype} \u{02192} {body}"),
-            Prod(argtype, body) => write!(f, "\u{003A0} {argtype} \u{02192} {body}"),
-            Decl(decl) => write!(f, "{decl}"),
-            Axiom(s, _) => write!(f, "{s}"),
-        }
-    }
-}
-
-impl<'arena> fmt::Display for Term<'arena> {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0.payload)
-    }
 }
 
 use Payload::{Abs, App, Axiom, Decl, Prod, Sort, Var};
@@ -265,44 +235,5 @@ impl<'arena> Arena<'arena> {
             self.mem_subst.insert(*key, res);
             res
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::memory::arena::use_arena;
-    use crate::memory::declaration::{Declaration, InstantiatedDeclaration};
-    use crate::memory::level::builder::raw as level;
-    use crate::memory::term::builder::raw::*;
-    use crate::memory::term::Term;
-
-    #[test]
-    fn display_1() {
-        use_arena(|arena| {
-            let decl = InstantiatedDeclaration::instantiate(Declaration(Term::prop(arena), 0), &Vec::new(), arena);
-            let prop = Term::decl(decl, arena);
-
-            assert_eq!(prop.to_string(), "(Prop).{}");
-        });
-    }
-
-    #[test]
-    fn display_2() {
-        use_arena(|arena| {
-            let lvl = level::max(level::succ(level::var(0)), level::succ(level::var(1)));
-
-            let term = arena.build_term_raw(abs(
-                sort_(lvl),
-                abs(
-                    type_usize(0),
-                    abs(
-                        type_usize(1),
-                        prod(var(1.into(), type_usize(1)), app(var(1.into(), type_usize(1)), var(2.into(), type_usize(0)))),
-                    ),
-                ),
-            ));
-
-            assert_eq!(term.to_string(), "λ Sort max (u0) (u1) + 1 → λ Type → λ Type 1 → Π 1 → (1) (2)");
-        });
     }
 }

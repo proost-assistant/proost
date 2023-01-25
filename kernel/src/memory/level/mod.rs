@@ -48,10 +48,10 @@ impl Display for Level<'_> {
                 Zero => unreachable!("Zero is a numeral"),
                 Succ(_) => {
                     let (u, n) = self.plus();
-                    write!(f, "{u} + {n}")
+                    write!(f, "({u} + {n})")
                 },
-                Max(n, m) => write!(f, "max ({n}) ({m})"),
-                IMax(n, m) => write!(f, "imax ({n}) ({m})"),
+                Max(n, m) => write!(f, "(max {n} {m})"),
+                IMax(n, m) => write!(f, "(imax {n} {m})"),
                 Var(n) => write!(f, "u{n}"),
             },
         }
@@ -230,7 +230,7 @@ mod pretty_printing {
         use_arena(|arena| {
             assert_eq!(
                 format!("{}", arena.build_level_raw(max(succ(zero()), imax(max(zero(), var(0)), succ(var(0)))))),
-                "max (1) (max (u0) (u0 + 1))"
+                "(max 1 (max u0 (u0 + 1)))"
             );
         });
     }
@@ -240,7 +240,7 @@ mod pretty_printing {
         use_arena(|arena| {
             let lvl = arena.build_level_raw(imax(zero(), imax(zero(), imax(succ(zero()), var(0)))));
 
-            assert_eq!(format!("{lvl}"), "max (imax (0) (u0)) (max (imax (0) (u0)) (imax (1) (u0)))");
+            assert_eq!(format!("{lvl}"), "(max (imax 0 u0) (max (imax 0 u0) (imax 1 u0)))");
         });
     }
 }
