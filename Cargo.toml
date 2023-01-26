@@ -21,6 +21,6 @@ authors = [
     "Lucas Tabary-Maujean"
 ]
 edition = "2021"
-version = "0.2.0"
+version = "0.3.0"
 license = "GPL-3.0-or-later"
 repository = "https://gitlab.crans.org/loutr/proost"
