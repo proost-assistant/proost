@@ -1,4 +1,0 @@
-def not: Prop -> Prop := fun P: Prop => P -> False
-
-def Contrapose := (A B: Prop) -> (A -> B) -> (not B -> not A)
-def contrapose_lemma: Contrapose := fun A B: Prop, f: A -> B, nB: not B, a: A => nB (f a)

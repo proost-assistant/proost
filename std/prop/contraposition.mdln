@@ -1,0 +1,6 @@
+// Contraposition
+
+import connectives.mdln
+
+def contrapose: (A B: Prop) -> (A -> B) -> (Not B -> Not A) :=
+  fun A B: Prop, f: A -> B, nB: (Not B), a: A => nB (f a)

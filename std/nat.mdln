@@ -1,0 +1,9 @@
+import eq.mdln
+import prop/connectives.mdln
+
+def is_zero := Nat_rec.{1} (fun n: Nat => Prop) True (fun n: Nat, p: Prop => False)
+
+def z_neq_s: (n: Nat) -> Not (Eq.{1} Nat Zero (Succ n)) :=
+    fun n: Nat,
+        e: Eq.{1} Nat Zero (Succ n) =>
+        transport.{1, 0} Nat is_zero Zero (Succ n) e Tt

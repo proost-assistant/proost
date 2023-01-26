@@ -1,0 +1,2 @@
+def exfalso: (P: Prop) -> False -> P := fun P: Prop, f: False =>
+    False_rec.{0} (fun _: False => P) f
