@@ -21,7 +21,7 @@
 \title{
   \includegraphics[height=2.5cm]{media/logo}
 
-	\textbf{Proost 0.1.0} \\
+	\textbf{Proost 0.3.0} \\
 	User manual
   \\[1\baselineskip]\normalsize ENS Paris-Saclay
 }
@@ -57,10 +57,12 @@
     comment=[l]{//},
     keywords={fun, if},
     keywordstyle=\color{forestgreen},
-		keywords=[2]{Prop, Type},
+		keywords=[2]{Prop, Type, Sort},
 		keywordstyle=[2]\color{blue},
     keywords=[3]{def, check, eval, search, import},
     keywordstyle=[3]\color{darkred},
+    keywords=[4]{max, imax},
+    keywordstyle=[4]\color{forestgreen},
 }
 \lstnewenvironment{proost}[1][]{\lstset{style=proost, #1}}{}
 
@@ -115,21 +117,32 @@
 \section{Introduction}
 This program provides the user a set of tools to work with \(\lambda\)-terms as
 described in the Calculus of Construction. Through the Curry-Howard
-correspondence; users may associate a property or theorem they are willing to
+correspondence users can associate a property or theorem they are willing to
 prove to a type which can be expressed in CoC. Proving it then corresponds to
 constructing a term of that type.
 
-Release 0.1.0 of the project includes a toplevel interface also called
+\paragraph{Release 0.1.0} of the project includes a toplevel interface also called
 \texttt{proost}, which is the main way users can interact with this piece of
 software. For a use directly through the crate APIs, please refer to their
 respective documentations.
+
+\paragraph{Release 0.2.0} includes the ability to manipulate universe-polymorphic declarations, a
+framework for hardcoding axioms in the code base of the kernel, a better handling
+of error locations in the interface and a proof-of-concept implementation of the
+LSP protocol.
+
+\paragraph{Release 0.3.0} provides a variety of minor upgrades, including a better printing
+of terms, some optimisations in the kernel, many fixes in the parser and the
+toplevel, the beginning of a standard library as well as new types, most notably
+natural numbers and equality. We would like to thank all new contributors for
+their efforts!
 
 \section{Toplevel session}
 In the toplevel, users are greeted with a prompt. There, they may enter the
 following commands:
 \begin{itemize}
 	\item ¤import file1 file2¤ typechecks
-		and loads the file in the current environment;
+		and loads the files in the current environment;
 	\item ¤search v¤ looks for the definition of variable ¤v¤;
 	\item ¤def a := t¤
 		defines an alias ¤a¤ that can be used in any following command;
@@ -140,19 +153,21 @@ following commands:
   \item ¤eval u¤ provides the definition of ¤u¤.
 \end{itemize}
 
+Optionally, defined terms can be of the form ¤a.{i, j}¤, meaning they are
+universe-polymorphic in ¤i¤ and ¤j¤. In that case, they are called
+\emph{declarations}. Later, these declarations can be used for creating new
+terms, by calling them like ¤a.{n, m}¤, where ¤n¤ and ¤m¤ are well-defined
+universe levels.
+
 If the command succeeds, the toplevel returns a green check mark, with an
 associated result if there is any. Otherwise, a red cross indicates an error
 occurred, next to some details about it. The command is discarded and the user
 may enter another command.
 
 The toplevel provides to a certain extent history browsing, either \emph{via}
-the up and down arrow keys or some autocompletion from previous commands.
+the up and down arrow keys or some auto-completion from previous commands.
 
 \section{Language}
-This release includes no standard library, which means users have to build their
-theories from scratch. Besides, this version includes no notion of axioms, which
-means terms have to be built from encodings within CoC.
-
 Language syntax is as such:
 \begin{itemize}
 	\item Functions (\(\lambda\)-abstractions) are defined with the keyword ¤fun¤:
@@ -170,12 +185,31 @@ Language syntax is as such:
 		and is left-associative when there are multiple arguments;
 
 	\item Variables are regular strings, which may only correspond to bound
-		variables or previously defined terms;
+		variables or previously defined terms (or declarations as explained in the
+		previous section);
 
-	\item The type of propositions and higher-order types are written ¤Prop¤ and
-		¤Type i¤, as usual.
+	\item The type of propositions and higher-order types are written ¤Prop¤,
+		¤Sort i¤ and ¤Type i¤, as usual (where ¤i¤ is a valid universe level).
 \end{itemize}
 
-This release includes a single example file \texttt{contraposition.mdln} which
-defines elementary propositional calculus operators and their constructors.
+The syntax of universe levels is the following:
+\begin{itemize}
+	\item numeric constants and level variables defined in the definition of a
+		declaration are valid universe level;
+	\item if ¤u¤ is a valid level, ¤u + n¤ is valid, where ¤n¤ is a numeric
+		constant;
+	\item if ¤u¤ and ¤v¤ are valid levels, ¤max u v¤ and ¤imax u v¤ (impredicative
+		maximum) are valid levels.
+\end{itemize}
+
+\section{Axioms}
+There is no simple way to browse the set of axioms or their recursors for the
+moment. This should be made easier in future releases. The general current
+syntax is, for an inductive type ¤Foo¤, to have a declaration ¤Foo_rec¤ which
+corresponds to its recursor, and other appropriately-named functions as its
+constructors.
+
+Please refer to the code presented in ¤example/¤ and ¤std/¤ for concrete
+examples.
+
 \end{document}
