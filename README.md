@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://gitlab.crans.org/loutr/proost/-/raw/main/docs/media/logo.png" width="25%"/>
+  <img src="docs/media/logo.png" width="25%"/>
 </p>
 
 # Proost
@@ -14,6 +14,11 @@ To install proost with `nix` installed, simply type:
 ```sh
 nix profile install git+ssh://git@gitlab.crans.org/loutr/proost.git?ref=main
 ```
+One may also install it from our GitHub mirror:
+```sh 
+nix profile install github:proost-assistant/proost
+```
+
 A toplevel instance can then be launched with `proost`. Alternatively, replace
 `profile install` with `run` to give the program a go without installing it.
 
