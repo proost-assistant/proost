@@ -1,0 +1,406 @@
+\documentclass[12pt, aspectratio=169]{beamer}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{hyperref}
+
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{lstautogobble}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{ebproof}
+
+% For top-level symbols
+\usepackage{arevmath}
+
+\definecolor{darkgreen}{HTML}{18A100}
+\definecolor{background}{rgb}{0.95,0.95,0.92}
+\definecolor{codegreen}{rgb}{0,0.5,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codered}{rgb}{0.5,0,0.0}
+\definecolor{background1}{RGB}{248, 243, 237}
+\definecolor{foreground1}{RGB}{118, 66, 54}
+
+\setbeamercolor{palette primary}{bg=background1, fg=foreground1}
+\setbeamercolor{palette secondary}{bg=background1,fg=foreground1}
+\setbeamercolor{palette tertiary}{bg=background1,fg=foreground1}
+\setbeamercolor{palette quaternary}{bg=background1,fg=foreground1}
+\setbeamercolor{structure}{fg=foreground1}
+\setbeamercolor{section in toc}{fg=foreground1}
+\setbeamercolor{subsection in head/foot}{bg=background1,fg=foreground1}
+\setbeamercolor{alerted text}{fg=codered}
+\setbeamercolor{example text}{fg=codegreen}
+
+\usetheme{Goettingen}
+\useinnertheme{circles}
+
+
+\lstset{
+    literate =
+    {á}{{\'a}}1
+    {à}{{\`a}}1
+    {Â}{{\^A}}1
+    {ã}{{\~a}}1
+    {é}{{\'e}}1
+    {É}{{\'E}}1
+    {è}{{\`e}}1
+    {ê}{{\^e}}1
+    {ó}{{\'o}}1
+    {ü}{{\^u}}1
+    {î}{{\^i}}1
+    {ç}{{\c{c}}}1
+    {œ}{{\oe}}1
+    {Œ}{{\OE}}1
+}
+
+\lstset{
+    autogobble=true,
+    showstringspaces=false,
+    basicstyle=\small\ttfamily,
+    backgroundcolor=\color{background1},
+    keywordstyle=\color{codered},
+    commentstyle=\color{codegreen},
+    showtabs=False,
+    stringstyle=\color{orange},
+    frame=single,
+    escapeinside={(*}{*)},
+    mathescape=true,
+    tabsize=4,
+    breaklines=true
+}
+
+\lstdefinelanguage{mdln}{
+    keywords={def, check, eval, Sort, Prop, Type, import, fun}
+}
+
+
+\title[Rendu final : Proost]{Rendu final de projet génie logiciel : Proost}
+\author[Projet génie logiciel]{
+    \normalsize
+    Arthur~Adjedj \and
+    Augustin~Albert \and \\
+    Vincent~Lafeychine \and
+    Lucas~Tabary-Maujean \and \\ \vspace{0.2cm}
+    {\footnotesize
+      Jean~Abou-Samra \and
+      Tanguy~Bozec \and
+      Antonin~Bretagne \and
+      Vivien~Ducros \and
+      Antoine~Guilmin-Crépon \and
+      Balthazar~Patiachvili}
+}
+\date{12 janvier 2023}
+\institute[]{ENS Paris-Saclay}
+
+\addtobeamertemplate{footline}{%
+  \setlength\unitlength{1ex}%
+  \begin{picture}(0,0)
+    % \put{} defines the position of the frame
+    \put(145,-5){\makebox(0,0)[bl]{
+    \includegraphics[scale=0.7]{media/logo.png}
+    }}%
+  \end{picture}%
+}{}
+
+\AtBeginSection[]
+{
+    \begin{frame}[noframenumbering]
+        \frametitle{Sommaire}
+        \tableofcontents[sectionstyle=show/shaded, subsectionstyle=show/shaded]
+    \end{frame}
+}
+
+\newcommand{\jump}[1][1]{\vspace{1\baselineskip}}
+
+\begin{document}
+    \beamertemplatenavigationsymbolsempty
+    \maketitle
+
+    \section{Présentation générale}
+
+        \begin{frame}[fragile]{Présentation du projet}
+
+            \begin{block}{Qu'est-ce que Proost ?}
+
+                Proost est un assistant de preuve écrit en Rust basé sur le calcul des constructions. À terme, il est prévu que cela soit remplacé par le calcul observationnel des constructions $\left(\mathsf{CC}^{\mathrm{obs}+}\right)$.
+
+            \end{block} \pause
+
+            \begin{block}{Quel est le langage de preuve ?}
+
+                Il s'agit de Madeleine, un nouveau langage inspiré de Coq, Lean, \dots
+
+            \end{block} \pause
+
+            \begin{exampleblock}{Exemple de code}
+
+                \begin{lstlisting}[language=mdln]
+                    def And: Prop -> Prop -> Prop :=
+                        fun A B: Prop => (C: Prop) -> (A -> B -> C) -> C
+                \end{lstlisting}
+
+            \end{exampleblock}
+
+        \end{frame}
+
+        \begin{frame}{Philosophie du projet}
+
+            \begin{alertblock}{Points importants}
+
+                \begin{itemize}
+                    \item Isolation du kernel pour assurer la correction de l'implémentation \pause
+                    \item API d'interface avec le noyau \pause
+                    \item Expérience utilisateur agréable (LSP, coloration syntaxique, toplevel) \pause
+                    \item Optimisation en temps et en mémoire du type-checking
+                \end{itemize}
+
+            \end{alertblock}
+
+        \end{frame}
+
+    \section{Description de la théorie implémentée}
+
+        \begin{frame}[fragile]{Univers}
+
+            \begin{block}{Hiérarchie prédicative}
+
+                Type 0 : Type 1 : \dots
+
+                \begin{center}
+                    \begin{prooftree}
+                        \hypo{\Gamma \vdash A : \mathtt{Type}\ u}
+                        \hypo{\Gamma, x : A \vdash B : \mathtt{Type}\ v}
+                        \infer2{\Gamma \vdash  \Pi(x : A).\;  B: \mathtt{Type}\ \max u\ v}
+                    \end{prooftree}
+                \end{center}
+
+            \end{block}
+
+            \pause
+
+            \begin{block}{Univers imprédicatif proof-irrelevant : Prop}
+
+                Prop : Type 0
+
+                \begin{center}
+                    \begin{prooftree}
+                        \hypo{\Gamma \vdash A : s}
+                        \hypo{\Gamma, x : A \vdash B : \mathtt{Prop}}
+                        \infer2{\Gamma \vdash  \Pi(x : A).\  B: \mathtt{Prop}}
+                    \end{prooftree}
+                \end{center}
+
+            \end{block}
+
+        \end{frame}
+
+        \begin{frame}[fragile]{Polymorphisme d'univers}
+
+            \begin{block}{Hiérarchie contenant Prop}
+
+                \begin{tabular}{lclclcl}
+                    \texttt{Prop} &:& \texttt{Type 0} &:& \texttt{Type 1} &:& \dots \\
+                    \texttt{Sort 0} &:& \texttt{Sort 1} &:& \texttt{Sort 2} &:& \dots
+                \end{tabular}
+
+            \end{block}
+
+            \vfill
+
+            \begin{exampleblock}{Exemple}
+
+                \begin{lstlisting}[language=mdln]
+                    def id.{u} := fun A: Sort u, x: A => x
+                \end{lstlisting}
+
+            \end{exampleblock}
+
+        \end{frame}
+
+        \begin{frame}[fragile]{Types inductifs variés}
+
+            \begin{exampleblock}{Types inductifs implémentés}
+
+                \begin{itemize}
+                    \item \lstinline{False} et \lstinline{True}
+                    \item \lstinline{Nat}, \lstinline{Eq}, \dots
+                \end{itemize}
+
+            \end{exampleblock} \pause
+
+            \begin{exampleblock}{Exemple d'utilisation de \lstinline{Eq} et de \lstinline{Nat}:}
+
+                \begin{lstlisting}[language=mdln]
+                    def add := fun x: Nat => Nat_rec.{1}
+                        (fun _: Nat => Nat) x (fun _ n: Nat => Succ n)
+
+                    def two := Succ (Succ Zero)
+                    def four := Succ (Succ two)
+
+                    check Refl.{1} Nat four:
+                        Eq.{1} Nat four (add two two)
+                \end{lstlisting}
+
+            \end{exampleblock}
+
+        \end{frame}
+
+        \begin{frame}{Égalité}
+
+            \begin{block}{Actuellement}
+
+                Égalité intensionnelle à la MLTT
+
+            \end{block}
+
+            \vfill
+            \pause
+
+            \begin{alertblock}{Dans le futur}
+
+                Égalité observationnelle à la $\mathrm{CC}^{\mathrm{obs}+}$
+
+            \end{alertblock}
+
+        \end{frame}
+
+    \section{Caractéristiques de Proost}
+
+        \begin{frame}{Noyau}
+
+            \begin{block}{Caractéristiques}
+
+                \begin{itemize}
+                    \item Mémoïsation quasi-systématique des
+                        calculs sur les termes (WHNF, substitution,
+                        \textit{var-shifting}, \dots): soit dans des \textit{hashmaps},
+                        soit dans les termes eux-mêmes;\pause
+                    \item rendu plausible par la mise en place d'une
+                        \emph{arène} (cf. implémentation de DDB) telle que: \pause
+                    \begin{itemize}
+                        \item chaque terme est unique dans l'arène; \pause
+                        \item chaque arène est associée de manière unique à une
+                            \textit{lifetime} (garanties statiques, \dots) \pause
+                    \end{itemize}
+
+                    \item API \textit{safe} utilisable seule et avec des
+                        syntaxes simples (en interne, pour la \textbf{construction}
+                        de termes: type clôture).
+                \end{itemize}
+
+            \end{block}
+
+        \end{frame}
+
+        \begin{frame}[fragile]{Toplevel}
+
+            \begin{block}{Caractéristiques}
+
+                \begin{itemize}
+                    \item Accessible via l'invite de commandes \pause
+                    \item Coloration syntaxique \pause
+                    \item Localisation précise et visuelle des erreurs
+                \end{itemize}
+
+            \end{block} \pause
+
+            \begin{block}{Exemple}
+
+                \begin{lstlisting}[language=mdln]
+                    > check add Zero (fun id x: Prop => x)
+                    (*$\ballotx$*)       ^----------------------------^
+                    (*$\ballotx$*) function ((*$\lambda$*)Nat => (((NatRec.{1}) ((*$\lambda$*) Nat => Nat)) 1)
+                    (*$\ballotx$*)         ((*$\lambda$*)Nat => (*$\lambda$*)Nat => Succ 1)) Zero
+                    (*$\ballotx$*)     expects a term of type Nat,
+                    (*$\ballotx$*)     received (*$\lambda$*) Prop => 1: Prop -> Prop
+                \end{lstlisting}
+
+            \end{block}
+
+        \end{frame}
+
+        \begin{frame}{LSP}
+
+            \begin{block}{Description}
+
+                Le LSP s'appelle Tilleul et se compose : \pause
+
+                \begin{itemize}
+                    \item d'une partie I/O répartissant les requêtes~; \pause
+                    \item d'une partie logique traitant les requêtes.
+                \end{itemize}
+
+            \end{block}
+
+            \vspace{.3cm}
+            \pause
+
+            \begin{block}{Avancement}
+
+                Une preuve de concept est actuellement disponible sur la partie I/O. Cependant la partie logique n'a pas encore été commencée.
+
+            \end{block}
+
+        \end{frame}
+
+        \begin{frame}{Fonctionnement du projet}
+
+            \begin{block}{Utilisation de GitLab}
+
+                Le projet est disponible sur le \href{https://gitlab.crans.org/loutr/proost}{GitLab du CRANS}. \pause
+
+                \vspace{.3cm}
+
+                Nous effectuons du \href{https://gitlab.crans.org/loutr/proost/-/merge_requests/60}{\textit{peer-reviewing}} à chaque \textit{merge request}.
+
+            \end{block}
+
+            \vfill
+
+            \begin{block}{Infrastructure}
+
+                À chaque modification du projet, une \textit{pipeline} s'exécute et: \pause
+                \begin{itemize}
+                    \item vérifie le formatage et effectue des analyses statiques~; \pause
+                    \item génère des \href{https://perso.crans.org/v-lafeychine/proost/coverage/main/index.html}{couvertures de tests}~; \pause
+                    \item génère une \href{https://perso.crans.org/v-lafeychine/proost/doc/proost/}{documentation}.
+                \end{itemize}
+
+            \end{block}
+
+        \end{frame}
+
+    \section{Pour la suite}
+
+        \begin{frame}{Projets pour la suite}
+
+            \begin{block}{Dans un futur proche}
+
+                \begin{itemize}
+                    \item Égalité observationnelle \pause
+                    \item LSP entièrement fonctionnel \pause
+                    \item Espaces de noms importés
+                \end{itemize}
+
+            \end{block}
+
+            \vfill
+            \pause
+
+            \begin{block}{Dans un second temps}
+
+                \begin{itemize}
+                    \item Types inductifs \pause
+                    \item Unification
+                    \item Vérification du kernel avec \href{https://github.com/xldenis/creusot}{Creusot}.
+                \end{itemize}
+
+            \end{block}
+
+        \end{frame}
+
+\end{document}
