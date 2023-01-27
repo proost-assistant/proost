@@ -116,7 +116,7 @@
 
 \section{Introduction}
 This program provides the user a set of tools to work with \(\lambda\)-terms as
-described in the Calculus of Construction. Through the Curry-Howard
+described in the Calculus of Construction (CoC). Through the Curry-Howard
 correspondence users can associate a property or theorem they are willing to
 prove to a type which can be expressed in CoC. Proving it then corresponds to
 constructing a term of that type.
@@ -150,7 +150,7 @@ following commands:
 		be of type ¤ty¤;
 	\item ¤check u: t¤ verifies ¤u¤ has type ¤t¤;
   \item ¤check u¤ provides the type of ¤u¤;
-  \item ¤eval u¤ provides the definition of ¤u¤.
+  \item ¤eval u¤ provides the normal form of ¤u¤.
 \end{itemize}
 
 Optionally, defined terms can be of the form ¤a.{i, j}¤, meaning they are
@@ -188,8 +188,9 @@ Language syntax is as such:
 		variables or previously defined terms (or declarations as explained in the
 		previous section);
 
-	\item The type of propositions and higher-order types are written ¤Prop¤,
-		¤Sort i¤ and ¤Type i¤, as usual (where ¤i¤ is a valid universe level).
+	\item The type of propositions and higher-order types are written ¤Prop¤ and
+		¤Type i¤, as usual. One may also refer to the universes in hierarchy through
+    the ¤Sort¤ keyword as follows: ¤Sort 0 = Prop¤ and ¤Sort n + 1 = Type n¤.
 \end{itemize}
 
 The syntax of universe levels is the following:
