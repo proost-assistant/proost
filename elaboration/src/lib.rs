@@ -1,6 +1,13 @@
 #![doc(html_logo_url = "https://gitlab.crans.org/loutr/proost/-/raw/main/docs/media/logo.png")]
 
-//! Utilities defining, in a uniformal way, errors and location of elements.
+//! Elaboration functions and structures.
+//!
+//! This crate defines the notion of *builders*, which are a naive representation of terms in the
+//! calculus of construction. These terms can be in turn *realised* into concrete terms, via the
+//! safe API of the [`kernel`].
+//!
+//! This crate also defines locations (understand: locations of written terms within an input
+//! text), which can be embedded within a builder.
 
 #![deny(
     clippy::complexity,

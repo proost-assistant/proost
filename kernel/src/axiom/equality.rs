@@ -1,4 +1,4 @@
-//! Set of axioms, typing and reduction rules for the equality type
+//! Set of axioms, typing and reduction rules for the equality type.
 
 use derive_more::Display;
 
@@ -8,19 +8,19 @@ use crate::memory::declaration::Declaration;
 use crate::memory::level::Level;
 use crate::memory::term::Term;
 
-/// Axioms regarding `Eq`uality
+/// Axioms regarding Equality.
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Equality {
-    /// The equality type
+    /// The equality type.
     ///
     /// The trailing underscore is needed because naming it `Eq` collides with [Eq](std::cmp::Eq).
     #[display(fmt = "Eq")]
     Eq_,
 
-    /// The recursor over the equality type
+    /// The recursor over the equality type.
     EqRec,
 
-    /// The reflexivity predicate for the equality type
+    /// The reflexivity predicate for the equality type.
     Refl,
 }
 
@@ -71,7 +71,7 @@ impl<'arena> AxiomKind<'arena> for Equality {
 }
 
 impl Equality {
-    /// Type of the Equality type : `Eq.{u} A x y : Prop`
+    /// Type of the Equality type : `Eq.{u} A x y : Prop`.
     fn type_eq<'arena>(arena: &mut Arena<'arena>) -> Term<'arena> {
         let sort_u = Term::sort(Level::var(0, arena), arena);
         let prop = Term::sort_usize(0, arena);

@@ -23,7 +23,7 @@ pub struct Builder<'build> {
     /// Location of the term.
     location: Location,
 
-    /// Term's effective builder.
+    /// The payload of the builder.
     #[deref]
     payload: Payload<'build>,
 }
@@ -32,10 +32,10 @@ pub struct Builder<'build> {
 ///
 /// A Builder describes a term in a naive but easy-to-build manner.
 ///
-/// Please refer to the item descriptions in [terms](crate::memory::term::Payload) for a
+/// Please refer to the item descriptions in [terms](kernel::memory::term::Payload) for a
 /// description of the corresponding items. Please understand that there are still differences,
 /// most notably, these fields correspond to a classic way of writing lambda-terms (i.e. no de
-/// Bruijn indices involved).
+/// Bruijn indices involved, and variables are associated to strings of character).
 ///
 /// Because the purpose of a builder is to provide an easy way to build terms, even through the
 /// API, it offers different ways to build some terms, for convenience.
@@ -95,8 +95,8 @@ impl<'build> Buildable<'build> for Builder<'build> {
 
     type Closure = impl BuilderTrait<'build>;
 
-    /// Realise a builder into a [`Term`]. This internally uses functions described in
-    /// the [builder](`crate::memory::term::builder`) module.
+    /// Realises a builder into a [`Term`]. This internally uses functions described in
+    /// the [builder](`kernel::memory::term::builder`) module.
     ///
     /// # Errors
     /// If the term could not be built, yields an error indicating the reason.
@@ -130,7 +130,7 @@ mod tests {
 
     #[test]
     fn builder_trace() {
-        // This following term is completely ill-typed, location do not have any meaning.
+        // This following term is completely ill-typed, and locations do not have any meaning.
         // We want to test that the trace is correctly applied.
         let builder = Builder::new(
             Location::new((1, 1), (1, 1)),

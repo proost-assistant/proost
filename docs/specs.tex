@@ -1,15 +1,10 @@
 \documentclass[twocolumn]{article}
+
 \usepackage[british]{babel}
-\usepackage{textcase}% provides \MakeTextUppercase (does not impact math mode)
-\usepackage{amssymb, amsmath, amsthm, mathrsfs}
 \usepackage{fancyhdr}
-\usepackage{listings}
-\usepackage{bussproofs} % proof tree
-\usepackage[dvipsnames]{xcolor}
-\usepackage{graphicx}
 \RequirePackage[a4paper, left=2cm, right=2cm, bottom=3cm, top=2.3cm, headsep=100pt]{geometry}
+\usepackage{header}
 \RequirePackage[small]{titlesec} % Taille des sections réduite
-\RequirePackage[pdfborderstyle={/S/U/W 0}]{hyperref} % Le paramètre retire les bordures autour des hyperliens
 
 \author{
   Arthur \textsc{Adjedj}\\
@@ -26,144 +21,84 @@
   \\[1\baselineskip]\normalsize ENS Paris-Saclay
 }
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Listings %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\definecolor{gray}{rgb}{0.5,0.5,0.5}
-\definecolor{paleblue}{rgb}{0.7,0.7,1}
-\definecolor{darkgray}{rgb}{0.1,0.1,0.1}
-\definecolor{dark}{rgb}{0,0,0}
-\definecolor{forestgreen}{rgb}{0,0.3,0}
-\definecolor{darkred}{rgb}{0.5,0,0}
 
-\lstdefinestyle{default}{
-    frame=tb,
-    basicstyle=\ttfamily,
-    numbers=left,
-    numbersep=5pt,
-    xleftmargin=1.5em,
-    framexleftmargin=1em,
-    numberstyle=\footnotesize\ttfamily\color{paleblue},
-    keywordstyle={\bfseries\itshape\color{dark}},
-    commentstyle=\color{gray},
-    texcl, % Back to TeX styling within *inline* comments
-    escapechar=`, % escape character for block comments
-    %escapebegin=\lst@commentstyle,
-    breaklines=true,
-    breakatwhitespace=true
-}
-\lstdefinestyle{proost}{
-    alsoletter={//,.,:,=},
-    style=default,
-    numberstyle=\scriptsize\ttfamily\color{paleblue},
-    comment=[l]{//},
-    keywords={fun, if},
-    keywordstyle=\color{forestgreen},
-		keywords=[2]{Prop, Type},
-		keywordstyle=[2]\color{darkred},
-    keywords=[3]{def, check, eval, search, import},
-    keywordstyle=[3]\color{darkred},
-}
-\lstnewenvironment{proost}[1][]{\lstset{style=proost, #1}}{}
-
-\lstset{style=proost}
-\lstMakeShortInline[columns=flexible]¤
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% headings %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% headings
 \pagestyle{fancy}
 \renewcommand{\headrulewidth}{0pt}
 \renewcommand{\footrulewidth}{0pt}
 
 \fancyhead{}
 \fancyfoot[L]{\small{\reflectbox{\copyright} \the\year{}}}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% bussproofs settings %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% documentation at https://mirror.ibcp.fr/pub/CTAN/macros/latex/contrib/bussproofs/BussGuide2.pdf
-\EnableBpAbbreviations
-% Overriding default label style
-\def\RL#1{\RightLabel{\footnotesize\bfseries{#1}}}
-\def\LL#1{\LeftLabel{\footnotesize\bfseries{#1}}}
 
-% boxed proofs, used to align multiple proofs on a single line
-\newenvironment{bprooftree}
-  {\leavevmode\hbox\bgroup}
-  {\DisplayProof\egroup}
-
-\newcommand{\textr}[1]{{\footnotesize\textbf{\MakeTextUppercase{#1}}}}
-% Fixes alignment issues but not without some consistency issues
-\def\RL#1{\RightLabel{\makebox[0pt][l]{\textr{#1}}}}
-\def\LL#1{\LeftLabel{\makebox[0pt][r]{\textr{#1}}}}
-% consistent label (with width)
-\def\cRL#1{\RightLabel{\textr{#1}}}
-\def\cLL#1{\LeftLabel{\textr{#1}}}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Divers %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\setlength{\columnsep}{20pt} % 10 pt par défaut
+%%%
+\setlength{\columnsep}{20pt} % 10pt is the default
 
 \newcommand{\members}[1]{\texorpdfstring{\hfill\scriptsize #1}{}}
 
 \newcommand{\etun}{{\color{Green} ($\star$)} }
 \newcommand{\etde}{{\color{Orange} ($\star\star$)} }
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
+%%%
 \begin{document}
 \thispagestyle{fancy}
 \maketitle
 
 \emph{
-  This project is under development, and its specifications themselves are
-  subject to changes, should time be an issue or a general consensus be reached
-  to change the purposes of the tool. An example of that is the syntax of the
-  language, which is still largely unstable. }
+	This project is under development, and its specifications themselves are
+	subject to changes, should time be an issue or a general consensus be reached
+	to change the purposes of the tool. An example of that is the syntax of the
+	language, which is still largely unstable. }
 
-\section{General purpose and functions} This project aims at providing a small
-tool for typechecking expressions written in the language of the Calculus of
-Construction (CoC). This tool shall be both terminal and editor based through
-the \texttt{proost} program that provides both compiler and toplevel-like
-capacities and options and a LSP called \texttt{tilleul}. The file extension
-used by both programs is \texttt{.mdln}, which is short for \emph{madelaine},
-the name of the language manipulated by users in these files.
+\section{General purpose and functions}
+This project aims at providing a small tool for typechecking expressions written
+in the language of the Calculus of Construction (CoC). This tool shall be both
+terminal and editor based through the \texttt{proost} program that provides both
+compiler and toplevel-like capacities and options and a LSP called
+\texttt{tilleul}. The file extension used by both programs is \texttt{.mdln},
+which is short for \emph{madeleine}, the name of the language manipulated by
+users in these files.
 
 
-\section{Project structure} Each category of the project is assigned some or all
-members of the group, meaning the designated members will \emph{mainly} make
-progress in the associated categories and review the corresponding advancements.
-Any member may regardless contribute to any part of the development of the tool.
+\section{Project structure}
+Each category of the project is assigned some or all members of the group,
+meaning the designated members will \emph{mainly} make progress in the
+associated categories and review the corresponding advancements. Any member may
+regardless contribute to any part of the development of the tool.
 
 Some specific categories and items will be added a star \etun or two \etde to
-indicate whether they are respectively late requirements (for the last release
-due in December) or extra requirements that will be considered only if there is
-enough time.
+indicate whether they are respectively current objectives or extra long-term
+requirements that may or may not be implemented.
+
 
 \subsection{Language design \members{all members}} The \texttt{proost} tool is a
 simple proof assistant and does not provide any tactics. As new features arrive
-from extensions of the kernel type theory, the \emph{madelaine} language must
+from extensions of the kernel type theory, the \emph{madeleine} language must
 provide convenient shorthands and notations. The syntax of commands is the
 following:
 \begin{itemize}
-	\item \etun ¤import relative_path_to_file¤ typechecks
-		and loads the file in the current environment;
-	\item \etde ¤search t¤ searches ¤t¤ in all known terms, where ¤t¤ may contain
-		¤_¤ joker identifiers (see section \ref{sec:unification});
+	\item ¤import relative_path_to_file¤ typechecks
+	      and loads the file in the current environment;
+	\item \etun ¤search t¤ searches ¤t¤ in all known terms, where ¤t¤ may contain
+	      ¤_¤ joker identifiers (see section \ref{sec:unification});
 	\item ¤def a := t¤
-		defines an alias ¤a¤ that can be used in any following command;
+	      defines an alias ¤a¤ that can be used in any following command;
 	\item ¤def a: ty := t¤ defines an alias ¤a¤ that is checked to
-		be of type ¤ty¤;
+	      be of type ¤ty¤;
 	\item ¤check u: t¤ verifies ¤u¤ has type ¤t¤;
-  \item ¤check u¤ provides the type of ¤u¤;
-  \item ¤eval u¤ provides the definition of ¤u¤.
+	\item ¤check u¤ provides the type of ¤u¤;
+	\item ¤eval u¤ provides the definition of ¤u¤.
 \end{itemize}
 
 Below is an overview of the syntax of the terms, including hypothetical
-developments. The syntax is strongly inspired by that of OCaml. Comments are
+developments. The syntax is partially inspired by that of Coq, OCaml and Lean. Comments are
 defined using the keyword \texttt{//}.
 
-\vspace{1.2mm}
-elementary type theory:
-\begin{proost}
-// Construction of natural numbers
+\paragraph{Elementary type theory}
+\phantom{hello}
+\begin{mdln}
+// Church construction of natural numbers
 def Nat :=
   (N: Type) -> (N -> N) -> N -> N
 
@@ -175,42 +110,44 @@ def succ := fun n: Nat, N: Type =>
   fun f: (N -> N), x: N =>
     f (n N f x)
 check succ: Nat -> Nat
-\end{proost}
+\end{mdln}
 
-\etun universe polymorphism:
-\begin{proost}
+\paragraph{Universe polymorphism}
+\phantom{hello}
+\begin{mdln}
 def foo.{i,j} : Type (max i j) + 1
-:= Type i -> Type j
-\end{proost}
+  := Type i -> Type j
+\end{mdln}
 
-\etde unification:
-\begin{proost}
+\paragraph{\etde Unification}
+\phantom{hello}
+\begin{mdln}
 def comm := \/x y, x + y = y + x
-\end{proost}
+\end{mdln}
 
-\etde existential types:
-\begin{proost}
+\paragraph{\etun Existential types} as well as other usual types.
+\begin{mdln}
 def t := E n, n * n - n + 4 = 0
-\end{proost}
+\end{mdln}
 
+\paragraph{\etde General framework for inductive types.} For the moment,
+inductive types and their recursors are hardcoded in the kernel.
+\begin{mdln}
+def inductive Toto :=
+  Gur(Nat) | Baba(Toto)
+\end{mdln}
 
-\subsection{Toplevel  \members{AuA}} The \texttt{proost} command, when provided
-with no argument, is expected to behave like a toplevel, akin to \texttt{ocaml}
-or \texttt{coqtop}. There, user is greeted with a prompt and may enter commands.
-When provided with existing file paths, ¤proost¤ intends to typecheck them in
-order, that is, reading them as successive inputs in the toplevel. Further
-features for this \emph{might} include a more extended notion of ``modules''
-where files may provides scopes.
-\begin{center}
-	\fbox{\includegraphics{media/screenshot_toplevel}}
-\end{center}
+\subsection{Toplevel  \members{AuA}}
+The \texttt{proost} command, when provided with no argument, is expected to
+behave like a toplevel, akin to \texttt{ocaml} or \texttt{coqtop}. There, user
+is greeted with a prompt and may enter commands. When provided with existing
+file paths, ¤proost¤ intends to typecheck them in order, that is, reading them
+as successive inputs in the toplevel. Later features for this include a more
+extended notion of ``modules'' \etde where files provide scopes.
 
-
-\subsection{\etun LSP \members{VL}}
-\texttt{tilleul} shall provide an
-implementation of the Language Server Protocol in order to provide linting and
-feedback during an editing session.
-
+\subsection{LSP \members{VL}}
+The \texttt{tilleul} binary provides an implementation of the Language Server
+Protocol and will gradually implement more features of it. \etde
 
 \subsection{Parsing \members{AuA}}
 The parsing approach is straightforward and
@@ -225,18 +162,18 @@ The kernel manipulates
 manage them with a relative level of efficiency. The type theory used to build
 the terms will be successively extended with:
 \begin{itemize}
-  \item abstractions, \(\Pi\)-types, predicative universes with \(\mathsf{Prop}\);
-  \item \etun universe polymorphism;
-  \item \etun \(\Sigma\)-types, equality types, natural numbers;
-  \item \etde extraction;
-  \item \etde lists, records, accessibility predicate.
+	\item abstractions, \(\Pi\)-types, predicative universes with \(\mathsf{Prop}\);
+	\item universe polymorphism;
+	\item equality types, natural numbers;
+	\item \etun \(\Sigma\)-types, etc.;
+	\item \etde extraction;
+	\item \etde lists, records, accessibility predicate.
 \end{itemize}
 
 
-\subsection{\etun Optimisation \members{ArA LTM}}
-Extra care must be put into
-designing an efficient memory management model for the kernel, along with
-satisfactory typing and reduction algorithms.
+\subsection{Optimisation \members{ArA LTM}}
+Extra care must be put into designing an efficient memory management model for
+the kernel, along with satisfactory typing and reduction algorithms.
 
 In particular, the first iteration of the program manipulates directly terms on
 the heap, with no particular optimisation: every algorithm is applied soundly
@@ -249,21 +186,18 @@ model also provides stronger isolation properties, preventing several memory
 pools (\emph{arena} is the technical term used in the project) from interacting
 with one another.
 
-This can be further extended with other invariants like ensuring every term in
-memory is in weak head normal form.
-
 \subsection{\etde Unification}\label{sec:unification}
-Early versions of the tool may require the user
-to explicit every type at play. Successive versions may gradually include
-unification tools (meta-variables) of better quality to assist the user and
-alleviate some of their typing-annotation burden.
+Early versions of the tool may require the user to explicit every type at play.
+Successive versions may gradually include unification tools (meta-variables) of
+better quality to assist the user and alleviate some of their typing-annotation
+burden.
 
 \subsection{Developpement tools \members{VL LTM}}
-Tests are mandatory in every
-part of the project. A tool originally developed by the Mozilla team was
-modified to allow for a more precise branch coverage of the project. The Nix
-framework is used to automatically build and package the application as well as
-generating a docker image and providing developers tools of the same version.
+Tests are mandatory in every part of the project. A tool originally developed by
+the Mozilla team was modified to allow for a more precise branch coverage of the
+project. The Nix framework is used to automatically build and package the
+application as well as generating a docker image and providing developers tools
+of the same version.
 
 % TODO elaborate, maybe
 \end{document}

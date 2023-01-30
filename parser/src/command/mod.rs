@@ -1,6 +1,4 @@
-//! High-level commands which constitute the end-user language.
-//!
-//! This complements low-level functions defined in the [`kernel::type_checker`] module.
+//! High-level commands, which constitute the end-user language.
 
 pub mod parse;
 

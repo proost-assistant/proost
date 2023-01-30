@@ -1,22 +1,27 @@
-//! Trace to record the path taken by an algorithm over a structure.
+//! Traces to record the path taken by an algorithm over a structure.
+//!
+//! Traces are used by the typecheck to provide additional information about any error that it may
+//! encounter in a normal execution.
 
 use crate::error::Error;
 
-/// An element of a trace that indicates which branch has been taken at each step of the execution of an algorithm.
+/// An element of a trace that indicates which branch has been taken at each step of the execution
+/// of an algorithm.
 ///
-/// Please note that there is only two possible values since our structures have at most two children.
+/// Please note that there are only two possible values since the structures of interest have at
+/// most two children.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Trace {
-    /// Left branch
+    /// Left branch.
     Left,
 
-    /// Right branch
+    /// Right branch.
     Right,
 }
 
 /// Types that generates a trace when executed.
 ///
-/// See also: [`TraceableError`]
+/// See also: [`TraceableError`].
 pub trait Traceable<T> {
     /// Returns the specific element, given by the `trace`.
     fn apply_trace(&self, trace: &[Trace]) -> T;

@@ -1,4 +1,4 @@
-//! Builder types for [`Levels`]s.
+//! Builder types for [`Level`]s.
 //!
 //! This is a naive description of declarations. It can be transformed into concrete declarations
 //! through the [`BuiderTrait`](kernel::memory::level::builder::BuilderTrait) declared in
@@ -19,13 +19,13 @@ static UNIVERSE_LIMIT: usize = 15;
 ///
 /// A Builder describes a term in a naive but easy-to-build manner.
 ///
-/// Please refer to the item descriptions in [levels](crate::memory::level::Payload) for a
+/// Please refer to the item descriptions in [levels](kernel::memory::level::Payload) for a
 /// description of the corresponding items. Please understand that there are still differences,
 ///
 /// Because the purpose of a builder is to provide an easy way to build terms, even through the
 /// API, it offers different ways to build some terms, for convenience.
 ///
-/// Unlike [`Term` builders](crate::memory::term::builder::Builder), level builders do not back-propagate
+/// Unlike [`Term` builders](crate::builder::term::Builder), level builders do not back-propagate
 /// a trace when an error occurs. This makes their structure simpler, but also limits the accuracy of the
 /// error reports associated to them. This is not an issue, as levels typically have a very limited size.
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
@@ -52,10 +52,10 @@ pub enum Builder<'builder> {
 }
 
 impl<'build> Builder<'build> {
-    /// Returns the maximum depth of successors of a builder with following properties :
+    /// Returns the maximum depth of successors of a builder with following properties:
     ///
-    /// * `Const(c)` is considered as being c successors consecutively
-    /// * every var is considered as 0
+    /// - `Const(c)` is considered as being `c` successors consecutively;
+    /// - every var is considered as 0;
     #[inline]
     fn max_depth(&self) -> usize {
         match self {
@@ -75,8 +75,8 @@ impl<'build> Buildable<'build> for Builder<'build> {
 
     type Closure = impl BuilderTrait<'build>;
 
-    /// Realise a builder into a [`Level`]. This internally uses functions described in
-    /// the [builder](`crate::memory::level::builder`) module.
+    /// Realises a builder into a [`Level`]. This internally uses functions described in
+    /// the [builder](`kernel::memory::level::builder`) module.
     ///
     /// # Errors
     /// If the level could not be built, yields an error indicating the reason.
@@ -117,7 +117,7 @@ impl<'build> Buildable<'build> for Vec<Builder<'build>> {
     type Closure = impl VecBuilderTrait<'build>;
 
     /// Realise a vector of builders into a `Vec<Level>`. This internally uses functions described
-    /// in the [builder](`crate::memory::level::builder`) module.
+    /// in the [builder](`kernel::memory::level::builder`) module.
     ///
     /// # Errors
     /// If the level could not be built, yields an error indicating the reason.
