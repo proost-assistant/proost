@@ -160,8 +160,8 @@ mod tests {
             let one_to_zero = Term::app(to_zero, one, arena);
             let nat_to_zero = Term::app(to_zero, nat, arena);
 
-            assert_eq!(zero_to_zero.normal_form(arena), zero);
-            assert_eq!(one_to_zero.normal_form(arena), zero);
+            assert_eq!(zero_to_zero.normal_form_unchecked(arena), zero);
+            assert_eq!(one_to_zero.normal_form_unchecked(arena), zero);
             assert_eq!(nat_to_zero.whnf(arena), nat_to_zero);
         });
     }

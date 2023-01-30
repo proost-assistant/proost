@@ -24,7 +24,10 @@ super::arena::new_dweller!(Term, Header, Payload);
 /// The header of a term.
 struct Header<'arena> {
     /// Lazy structure to store the weak-head normal form of a term.
-    head_normal_form: OnceCell<Term<'arena>>,
+    weak_head_normal_form: OnceCell<Term<'arena>>,
+
+    /// Lazy structure to store the weak-head normal form of a term.
+    normal_form: OnceCell<Term<'arena>>,
 
     /// Lazy structure to store the type of a term.
     type_: OnceCell<Term<'arena>>,
@@ -42,7 +45,8 @@ impl<'arena> Header<'arena> {
     /// modified accordingly.
     fn new(is_certainly_closed: bool) -> Self {
         Header {
-            head_normal_form: OnceCell::new(),
+            weak_head_normal_form: OnceCell::new(),
+            normal_form: OnceCell::new(),
             type_: OnceCell::new(),
             is_relevant: OnceCell::new(),
             is_certainly_closed: if is_certainly_closed { OnceCell::from(()) } else { OnceCell::new() },
@@ -190,7 +194,20 @@ impl<'arena> Term<'arena> {
     where
         F: FnOnce() -> Self,
     {
-        *self.0.header.head_normal_form.get_or_init(f)
+        *self
+            .0
+            .header
+            .normal_form
+            .get()
+            .unwrap_or_else(|| self.0.header.weak_head_normal_form.get_or_init(f))
+    }
+
+    /// Returns the normal form of the term, lazily computing the closure `f`.
+    pub(crate) fn get_nf_or_try_init<F>(self, f: F) -> Option<Self>
+    where
+        F: FnOnce() -> Option<Self>,
+    {
+       self.0.header.normal_form.get_or_try_init(|| f().ok_or(())).ok().copied()
     }
 
     /// Returns the type of the term, lazily computing the closure `f`.
@@ -216,9 +233,16 @@ impl<'arena> Term<'arena> {
         self.0.header.is_certainly_closed.get().is_some()
     }
 
-    /// Set the term as closed.
+    /// Sets the term as closed.
     pub(crate) fn set_as_closed(self) {
         self.0.header.is_certainly_closed.set(()).ok();
+    }
+
+    /// Indicates whether a term has already been successfuly typed.
+    #[inline]
+    #[must_use]
+    pub fn is_well_typed(self) -> bool {
+        self.0.header.type_.get().is_some()
     }
 }
 

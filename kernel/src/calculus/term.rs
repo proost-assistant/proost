@@ -168,10 +168,18 @@ impl<'arena> Term<'arena> {
 
     /// Returns the normal form of a term.
     ///
-    /// This function is computationally expensive and should only be used for reduce/eval commands, not when type-checking.
+    /// This function is expensive and corresponds to a complete evaluation of a term.
+    /// Returns `None` if the term has not been previously typed.
     #[inline]
     #[must_use]
-    pub fn normal_form(self, arena: &mut Arena<'arena>) -> Self {
+    pub fn normal_form(self, arena: &mut Arena<'arena>) -> Option<Self> {
+        self.get_nf_or_try_init(|| self.is_well_typed().then(|| self.normal_form_unchecked(arena)))
+    }
+
+    /// Returns the normal form of a term.
+    ///
+    /// Does not verify that the argument is well-typed before evaluation.
+    pub(crate) fn normal_form_unchecked(self, arena: &mut Arena<'arena>) -> Self {
         let mut temp = self;
         let mut res = self.beta_reduction(arena);
 
@@ -179,6 +187,7 @@ impl<'arena> Term<'arena> {
             temp = res;
             res = res.beta_reduction(arena);
         }
+
         res
     }
 
@@ -440,7 +449,7 @@ mod tests {
             ));
             let normal_form = arena.build_term_raw(prop());
 
-            assert_eq!(term.normal_form(arena), normal_form);
+            assert_eq!(term.normal_form_unchecked(arena), normal_form);
         });
     }
 
@@ -507,8 +516,8 @@ mod tests {
             let zero_to_zero = Term::app(to_zero, zero, arena);
             let one_to_zero = Term::app(to_zero, one, arena);
             let nat_to_zero = Term::app(to_zero, nat, arena);
-            assert_eq!(zero_to_zero.normal_form(arena), zero);
-            assert_eq!(one_to_zero.normal_form(arena), zero);
+            assert_eq!(zero_to_zero.normal_form_unchecked(arena), zero);
+            assert_eq!(one_to_zero.normal_form_unchecked(arena), zero);
             assert_eq!(nat_to_zero.whnf(arena), nat_to_zero);
         });
     }
