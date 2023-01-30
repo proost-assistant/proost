@@ -1,0 +1,80 @@
+\RequirePackage[pdfborderstyle={/S/U/W 0}]{hyperref} % remove borders around urls
+\usepackage{amssymb, amsmath, amsthm, mathrsfs}
+\usepackage{bussproofs} % proof trees
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{pifont}
+\usepackage{textcase} % provides \MakeTextUppercase (does not impact math mode)
+\usepackage[dvipsnames]{xcolor}
+
+\newcommand{\cmark}{\ding{51}}%
+\newcommand{\xmark}{\ding{55}}%
+
+%%% listings
+\definecolor{forestgreen}{rgb}{0,0.25,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{paleblue}{rgb}{0.7,0.7,1}
+
+\lstdefinestyle{default}{
+	%escapebegin=\lst@commentstyle,
+	basicstyle=\ttfamily,
+	breakatwhitespace=true
+	breaklines=true,
+	escapechar=`, % escape character for block comments
+	frame=tb,
+	framexleftmargin=1em,
+	numbers=left,
+	numbersep=5pt,
+	numberstyle=\scriptsize\ttfamily\color{paleblue},
+	showtabs=false,
+	texcl, % Back to TeX styling within *inline* comments
+	xleftmargin=1.5em,
+}
+\lstdefinelanguage{mdln}{
+	basicstyle=\ttfamily,
+	alsoletter={//,.,:,=},
+	comment=[l]{//},
+	commentstyle=\color{gray},
+	keywords={fun, if, max, imax},
+	keywordstyle=\textbf,
+	keywords=[2]{Prop, Type, Sort},
+	keywordstyle=[2]\color{forestgreen}\textbf,
+	keywords=[3]{def, check, eval, search, import},
+	keywordstyle=[3]\textit,
+}
+\lstnewenvironment{mdln}[1][]{\lstset{style=default, language=mdln, #1}}{}
+
+\lstdefinestyle{toplevel}{
+	frame=single,
+	language=mdln,
+	numbers=none,
+	showtabs=false,
+	literate=
+		{VVV}{\cmark}{1}
+		{XXX}{\xmark}{1}
+}
+\lstnewenvironment{toplevel}[1][]{\lstset{style=toplevel, #1}}{}
+
+\lstset{language=mdln}
+\lstMakeShortInline[columns=flexible]¤
+
+
+%%% bussproofs
+% documentation at https://mirror.ibcp.fr/pub/CTAN/macros/latex/contrib/bussproofs/BussGuide2.pdf
+\EnableBpAbbreviations
+% Overriding default label style
+\def\RL#1{\RightLabel{\footnotesize\bfseries{#1}}}
+\def\LL#1{\LeftLabel{\footnotesize\bfseries{#1}}}
+
+% boxed proofs, used to align multiple proofs on a single line
+\newenvironment{bprooftree}
+{\leavevmode\hbox\bgroup}
+{\DisplayProof\egroup}
+
+\newcommand{\textr}[1]{{\footnotesize\textbf{\MakeTextUppercase{#1}}}}
+% Fixes alignment issues but not without some consistency issues
+\def\RL#1{\RightLabel{\makebox[0pt][l]{\textr{#1}}}}
+\def\LL#1{\LeftLabel{\makebox[0pt][r]{\textr{#1}}}}
+% consistent label (with width)
+\def\cRL#1{\RightLabel{\textr{#1}}}
+\def\cLL#1{\LeftLabel{\textr{#1}}}
