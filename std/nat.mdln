@@ -7,3 +7,6 @@ def z_neq_s: (n: Nat) -> Not (Eq.{1} Nat Zero (Succ n)) :=
     fun n: Nat,
         e: Eq.{1} Nat Zero (Succ n) =>
         transport.{1, 0} Nat is_zero Zero (Succ n) e Tt
+
+def add := fun x: Nat => Nat_rec.{1}
+    (fun _: Nat => Nat) x (fun _ n: Nat => Succ n)
