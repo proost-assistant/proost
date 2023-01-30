@@ -96,7 +96,30 @@ occurred, next to some details about it. The command is discarded and the user
 may enter another command.
 
 The toplevel provides to a certain extent history browsing, either \emph{via}
-the up and down arrow keys or some auto-completion from previous commands.
+the up and down arrow keys or some auto-completion from previous commands. The
+toplevel also provides partial syntax highlighting, multi-line editing, which
+integrates with a detection of the currently-opened parentheses, if any. An
+example session is shown in figure \ref{fig:toplevel-example}.
+
+\begin{figure*}
+	\centering
+	\begin{toplevel}
+>>> import std/nat.mdln
+VVV
+>>> add Zero Zero
+XXX ^-^
+XXX expected def var := term, [...] eval term, import path_to_file, or search var
+>>> eval add Zero Zero
+VVV Zero
+>>> eval add (add Zero (fun p: Prop -> Prop, x: Prop => p (p x))) Zero
+XXX           ^------------------------------------------------^
+XXX function (LL Nat => NatRec (LL b: Nat => Nat) 1 (LL Nat => LL Nat => Succ 1)) Zero
+XXX expects a term of type Nat, received LL (b: Prop) -> Prop => LL Prop => 2 (2 1):
+XXX (a: (b: Prop) -> Prop) -> (b: Prop) -> Prop
+	\end{toplevel}
+	\label{fig:toplevel-example}
+	\caption{Example of an interactive toplevel session}
+\end{figure*}
 
 \section{Language}
 Language syntax is as such:
