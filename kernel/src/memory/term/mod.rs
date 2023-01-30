@@ -207,7 +207,7 @@ impl<'arena> Term<'arena> {
     where
         F: FnOnce() -> Option<Self>,
     {
-       self.0.header.normal_form.get_or_try_init(|| f().ok_or(())).ok().copied()
+        self.0.header.normal_form.get_or_try_init(|| f().ok_or(())).ok().copied()
     }
 
     /// Returns the type of the term, lazily computing the closure `f`.

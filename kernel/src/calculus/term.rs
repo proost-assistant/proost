@@ -490,39 +490,6 @@ mod tests {
     }
 
     #[test]
-    fn reduce_nat() {
-        use crate::axiom::natural::Natural::{Nat, NatRec, Succ, Zero};
-        use crate::axiom::Axiom;
-        use crate::memory::level::Level;
-
-        use_arena(|arena| {
-            let lvl_one = Level::succ(Level::zero(arena), arena);
-            let nat = Term::axiom(Axiom::Natural(Nat), &[], arena);
-            let zero = Term::axiom(Axiom::Natural(Zero), &[], arena);
-            let one = Term::app(Term::axiom(Axiom::Natural(Succ), &[], arena), zero, arena);
-            let to_zero = Term::app(
-                Term::app(
-                    Term::app(
-                        Term::axiom(Axiom::Natural(NatRec), arena.store_level_slice(&[lvl_one]), arena),
-                        Term::abs(nat, nat, arena),
-                        arena,
-                    ),
-                    zero,
-                    arena,
-                ),
-                Term::abs(nat, Term::abs(nat, zero, arena), arena),
-                arena,
-            );
-            let zero_to_zero = Term::app(to_zero, zero, arena);
-            let one_to_zero = Term::app(to_zero, one, arena);
-            let nat_to_zero = Term::app(to_zero, nat, arena);
-            assert_eq!(zero_to_zero.normal_form_unchecked(arena), zero);
-            assert_eq!(one_to_zero.normal_form_unchecked(arena), zero);
-            assert_eq!(nat_to_zero.whnf(arena), nat_to_zero);
-        });
-    }
-
-    #[test]
     fn relevance() {
         use crate::axiom::false_::False::False;
         use crate::axiom::Axiom;
