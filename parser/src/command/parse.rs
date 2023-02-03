@@ -167,9 +167,8 @@ fn parse_arg(pair: Pair<Rule>) -> Result<Vec<(&str, term::Builder)>> {
 fn parse_args(pair: Pair<Rule>) -> Result<Vec<(&str, term::Builder)>> {
     let mut res = Vec::new();
 
-    let iter = pair.into_inner();
-    iter.fold(Ok(()), |u, pair| {
-        u?;
+    let mut iter = pair.into_inner();
+    iter.try_fold((), |_, pair| {
         let mut arg = parse_arg(pair)?;
         res.append(&mut arg);
         Ok::<(), Error>(())
