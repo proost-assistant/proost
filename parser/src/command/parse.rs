@@ -151,29 +151,17 @@ fn parse_term(pair: Pair<Rule>) -> Result<term::Builder> {
     }
 }
 
-/// Parser for a single left-argument block of the form `(a1 ... an : A)`
-fn parse_arg(pair: Pair<Rule>) -> Result<Vec<(&str, term::Builder)>> {
-    let mut res = Vec::new();
-
-    let mut iter = pair.into_inner();
-    if let Some(ty) = iter.next_back() {
-        let ty = parse_term(ty)?;
-        iter.for_each(|pair| res.push((pair.as_str(), ty.clone())));
-    };
-    Ok(res)
-}
-
-/// Parses multiple left-arguments.
+/// Parses multiple left arguments.
 fn parse_args(pair: Pair<Rule>) -> Result<Vec<(&str, term::Builder)>> {
-    let mut res = Vec::new();
+    pair.into_inner()
+        .flat_map(|pair| {
+            let mut pair = pair.into_inner();
+            let type_ = parse_term(pair.next_back().unwrap());
 
-    let mut iter = pair.into_inner();
-    iter.try_fold((), |_, pair| {
-        let mut arg = parse_arg(pair)?;
-        res.append(&mut arg);
-        Ok::<(), Error>(())
-    })?;
-    Ok(res.into_iter().rev().collect())
+            pair.map(move |var| Ok((var.as_str(), type_.clone()?)))
+        })
+        .rev()
+        .collect()
 }
 
 /// Builds a command from errorless pest output
