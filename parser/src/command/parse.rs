@@ -151,7 +151,7 @@ fn parse_term(pair: Pair<Rule>) -> Result<term::Builder> {
     }
 }
 
-/// Parser for a single left-argument block of the form (a1 ... an : A)
+/// Parser for a single left-argument block of the form `(a1 ... an : A)`
 fn parse_arg(pair: Pair<Rule>) -> Result<Vec<(&str, term::Builder)>> {
     let mut res = Vec::new();
 
