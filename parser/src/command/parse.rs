@@ -387,16 +387,30 @@ mod tests {
     #[test]
     fn successful_define_with_l_arg() {
         assert_eq!(
-            line("def x (A: Prop) := A"),
+            line("def x (A B: Prop) (C : Prop) := A"),
             Ok(Define(
                 (Location::new((1, 5), (1, 6)), "x"),
                 None,
                 Builder::new(
-                    Location::new((1, 1), (1, 21)),
+                    Location::new((1, 1), (1, 34)),
                     Abs(
                         "A",
-                        Box::new(Builder::new(Location::new((1, 11), (1, 15)), Prop)),
-                        Box::new(Builder::new(Location::new((1, 20), (1, 21)), Var("A")))
+                        box Builder::new(Location::new((1, 13), (1, 17)), Prop),
+                        box Builder::new(
+                            Location::new((1, 1), (1, 34)),
+                            Abs(
+                                "B",
+                                box Builder::new(Location::new((1, 13), (1, 17)), Prop),
+                                box Builder::new(
+                                    Location::new((1, 1), (1, 34)),
+                                    Abs(
+                                        "C",
+                                        box Builder::new(Location::new((1, 24), (1, 28)), Prop),
+                                        box Builder::new(Location::new((1, 33), (1, 34)), Var("A"))
+                                    )
+                                )
+                            )
+                        )
                     )
                 )
             ))
