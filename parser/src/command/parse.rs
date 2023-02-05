@@ -952,6 +952,38 @@ mod tests {
     }
 
     #[test]
+    fn failed_left_arg() {
+        assert_eq!(
+            line("def foo (A: Sort 100000000000000000000) := A"),
+            Err(Error {
+                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
+                location: Location::new((1, 18), (1, 39)),
+            })
+        );
+        assert_eq!(
+            line("def foo.{u} (A: Sort 100000000000000000000) := A"),
+            Err(Error {
+                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
+                location: Location::new((1, 22), (1, 43)),
+            })
+        );
+        assert_eq!(
+            line("def foo (A: Sort 100000000000000000000): Prop := A"),
+            Err(Error {
+                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
+                location: Location::new((1, 18), (1, 39)),
+            })
+        );
+        assert_eq!(
+            line("def foo.{u} (A: Sort 100000000000000000000): Prop := A"),
+            Err(Error {
+                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
+                location: Location::new((1, 22), (1, 43)),
+            })
+        );
+    }
+
+    #[test]
     fn context_for_abs_args() {
         assert_eq!(
             line("check fun x : Prop, x : x, x : x => x"),
