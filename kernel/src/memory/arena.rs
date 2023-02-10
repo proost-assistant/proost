@@ -44,6 +44,7 @@ pub struct Arena<'arena> {
     // Please note that [`Level`] behave differently because it has an additional *reduced form*
     // invariant.
     pub(super) hashcons_terms: HashSet<&'arena super::term::Node<'arena>>,
+    pub(super) hashcons_values: HashSet<&'arena super::value::Node<'arena>>,
     pub(super) hashcons_decls: HashSet<&'arena super::declaration::Node<'arena>>,
     pub(super) hashcons_levels: HashMap<&'arena super::level::Node<'arena>, super::level::Level<'arena>>,
 
@@ -95,6 +96,7 @@ impl<'arena> Arena<'arena> {
             _phantom: PhantomData,
 
             hashcons_terms: HashSet::new(),
+            hashcons_values: HashSet::new(),
             hashcons_decls: HashSet::new(),
             hashcons_levels: HashMap::new(),
 

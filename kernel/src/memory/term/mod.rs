@@ -29,6 +29,8 @@ struct Header<'arena> {
     /// Lazy structure to store the type of a term.
     type_: OnceCell<Term<'arena>>,
 
+    to_value: OnceCell<super::value::Value<'arena>>,
+
     /// The relevance of a given term.
     is_relevant: OnceCell<bool>,
 
@@ -44,6 +46,7 @@ impl<'arena> Header<'arena> {
         Header {
             head_normal_form: OnceCell::new(),
             type_: OnceCell::new(),
+            to_value: OnceCell::new(),
             is_relevant: OnceCell::new(),
             is_certainly_closed: if is_certainly_closed { OnceCell::from(()) } else { OnceCell::new() },
         }
