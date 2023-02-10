@@ -8,7 +8,7 @@ use derive_more::{Constructor, Deref, Display};
 use kernel::error::ResultTerm;
 use kernel::memory::arena::Arena;
 use kernel::memory::declaration::builder as builder_declaration;
-use kernel::memory::term::builder::{abs, app, decl, prod, prop, sort, type_, var, BuilderTrait};
+use kernel::memory::term::builder::{abs, app, decl, let_in, prod, prop, sort, type_, var, BuilderTrait};
 use kernel::memory::term::Term;
 use kernel::trace::{Trace, Traceable};
 
@@ -68,6 +68,9 @@ pub enum Payload<'build> {
     Prod(&'build str, Box<Builder<'build>>, Box<Builder<'build>>),
 
     Decl(Box<declaration::InstantiatedBuilder<'build>>),
+
+    #[display(fmt = "let {_0}: {_1} := {_2} in {_3}")]
+    LetIn(&'build str, Box<Builder<'build>>, Box<Builder<'build>>, Box<Builder<'build>>),
 }
 
 impl<'build> Traceable<Location> for Builder<'build> {
@@ -119,6 +122,9 @@ impl<'build> Buildable<'build> for Builder<'build> {
             Payload::App(ref l, ref r) => app(l.as_closure(), r.as_closure())(arena, env, lvl_env, depth),
             Payload::Abs(s, ref arg, ref body) => abs(s, arg.as_closure(), body.as_closure())(arena, env, lvl_env, depth),
             Payload::Prod(s, ref arg, ref body) => prod(s, arg.as_closure(), body.as_closure())(arena, env, lvl_env, depth),
+            Payload::LetIn(s, ref ty, ref def, ref body) => {
+                let_in(s, ty.as_closure(), def.as_closure(), body.as_closure())(arena, env, lvl_env, depth)
+            },
             Payload::Decl(ref decl_builder) => decl(decl_builder.as_closure())(arena, env, lvl_env, depth),
         }
     }
