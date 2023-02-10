@@ -59,6 +59,7 @@ impl From<pest::error::Error<Rule>> for Error {
             Rule::univ_decl => "universe declaration".to_owned(),
             Rule::Args => "left-arguments".to_owned(),
             Rule::arg => "left-argument".to_owned(),
+            Rule::LetIn => "let_in".to_owned(),
             _ => {
                 unreachable!("low level rules cannot appear in error messages")
             },

@@ -76,7 +76,7 @@ fn parse_level(pair: Pair<Rule>) -> Result<level::Builder> {
 /// Builds [`kernel`] [terms](term::Builder) from errorless pest output
 fn parse_term(pair: Pair<Rule>) -> Result<term::Builder> {
     use term::Builder;
-    use term::Payload::{Abs, App, Prod, Prop, Sort, Type, Var, VarInstance};
+    use term::Payload::{Abs, App, LetIn, Prod, Prop, Sort, Type, Var, VarInstance};
 
     let loc = convert_span(pair.as_span());
 
@@ -145,6 +145,15 @@ fn parse_term(pair: Pair<Rule>) -> Result<term::Builder> {
             iter.map(parse_term)
                 .rev()
                 .try_fold(ret, |acc, argtype| argtype.map(|argtype| Builder::new(loc, Prod("_", box argtype, box acc))))
+        },
+
+        Rule::LetIn => {
+            let mut iter = pair.into_inner();
+            let name = iter.next().unwrap().as_str();
+            let ty = parse_term(iter.next().unwrap())?;
+            let def = parse_term(iter.next().unwrap())?;
+            let body = parse_term(iter.next().unwrap())?;
+            Ok(Builder::new(loc, LetIn(name, box ty, box def, box body)))
         },
 
         term => unreachable!("unexpected term: {term:?}"),
