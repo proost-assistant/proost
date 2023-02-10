@@ -165,6 +165,29 @@ pub const fn prod<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(
     }
 }
 
+/// Returns a closure building the dependant product of a term built from `body` over all elements
+/// of the type built from `arg_type`.
+#[inline]
+#[no_coverage]
+pub const fn let_in<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>, F3: BuilderTrait<'build>>(
+    name: &'build str,
+    ty: F1,
+    def: F2,
+    body: F3,
+) -> impl BuilderTrait<'build> {
+    move |arena, env, lvl_env, depth| {
+        let ty = ty(arena, env, lvl_env, depth).trace_err(Trace::Left)?;
+        let def = def(arena, env, lvl_env, depth).trace_err(Trace::Left)?;
+        let body = if name == "_" {
+            body(arena, env, lvl_env, depth + 1.into()).trace_err(Trace::Right)?
+        } else {
+            let env = env.update(name, (depth, ty));
+            body(arena, &env, lvl_env, depth + 1.into()).trace_err(Trace::Right)?
+        };
+        Ok(ty.abs(body, arena).app(def, arena))
+    }
+}
+
 /// Returns a closure building the term associated to the instantiated declaration `decl`.
 #[inline]
 #[no_coverage]
@@ -224,6 +247,15 @@ pub(crate) mod raw {
             let u1 = u1(arena);
             let u2 = u2(arena);
             u1.prod(u2, arena)
+        }
+    }
+
+    pub const fn let_in<F1: BuilderTrait, F2: BuilderTrait, F3: BuilderTrait>(u1: F1, u2: F2, u3: F3) -> impl BuilderTrait {
+        |arena| {
+            let u1 = u1(arena);
+            let u2 = u2(arena);
+            let u3 = u3(arena);
+            u1.abs(u2, arena).app(u3, arena)
         }
     }
 }
