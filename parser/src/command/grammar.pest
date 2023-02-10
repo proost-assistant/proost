@@ -4,16 +4,16 @@ number = @{ ASCII_DIGIT+ }
 filename = @{ !keywords ~ ( ASCII_ALPHANUMERIC | PUNCTUATION )+ }
 wildcard = @{"_"}
 string = @{!keywords ~ ASCII_ALPHA ~ ( "_" | ASCII_ALPHANUMERIC )* }
-keywords = @{ ( "fun" | "def" | "check" | "eval" | "search" | "import" | "Prop" | "Type" | "Sort" ) ~ !ASCII_ALPHANUMERIC }
+keywords = @{ ( "fun" | "def" | "check" | "eval" | "search" | "import" | "Prop" | "Type" | "Sort" | "let" | "in" ) ~ !ASCII_ALPHANUMERIC }
 eoi = _{ !ANY }
 
 
 
-Term = _{ Abs | dProd | Prod | App | VarDecl | Var | Prop | Type | Sort | "(" ~ Term ~ ")" }
-term_prod = _{ App | Abs | dProd | VarDecl | Var | Prop | Type | Sort | "(" ~ Prod ~ ")" | "(" ~ term_prod ~ ")" }
-term_app = _{ Abs | VarDecl | Var | Prop | Type | Sort | "(" ~ App ~ ")" | "(" ~ Prod ~ ")" | "(" ~ dProd ~ ")" | "(" ~ term_app ~ ")" } 
-term_dprod = _{ App | Abs | Prod | dProd | VarDecl | Var | Prop | Type | Sort | "(" ~ term_dprod ~ ")" }
-term_abs = _{ App | Abs | Prod | dProd | VarDecl | Var | Prop | Type | Sort | "(" ~ term_abs ~ ")" }
+Term = _{ Abs | dProd | Prod | App | VarDecl | Var | Prop | Type | Sort | LetIn | "(" ~ Term ~ ")" }
+term_prod = _{ App | Abs | dProd | VarDecl | Var | Prop | Type | Sort | LetIn | "(" ~ Prod ~ ")" | "(" ~ term_prod ~ ")" }
+term_app = _{ Abs | VarDecl | Var | Prop | Type | Sort | LetIn | "(" ~ App ~ ")" | "(" ~ Prod ~ ")" | "(" ~ dProd ~ ")" | "(" ~ term_app ~ ")" } 
+term_dprod = _{ App | Abs | Prod | dProd | VarDecl | Var | Prop | Type | Sort | LetIn | "(" ~ term_dprod ~ ")" }
+term_abs = _{ App | Abs | Prod | dProd | VarDecl | Var | Prop | Type | Sort | LetIn | "(" ~ term_abs ~ ")" }
 
 Abs = { ( "fun" ~ ( arg_abs_par ~ ( "," ~ arg_abs_par )* ) ~ "=>" ~ Term ) }
 arg_abs_par = _{ arg_abs | "(" ~ arg_abs_par ~ ")" }
@@ -35,6 +35,8 @@ Num = { number }
 Plus = { univ_plus ~ ( "+" ~ number )+ }
 Max = { ( "max" ~ "(" ~ univ ~ "," ~ univ ~ ")" ) | ( "max" ~ univ ~ univ ) }
 IMax = { ( "imax" ~ "(" ~ univ ~ "," ~ univ ~ ")" ) | ( "imax" ~ univ ~ univ ) }
+
+LetIn = {"let" ~ Var ~ ":" ~ Term ~ ":=" ~ Term ~ "in" ~ Term}
 
 Var = { string }
 VarDecl = ${ string ~ arg_univ }
