@@ -6,7 +6,7 @@ use super::declaration::InstantiatedDeclaration;
 use super::level::Level;
 use crate::axiom;
 use super::term::Term;
-use crate::memory::Arena;
+use super::arena::Arena;
 
 /// An index used to designate bound variables.
 #[derive(Add, Copy, Clone, Debug, Default, Display, Eq, PartialEq, From, Into, Sub, PartialOrd, Ord, Hash)]
@@ -19,39 +19,28 @@ struct Header<'arena> {
     to_term : OnceCell<Term<'arena>>,
 }
 
-pub type Spine<'arena> = [Value<'arena>];
+pub type Spine<'arena> = Vec<Value<'arena>>;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Head<'arena> {
     /// A variable, with its de Bruijn **level** and its type.
-    Var(DeBruijnLevel,Term<'arena>),
+    Var(DeBruijnLevel, Term<'arena>),
 
     /// An axiom.
     Axiom(axiom::Axiom, &'arena [Level<'arena>])
 }
 
-/// A closure that binds a single variable.
-///
-/// We can think of these closures as a limited form of [_explicit substitutions_].
-/// They allow us to avoid eagerly substituting under binders when evaluating
-/// terms.
-///
-/// [_explicit substitutions_]: https://en.wikipedia.org/wiki/Explicit_substitution
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AppClosure<'arena> {
-    /// The term that the argument will be applied to.
     pub term: Term<'arena>,
-    /// The environment in which we'll run the term in.
-    ///
-    /// At the moment this captures the _entire_ environment - would it be
-    /// better to only capture what the `term` needs?
-    pub values: Box<[Value<'arena>]>,
+
+    pub values: Vec<Value<'arena>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Payload<'arena> {
     /// A stuck computation of the form `h a1 ... an`, where `h` is a head
-    Neutral(Head<'arena>, Box<Spine<'arena>>),
+    Neutral(Head<'arena>, Spine<'arena>),
 
     /// Sort i, the encoding of Prop and Type i type.
     Sort(Level<'arena>),
@@ -77,6 +66,12 @@ impl<'arena> Header<'arena> {
     }
 }
 
+impl<'arena> AppClosure<'arena>{
+    pub fn new(term: Term<'arena>, values: Vec<Value<'arena>>) -> AppClosure<'arena> {
+        AppClosure { term, values }
+    }
+
+}
 
 use Payload::{Neutral, Sort, Abs, Decl, Prod};
 
@@ -99,9 +94,9 @@ impl<'arena> Value<'arena> {
         }
     }
 
-    fn neutral(head: Head<'arena>,spine : &Spine<'arena>, arena: &mut Arena<'arena>) -> Self {
+    pub(crate) fn neutral(head: Head<'arena>,spine : Spine<'arena>, arena: &mut Arena<'arena>) -> Self {
         let header = Header::new();
-        let payload = Neutral(head,spine.into());
+        let payload = Neutral(head,spine);
 
         Self::hashcons(Node { header, payload }, arena)
     }

@@ -3,3 +3,4 @@
 
 pub mod level;
 pub mod term;
+pub mod nbe;
