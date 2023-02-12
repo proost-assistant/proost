@@ -249,13 +249,4 @@ pub(crate) mod raw {
             u1.prod(u2, arena)
         }
     }
-
-    pub const fn let_in<F1: BuilderTrait, F2: BuilderTrait, F3: BuilderTrait>(u1: F1, u2: F2, u3: F3) -> impl BuilderTrait {
-        |arena| {
-            let u1 = u1(arena);
-            let u2 = u2(arena);
-            let u3 = u3(arena);
-            u1.abs(u2, arena).app(u3, arena)
-        }
-    }
 }
