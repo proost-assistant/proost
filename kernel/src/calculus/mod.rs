@@ -2,5 +2,5 @@
 //! [dwellers](crate::memory::arena::Arena)
 
 pub mod level;
-pub mod term;
 pub mod nbe;
+pub mod term;

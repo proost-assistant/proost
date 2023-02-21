@@ -2,11 +2,11 @@ use std::cell::OnceCell;
 
 use derive_more::{Add, Display, From, Into, Sub};
 
+use super::arena::Arena;
 use super::declaration::InstantiatedDeclaration;
 use super::level::Level;
-use crate::axiom;
 use super::term::Term;
-use super::arena::Arena;
+use crate::axiom;
 
 /// An index used to designate bound variables.
 #[derive(Add, Copy, Clone, Debug, Default, Display, Eq, PartialEq, From, Into, Sub, PartialOrd, Ord, Hash)]
@@ -16,7 +16,7 @@ super::arena::new_dweller!(Value, Header, Payload);
 
 /// The header of a term.
 struct Header<'arena> {
-    to_term : OnceCell<Term<'arena>>,
+    to_term: OnceCell<Term<'arena>>,
 }
 
 pub type Spine<'arena> = Vec<Value<'arena>>;
@@ -27,7 +27,7 @@ pub enum Head<'arena> {
     Var(DeBruijnLevel, Term<'arena>),
 
     /// An axiom.
-    Axiom(axiom::Axiom, &'arena [Level<'arena>])
+    Axiom(axiom::Axiom, &'arena [Level<'arena>]),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -66,18 +66,16 @@ impl<'arena> Header<'arena> {
     }
 }
 
-impl<'arena> AppClosure<'arena>{
+impl<'arena> AppClosure<'arena> {
     pub fn new(term: Term<'arena>, values: Vec<Value<'arena>>) -> AppClosure<'arena> {
         AppClosure { term, values }
     }
-
 }
 
-use Payload::{Neutral, Sort, Abs, Decl, Prod};
+use Payload::{Abs, Decl, Neutral, Prod, Sort};
 
-impl<'arena> Head<'arena>{
+impl<'arena> Head<'arena> {
     // TODO add var/axiom intro funcions
-
 }
 
 impl<'arena> Value<'arena> {
@@ -94,9 +92,9 @@ impl<'arena> Value<'arena> {
         }
     }
 
-    pub(crate) fn neutral(head: Head<'arena>,spine : Spine<'arena>, arena: &mut Arena<'arena>) -> Self {
+    pub(crate) fn neutral(head: Head<'arena>, spine: Spine<'arena>, arena: &mut Arena<'arena>) -> Self {
         let header = Header::new();
-        let payload = Neutral(head,spine);
+        let payload = Neutral(head, spine);
 
         Self::hashcons(Node { header, payload }, arena)
     }
