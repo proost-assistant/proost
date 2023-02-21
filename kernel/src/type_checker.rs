@@ -7,7 +7,7 @@ use derive_more::Display;
 use crate::error::{Error, Result, ResultTerm};
 use crate::memory::arena::Arena;
 use crate::memory::declaration::Declaration;
-use crate::memory::term::Payload::{Abs, App, Axiom, Decl, Prod, Sort, Var};
+use crate::memory::term::Payload::{Abs, App, Axiom, Decl, Prod, Sort, Var, Match};
 use crate::memory::term::Term;
 use crate::trace::{Trace, TraceableError};
 
@@ -170,6 +170,7 @@ impl<'arena> Term<'arena> {
             },
 
             Decl(decl) => decl.get_type_or_try_init(Term::infer, arena),
+            Match(_, _) => todo!(),
         })
     }
 

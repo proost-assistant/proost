@@ -2,7 +2,7 @@
 
 use core::fmt;
 
-use super::Payload::{Abs, App, Axiom, Decl, Prod, Sort, Var};
+use super::Payload::{Abs, App, Axiom, Decl, Prod, Sort, Var, Match};
 
 /// Thin wrapper used internally to print a term associated to a (classic) identifier as a letter.
 struct PrettyVar(usize);
@@ -112,6 +112,7 @@ impl<'arena> super::Term<'arena> {
             },
             Decl(decl) => write!(f, "{decl}"),
             Axiom(s, _) => write!(f, "{s}"),
+            Match(_, _) => todo!()
         }
     }
 }

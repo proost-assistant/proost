@@ -80,7 +80,23 @@ pub enum Payload<'arena> {
 
     /// An axiom.
     Axiom(axiom::Axiom, &'arena [Level<'arena>]),
+
+    ///A pattern-match on a given term. This pattern should be checked for exhaustiveness during TC.
+    Match(Term<'arena>,&'arena [(Pattern<'arena>,Term<'arena>)])
 }
+
+/// A pattern is either a Var (which can be a wildcard), or a term of the form `C p1 ... pn` where C is a constructor, and p1...pn are patterns
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub enum Pattern<'arena> {
+    /// A variable or wildcard. 
+    Var(),
+    /// A Constructor pattern of the form `C p1 ... pn` where C is a constructor, and p1...pn are patterns
+    Constr(Constructor, &'arena [Pattern<'arena>]),
+}
+
+/// Constructors are encoded as integers. The correspondence between pattern-constructors and their respective terms is handled through the arena
+#[derive(Add, Copy, Clone, Debug, Default, Display, Eq, PartialEq, From, Into, Sub, PartialOrd, Ord, Hash)]
+pub struct Constructor(usize);
 
 use Payload::{Abs, App, Axiom, Decl, Prod, Sort, Var};
 

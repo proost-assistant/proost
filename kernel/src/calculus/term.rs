@@ -6,7 +6,7 @@
 use crate::memory::arena::Arena;
 use crate::memory::declaration::InstantiatedDeclaration;
 use crate::memory::level::Level;
-use crate::memory::term::Payload::{Abs, App, Axiom, Decl, Prod, Sort, Var};
+use crate::memory::term::Payload::{Abs, App, Axiom, Decl, Prod, Sort, Var, Match};
 use crate::memory::term::Term;
 
 impl<'arena> Term<'arena> {
@@ -51,6 +51,7 @@ impl<'arena> Term<'arena> {
                 arg_type.prod(body, arena)
             },
             Decl(decl) => decl.get_term(arena),
+            Match(_, _) => todo!(),
             _ => self,
         }
     }
@@ -79,6 +80,7 @@ impl<'arena> Term<'arena> {
                 let body = body.shift(offset, depth + 1, arena);
                 arg_type.prod(body, arena)
             },
+            Match(_, _) => todo!(),
             _ => self,
         };
 
@@ -110,6 +112,7 @@ impl<'arena> Term<'arena> {
                 let body = body.substitute(sub, depth + 1, arena);
                 arg_type.prod(body, arena)
             },
+            Match(_, _) => todo!(),
             _ => self,
         })
     }
@@ -163,6 +166,7 @@ impl<'arena> Term<'arena> {
                 let inst = InstantiatedDeclaration::instantiate(decl.decl, params, arena);
                 Term::decl(inst, arena)
             },
+            Match(_, _) => todo!()
         }
     }
 
