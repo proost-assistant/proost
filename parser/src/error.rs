@@ -57,6 +57,8 @@ impl From<pest::error::Error<Rule>> for Error {
             Rule::IMax => "imax".to_owned(),
             Rule::arg_univ => "universe argument".to_owned(),
             Rule::univ_decl => "universe declaration".to_owned(),
+            Rule::Args => "left-arguments".to_owned(),
+            Rule::arg => "left-argument".to_owned(),
             _ => {
                 unreachable!("low level rules cannot appear in error messages")
             },

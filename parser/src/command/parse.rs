@@ -151,8 +151,26 @@ fn parse_term(pair: Pair<Rule>) -> Result<term::Builder> {
     }
 }
 
+/// Parses multiple left arguments.
+fn parse_args(pair: Pair<Rule>) -> Result<Vec<(&str, term::Builder)>> {
+    pair.into_inner()
+        .flat_map(|pair| {
+            let mut pair = pair.into_inner();
+            let type_ = parse_term(pair.next_back().unwrap());
+
+            pair.map(move |var| Ok((var.as_str(), type_.clone()?)))
+        })
+        .rev()
+        .collect()
+}
+
 /// Builds a command from errorless pest output
 fn parse_expr(pair: Pair<Rule>) -> Result<Command> {
+    use term::Builder;
+    use term::Payload::{Abs, Prod};
+
+    let loc = convert_span(pair.as_span());
+
     match pair.as_rule() {
         Rule::GetType => {
             let mut iter = pair.into_inner();
@@ -172,7 +190,9 @@ fn parse_expr(pair: Pair<Rule>) -> Result<Command> {
         Rule::Define => {
             let mut iter = pair.into_inner();
             let s = iter.next().unwrap();
-            let term = parse_term(iter.next().unwrap())?;
+            let args = parse_args(iter.next().unwrap())?.into_iter();
+            let term = parse_term(iter.next_back().unwrap())?;
+            let term = args.fold(term, |acc, (var, type_)| Builder::new(loc, Abs(var, box type_, box acc)));
 
             Ok(Command::Define((convert_span(s.as_span()), s.as_str()), None, term))
         },
@@ -180,8 +200,13 @@ fn parse_expr(pair: Pair<Rule>) -> Result<Command> {
         Rule::DefineCheckType => {
             let mut iter = pair.into_inner();
             let s = iter.next().unwrap();
+            let args = parse_args(iter.next().unwrap())?.into_iter();
             let ty = parse_term(iter.next().unwrap())?;
             let term = parse_term(iter.next().unwrap())?;
+            let ty = args
+                .clone()
+                .fold(ty, |acc, (var, type_)| Builder::new(loc, Prod(var, box type_, box acc)));
+            let term = args.fold(term, |acc, (var, type_)| Builder::new(loc, Abs(var, box type_, box acc)));
 
             Ok(Command::Define((convert_span(s.as_span()), s.as_str()), Some(ty), term))
         },
@@ -191,9 +216,11 @@ fn parse_expr(pair: Pair<Rule>) -> Result<Command> {
             let mut string_decl = iter.next().unwrap().into_inner();
             let s = string_decl.next().unwrap();
             let vars: Vec<&str> = string_decl.next().unwrap().into_inner().map(|name| name.as_str()).collect();
-            let body = iter.next().map(parse_term).unwrap()?;
+            let args = parse_args(iter.next().unwrap())?.into_iter();
+            let decl = iter.next().map(parse_term).unwrap()?;
+            let decl = args.fold(decl, |acc, (var, type_)| Builder::new(loc, Abs(var, box type_, box acc)));
 
-            Ok(Command::Declaration((convert_span(s.as_span()), s.as_str()), None, declaration::Builder::Decl(box body, vars)))
+            Ok(Command::Declaration((convert_span(s.as_span()), s.as_str()), None, declaration::Builder::Decl(box decl, vars)))
         },
 
         Rule::DeclarationCheckType => {
@@ -202,8 +229,14 @@ fn parse_expr(pair: Pair<Rule>) -> Result<Command> {
             let s = string_decl.next().unwrap();
             let vars: Vec<&str> = string_decl.next().unwrap().into_inner().map(|name| name.as_str()).collect();
 
+            let args = parse_args(iter.next().unwrap())?.into_iter();
             let ty = parse_term(iter.next().unwrap())?;
             let decl = iter.next().map(parse_term).unwrap()?;
+
+            let ty = args
+                .clone()
+                .fold(ty, |acc, (var, type_)| Builder::new(loc, Prod(var, box type_, box acc)));
+            let decl = args.fold(decl, |acc, (var, type_)| Builder::new(loc, Abs(var, box type_, box acc)));
 
             let ty = declaration::Builder::Decl(box ty, vars.clone());
             let decl = declaration::Builder::Decl(box decl, vars);
@@ -348,6 +381,39 @@ mod tests {
         assert_eq!(
             line("def x := Prop"),
             Ok(Define((Location::new((1, 5), (1, 6)), "x"), None, Builder::new(Location::new((1, 10), (1, 14)), Prop)))
+        );
+    }
+
+    #[test]
+    fn successful_define_with_l_arg() {
+        assert_eq!(
+            line("def x (A B: Prop) (C : Prop) := A"),
+            Ok(Define(
+                (Location::new((1, 5), (1, 6)), "x"),
+                None,
+                Builder::new(
+                    Location::new((1, 1), (1, 34)),
+                    Abs(
+                        "A",
+                        box Builder::new(Location::new((1, 13), (1, 17)), Prop),
+                        box Builder::new(
+                            Location::new((1, 1), (1, 34)),
+                            Abs(
+                                "B",
+                                box Builder::new(Location::new((1, 13), (1, 17)), Prop),
+                                box Builder::new(
+                                    Location::new((1, 1), (1, 34)),
+                                    Abs(
+                                        "C",
+                                        box Builder::new(Location::new((1, 24), (1, 28)), Prop),
+                                        box Builder::new(Location::new((1, 33), (1, 34)), Var("A"))
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            ))
         );
     }
 
@@ -881,6 +947,38 @@ mod tests {
             Err(Error {
                 kind: Kind::UnexpectedToken(SIMPLE_TERM_ERR.to_owned()),
                 location: Location::new((1, 16), (1, 21)),
+            })
+        );
+    }
+
+    #[test]
+    fn failed_left_arg() {
+        assert_eq!(
+            line("def foo (A: Sort 100000000000000000000) := A"),
+            Err(Error {
+                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
+                location: Location::new((1, 18), (1, 39)),
+            })
+        );
+        assert_eq!(
+            line("def foo.{u} (A: Sort 100000000000000000000) := A"),
+            Err(Error {
+                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
+                location: Location::new((1, 22), (1, 43)),
+            })
+        );
+        assert_eq!(
+            line("def foo (A: Sort 100000000000000000000): Prop := A"),
+            Err(Error {
+                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
+                location: Location::new((1, 18), (1, 39)),
+            })
+        );
+        assert_eq!(
+            line("def foo.{u} (A: Sort 100000000000000000000): Prop := A"),
+            Err(Error {
+                kind: Kind::TransformError(TOO_LARGE_NUMBER.to_owned()),
+                location: Location::new((1, 22), (1, 43)),
             })
         );
     }
