@@ -12,11 +12,20 @@ use crate::error::Error;
 /// most two children.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Trace {
-    /// Left branch.
-    Left,
+    /// Application Left branch.
+    AppLeft,
+    /// Application Right branch.
+    AppRight,
 
-    /// Right branch.
-    Right,
+    /// Lambda-abstraction Left branch.
+    AbsLeft,
+    /// Lambda-abstraction Right branch.
+    AbsRight,
+
+    /// Dependent product Left branch.
+    ProdLeft,
+    /// Dependent product Right branch.
+    ProdRight,
 }
 
 /// Types that generates a trace when executed.

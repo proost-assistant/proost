@@ -112,8 +112,8 @@ impl<'arena> Term<'arena> {
                 Ok(Term::sort(lvl, arena))
             },
 
-            (&Sort(_), _) => Err(Error::new(ErrorKind::NotUniverse(rhs).into())).trace_err(Trace::Right),
-            (_, _) => Err(Error::new(ErrorKind::NotUniverse(self).into())).trace_err(Trace::Left),
+            (&Sort(_), _) => Err(Error::new(ErrorKind::NotUniverse(rhs).into())).trace_err(Trace::ProdRight),
+            (_, _) => Err(Error::new(ErrorKind::NotUniverse(self).into())).trace_err(Trace::ProdLeft),
         }
     }
 
@@ -129,8 +129,8 @@ impl<'arena> Term<'arena> {
             Axiom(ax, lvl) => Ok(ax.get_type(arena).substitute_univs(lvl, arena)),
 
             Prod(t, u) => {
-                let univ_t = t.infer(arena).trace_err(Trace::Left)?;
-                let univ_u = u.infer(arena).trace_err(Trace::Right)?;
+                let univ_t = t.infer(arena).trace_err(Trace::ProdLeft)?;
+                let univ_u = u.infer(arena).trace_err(Trace::ProdRight)?;
 
                 let univ_t = univ_t.whnf(arena);
                 let univ_u = univ_u.whnf(arena);
@@ -138,25 +138,25 @@ impl<'arena> Term<'arena> {
             },
 
             Abs(t, u) => {
-                let type_t = t.infer(arena).trace_err(Trace::Left)?;
+                let type_t = t.infer(arena).trace_err(Trace::AbsLeft)?;
 
                 match *type_t {
                     Sort(_) => {
-                        let type_u = u.infer(arena).trace_err(Trace::Right)?;
+                        let type_u = u.infer(arena).trace_err(Trace::AbsRight)?;
                         Ok(t.prod(type_u, arena))
                     },
 
-                    _ => Err(Error::new(ErrorKind::NotUniverse(type_t).into())).trace_err(Trace::Left),
+                    _ => Err(Error::new(ErrorKind::NotUniverse(type_t).into())).trace_err(Trace::AbsLeft),
                 }
             },
 
             App(t, u) => {
-                let type_t = t.infer(arena).trace_err(Trace::Left)?;
+                let type_t = t.infer(arena).trace_err(Trace::AppLeft)?;
                 let type_t = type_t.whnf(arena);
 
                 match *type_t {
                     Prod(arg_type, cls) => {
-                        let type_u = u.infer(arena).trace_err(Trace::Right)?;
+                        let type_u = u.infer(arena).trace_err(Trace::AppRight)?;
 
                         if type_u.conversion(arg_type, arena) {
                             Ok(cls.substitute(u, 1, arena))
@@ -165,7 +165,7 @@ impl<'arena> Term<'arena> {
                         }
                     },
 
-                    _ => Err(Error::new(ErrorKind::NotAFunction(TypedTerm(t, type_t), u).into())).trace_err(Trace::Left),
+                    _ => Err(Error::new(ErrorKind::NotAFunction(TypedTerm(t, type_t), u).into())).trace_err(Trace::AppLeft),
                 }
             },
 
@@ -595,7 +595,7 @@ mod tests {
                     Err(Error {
                         kind: ErrorKind::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena))
                             .into(),
-                        trace: vec![Trace::Left, Trace::Left]
+                        trace: vec![Trace::AppLeft, Trace::AbsLeft]
                     })
                 );
             });
@@ -611,7 +611,7 @@ mod tests {
                     Err(Error {
                         kind: ErrorKind::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena))
                             .into(),
-                        trace: vec![Trace::Left, Trace::Right]
+                        trace: vec![Trace::AppLeft, Trace::ProdRight]
                     })
                 );
             });
@@ -627,7 +627,7 @@ mod tests {
                     Err(Error {
                         kind: ErrorKind::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena))
                             .into(),
-                        trace: vec![Trace::Left, Trace::Left]
+                        trace: vec![Trace::AppLeft, Trace::ProdLeft]
                     })
                 );
             });
@@ -643,7 +643,7 @@ mod tests {
                     Err(Error {
                         kind: ErrorKind::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena))
                             .into(),
-                        trace: vec![Trace::Left]
+                        trace: vec![Trace::AppLeft]
                     })
                 );
             });
@@ -659,7 +659,7 @@ mod tests {
                     Err(Error {
                         kind: ErrorKind::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena))
                             .into(),
-                        trace: vec![Trace::Left, Trace::Left]
+                        trace: vec![Trace::AppLeft, Trace::AppLeft]
                     })
                 );
             });
@@ -675,7 +675,7 @@ mod tests {
                     Err(Error {
                         kind: ErrorKind::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena))
                             .into(),
-                        trace: vec![Trace::Left, Trace::Right]
+                        trace: vec![Trace::AppLeft, Trace::AppRight]
                     })
                 );
             });
@@ -706,7 +706,7 @@ mod tests {
                             )
                         )
                         .into(),
-                        trace: vec![Trace::Right]
+                        trace: vec![Trace::AbsRight]
                     })
                 );
             });
@@ -724,7 +724,7 @@ mod tests {
                     term.infer(arena),
                     Err(Error {
                         kind: ErrorKind::NotUniverse(arena.build_term_raw(var(2.into(), prop()))).into(),
-                        trace: vec![Trace::Left, Trace::Right, Trace::Right]
+                        trace: vec![Trace::AbsLeft, Trace::AbsRight, Trace::AbsRight]
                     })
                 );
             });
@@ -739,7 +739,7 @@ mod tests {
                     term.infer(arena),
                     Err(Error {
                         kind: ErrorKind::NotUniverse(arena.build_term_raw(prod(prop(), prop()))).into(),
-                        trace: vec![Trace::Left]
+                        trace: vec![Trace::ProdLeft]
                     })
                 );
             });
@@ -757,7 +757,7 @@ mod tests {
                     term.infer(arena),
                     Err(Error {
                         kind: ErrorKind::NotUniverse(prop.prod(type_, arena)).into(),
-                        trace: vec![Trace::Right]
+                        trace: vec![Trace::ProdRight]
                     })
                 );
             });
@@ -774,7 +774,7 @@ mod tests {
                     Err(Error {
                         kind: ErrorKind::NotAFunction(TypedTerm(Term::prop(arena), Term::type_usize(0, arena)), Term::prop(arena))
                             .into(),
-                        trace: vec![Trace::Left]
+                        trace: vec![Trace::AppLeft]
                     })
                 );
             });

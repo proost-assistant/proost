@@ -74,16 +74,16 @@ impl<'build> Traceable<Location> for Builder<'build> {
     #[inline]
     fn apply_trace(&self, trace: &[Trace]) -> Location {
         let builder = trace.iter().rev().fold(self, |builder, trace| match (trace, &builder.payload) {
-            (Trace::Left, Payload::App(lhs, _)) => lhs,
-            (Trace::Right, Payload::App(_, rhs)) => rhs,
+            (Trace::AppLeft, Payload::App(lhs, _)) => lhs,
+            (Trace::AppRight, Payload::App(_, rhs)) => rhs,
 
-            (Trace::Left, Payload::Abs(_, lhs, _)) => lhs,
-            (Trace::Right, Payload::Abs(_, _, rhs)) => rhs,
+            (Trace::AbsLeft, Payload::Abs(_, lhs, _)) => lhs,
+            (Trace::AbsRight, Payload::Abs(_, _, rhs)) => rhs,
 
-            (Trace::Left, Payload::Prod(_, lhs, _)) => lhs,
-            (Trace::Right, Payload::Prod(_, _, rhs)) => rhs,
+            (Trace::ProdLeft, Payload::Prod(_, lhs, _)) => lhs,
+            (Trace::ProdRight, Payload::Prod(_, _, rhs)) => rhs,
 
-            _ => unreachable!("invalid trace"),
+            _ => unreachable!("invalid trace {:?} for {}", trace, builder),
         });
 
         builder.location
@@ -157,12 +157,12 @@ mod tests {
         // Beware, the trace has to be applied in the reverse order (depth-first).
         assert_eq!(builder.apply_trace(&[]), Location::new((1, 1), (1, 1)));
 
-        assert_eq!(builder.apply_trace(&[Trace::Left]), Location::new((2, 2), (2, 2)));
-        assert_eq!(builder.apply_trace(&[Trace::Left, Trace::Left]), Location::new((3, 3), (3, 3)));
-        assert_eq!(builder.apply_trace(&[Trace::Right, Trace::Left]), Location::new((4, 4), (4, 4)));
+        assert_eq!(builder.apply_trace(&[Trace::AbsLeft]), Location::new((2, 2), (2, 2)));
+        assert_eq!(builder.apply_trace(&[Trace::AppLeft, Trace::AbsLeft]), Location::new((3, 3), (3, 3)));
+        assert_eq!(builder.apply_trace(&[Trace::AppRight, Trace::AbsLeft]), Location::new((4, 4), (4, 4)));
 
-        assert_eq!(builder.apply_trace(&[Trace::Right]), Location::new((5, 5), (5, 5)));
-        assert_eq!(builder.apply_trace(&[Trace::Left, Trace::Right]), Location::new((6, 6), (6, 6)));
-        assert_eq!(builder.apply_trace(&[Trace::Right, Trace::Right]), Location::new((7, 7), (7, 7)));
+        assert_eq!(builder.apply_trace(&[Trace::AbsRight]), Location::new((5, 5), (5, 5)));
+        assert_eq!(builder.apply_trace(&[Trace::ProdLeft, Trace::AbsRight]), Location::new((6, 6), (6, 6)));
+        assert_eq!(builder.apply_trace(&[Trace::ProdRight, Trace::AbsRight]), Location::new((7, 7), (7, 7)));
     }
 }
