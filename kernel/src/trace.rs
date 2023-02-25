@@ -26,6 +26,13 @@ pub enum Trace {
     ProdLeft,
     /// Dependent product Right branch.
     ProdRight,
+
+    /// Type of a term introduced by a let-in
+    LetType,
+    /// Definition of a term introduced by a let-in
+    LetDef,
+    /// Body in which a term introduced by a let-in is used
+    LetBody,
 }
 
 /// Types that generates a trace when executed.

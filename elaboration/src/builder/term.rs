@@ -86,6 +86,13 @@ impl<'build> Traceable<Location> for Builder<'build> {
             (Trace::ProdLeft, Payload::Prod(_, lhs, _)) => lhs,
             (Trace::ProdRight, Payload::Prod(_, _, rhs)) => rhs,
 
+            (Trace::LetType, Payload::LetIn(_, ty, _, _)) => ty,
+            (Trace::LetDef, Payload::LetIn(_, _, def, _)) => def,
+            (Trace::LetBody, Payload::LetIn(_, _, _, body)) => body,
+
+            (Trace::AppRight, Payload::LetIn(_, _, def, _)) => def,
+            (Trace::AppLeft, Payload::LetIn(x, ty, _, body)) => Builder::new(body.location,Payload::Abs(x,ty.clone(),body.clone())).to_owned(),
+
             _ => unreachable!("invalid trace {:?} for {}", trace, builder),
         });
 

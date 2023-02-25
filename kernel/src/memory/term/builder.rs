@@ -176,13 +176,13 @@ pub const fn let_in<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>, 
     body: F3,
 ) -> impl BuilderTrait<'build> {
     move |arena, env, lvl_env, depth| {
-        let ty = ty(arena, env, lvl_env, depth).trace_err(Trace::Left)?;
-        let def = def(arena, env, lvl_env, depth).trace_err(Trace::Left)?;
+        let ty = ty(arena, env, lvl_env, depth).trace_err(Trace::LetType)?;
+        let def = def(arena, env, lvl_env, depth).trace_err(Trace::LetDef)?;
         let body = if name == "_" {
-            body(arena, env, lvl_env, depth + 1.into()).trace_err(Trace::Right)?
+            body(arena, env, lvl_env, depth + 1.into()).trace_err(Trace::LetBody)?
         } else {
             let env = env.update(name, (depth, ty));
-            body(arena, &env, lvl_env, depth + 1.into()).trace_err(Trace::Right)?
+            body(arena, &env, lvl_env, depth + 1.into()).trace_err(Trace::LetBody)?
         };
         Ok(ty.abs(body, arena).app(def, arena))
     }
