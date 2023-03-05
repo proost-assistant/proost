@@ -222,7 +222,16 @@ impl<'arena> Term<'arena> {
             _ => true,
         })
     }
+
+    /// Puts a term in weak-head normal form. If it is a neutral of the form `hd arg1 ... argn`, returns (hd,[arg1,...,argn])
+    /// This function helps for unifying matches  
+    pub(crate) fn to_neutral(self, arena: &mut Arena<'arena>) -> (Self,Vec<Self>){
+
+    }
 }
+
+
+
 
 #[cfg(test)]
 mod tests {
