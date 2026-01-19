@@ -9,7 +9,6 @@ version.workspace = true
 
 [dependencies]
 elaboration.path = "../elaboration"
-
 derive_more.workspace = true
 
 pest = "2"

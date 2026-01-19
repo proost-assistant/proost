@@ -76,7 +76,7 @@
               excl_start = "${excl_enum_struct}";
               excl_stop = "^\\}$";
               excl_br_line = "#\\[|assert(_eq)?!|(error|warn|info|debug|trace)!|^[[:space:]]*\\}(,)?$|${excl_enum_fn_struct}";
-              excl_br_start = "#\\[no_coverage\\]|^mod tests \\{|${excl_enum_struct}";
+              excl_br_start = "#\\[#[coverage(off)]\\]|^mod tests \\{|${excl_enum_struct}";
               excl_br_stop = "^\\}$";
               env = "CARGO_INCREMENTAL=0"
                   + " RUSTFLAGS=\"-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort\""

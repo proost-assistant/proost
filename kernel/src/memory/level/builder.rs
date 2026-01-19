@@ -22,11 +22,11 @@ use crate::memory::arena::Arena;
 pub enum ErrorKind<'arena> {
     /// Trying to build an universe too large
     // TODO (#94): Must be use only in this file. Currently, it is used in elaboration.
-    #[display(fmt = "universe {_0} too large to be built")]
+    #[display("universe {_0} too large to be built")]
     UniverseTooLarge(usize),
 
     /// Unknown universe variable
-    #[display(fmt = "unknown universe variable {_0}")]
+    #[display("unknown universe variable {_0}")]
     VarNotFound(&'arena str),
 }
 
@@ -92,14 +92,14 @@ pub const fn const_<'build>(n: usize) -> impl BuilderTrait<'build> {
 
 /// Returns a closure building the sum of `u` and a constant `n`.
 #[inline]
-#[no_coverage]
+#[coverage(off)]
 pub const fn plus<'build, F: BuilderTrait<'build>>(u: F, n: usize) -> impl BuilderTrait<'build> {
     move |arena, env| Ok(u(arena, env)?.add(n, arena))
 }
 
 /// Returns a closure building the successor of a level built from the given closure `u1`.
 #[inline]
-#[no_coverage]
+#[coverage(off)]
 pub const fn succ<'build, F1: BuilderTrait<'build>>(u1: F1) -> impl BuilderTrait<'build> {
     |arena, env| Ok(u1(arena, env)?.succ(arena))
 }
@@ -107,7 +107,7 @@ pub const fn succ<'build, F1: BuilderTrait<'build>>(u1: F1) -> impl BuilderTrait
 /// Returns a closure building the max of two levels built from the given closures `u1` and
 /// `u2`.
 #[inline]
-#[no_coverage]
+#[coverage(off)]
 pub const fn max<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(u1: F1, u2: F2) -> impl BuilderTrait<'build> {
     |arena, env| Ok(u1(arena, env)?.max(u2(arena, env)?, arena))
 }
@@ -115,14 +115,14 @@ pub const fn max<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(u1:
 /// Returns a closure building the imax of two levels built from the given closures `u1` and
 /// `u2`.
 #[inline]
-#[no_coverage]
+#[coverage(off)]
 pub const fn imax<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(u1: F1, u2: F2) -> impl BuilderTrait<'build> {
     |arena, env| Ok(u1(arena, env)?.imax(u2(arena, env)?, arena))
 }
 
 /// Returns the empty level vector.
 #[inline]
-#[no_coverage]
+#[coverage(off)]
 #[must_use]
 pub const fn nil<'build>() -> impl VecBuilderTrait<'build> {
     |_, _| Ok(Vec::new())
@@ -130,7 +130,7 @@ pub const fn nil<'build>() -> impl VecBuilderTrait<'build> {
 
 /// Returns a closure appending the level built from `elt` to the vector built from `vec`.
 #[inline]
-#[no_coverage]
+#[coverage(off)]
 pub const fn append<'build, H: BuilderTrait<'build>, T: VecBuilderTrait<'build>>(vec: T, elt: H) -> impl VecBuilderTrait<'build> {
     |arena, env| {
         let mut v = vec(arena, env)?;

@@ -15,7 +15,7 @@ use crate::trace::{Trace, TraceableError};
 ///
 /// This type is only used for pretty-printing purposes.
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
-#[display(fmt = "{_0}: {_1}")]
+#[display("{_0}: {_1}")]
 pub struct TypedTerm<'arena>(Term<'arena>, Term<'arena>);
 
 /// Errors that can occur, at runtime, during type checking.
@@ -24,23 +24,23 @@ pub struct TypedTerm<'arena>(Term<'arena>, Term<'arena>);
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum ErrorKind<'arena> {
     /// This term is not a universe.
-    #[display(fmt = "{_0} is not a universe")]
+    #[display("{_0} is not a universe")]
     NotUniverse(Term<'arena>),
 
     /// These two terms are not definitionally equal.
-    #[display(fmt = "{_0} and {_1} are not definitionally equal")]
+    #[display("{_0} and {_1} are not definitionally equal")]
     NotDefEq(Term<'arena>, Term<'arena>),
 
     /// This function expected an argument of this type, received an argument of this other type.
-    #[display(fmt = "function {_0} expects a term of type {_1}, received {_2}")]
+    #[display("function {_0} expects a term of type {_1}, received {_2}")]
     WrongArgumentType(Term<'arena>, Term<'arena>, TypedTerm<'arena>),
 
     /// This is not a function, it cannot be applied to this.
-    #[display(fmt = "{_0} is not a function, it cannot be applied to {_1}")]
+    #[display("{_0} is not a function, it cannot be applied to {_1}")]
     NotAFunction(TypedTerm<'arena>, Term<'arena>),
 
     /// These types mismatch.
-    #[display(fmt = "expected {_0}, got {_1}")]
+    #[display("expected {_0}, got {_1}")]
     TypeMismatch(Term<'arena>, Term<'arena>),
 }
 

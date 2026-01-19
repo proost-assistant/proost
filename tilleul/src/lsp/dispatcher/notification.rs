@@ -39,7 +39,7 @@ impl<'dispatcher, S: LanguageServer> Dispatcher<'dispatcher, S> {
 
     /// Dispatches the [`Notification`] to the [`LanguageServer`], if the associated method corresponds to
     /// [`lsp_types::notification::Notification::METHOD`].
-    #[no_coverage]
+    #[coverage(off)]
     pub fn handle<N>(&mut self, closure: fn(&mut S, N::Params)) -> &mut Self
     where
         N: lsp_types::notification::Notification,
@@ -50,7 +50,7 @@ impl<'dispatcher, S: LanguageServer> Dispatcher<'dispatcher, S> {
     /// Like [`handle`], but also accepts a callback to be executed after the request has been handled.
     ///
     /// [`handle`]: (Dispatcher::handle)
-    #[no_coverage]
+    #[coverage(off)]
     pub fn handle_callback<N, C>(&mut self, handler: fn(&mut S, N::Params), callback: C) -> &mut Self
     where
         C: FnOnce(),
@@ -79,7 +79,7 @@ impl<'dispatcher, S: LanguageServer> Dispatcher<'dispatcher, S> {
     /// This function should be used at the end of the [`handle`]-like methods chain.
     ///
     /// [`handle`]: (Dispatcher::handle)
-    #[no_coverage]
+    #[coverage(off)]
     pub fn handle_fallthrough(&mut self, error_message: &str) {
         let Some(ref notification) = self.notification else { return; };
 

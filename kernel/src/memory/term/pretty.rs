@@ -53,7 +53,7 @@ impl<'arena> super::Term<'arena> {
     /// variables.
     /// `is_root_closed` indicates if the root is certain to be closed. If true, the De Bruijn indexes will not appear but
     /// transformed in named variables instead.
-    #[no_coverage]
+    #[coverage(off)]
     fn pretty_print(self, f: &mut fmt::Formatter, depth: usize, distance: usize, mut is_root_closed: bool) -> fmt::Result {
         is_root_closed |= self.is_certainly_closed();
 

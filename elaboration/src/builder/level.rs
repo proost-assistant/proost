@@ -31,21 +31,21 @@ static UNIVERSE_LIMIT: usize = 15;
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
 #[allow(clippy::missing_docs_in_private_items)]
 pub enum Builder<'builder> {
-    #[display(fmt = "0")]
+    #[display("0")]
     Zero,
 
     Const(usize),
 
-    #[display(fmt = "({_0}) + {_1}")]
+    #[display("({_0}) + {_1}")]
     Plus(Box<Builder<'builder>>, usize),
 
-    #[display(fmt = "S({_0})")]
+    #[display("S({_0})")]
     Succ(Box<Builder<'builder>>),
 
-    #[display(fmt = "max({_0}, {_1})")]
+    #[display("max({_0}, {_1})")]
     Max(Box<Builder<'builder>>, Box<Builder<'builder>>),
 
-    #[display(fmt = "imax({_0}, {_1})")]
+    #[display("imax({_0}, {_1})")]
     IMax(Box<Builder<'builder>>, Box<Builder<'builder>>),
 
     Var(&'builder str),

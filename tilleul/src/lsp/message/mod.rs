@@ -87,7 +87,7 @@ impl Message {
     /// Returns an error if one `write` operation fails.
     ///
     /// [specification]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#baseProtocol
-    #[no_coverage]
+    #[coverage(off)]
     pub fn write(self, writer: &mut dyn Write) -> Result<()> {
         let response = JsonRPC {
             jsonrpc: "2.0",

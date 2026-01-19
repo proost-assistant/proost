@@ -16,7 +16,7 @@ use crate::error::{Result, ResultProcess};
 
 /// Type representing parser errors.
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
-#[display(fmt = "{kind}")]
+#[display("{kind}")]
 pub struct Error {
     /// The kind of form error that occurred.
     pub kind: ErrorKind,
@@ -30,19 +30,19 @@ pub struct Error {
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum ErrorKind {
     /// This file cannot be found
-    #[display(fmt = "{_0} is not a file")]
+    #[display("{_0} is not a file")]
     FileNotFound(String),
 
     /// The given file could not be imported
-    #[display(fmt = "errors occurred while reading file {_0}")]
+    #[display("errors occurred while reading file {_0}")]
     FileError(String),
 
     /// These files have a cyclic dependency
-    #[display(fmt = "cyclic dependency:\n{_0}")]
+    #[display("cyclic dependency:\n{_0}")]
     CyclicDependencies(String),
 
     /// This variable is already defined
-    #[display(fmt = "identifier {_0} already defined")]
+    #[display("identifier {_0} already defined")]
     BoundVariable(String),
 }
 

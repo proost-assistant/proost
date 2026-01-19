@@ -19,7 +19,7 @@ use crate::location::Location;
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
 #[allow(clippy::missing_docs_in_private_items)]
 pub enum Builder<'build> {
-    #[display(fmt = "{_0}")]
+    #[display("{_0}")]
     Decl(Box<term::Builder<'build>>, Vec<&'build str>),
 }
 

@@ -46,7 +46,7 @@ tests:
     EXCL_START: "${EXCL_ENUM_STRUCT}"
     EXCL_STOP: "^\\}"
     EXCL_BR_LINE: "#\\[|assert(_eq)?!|(error|warn|info|debug|trace)!|^[[:space:]]*\\}(,)?$|${EXCL_ENUM_FN_STRUCT}"
-    EXCL_BR_START: "#\\[no_coverage\\]|^mod tests \\{|${EXCL_ENUM_STRUCT}"
+    EXCL_BR_START: "#\\[#[coverage(off)]\\]|^mod tests \\{|${EXCL_ENUM_STRUCT}"
     EXCL_BR_STOP: "^\\}"
     RUSTDOCFLAGS: "${RUSTFLAGS}"
     RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort"

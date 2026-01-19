@@ -8,7 +8,7 @@ use crate::command::parse::Rule;
 
 /// The type representing [parser errors](Kind) with associated [`Location`].
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
-#[display(fmt = "{kind}")]
+#[display("{kind}")]
 pub struct Error {
     /// The kind of form error that occurred.
     pub kind: Kind,

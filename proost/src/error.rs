@@ -14,7 +14,7 @@ use crate::evaluator;
 #[derive(Display, From)]
 pub enum Error<'arena, 'build> {
     /// An error raised by the [`kernel`].
-    #[display(fmt = "{_1}")]
+    #[display("{_1}")]
     Kernel(&'build dyn Traceable<Location>, kernel::error::Error<'arena>),
 
     /// An error raised by the [`parser`].

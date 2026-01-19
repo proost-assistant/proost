@@ -23,7 +23,7 @@ use crate::trace::{Trace, TraceableError};
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum ErrorKind<'arena> {
     /// Unknown identifier
-    #[display(fmt = "unknown identifier {_0}")]
+    #[display("unknown identifier {_0}")]
     ConstNotFound(&'arena str),
 }
 
@@ -85,7 +85,7 @@ pub const fn prop<'build>() -> impl BuilderTrait<'build> {
 
 /// Returns a closure building the Type `level` term.
 #[inline]
-#[no_coverage]
+#[coverage(off)]
 pub const fn type_<'build, F: level::BuilderTrait<'build>>(level: F) -> impl BuilderTrait<'build> {
     move |arena, _, lvl_env, _| Ok(Term::sort(level(arena, lvl_env)?.succ(arena), arena))
 }
@@ -99,7 +99,7 @@ pub const fn type_usize<'build>(level: usize) -> impl BuilderTrait<'build> {
 
 /// Returns a closure building the Sort `level` term.
 #[inline]
-#[no_coverage]
+#[coverage(off)]
 pub const fn sort<'build, F: level::BuilderTrait<'build>>(level: F) -> impl BuilderTrait<'build> {
     move |arena, _, lvl_env, _| Ok(Term::sort(level(arena, lvl_env)?, arena))
 }
@@ -114,7 +114,7 @@ pub const fn sort_usize<'build>(level: usize) -> impl BuilderTrait<'build> {
 /// Returns a closure building the application of two terms built from the given closures `u1` and
 /// `u2`.
 #[inline]
-#[no_coverage]
+#[coverage(off)]
 pub const fn app<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(u1: F1, u2: F2) -> impl BuilderTrait<'build> {
     |arena, env, lvl_env, depth| {
         let u1 = u1(arena, env, lvl_env, depth).trace_err(Trace::Left)?;
@@ -126,7 +126,7 @@ pub const fn app<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(u1:
 /// Returns a closure building the lambda-abstraction with a body built from `body` and an argument
 /// type from `arg_type`.
 #[inline]
-#[no_coverage]
+#[coverage(off)]
 pub const fn abs<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(
     name: &'build str,
     arg_type: F1,
@@ -147,7 +147,7 @@ pub const fn abs<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(
 /// Returns a closure building the dependant product of a term built from `body` over all elements
 /// of the type built from `arg_type`.
 #[inline]
-#[no_coverage]
+#[coverage(off)]
 pub const fn prod<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(
     name: &'build str,
     arg_type: F1,
@@ -167,7 +167,7 @@ pub const fn prod<'build, F1: BuilderTrait<'build>, F2: BuilderTrait<'build>>(
 
 /// Returns a closure building the term associated to the instantiated declaration `decl`.
 #[inline]
-#[no_coverage]
+#[coverage(off)]
 pub const fn decl<'build, F: declaration::InstantiatedBuilderTrait<'build>>(decl: F) -> impl BuilderTrait<'build> {
     move |arena, _, lvl_env, _| Ok(Term::decl(decl(arena, lvl_env)?, arena))
 }

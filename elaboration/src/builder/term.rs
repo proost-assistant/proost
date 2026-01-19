@@ -18,7 +18,7 @@ use crate::location::Location;
 
 /// Wrapper template of [`Payload`], including [`Location`].
 #[derive(Clone, Constructor, Debug, Deref, Display, PartialEq, Eq)]
-#[display(fmt = "{payload}")]
+#[display("{payload}")]
 pub struct Builder<'build> {
     /// Location of the term.
     location: Location,
@@ -42,29 +42,29 @@ pub struct Builder<'build> {
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
 #[allow(clippy::missing_docs_in_private_items)]
 pub enum Payload<'build> {
-    #[display(fmt = "Prop")]
+    #[display("Prop")]
     Prop,
 
     /// A regular variable.
     Var(&'build str),
 
     /// A variable that may or may not be an instantiated declaration.
-    #[display(fmt = "{_0}")]
+    #[display("{_0}")]
     VarInstance(&'build str, Vec<level::Builder<'build>>),
 
-    #[display(fmt = "Type {_0}")]
+    #[display("Type {_0}")]
     Type(Box<level::Builder<'build>>),
 
-    #[display(fmt = "Sort {_0}")]
+    #[display("Sort {_0}")]
     Sort(Box<level::Builder<'build>>),
 
-    #[display(fmt = "{_0} {_1}")]
+    #[display("{_0} {_1}")]
     App(Box<Builder<'build>>, Box<Builder<'build>>),
 
-    #[display(fmt = "\u{003BB} {_0}: {_1} \u{02192} {_2}")]
+    #[display("\u{003BB} {_0}: {_1} \u{02192} {_2}")]
     Abs(&'build str, Box<Builder<'build>>, Box<Builder<'build>>),
 
-    #[display(fmt = "\u{03A0} {_0}: {_1} \u{02192} {_2}")]
+    #[display("\u{03A0} {_0}: {_1} \u{02192} {_2}")]
     Prod(&'build str, Box<Builder<'build>>, Box<Builder<'build>>),
 
     Decl(Box<declaration::InstantiatedBuilder<'build>>),

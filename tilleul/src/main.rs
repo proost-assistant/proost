@@ -8,7 +8,7 @@
 //!
 //! [Language Server Protocol]: https://microsoft.github.io/language-server-protocol/
 
-#![feature(no_coverage)]
+#![feature(#[coverage(off)])]
 #![deny(
     clippy::complexity,
     clippy::correctness,

@@ -27,7 +27,7 @@ pub enum Kind<'arena> {
 
 /// The type representing errors and the trace to find the specific element that yield the error.
 #[derive(Clone, Debug, Display, PartialEq, Eq)]
-#[display(fmt = "{kind}")]
+#[display("{kind}")]
 pub struct Error<'arena> {
     /// The kind of form error that occurred.
     pub kind: Kind<'arena>,

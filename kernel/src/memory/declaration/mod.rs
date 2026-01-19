@@ -13,7 +13,7 @@ use crate::error::ResultTerm;
 pub mod builder;
 
 #[derive(Clone,Copy, Debug, Display, Eq, PartialEq, Hash)]
-#[display(fmt = "{ty}")]
+#[display("{ty}")]
 pub struct Constant<'arena> {
     // name: String,
     ty : Term<'arena>,
@@ -21,14 +21,14 @@ pub struct Constant<'arena> {
 }
 
 #[derive(Clone, Debug, Display, Eq, PartialEq, Hash)]
-#[display(fmt = "{constant}")]
+#[display("{constant}")]
 pub struct Definition<'arena> {
     constant : Constant<'arena>,
     term : Term<'arena>,
 }
 
 #[derive(Clone, Debug, Display, Eq, PartialEq, Hash)]
-#[display(fmt = "{constant}")]
+#[display("{constant}")]
 pub struct Inductive<'arena> {
     constant : Constant<'arena>,
     constructor : Vec<Constructor<'arena>>,
@@ -37,7 +37,7 @@ pub struct Inductive<'arena> {
 }
 
 #[derive(Clone, Debug, Display, Eq, PartialEq, Hash)]
-#[display(fmt = "{constant}")]
+#[display("{constant}")]
 pub struct Constructor<'arena> {
     constant : Constant<'arena>,
     ind : Inductive<'arena>,
@@ -45,7 +45,7 @@ pub struct Constructor<'arena> {
 }
 
 #[derive(Clone, Debug, Display, Eq, PartialEq, Hash)]
-#[display(fmt = "{constant}")]
+#[display("{constant}")]
 // TODO to handle mutual/nested types, we will need to add two fields `num_motives` and `num_minors`
 pub struct Recursor<'arena> {
     constant : Constant<'arena>,
@@ -60,13 +60,13 @@ pub struct Recursor<'arena> {
 /// incorporated into [`Term`]s. No variable may remain in the instantiated declaration.
 #[derive(Clone, Debug, Display, Eq, PartialEq, Hash)]
 pub enum Declaration<'arena> {
-    #[display(fmt = "{_0}")]
+    #[display("{_0}")]
     Definition(Definition<'arena>),
-    #[display(fmt = "{_0}")]
+    #[display("{_0}")]
     Inductive(Inductive<'arena>),
-    #[display(fmt = "{_0}")]
+    #[display("{_0}")]
     Constructor(Constructor<'arena>),
-    #[display(fmt = "{_0}")]
+    #[display("{_0}")]
     Recursor(Recursor<'arena>)
 }
 

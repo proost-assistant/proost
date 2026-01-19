@@ -45,7 +45,7 @@ impl Stdio {
     }
 
     /// Reader thread function.
-    #[no_coverage]
+    #[coverage(off)]
     fn reader_thread<R: std::io::Read>(sender: &Sender<Message>, mut reader: BufReader<R>) {
         info!("Reader thread started");
 
@@ -67,7 +67,7 @@ impl Stdio {
     }
 
     /// Writer thread function.
-    #[no_coverage]
+    #[coverage(off)]
     fn writer_thread<W: std::io::Write>(receiver: &Receiver<Message>, mut writer: BufWriter<W>) {
         info!("Writer thread started");
 

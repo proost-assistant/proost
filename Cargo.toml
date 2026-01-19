@@ -6,12 +6,13 @@ members = [
     "tilleul",
     "elaboration"
 ]
+resolver = "3"
 
 [workspace.dependencies]
-anyhow = "1.0.66"
-bumpalo = "3.11.1"
-clap = { version = "4.0.10", features = ["derive"] }
-derive_more = "0.99.17"
+anyhow = "1.0.100"
+bumpalo = "3.19.1"
+clap = { version = "4.5.54", features = ["derive"] }
+derive_more = { version = "2.1.1", features = ["full"] }
 
 [workspace.package]
 authors = [
@@ -20,7 +21,7 @@ authors = [
     "Vincent Lafeychine",
     "Lucas Tabary-Maujean"
 ]
-edition = "2021"
+edition = "2024"
 version = "0.3.0"
 license = "GPL-3.0-or-later"
 repository = "https://gitlab.crans.org/loutr/proost"

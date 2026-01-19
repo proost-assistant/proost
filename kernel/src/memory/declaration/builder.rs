@@ -21,11 +21,11 @@ use crate::memory::term::builder as term;
 #[derive(Clone, Debug, Display, Eq, PartialEq)]
 pub enum ErrorKind<'arena> {
     /// An incorrect amount of universe variables has been provided
-    #[display(fmt = "expected {_0} universe variables, got {_1}")]
+    #[display("expected {_0} universe variables, got {_1}")]
     IncorrectVariableNumber(usize, usize),
 
     /// The declaration is unknown
-    #[display(fmt = "unknown declaration {_0}")]
+    #[display("unknown declaration {_0}")]
     UnknownDeclaration(&'arena str),
 }
 
