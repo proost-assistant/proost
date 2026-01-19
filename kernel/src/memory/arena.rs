@@ -10,7 +10,6 @@ use bumpalo::Bump;
 use super::declaration::Declaration;
 use super::level::Level;
 use super::term::Term;
-use crate::axiom::Axiom;
 
 /// A comprehensive memory management unit for terms.
 ///
@@ -79,7 +78,7 @@ where
     F: for<'arena> FnOnce(&mut Arena<'arena>) -> T,
 {
     use_arena(|arena| {
-        Axiom::add_named_axioms(arena);
+        // Axiom::add_named_axioms(arena);
 
         f(arena)
     })
@@ -131,9 +130,10 @@ impl<'arena> Arena<'arena> {
     pub fn bind_decl(&mut self, name: &str, decl: Declaration<'arena>) {
         let name = self.store_name(name);
         self.named_decls.insert(name, decl);
-        if let Declaration(term, 0) = decl {
-            self.bind(name, term);
-        }
+        todo!()
+        // if let Declaration::Definition(term, 0) = decl {
+            // self.bind(name, term);
+        // }
     }
 
     /// Retrieves the binding of a given name, if one exists.
@@ -147,7 +147,8 @@ impl<'arena> Arena<'arena> {
     #[inline]
     #[must_use]
     pub fn get_binding_decl(&self, name: &str) -> Option<Declaration<'arena>> {
-        self.named_decls.get(name).copied()
+        todo!()
+        // self.named_decls.get(name).clone()
     }
 }
 

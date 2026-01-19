@@ -8,7 +8,6 @@ use derive_more::{Add, Display, From, Into, Sub};
 
 use super::declaration::InstantiatedDeclaration;
 use super::level::Level;
-use crate::axiom;
 use crate::error::ResultTerm;
 use crate::memory::arena::Arena;
 
@@ -78,11 +77,11 @@ pub enum Payload<'arena> {
     /// An instance of a universe-polymorphic declaration.
     Decl(InstantiatedDeclaration<'arena>),
 
-    /// An axiom.
-    Axiom(axiom::Axiom, &'arena [Level<'arena>]),
+    // / An axiom.
+    // Axiom(axiom::Axiom, &'arena [Level<'arena>]),
 }
 
-use Payload::{Abs, App, Axiom, Decl, Prod, Sort, Var};
+use Payload::{Abs, App, Decl, Prod, Sort, Var};
 
 impl<'arena> Term<'arena> {
     /// This function is the base low-level function for creating terms.
@@ -102,15 +101,6 @@ impl<'arena> Term<'arena> {
     pub(crate) fn var(index: DeBruijnIndex, type_: Term<'arena>, arena: &mut Arena<'arena>) -> Self {
         let header = Header::new(false);
         let payload = Var(index, type_);
-
-        Self::hashcons(Node { header, payload }, arena)
-    }
-
-    /// Returns an axiom term with the given axiom.
-    pub(crate) fn axiom(axiom: axiom::Axiom, lvl: &[Level<'arena>], arena: &mut Arena<'arena>) -> Self {
-        let lvl = arena.store_level_slice(lvl);
-        let header = Header::new(true);
-        let payload = Axiom(axiom, lvl);
 
         Self::hashcons(Node { header, payload }, arena)
     }

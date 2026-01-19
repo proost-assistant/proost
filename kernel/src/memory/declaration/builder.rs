@@ -82,10 +82,11 @@ fn try_build_instance<'arena, 'build, V: level::VecBuilderTrait<'build>>(
 ) -> ResultInstantiatedDecl<'arena> {
     let levels = levels(arena, env)?;
 
-    if decl.1 == levels.len() {
+    let n = decl.clone().to_constant().n_levels;  
+    if n == levels.len() {
         Ok(InstantiatedDeclaration::instantiate(decl, levels.as_slice(), arena))
     } else {
-        Err(Error::new(ErrorKind::IncorrectVariableNumber(decl.1, levels.len()).into()))
+        Err(Error::new(ErrorKind::IncorrectVariableNumber(decl.to_constant().n_levels, levels.len()).into()))
     }
 }
 

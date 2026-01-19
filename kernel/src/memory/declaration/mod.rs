@@ -12,14 +12,63 @@ use crate::error::ResultTerm;
 
 pub mod builder;
 
+#[derive(Clone,Copy, Debug, Display, Eq, PartialEq, Hash)]
+#[display(fmt = "{ty}")]
+pub struct Constant<'arena> {
+    // name: String,
+    ty : Term<'arena>,
+    n_levels : usize
+}
+
+#[derive(Clone, Debug, Display, Eq, PartialEq, Hash)]
+#[display(fmt = "{constant}")]
+pub struct Definition<'arena> {
+    constant : Constant<'arena>,
+    term : Term<'arena>,
+}
+
+#[derive(Clone, Debug, Display, Eq, PartialEq, Hash)]
+#[display(fmt = "{constant}")]
+pub struct Inductive<'arena> {
+    constant : Constant<'arena>,
+    constructor : Vec<Constructor<'arena>>,
+    n_params : usize,
+    n_indices :  usize,
+}
+
+#[derive(Clone, Debug, Display, Eq, PartialEq, Hash)]
+#[display(fmt = "{constant}")]
+pub struct Constructor<'arena> {
+    constant : Constant<'arena>,
+    ind : Inductive<'arena>,
+    constructor_num : usize,
+}
+
+#[derive(Clone, Debug, Display, Eq, PartialEq, Hash)]
+#[display(fmt = "{constant}")]
+// TODO to handle mutual/nested types, we will need to add two fields `num_motives` and `num_minors`
+pub struct Recursor<'arena> {
+    constant : Constant<'arena>,
+    ind : Inductive<'arena>,
+    reduction_rules : Vec<Term<'arena>>,
+}
+
 /// A declaration is a term where some of its constituting universe levels may contain
 /// universe-polymorphic variables.
 ///
 /// Declarations can be instantiated to create [`InstantiatedDeclaration`]s, which can in turn be
 /// incorporated into [`Term`]s. No variable may remain in the instantiated declaration.
-#[derive(Copy, Clone, Debug, Display, Eq, PartialEq, Hash)]
-#[display(fmt = "{_0}")]
-pub struct Declaration<'arena>(pub(crate) Term<'arena>, pub(crate) usize);
+#[derive(Clone, Debug, Display, Eq, PartialEq, Hash)]
+pub enum Declaration<'arena> {
+    #[display(fmt = "{_0}")]
+    Definition(Definition<'arena>),
+    #[display(fmt = "{_0}")]
+    Inductive(Inductive<'arena>),
+    #[display(fmt = "{_0}")]
+    Constructor(Constructor<'arena>),
+    #[display(fmt = "{_0}")]
+    Recursor(Recursor<'arena>)
+}
 
 super::arena::new_dweller!(InstantiatedDeclaration, Header, Payload);
 
@@ -60,8 +109,30 @@ impl<'arena> fmt::Display for InstantiatedDeclaration<'arena> {
 impl<'arena> Declaration<'arena> {
     /// Creates a declaration from a pair of arguments.
     pub(crate) const fn new(term: Term<'arena>, vars: usize) -> Self {
-        Self(term, vars)
+        // Declaration::Definition(term, vars)
+        todo!()
     }
+    
+    pub(crate) fn to_constant(self) -> Constant<'arena> {
+        match self {
+            Declaration::Definition(d)   => return d.constant,
+            Declaration::Inductive(d)     => return d.constant,
+            Declaration::Constructor(d) => return d.constant,
+            Declaration::Recursor(d)       => return d.constant,
+        }
+    }
+
+    pub(crate) fn get_type(decl : Declaration) -> Term {
+        return decl.to_constant().ty 
+    }
+
+    pub(crate) fn try_get_term(decl : Declaration) -> Option<Term> {
+        match decl {
+            Declaration::Definition(d) => return Some(d.term),
+            _ => return None
+        }
+    }
+    
 }
 
 impl<'arena> InstantiatedDeclaration<'arena> {
@@ -89,20 +160,26 @@ impl<'arena> InstantiatedDeclaration<'arena> {
 
     /// Returns the term linked to a definition in a given environment.
     #[inline]
-    pub fn get_term(self, arena: &mut Arena<'arena>) -> Term<'arena> {
-        *self
-            .0
-            .header
-            .term
-            .get_or_init(|| self.0.payload.decl.0.substitute_univs(self.0.payload.params, arena))
+    pub fn get_term(self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
+        todo!()
+        // self
+        //     .0
+        //     .header
+        //     .term
+        //     .get_or_try_init(|| todo!())
+    }
+
+    pub(crate) fn get_type(self, arena: &mut Arena<'arena>) -> Term<'arena> {
+        return self.0.payload.decl.to_constant().ty.substitute_univs(self.0.payload.params, arena)
     }
 
     /// Tries to type the generic underlying declaration. If it works, returns the type
     /// corresponding to the instantiated declaration, via a universe-variable substitution.
-    pub(crate) fn get_type_or_try_init<F>(self, f: F, arena: &mut Arena<'arena>) -> ResultTerm<'arena>
+    pub(crate) fn get_type_or_try_init<F>(self, f: F, arena: &mut Arena<'arena>) -> Term<'arena>
     where
-        F: FnOnce(Term<'arena>, &mut Arena<'arena>) -> ResultTerm<'arena>,
+        F: FnOnce(Term<'arena>, &mut Arena<'arena>) -> Term<'arena>,
     {
-        f(self.0.payload.decl.0, arena).map(|type_| type_.substitute_univs(self.0.payload.params, arena))
+        todo!()
+        // f(Declaration::try_get_term(self.0.payload.decl), arena).map(|type_| type_.substitute_univs(self.0.payload.params, arena))
     }
 }

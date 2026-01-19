@@ -7,7 +7,7 @@ use derive_more::Display;
 use crate::error::{Error, Result, ResultTerm};
 use crate::memory::arena::Arena;
 use crate::memory::declaration::Declaration;
-use crate::memory::term::Payload::{Abs, App, Axiom, Decl, Prod, Sort, Var};
+use crate::memory::term::Payload::{Abs, App, Decl, Prod, Sort, Var};
 use crate::memory::term::Term;
 use crate::trace::{Trace, TraceableError};
 
@@ -85,9 +85,15 @@ impl<'arena> Term<'arena> {
             // Instead, when the same declaration is met on both terms, they're also equal in memory.
             // Otherwise, either one of them is not a decl, or they are two different decls. In both case, we unfold decls to check
             // equality.
-            (&Decl(decl), _) => decl.get_term(arena).conversion(rhs, arena),
+            (&Decl(decl), _) => {
+                let Ok(t) = decl.get_term(arena) else {return false};
+                return t.conversion(rhs, arena)
+            },
 
-            (_, &Decl(decl)) => decl.get_term(arena).conversion(lhs, arena),
+            (_, &Decl(decl)) => {
+                let Ok(t) = decl.get_term(arena) else {return false};
+                return t.conversion(lhs, arena)
+            },
 
             _ => false,
         }
@@ -126,7 +132,7 @@ impl<'arena> Term<'arena> {
         self.get_type_or_try_init(|| match *self {
             Sort(lvl) => Ok(Term::sort(lvl.succ(arena), arena)),
             Var(_, type_) => Ok(type_),
-            Axiom(ax, lvl) => Ok(ax.get_type(arena).substitute_univs(lvl, arena)),
+            // Axiom(ax, lvl) => Ok(ax.get_type(arena).substitute_univs(lvl, arena)),
 
             Prod(t, u) => {
                 let univ_t = t.infer(arena).trace_err(Trace::Left)?;
@@ -169,7 +175,7 @@ impl<'arena> Term<'arena> {
                 }
             },
 
-            Decl(decl) => decl.get_type_or_try_init(Term::infer, arena),
+            Decl(decl) => Ok(decl.get_type(arena))
         })
     }
 
@@ -199,8 +205,9 @@ impl<'arena> Declaration<'arena> {
     /// If the declaration cannot be typed, this function yields an error indicating where the problem is.
     #[inline]
     pub fn infer(self, arena: &mut Arena<'arena>) -> Result<'arena, ()> {
-        self.0.infer(arena)?;
-        Ok(())
+        todo!()
+        // self.0.infer(arena)?;
+        // Ok(())
     }
 
     /// Checks whether the declaration `self` living in `arena` is of type `ty`.
@@ -210,7 +217,8 @@ impl<'arena> Declaration<'arena> {
     /// error.
     #[inline]
     pub fn check(self, ty: Self, arena: &mut Arena<'arena>) -> Result<'arena, ()> {
-        self.0.check(ty.0, arena)
+        todo!()
+        // Declaration::<'arena>::get_type(self).check(ty.0, arena)
     }
 }
 
@@ -258,7 +266,7 @@ mod tests {
     #[test]
     fn conv_decl() {
         use_arena(|arena| {
-            let decl_ = InstantiatedDeclaration::instantiate(Declaration(Term::prop(arena), 0), &Vec::new(), arena);
+            let decl_ = InstantiatedDeclaration::instantiate(Declaration::Definition(Term::prop(arena), 0), &Vec::new(), arena);
             let term = Term::decl(decl_, arena);
 
             let prop = arena.build_term_raw(prop());
@@ -271,7 +279,7 @@ mod tests {
     #[test]
     fn infer_decl() {
         use_arena(|arena| {
-            let decl_ = InstantiatedDeclaration::instantiate(Declaration(Term::prop(arena), 0), &Vec::new(), arena);
+            let decl_ = InstantiatedDeclaration::instantiate(Declaration::Definition(Term::prop(arena), 0), &Vec::new(), arena);
 
             let term = Term::decl(decl_, arena);
             let ty = arena.build_term_raw(type_usize(0));
@@ -567,20 +575,20 @@ mod tests {
         });
     }
 
-    #[test]
-    fn irrelevance_conversion() {
-        use crate::axiom::false_::False::{False, FalseRec};
-        use crate::axiom::Axiom;
-        use crate::memory::level::Level;
-
-        use_arena(|arena| {
-            let false_ = Term::axiom(Axiom::False(False), &[], arena);
-            let false_rec = Term::axiom(Axiom::False(FalseRec), &[Level::zero(arena)], arena);
-            let tt1 = false_.abs(Term::var(1.into(), false_, arena), arena);
-            let tt2 = false_.abs(false_rec.app(false_, arena).app(Term::var(1.into(), false_, arena), arena), arena);
-            assert!(tt1.conversion(tt2, arena));
-        });
-    }
+    // #[test]
+    // fn irrelevance_conversion() {
+        // use crate::axiom::false_::False::{False, FalseRec};
+        // use crate::axiom::Axiom;
+        // use crate::memory::level::Level;
+// 
+        // use_arena(|arena| {
+            // let false_ = Term::axiom(Axiom::False(False), &[], arena);
+            // let false_rec = Term::axiom(Axiom::False(FalseRec), &[Level::zero(arena)], arena);
+            // let tt1 = false_.abs(Term::var(1.into(), false_, arena), arena);
+            // let tt2 = false_.abs(false_rec.app(false_, arena).app(Term::var(1.into(), false_, arena), arena), arena);
+            // assert!(tt1.conversion(tt2, arena));
+        // });
+    // }
 
     mod failed_type_inference {
         use super::*;
