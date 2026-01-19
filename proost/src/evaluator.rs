@@ -233,9 +233,9 @@ impl<'arena> Evaluator {
                 if let Some(ref type_builder) = *type_builder {
                     let type_ = type_builder.realise(arena).map_err(|err| Kernel(type_builder, err))?;
 
-                    decl.check(type_, arena).map_err(|err| Kernel(decl_builder, err))?;
+                    decl.clone().check(type_, arena).map_err(|err| Kernel(decl_builder, err))?;
                 } else {
-                    decl.infer(arena).map_err(|err| Kernel(decl_builder, err))?;
+                    decl.clone().infer(arena).map_err(|err| Kernel(decl_builder, err))?;
                 }
 
                 arena.bind_decl(s, decl);

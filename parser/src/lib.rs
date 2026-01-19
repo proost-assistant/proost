@@ -3,8 +3,6 @@
 //! Fast parser for λ-terms and commands using pest.
 //! Provides functions to parse files and single commands.
 
-#![feature(box_syntax)]
-#![feature(result_flattening)]
 #![deny(
     clippy::complexity,
     clippy::correctness,

@@ -8,6 +8,7 @@
 
 #![feature(if_let_guard)]
 #![feature(once_cell_try)]
+#![feature(impl_trait_in_assoc_type)]
 #![feature(trait_alias)]
 #![feature(type_alias_impl_trait)]
 #![feature(coverage_attribute)]

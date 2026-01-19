@@ -4,7 +4,6 @@
 //! instructions.
 
 #![doc(html_logo_url = "https://gitlab.crans.org/loutr/proost/-/raw/main/docs/media/logo.png")]
-#![feature(let_chains)]
 #![deny(
     clippy::complexity,
     clippy::correctness,

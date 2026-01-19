@@ -12,7 +12,7 @@ use crate::error::ResultTerm;
 
 pub mod builder;
 
-#[derive(Clone,Copy, Debug, Display, Eq, PartialEq, Hash)]
+#[derive(Clone, Copy, Debug, Display, Eq, PartialEq, Hash)]
 #[display("{ty}")]
 pub struct Constant<'arena> {
     // name: String,
@@ -20,7 +20,7 @@ pub struct Constant<'arena> {
     n_levels : usize
 }
 
-#[derive(Clone, Debug, Display, Eq, PartialEq, Hash)]
+#[derive(Clone, Copy, Debug, Display, Eq, PartialEq, Hash)]
 #[display("{constant}")]
 pub struct Definition<'arena> {
     constant : Constant<'arena>,
@@ -113,7 +113,7 @@ impl<'arena> Declaration<'arena> {
         todo!()
     }
     
-    pub(crate) fn to_constant(self) -> Constant<'arena> {
+    pub(crate) fn to_constant(&self) -> Constant<'arena> {
         match self {
             Declaration::Definition(d)   => return d.constant,
             Declaration::Inductive(d)     => return d.constant,

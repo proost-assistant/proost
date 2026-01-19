@@ -185,7 +185,7 @@ impl<'arena> Term<'arena> {
     /// If `self` cannot be typed, or `ty` is not the type of `self`, this yields the corresponding
     /// error.
     #[inline]
-    pub fn check(self, ty: Self, arena: &mut Arena<'arena>) -> Result<'arena, ()> {
+    pub fn check(&self, ty: Self, arena: &mut Arena<'arena>) -> Result<'arena, ()> {
         let tty = self.infer(arena)?;
 
         tty.conversion(ty, arena)
@@ -216,7 +216,7 @@ impl<'arena> Declaration<'arena> {
     /// If `self` cannot be typed, or `ty` is not the type of `self`, this yields the corresponding
     /// error.
     #[inline]
-    pub fn check(self, ty: Self, arena: &mut Arena<'arena>) -> Result<'arena, ()> {
+    pub fn check(&self, ty: Self, arena: &mut Arena<'arena>) -> Result<'arena, ()> {
         todo!()
         // Declaration::<'arena>::get_type(self).check(ty.0, arena)
     }
