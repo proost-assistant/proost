@@ -8,7 +8,7 @@ use derive_more::Display;
 use super::arena::Arena;
 use super::level::Level;
 use super::term::Term;
-use crate::error::ResultTerm;
+use crate::error::{self, ResultTerm};
 
 pub mod builder;
 
@@ -16,8 +16,8 @@ pub mod builder;
 #[display("{ty}")]
 pub struct Constant<'arena> {
     // name: String,
-    ty : Term<'arena>,
-    n_levels : usize
+    pub ty : Term<'arena>,
+    pub n_levels : usize
 }
 
 #[derive(Clone, Copy, Debug, Display, Eq, PartialEq, Hash)]
@@ -108,7 +108,7 @@ impl<'arena> fmt::Display for InstantiatedDeclaration<'arena> {
 
 impl<'arena> Declaration<'arena> {
     /// Creates a declaration from a pair of arguments.
-    pub(crate) const fn new(term: Term<'arena>, vars: usize) -> Self {
+    pub(crate) const fn new(_term: Term<'arena>, _vars: usize) -> Self {
         // Declaration::Definition(term, vars)
         todo!()
     }
@@ -160,22 +160,18 @@ impl<'arena> InstantiatedDeclaration<'arena> {
 
     /// Returns the term linked to a definition in a given environment.
     #[inline]
-    pub fn get_term(self, arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
-        todo!()
-        // self
-        //     .0
-        //     .header
-        //     .term
-        //     .get_or_try_init(|| todo!())
+    pub fn get_term(self, _arena: &mut Arena<'arena>) -> ResultTerm<'arena> {
+        self.0.header.term.get().copied().ok_or_else(||  error::Error::new(error::Kind::Term(super::term::builder::ErrorKind::ConstNotFound("TODO better error"))))
     }
 
+    /// TODO.
     pub(crate) fn get_type(self, arena: &mut Arena<'arena>) -> Term<'arena> {
-        return self.0.payload.decl.to_constant().ty.substitute_univs(self.0.payload.params, arena)
+        self.0.payload.decl.to_constant().ty.substitute_univs(self.0.payload.params, arena)
     }
 
     /// Tries to type the generic underlying declaration. If it works, returns the type
     /// corresponding to the instantiated declaration, via a universe-variable substitution.
-    pub(crate) fn get_type_or_try_init<F>(self, f: F, arena: &mut Arena<'arena>) -> Term<'arena>
+    pub(crate) fn get_type_or_try_init<F>(self, _f: F, _arena: &mut Arena<'arena>) -> Term<'arena>
     where
         F: FnOnce(Term<'arena>, &mut Arena<'arena>) -> Term<'arena>,
     {

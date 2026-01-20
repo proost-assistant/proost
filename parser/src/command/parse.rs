@@ -152,7 +152,7 @@ fn parse_term(pair: Pair<Rule>) -> Result<term::Builder> {
 }
 
 /// Parses multiple left arguments.
-fn parse_args(pair: Pair<Rule>) -> Result<Vec<(&str, term::Builder)>> {
+fn parse_args(pair: Pair<'_, Rule>) -> Result<Vec<(&str, term::Builder<'_>)>> {
     pair.into_inner()
         .flat_map(|pair| {
             let mut pair = pair.into_inner();
@@ -271,7 +271,7 @@ fn parse_expr(pair: Pair<Rule>) -> Result<Command> {
 /// # Errors
 /// If unsuccessful, the first error that was encountered is returned.
 #[inline]
-pub fn line(line: &str) -> Result<Command> {
+pub fn line(line: &str) -> Result<Command<'_>> {
     CommandParser::parse(Rule::command, line)
         .map_err(std::convert::Into::into)
         .and_then(|mut pairs| parse_expr(pairs.next().unwrap_or_else(|| unreachable!())))

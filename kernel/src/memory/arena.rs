@@ -146,7 +146,7 @@ impl<'arena> Arena<'arena> {
     /// Retrieves the declaration binding of a given name, if one exists.
     #[inline]
     #[must_use]
-    pub fn get_binding_decl(&self, name: &str) -> Option<Declaration<'arena>> {
+    pub fn get_binding_decl(&self, _name: &str) -> Option<Declaration<'arena>> {
         todo!()
         // self.named_decls.get(name).clone()
     }

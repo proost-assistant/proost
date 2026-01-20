@@ -7,7 +7,9 @@ use std::path::{Path, PathBuf};
 use derive_more::Display;
 use elaboration::builder::Buildable;
 use elaboration::location::Location;
+use elaboration::builder::term;
 use kernel::memory::arena::Arena;
+use kernel::memory::term::Term;
 use parser::command::{parse, Command};
 use path_absolutize::Absolutize;
 
@@ -231,11 +233,12 @@ impl<'arena> Evaluator {
                 let decl = decl_builder.realise(arena).map_err(|err| Kernel(decl_builder, err))?;
 
                 if let Some(ref type_builder) = *type_builder {
+                    // Why are we first realising a declaration for the type signature only to then need to look at the generated term ? this makes no sense..
                     let type_ = type_builder.realise(arena).map_err(|err| Kernel(type_builder, err))?;
 
-                    decl.clone().check(type_, arena).map_err(|err| Kernel(decl_builder, err))?;
+                    decl.check(type_, arena).map_err(|err| Kernel(decl_builder, err))?;
                 } else {
-                    decl.clone().infer(arena).map_err(|err| Kernel(decl_builder, err))?;
+                    decl.infer().map_err(|err| Kernel(decl_builder, err))?;
                 }
 
                 arena.bind_decl(s, decl);
